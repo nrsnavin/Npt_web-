@@ -1,0 +1,45 @@
+/** Maps a document status onto a badge colour. Unknown values fall back to slate. */
+const STATUS_COLOURS = {
+  draft: 'slate',
+  sent: 'sky',
+  new: 'sky',
+  contacted: 'sky',
+  qualified: 'indigo',
+  quoted: 'indigo',
+  accepted: 'emerald',
+  converted: 'emerald',
+  won: 'emerald',
+  active: 'emerald',
+  paid: 'emerald',
+  received: 'emerald',
+  completed: 'emerald',
+  dispatched: 'emerald',
+  closed: 'slate',
+  planned: 'amber',
+  released: 'amber',
+  in_progress: 'amber',
+  in_production: 'amber',
+  ready_to_dispatch: 'amber',
+  partially_dispatched: 'amber',
+  partially_received: 'amber',
+  partially_paid: 'amber',
+  unpaid: 'rose',
+  on_hold: 'amber',
+  confirmed: 'sky',
+  rejected: 'rose',
+  lost: 'rose',
+  cancelled: 'rose',
+  expired: 'rose',
+  inactive: 'slate',
+};
+
+const CLASSES = {
+  slate: 'bg-slate-100 text-slate-700 ring-slate-200',
+  sky: 'bg-sky-50 text-sky-700 ring-sky-200',
+  indigo: 'bg-indigo-50 text-indigo-700 ring-indigo-200',
+  emerald: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+  amber: 'bg-amber-50 text-amber-700 ring-amber-200',
+  rose: 'bg-rose-50 text-rose-700 ring-rose-200',
+};
+
+export const statusClass = (status) => CLASSES[STATUS_COLOURS[status]] || CLASSES.slate;
