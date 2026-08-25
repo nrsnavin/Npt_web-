@@ -29,8 +29,8 @@ export default function Materials() {
           header: 'Material',
           render: (row) => (
             <div>
-              <p className="font-medium text-slate-800">{row.name}</p>
-              <p className="text-xs text-slate-400">{row.code}</p>
+              <p className="font-medium text-steel-50">{row.name}</p>
+              <p className="text-xs text-steel-500">{row.code}</p>
             </div>
           ),
         },

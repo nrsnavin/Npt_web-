@@ -59,8 +59,8 @@ export default function LineItemsEditor({
 
   return (
     <div>
-      <div className="overflow-x-auto rounded-lg border border-slate-200">
-        <table className="min-w-full divide-y divide-slate-200 text-sm">
+      <div className="overflow-x-auto rounded-lg border border-white/[0.06]">
+        <table className="min-w-full divide-y divide-white/[0.04] text-sm">
           <thead className="table-head">
             <tr>
               <th className="px-3 py-2">{itemLabel}</th>
@@ -72,7 +72,7 @@ export default function LineItemsEditor({
               <th className="w-10 px-3 py-2" />
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-white/[0.04]">
             {lines.map((line, index) => {
               const gross = (Number(line.quantity) || 0) * (Number(line.unitPrice) || 0);
               const discount = (gross * (Number(line.discountPercent) || 0)) / 100;
@@ -143,7 +143,7 @@ export default function LineItemsEditor({
                   <td className="px-3 py-2 text-center">
                     <button
                       type="button"
-                      className="text-slate-400 hover:text-rose-600"
+                      className="text-steel-500 hover:text-danger-400"
                       onClick={() => onChange(lines.filter((_, position) => position !== index))}
                       disabled={lines.length === 1}
                       aria-label="Remove line"
@@ -169,16 +169,16 @@ export default function LineItemsEditor({
 
         <dl className="min-w-[16rem] space-y-1 text-sm">
           <div className="flex justify-between">
-            <dt className="text-slate-500">Taxable value</dt>
+            <dt className="text-steel-400">Taxable value</dt>
             <dd className="font-medium">{formatCurrency(totals.subtotal)}</dd>
           </div>
           <div className="flex justify-between">
-            <dt className="text-slate-500">Tax</dt>
+            <dt className="text-steel-400">Tax</dt>
             <dd className="font-medium">{formatCurrency(totals.tax)}</dd>
           </div>
-          <div className="flex justify-between border-t border-slate-200 pt-1 text-base">
-            <dt className="font-semibold text-slate-700">Total</dt>
-            <dd className="font-semibold text-slate-900">{formatCurrency(totals.total)}</dd>
+          <div className="flex justify-between border-t border-white/[0.06] pt-1 text-base">
+            <dt className="font-semibold text-steel-200">Total</dt>
+            <dd className="font-semibold text-steel-50">{formatCurrency(totals.total)}</dd>
           </div>
         </dl>
       </div>

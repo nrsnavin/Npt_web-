@@ -83,7 +83,7 @@ function LeadForm({ lead, onSubmit, onClose, saving, error }) {
         </Field>
       </div>
 
-      {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error.message}</p>}
+      {error && <p className="rounded-lg bg-danger-500/10 px-3 py-2 text-sm text-danger-400">{error.message}</p>}
 
       <div className="flex justify-end gap-2 pt-2">
         <button type="button" className="btn-secondary" onClick={onClose}>
@@ -117,8 +117,8 @@ export default function Leads() {
       header: 'Company',
       render: (row) => (
         <div>
-          <p className="font-medium text-slate-800">{row.company}</p>
-          <p className="text-xs text-slate-400">{row.contactName || '—'}</p>
+          <p className="font-medium text-steel-50">{row.company}</p>
+          <p className="text-xs text-steel-500">{row.contactName || '—'}</p>
         </div>
       ),
     },
@@ -143,16 +143,16 @@ export default function Leads() {
       render: (row) =>
         canEdit ? (
           <div className="flex justify-end gap-2">
-            <button type="button" className="text-sm text-brand-600 hover:underline" onClick={() => setActivityFor(row)}>
+            <button type="button" className="row-action" onClick={() => setActivityFor(row)}>
               Log
             </button>
-            <button type="button" className="text-sm text-brand-600 hover:underline" onClick={() => setEditing(row)}>
+            <button type="button" className="row-action" onClick={() => setEditing(row)}>
               Edit
             </button>
             {!row.convertedCustomer && (
               <button
                 type="button"
-                className="text-sm text-emerald-600 hover:underline"
+                className="row-action"
                 onClick={() => setConverting(row)}
               >
                 Convert
@@ -275,21 +275,21 @@ function ActivityModal({ lead, onClose, onSaved }) {
           </Field>
 
           {lead.activities?.length > 0 && (
-            <div className="max-h-40 space-y-2 overflow-y-auto rounded-lg bg-slate-50 p-3">
+            <div className="max-h-40 space-y-2 overflow-y-auto rounded-lg bg-white/[0.04] p-3">
               {lead.activities
                 .slice()
                 .reverse()
                 .map((activity) => (
                   <div key={activity._id} className="text-xs">
-                    <span className="font-medium text-slate-700">{humanise(activity.type)}</span>
-                    <span className="text-slate-400"> · {formatDate(activity.occurredAt)}</span>
-                    <p className="text-slate-600">{activity.summary}</p>
+                    <span className="font-medium text-steel-200">{humanise(activity.type)}</span>
+                    <span className="text-steel-500"> · {formatDate(activity.occurredAt)}</span>
+                    <p className="text-steel-300">{activity.summary}</p>
                   </div>
                 ))}
             </div>
           )}
 
-          {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
+          {error && <p className="rounded-lg bg-danger-500/10 px-3 py-2 text-sm text-danger-400">{error}</p>}
 
           <div className="flex justify-end gap-2">
             <button type="button" className="btn-secondary" onClick={onClose}>
@@ -334,8 +334,8 @@ function ConvertModal({ lead, onClose, onSaved }) {
     <Modal open={Boolean(lead)} title="Convert lead to customer" onClose={onClose} size="sm">
       {lead && (
         <form onSubmit={handleSubmit(submit)} className="space-y-4">
-          <p className="text-sm text-slate-500">
-            Creates a customer record from <span className="font-medium text-slate-700">{lead.company}</span> and marks
+          <p className="text-sm text-steel-400">
+            Creates a customer record from <span className="font-medium text-steel-200">{lead.company}</span> and marks
             the lead won.
           </p>
           <Field label="Customer code" hint="Leave blank to derive it from the company name">
@@ -353,7 +353,7 @@ function ConvertModal({ lead, onClose, onSaved }) {
             </Field>
           </div>
 
-          {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
+          {error && <p className="rounded-lg bg-danger-500/10 px-3 py-2 text-sm text-danger-400">{error}</p>}
 
           <div className="flex justify-end gap-2">
             <button type="button" className="btn-secondary" onClick={onClose}>

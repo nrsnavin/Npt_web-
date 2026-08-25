@@ -107,7 +107,7 @@ export default function PurchaseOrders() {
               const ordered = row.lines.reduce((sum, line) => sum + line.quantity, 0);
               const received = row.lines.reduce((sum, line) => sum + (line.quantityReceived || 0), 0);
               const percent = ordered ? Math.round((received / ordered) * 100) : 0;
-              return <span className="text-xs text-slate-600">{percent}%</span>;
+              return <span className="text-xs text-steel-300">{percent}%</span>;
             },
           },
           {
@@ -125,7 +125,7 @@ export default function PurchaseOrders() {
               can('inventory') && !['received', 'cancelled'].includes(row.status) ? (
                 <button
                   type="button"
-                  className="text-sm text-emerald-600 hover:underline"
+                  className="row-action"
                   onClick={() => setReceiving(row)}
                 >
                   Receive
@@ -205,7 +205,7 @@ export default function PurchaseOrders() {
           />
 
           {formError && (
-            <div className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
+            <div className="rounded-lg bg-danger-500/10 px-3 py-2 text-sm text-danger-400">
               <p>{formError.message}</p>
               {formError.details?.map((detail) => (
                 <p key={detail.field} className="text-xs">
@@ -267,18 +267,18 @@ function ReceiveModal({ order, onClose, onDone }) {
     <Modal open={Boolean(order)} title="Receive material" onClose={close} size="sm">
       {order && (
         <div className="space-y-4">
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-steel-300">
             Books the pending quantity of every line into the raw material store at the PO rate, updating the
             weighted average cost.
           </p>
 
-          <ul className="space-y-1 rounded-lg border border-slate-200 p-3 text-sm">
+          <ul className="space-y-1 rounded-lg border border-white/[0.06] p-3 text-sm">
             {order.lines.map((line, index) => {
               const pending = line.quantity - (line.quantityReceived || 0);
               return (
                 <li key={index} className="flex justify-between">
-                  <span className="text-slate-700">{line.material?.name || 'Material'}</span>
-                  <span className={pending > 0 ? 'font-medium' : 'text-slate-400'}>
+                  <span className="text-steel-200">{line.material?.name || 'Material'}</span>
+                  <span className={pending > 0 ? 'font-medium' : 'text-steel-500'}>
                     {formatNumber(pending)} {line.material?.uom || ''} pending
                   </span>
                 </li>
@@ -286,8 +286,8 @@ function ReceiveModal({ order, onClose, onDone }) {
             })}
           </ul>
 
-          {result && <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{result}</p>}
-          {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
+          {result && <p className="rounded-lg bg-success-500/10 px-3 py-2 text-sm text-success-400">{result}</p>}
+          {error && <p className="rounded-lg bg-danger-500/10 px-3 py-2 text-sm text-danger-400">{error}</p>}
 
           <div className="flex justify-end gap-2">
             <button type="button" className="btn-secondary" onClick={close}>

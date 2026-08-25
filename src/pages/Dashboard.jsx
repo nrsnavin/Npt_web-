@@ -14,32 +14,70 @@ import { dashboard, invoices, leads, productionOrders, stock } from '../api/endp
 import { PageHeader, Spinner, Badge } from '../components/ui.jsx';
 import { formatCompactCurrency, formatCurrency, formatNumber, humanise } from '../utils/format.js';
 
+/** Pipeline stages warm up as they approach a win, so the funnel reads left to right. */
 const STAGE_COLOURS = {
-  new: '#94a3b8',
-  contacted: '#38bdf8',
-  qualified: '#6366f1',
-  quoted: '#8b5cf6',
-  won: '#10b981',
-  lost: '#f43f5e',
+  new: '#3C5C6B',
+  contacted: '#2C94A5',
+  qualified: '#36B5C9',
+  quoted: '#F5B14A',
+  won: '#22C07A',
+  lost: '#F0455B',
 };
 
-function StatCard({ label, value, sublabel, to, tone = 'slate' }) {
+/** Shared Recharts styling for the dark canvas. */
+const AXIS = { fontSize: 11, fill: '#78858D', fontWeight: 600 };
+
+/** Funnel order, so the pipeline chart reads top to bottom as a lead actually progresses. */
+const STAGE_ORDER = ['new', 'contacted', 'qualified', 'quoted', 'won', 'lost'];
+const byFunnelOrder = (rows = []) =>
+  [...rows].sort((a, b) => STAGE_ORDER.indexOf(a.stage) - STAGE_ORDER.indexOf(b.stage));
+const GRID_STROKE = 'rgba(255,255,255,0.05)';
+const TOOLTIP_STYLE = {
+  borderRadius: 10,
+  border: '1px solid rgba(255,255,255,0.1)',
+  background: '#17262F',
+  boxShadow: '0 12px 32px rgba(0,0,0,0.5)',
+  fontSize: 12,
+  color: '#E9F0F4',
+};
+const TOOLTIP_CURSOR = { fill: 'rgba(255,255,255,0.04)' };
+
+function StatCard({ label, value, sublabel, to, tone = 'neutral' }) {
   const tones = {
-    slate: 'text-slate-900',
-    emerald: 'text-emerald-600',
-    amber: 'text-amber-600',
-    rose: 'text-rose-600',
+    neutral: 'text-steel-50',
+    success: 'text-success-400',
+    warn: 'text-warn-400',
+    danger: 'text-danger-400',
   };
 
   const content = (
-    <div className="card h-full p-5 transition-shadow hover:shadow-md">
-      <p className="text-sm text-slate-500">{label}</p>
-      <p className={`mt-2 text-2xl font-semibold ${tones[tone]}`}>{value}</p>
-      {sublabel && <p className="mt-1 text-xs text-slate-400">{sublabel}</p>}
+    <div className={`h-full p-5 ${to ? 'card-interactive' : 'card'}`}>
+      <p className="eyebrow">{label}</p>
+      <p className={`stat-value mt-3 ${tones[tone]}`}>{value}</p>
+      {sublabel && <p className="mt-2 text-xs text-steel-400">{sublabel}</p>}
     </div>
   );
 
-  return to ? <Link to={to}>{content}</Link> : content;
+  return to ? (
+    <Link to={to} className="block rounded-xl">
+      {content}
+    </Link>
+  ) : (
+    content
+  );
+}
+
+/** Card wrapper for the chart and list panels, so every block shares one rhythm. */
+function Panel({ title, action, children, className = '' }) {
+  return (
+    <section className={`card p-5 ${className}`}>
+      <div className="mb-5 flex items-center justify-between gap-3">
+        <h2 className="text-[0.9375rem] font-bold tracking-tight text-steel-50">{title}</h2>
+        {action}
+      </div>
+      {children}
+    </section>
+  );
 }
 
 export default function Dashboard() {
@@ -65,89 +103,118 @@ export default function Dashboard() {
       <PageHeader
         title="Dashboard"
         subtitle="Sales, production and stock at a glance"
+        actions={
+          <span className="hidden items-center gap-2 rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 py-1.5 text-xs font-semibold text-steel-400 sm:inline-flex">
+            <span className="h-1.5 w-1.5 rounded-full bg-success-500" />
+            Live
+          </span>
+        }
       />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Sales this month"
           value={formatCompactCurrency(stats.salesThisMonth)}
-          sublabel={`${formatNumber(stats.ordersThisMonth)} orders booked`}
+          sublabel={`${formatNumber(stats.ordersThisMonth)} ${
+            stats.ordersThisMonth === 1 ? 'order' : 'orders'
+          } booked`}
           to="/sales-orders"
         />
         <StatCard
           label="Receivables"
           value={formatCompactCurrency(stats.receivables)}
           sublabel={overdue > 0 ? `${formatCompactCurrency(overdue)} overdue` : 'Nothing overdue'}
-          tone={overdue > 0 ? 'rose' : 'emerald'}
+          tone={overdue > 0 ? 'danger' : 'success'}
           to="/invoices"
         />
         <StatCard
           label="Open sales orders"
           value={formatNumber(stats.openSalesOrders)}
-          sublabel={`${formatNumber(stats.activeProductionOrders)} production orders running`}
+          sublabel={`${formatNumber(stats.activeProductionOrders)} production ${
+            stats.activeProductionOrders === 1 ? 'order' : 'orders'
+          } running`}
           to="/sales-orders"
         />
         <StatCard
           label="Stock value"
           value={formatCompactCurrency(stats.stockValue)}
-          sublabel={`${formatNumber(reorder.data?.length || 0)} items below reorder level`}
-          tone={reorder.data?.length ? 'amber' : 'slate'}
+          sublabel={`${formatNumber(reorder.data?.length || 0)} ${
+            reorder.data?.length === 1 ? 'item' : 'items'
+          } below reorder level`}
+          tone={reorder.data?.length ? 'warn' : 'neutral'}
           to="/inventory"
         />
       </div>
 
       <div className="mt-6 grid gap-4 lg:grid-cols-3">
         <div className="card p-5 lg:col-span-2">
-          <h2 className="mb-4 text-base font-semibold text-slate-800">Order value — last 6 months</h2>
+          <h2 className="mb-4 text-base font-semibold text-steel-50">Order value — last 6 months</h2>
           {trend.isLoading ? (
             <Spinner />
           ) : (
             <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={trend.data || []}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#64748b' }} axisLine={false} tickLine={false} />
+              <BarChart data={trend.data || []} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="barFlame" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#FF8124" />
+                    <stop offset="100%" stopColor="#D95A00" />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={GRID_STROKE} />
+                <XAxis dataKey="month" tick={AXIS} axisLine={false} tickLine={false} />
                 <YAxis
                   tickFormatter={formatCompactCurrency}
-                  tick={{ fontSize: 12, fill: '#64748b' }}
+                  tick={AXIS}
                   axisLine={false}
                   tickLine={false}
                   width={70}
                 />
                 <Tooltip
-                  formatter={(value) => formatCurrency(value)}
-                  contentStyle={{ borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13 }}
+                  formatter={(value) => [formatCurrency(value), 'Booked']}
+                  contentStyle={TOOLTIP_STYLE}
+                  labelStyle={{ color: '#A3B3BD', fontWeight: 700, marginBottom: 2 }}
+                  cursor={TOOLTIP_CURSOR}
                 />
-                <Bar dataKey="value" fill="#3182f6" radius={[6, 6, 0, 0]} maxBarSize={56} />
+                <Bar dataKey="value" fill="url(#barFlame)" radius={[5, 5, 0, 0]} maxBarSize={52} />
               </BarChart>
             </ResponsiveContainer>
           )}
         </div>
 
         <div className="card p-5">
-          <h2 className="mb-4 text-base font-semibold text-slate-800">Lead pipeline</h2>
+          <h2 className="mb-4 text-base font-semibold text-steel-50">Lead pipeline</h2>
           {pipeline.isLoading ? (
             <Spinner />
           ) : (
             <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={pipeline.data || []} layout="vertical" margin={{ left: 10 }}>
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
-                <XAxis type="number" tick={{ fontSize: 12, fill: '#64748b' }} axisLine={false} tickLine={false} />
+              <BarChart
+                data={byFunnelOrder(pipeline.data)}
+                layout="vertical"
+                margin={{ top: 4, right: 8, left: 0, bottom: 0 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={GRID_STROKE} />
+                <XAxis type="number" tick={AXIS} axisLine={false} tickLine={false} allowDecimals={false} />
                 <YAxis
                   type="category"
                   dataKey="stage"
                   tickFormatter={humanise}
-                  tick={{ fontSize: 12, fill: '#64748b' }}
+                  tick={AXIS}
                   axisLine={false}
                   tickLine={false}
                   width={80}
                 />
                 <Tooltip
-                  formatter={(value, name) => (name === 'value' ? formatCurrency(value) : value)}
-                  contentStyle={{ borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13 }}
+                  formatter={(value, name) =>
+                    name === 'value' ? [formatCurrency(value), 'Value'] : [value, 'Leads']
+                  }
+                  labelFormatter={humanise}
+                  contentStyle={TOOLTIP_STYLE}
+                  labelStyle={{ color: '#A3B3BD', fontWeight: 700, marginBottom: 2 }}
+                  cursor={TOOLTIP_CURSOR}
                 />
-                <Bar dataKey="count" radius={[0, 6, 6, 0]} maxBarSize={26}>
-                  {(pipeline.data || []).map((entry) => (
-                    <Cell key={entry.stage} fill={STAGE_COLOURS[entry.stage] || '#94a3b8'} />
+                <Bar dataKey="count" radius={[0, 5, 5, 0]} maxBarSize={22}>
+                  {byFunnelOrder(pipeline.data).map((entry) => (
+                    <Cell key={entry.stage} fill={STAGE_COLOURS[entry.stage] || '#3C5C6B'} />
                   ))}
                 </Bar>
               </BarChart>
@@ -157,69 +224,94 @@ export default function Dashboard() {
       </div>
 
       <div className="mt-6 grid gap-4 lg:grid-cols-3">
-        <div className="card p-5">
-          <h2 className="mb-4 text-base font-semibold text-slate-800">Top selling hangers</h2>
+        <Panel title="Top selling hangers">
           {top.data?.length ? (
-            <ul className="space-y-3">
-              {top.data.map((row) => (
-                <li key={row.product?._id || row.product?.sku} className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-slate-800">
+            <ol className="space-y-3.5">
+              {top.data.map((row, index) => (
+                <li key={row.product?._id || row.product?.sku} className="flex items-center gap-3">
+                  <span className="w-4 shrink-0 text-xs font-bold tabular-nums text-steel-500">
+                    {index + 1}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[0.8125rem] font-semibold text-steel-100">
                       {row.product?.name || 'Unknown product'}
                     </p>
-                    <p className="text-xs text-slate-400">
+                    <p className="mt-0.5 text-xs text-steel-500">
                       {row.product?.sku} · {formatNumber(row.quantity)} pcs
                     </p>
                   </div>
-                  <span className="shrink-0 text-sm font-semibold text-slate-700">
+                  <span className="shrink-0 text-[0.8125rem] font-bold tabular-nums text-steel-100">
                     {formatCompactCurrency(row.value)}
                   </span>
                 </li>
               ))}
-            </ul>
+            </ol>
           ) : (
-            <p className="text-sm text-slate-500">No orders booked yet.</p>
+            <p className="text-sm text-steel-400">No orders booked yet.</p>
           )}
-        </div>
+        </Panel>
 
-        <div className="card p-5">
-          <h2 className="mb-4 text-base font-semibold text-slate-800">Production workload</h2>
+        <Panel title="Production workload">
           {workload.data?.length ? (
-            <ul className="space-y-3">
-              {workload.data.map((row) => (
-                <li key={row.status} className="flex items-center justify-between gap-3">
-                  <Badge status={row.status} />
-                  <span className="text-sm text-slate-600">
-                    {row.orders} orders · {formatNumber(row.producedUnits)}/{formatNumber(row.plannedUnits)} pcs
-                  </span>
-                </li>
-              ))}
+            <ul className="space-y-4">
+              {workload.data.map((row) => {
+                const percent = row.plannedUnits
+                  ? Math.min(Math.round((row.producedUnits / row.plannedUnits) * 100), 100)
+                  : 0;
+                return (
+                  <li key={row.status}>
+                    <div className="mb-1.5 flex items-center justify-between gap-3">
+                      <Badge status={row.status} />
+                      <span className="text-xs tabular-nums text-steel-400">
+                        {row.orders} {row.orders === 1 ? 'order' : 'orders'} ·{' '}
+                        {formatNumber(row.producedUnits)}/{formatNumber(row.plannedUnits)}
+                      </span>
+                    </div>
+                    <div className="h-1 overflow-hidden rounded-full bg-white/[0.07]">
+                      <div
+                        className="h-full rounded-full bg-flame-500 transition-all duration-500"
+                        style={{ width: `${percent}%` }}
+                      />
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           ) : (
-            <p className="text-sm text-slate-500">Nothing on the shop floor.</p>
+            <p className="text-sm text-steel-400">Nothing on the shop floor.</p>
           )}
-        </div>
+        </Panel>
 
-        <div className="card p-5">
-          <h2 className="mb-4 text-base font-semibold text-slate-800">Reorder alerts</h2>
+        <Panel
+          title="Reorder alerts"
+          action={
+            reorder.data?.length ? (
+              <Badge tone="progress">{reorder.data.length} low</Badge>
+            ) : null
+          }
+        >
           {reorder.data?.length ? (
-            <ul className="space-y-3">
+            <ul className="space-y-3.5">
               {reorder.data.slice(0, 6).map((row) => (
-                <li key={`${row.itemType}-${row.id}`} className="flex items-start justify-between gap-3">
+                <li key={`${row.itemType}-${row.id}`} className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-slate-800">{row.name}</p>
-                    <p className="text-xs text-slate-400">{row.code}</p>
+                    <p className="truncate text-[0.8125rem] font-semibold text-steel-100">{row.name}</p>
+                    <p className="mt-0.5 text-xs text-steel-500">{row.code}</p>
                   </div>
-                  <span className="shrink-0 text-sm font-medium text-amber-600">
-                    {formatNumber(row.quantity)} / {formatNumber(row.reorderLevel)} {row.uom}
+                  <span className="shrink-0 text-[0.8125rem] font-bold tabular-nums text-warn-400">
+                    {formatNumber(row.quantity)}
+                    <span className="font-medium text-steel-500">
+                      {' '}
+                      / {formatNumber(row.reorderLevel)} {row.uom}
+                    </span>
                   </span>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-slate-500">Every item is above its reorder level.</p>
+            <p className="text-sm text-steel-400">Every item is above its reorder level.</p>
           )}
-        </div>
+        </Panel>
       </div>
     </div>
   );

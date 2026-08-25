@@ -1,45 +1,62 @@
-/** Maps a document status onto a badge colour. Unknown values fall back to slate. */
-const STATUS_COLOURS = {
-  draft: 'slate',
-  sent: 'sky',
-  new: 'sky',
-  contacted: 'sky',
-  qualified: 'indigo',
-  quoted: 'indigo',
-  accepted: 'emerald',
-  converted: 'emerald',
-  won: 'emerald',
-  active: 'emerald',
-  paid: 'emerald',
-  received: 'emerald',
-  completed: 'emerald',
-  dispatched: 'emerald',
-  closed: 'slate',
-  planned: 'amber',
-  released: 'amber',
-  in_progress: 'amber',
-  in_production: 'amber',
-  ready_to_dispatch: 'amber',
-  partially_dispatched: 'amber',
-  partially_received: 'amber',
-  partially_paid: 'amber',
-  unpaid: 'rose',
-  on_hold: 'amber',
-  confirmed: 'sky',
-  rejected: 'rose',
-  lost: 'rose',
-  cancelled: 'rose',
-  expired: 'rose',
-  inactive: 'slate',
+/**
+ * Status badge colours, tuned for the dark canvas: a translucent tint of the hue
+ * plus a matching hairline, so badges read as part of the surface rather than
+ * stickers on top of it. Unknown values fall back to neutral.
+ */
+const STATUS_TONES = {
+  // Neutral — nothing is happening yet, or the document is finished and filed.
+  draft: 'neutral',
+  closed: 'neutral',
+  inactive: 'neutral',
+
+  // Informational — moving, but no action needed from us.
+  sent: 'info',
+  new: 'info',
+  contacted: 'info',
+  confirmed: 'info',
+  qualified: 'info',
+  quoted: 'info',
+
+  // In flight — work is underway.
+  planned: 'progress',
+  released: 'progress',
+  in_progress: 'progress',
+  in_production: 'progress',
+  ready_to_dispatch: 'progress',
+  partially_dispatched: 'progress',
+  partially_received: 'progress',
+  partially_paid: 'progress',
+  on_hold: 'progress',
+
+  // Resolved well.
+  accepted: 'success',
+  converted: 'success',
+  won: 'success',
+  active: 'success',
+  paid: 'success',
+  received: 'success',
+  completed: 'success',
+  dispatched: 'success',
+
+  // Needs attention or ended badly.
+  unpaid: 'danger',
+  rejected: 'danger',
+  lost: 'danger',
+  cancelled: 'danger',
+  expired: 'danger',
 };
 
-const CLASSES = {
-  slate: 'bg-slate-100 text-slate-700 ring-slate-200',
-  sky: 'bg-sky-50 text-sky-700 ring-sky-200',
-  indigo: 'bg-indigo-50 text-indigo-700 ring-indigo-200',
-  emerald: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
-  amber: 'bg-amber-50 text-amber-700 ring-amber-200',
-  rose: 'bg-rose-50 text-rose-700 ring-rose-200',
+const TONE_CLASSES = {
+  neutral: 'bg-white/[0.06] text-steel-300 ring-white/10',
+  info: 'bg-aqua-500/15 text-aqua-300 ring-aqua-500/25',
+  progress: 'bg-warn-500/15 text-warn-400 ring-warn-500/25',
+  success: 'bg-success-500/15 text-success-400 ring-success-500/25',
+  danger: 'bg-danger-500/15 text-danger-400 ring-danger-500/25',
+  accent: 'bg-flame-500/15 text-flame-400 ring-flame-500/30',
 };
 
-export const statusClass = (status) => CLASSES[STATUS_COLOURS[status]] || CLASSES.slate;
+export const statusTone = (status) => STATUS_TONES[status] || 'neutral';
+
+export const statusClass = (status) => TONE_CLASSES[statusTone(status)];
+
+export const toneClass = (tone) => TONE_CLASSES[tone] || TONE_CLASSES.neutral;

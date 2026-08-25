@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
-import { Field } from '../components/ui.jsx';
+import { Field, Notice } from '../components/ui.jsx';
+import { Wordmark } from '../components/Layout.jsx';
 
 const RESEND_SECONDS = 60;
 
@@ -13,14 +14,24 @@ function Tabs({ mode, onChange }) {
   ];
 
   return (
-    <div className="mb-5 grid grid-cols-2 gap-1 rounded-lg bg-slate-100 p-1">
+    <div
+      role="tablist"
+      aria-label="Sign-in method"
+      className="mb-6 grid grid-cols-2 gap-1 rounded-lg border border-white/[0.06] bg-ink-950/50 p-1"
+    >
       {tabs.map((tab) => (
         <button
           key={tab.id}
           type="button"
+          role="tab"
+          id={`signin-tab-${tab.id}`}
+          aria-selected={mode === tab.id}
+          aria-controls={`signin-panel-${tab.id}`}
           onClick={() => onChange(tab.id)}
-          className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-            mode === tab.id ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+          className={`rounded-md px-3 py-2 text-[0.8125rem] font-semibold tracking-tight transition-all duration-150 ${
+            mode === tab.id
+              ? 'bg-white/[0.08] text-steel-50 shadow-raised'
+              : 'text-steel-400 hover:text-steel-200'
           }`}
         >
           {tab.label}
@@ -163,19 +174,19 @@ function OtpForm({ onError }) {
 
   return (
     <form onSubmit={verify} className="space-y-4">
-      <p className="text-sm text-slate-600">
+      <p className="text-sm leading-relaxed text-steel-300">
         Enter the {sent?.channel === 'sms' ? 'code we texted to' : 'code we emailed to'}{' '}
-        <span className="font-medium text-slate-800">{sent?.maskedIdentifier || identifier}</span>.
+        <span className="font-semibold text-steel-50">{sent?.maskedIdentifier || identifier}</span>.
       </p>
 
       <Field label="Verification code">
         <input
           ref={codeInput}
-          className="input text-center text-lg tracking-[0.4em]"
+          className="input py-3 text-center font-mono text-xl font-bold tracking-[0.5em] text-steel-50"
           inputMode="numeric"
           autoComplete="one-time-code"
           maxLength={8}
-          placeholder="······"
+          placeholder="000000"
           value={code}
           onChange={(event) => setCode(event.target.value.replace(/\D/g, ''))}
           required
@@ -183,20 +194,22 @@ function OtpForm({ onError }) {
       </Field>
 
       {sent?.devCode && (
-        <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
-          Development mode — no email or SMS provider is configured. Your code is{' '}
-          <span className="font-mono font-semibold">{sent.devCode}</span>.
-        </p>
+        <Notice tone="warn">
+          <span className="text-xs">
+            Development mode — no email or SMS provider is configured. Your code is{' '}
+            <span className="font-mono text-sm font-bold tracking-widest text-warn-400">{sent.devCode}</span>.
+          </span>
+        </Notice>
       )}
 
       <button type="submit" className="btn-primary w-full" disabled={busy || code.length < 4}>
         {busy ? 'Verifying…' : 'Verify and sign in'}
       </button>
 
-      <div className="flex items-center justify-between text-sm">
+      <div className="flex items-center justify-between gap-3 text-sm">
         <button
           type="button"
-          className="text-slate-500 hover:text-slate-700"
+          className="link-muted"
           onClick={() => {
             setStep('identifier');
             setCode('');
@@ -209,7 +222,7 @@ function OtpForm({ onError }) {
 
         <button
           type="button"
-          className="text-brand-600 hover:underline disabled:text-slate-400 disabled:no-underline"
+          className="link-action disabled:text-steel-500"
           disabled={secondsLeft > 0 || busy}
           onClick={send}
         >
@@ -293,18 +306,64 @@ export default function Login() {
   const registering = mode === 'register';
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-900 px-4 py-10">
-      <div className="w-full max-w-md">
-        <div className="mb-6 text-center">
-          <h1 className="text-2xl font-bold text-white">NPT Hangers</h1>
-          <p className="mt-1 text-sm text-slate-400">CRM &amp; ERP for the plant floor and the sales desk</p>
+    <div className="grid min-h-screen lg:grid-cols-[1.1fr_minmax(0,32rem)]">
+      {/* Brand panel — the story side. Hidden on small screens where it would only cost scroll. */}
+      <aside className="relative hidden overflow-hidden border-r border-white/[0.06] bg-ink-850 p-12 lg:flex lg:flex-col">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -left-40 -top-40 h-[34rem] w-[34rem] rounded-full bg-flame-500/[0.13] blur-3xl"
+        />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -bottom-52 -right-32 h-[30rem] w-[30rem] rounded-full bg-aqua-500/[0.10] blur-3xl"
+        />
+
+        <div className="relative">
+          <Wordmark />
         </div>
 
-        <div className="card p-6">
-          <h2 className="mb-1 text-lg font-semibold text-slate-900">
+        <div className="relative mt-auto max-w-lg">
+          <p className="eyebrow mb-5 text-flame-500">Since 2004</p>
+          <h1 className="text-[2.75rem] font-extrabold leading-[1.05] tracking-tighter text-white">
+            A hanger expert
+            <br />
+            you can{' '}
+            <span className="bg-gradient-to-r from-flame-400 to-flame-600 bg-clip-text text-transparent">
+              hang onto
+            </span>
+            .
+          </h1>
+          <p className="mt-5 text-[0.9375rem] leading-relaxed text-steel-300">
+            India's largest hanger manufacturer by volume. One console for the sales desk, the
+            moulding floor, the stores and the ledger.
+          </p>
+
+          <dl className="mt-10 grid grid-cols-3 gap-6 border-t border-white/[0.08] pt-7">
+            {[
+              ['600+', 'Moulds'],
+              ['20 yrs', 'Manufacturing'],
+              ['GRS', 'Certified recycled'],
+            ].map(([value, label]) => (
+              <div key={label}>
+                <dt className="text-xl font-extrabold tracking-tight text-white">{value}</dt>
+                <dd className="mt-0.5 text-xs font-medium text-steel-400">{label}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      </aside>
+
+      {/* Form panel. */}
+      <main className="flex items-center justify-center px-5 py-10 sm:px-10">
+        <div className="w-full max-w-sm animate-fade-up">
+          <div className="mb-8 lg:hidden">
+            <Wordmark />
+          </div>
+
+          <h2 className="text-[1.75rem] font-extrabold tracking-tighter text-steel-50">
             {registering ? 'Create an account' : 'Sign in'}
           </h2>
-          <p className="mb-5 text-sm text-slate-500">
+          <p className="mb-7 mt-1.5 text-sm leading-relaxed text-steel-400">
             {registering
               ? 'The first account created becomes the administrator.'
               : 'Use your password, or have a code sent to your email or phone.'}
@@ -320,26 +379,39 @@ export default function Login() {
             />
           )}
 
-          {mode === 'password' && <PasswordForm onError={setError} />}
-          {mode === 'otp' && <OtpForm onError={setError} />}
-          {registering && <RegisterForm onError={setError} />}
-
-          {error && (
-            <p className="mt-4 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>
+          {registering ? (
+            <RegisterForm onError={setError} />
+          ) : (
+            <div
+              role="tabpanel"
+              id={`signin-panel-${mode}`}
+              aria-labelledby={`signin-tab-${mode}`}
+            >
+              {mode === 'password' ? <PasswordForm onError={setError} /> : <OtpForm onError={setError} />}
+            </div>
           )}
 
-          <button
-            type="button"
-            className="mt-4 w-full text-sm text-brand-600 hover:underline"
-            onClick={() => {
-              setMode(registering ? 'password' : 'register');
-              setError(null);
-            }}
-          >
-            {registering ? 'Already registered? Sign in' : 'Need an account? Register'}
-          </button>
+          {error && (
+            <div className="mt-4">
+              <Notice tone="danger">{error}</Notice>
+            </div>
+          )}
+
+          <p className="mt-8 border-t border-white/[0.06] pt-5 text-center text-sm text-steel-400">
+            {registering ? 'Already registered?' : 'Need an account?'}{' '}
+            <button
+              type="button"
+              className="link-action"
+              onClick={() => {
+                setMode(registering ? 'password' : 'register');
+                setError(null);
+              }}
+            >
+              {registering ? 'Sign in' : 'Register'}
+            </button>
+          </p>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

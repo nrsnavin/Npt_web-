@@ -37,8 +37,8 @@ export default function Products() {
           header: 'SKU',
           render: (row) => (
             <div>
-              <p className="font-medium text-slate-800">{row.name}</p>
-              <p className="text-xs text-slate-400">{row.sku}</p>
+              <p className="font-medium text-steel-50">{row.name}</p>
+              <p className="text-xs text-steel-500">{row.sku}</p>
             </div>
           ),
         },
@@ -47,7 +47,7 @@ export default function Products() {
           key: 'spec',
           header: 'Spec',
           render: (row) => (
-            <span className="text-xs text-slate-600">
+            <span className="text-xs text-steel-300">
               {humanise(row.material)} · {row.sizeMm}mm · {row.color}
             </span>
           ),
@@ -75,7 +75,7 @@ export default function Products() {
           header: 'Cost',
           className: 'text-right',
           render: (row) => (
-            <span className="text-slate-500">{formatCurrency(row.standardCost)}</span>
+            <span className="text-steel-400">{formatCurrency(row.standardCost)}</span>
           ),
         },
         {
@@ -86,7 +86,7 @@ export default function Products() {
             if (!row.unitPrice) return '—';
             const margin = ((row.unitPrice - row.standardCost) / row.unitPrice) * 100;
             return (
-              <span className={margin < 20 ? 'font-medium text-amber-600' : 'text-emerald-600'}>
+              <span className={margin < 20 ? 'font-medium text-warn-400' : 'text-success-400'}>
                 {margin.toFixed(1)}%
               </span>
             );

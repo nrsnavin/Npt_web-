@@ -28,8 +28,8 @@ export default function Suppliers() {
           header: 'Supplier',
           render: (row) => (
             <div>
-              <p className="font-medium text-slate-800">{row.name}</p>
-              <p className="text-xs text-slate-400">{row.code}</p>
+              <p className="font-medium text-steel-50">{row.name}</p>
+              <p className="text-xs text-steel-500">{row.code}</p>
             </div>
           ),
         },
@@ -41,7 +41,7 @@ export default function Suppliers() {
           render: (row) => (
             <div className="text-xs">
               <p>{row.email || '—'}</p>
-              <p className="text-slate-400">{row.phone || '—'}</p>
+              <p className="text-steel-500">{row.phone || '—'}</p>
             </div>
           ),
         },

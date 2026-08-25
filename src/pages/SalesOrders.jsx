@@ -133,8 +133,8 @@ export default function SalesOrders() {
             header: 'Order',
             render: (row) => (
               <div>
-                <p className="font-medium text-slate-800">{row.number}</p>
-                {row.customerPoNumber && <p className="text-xs text-slate-400">PO {row.customerPoNumber}</p>}
+                <p className="font-medium text-steel-50">{row.number}</p>
+                {row.customerPoNumber && <p className="text-xs text-steel-500">PO {row.customerPoNumber}</p>}
               </div>
             ),
           },
@@ -148,13 +148,13 @@ export default function SalesOrders() {
               const percent = fulfilment(row);
               return (
                 <div className="flex items-center gap-2">
-                  <div className="h-1.5 w-20 overflow-hidden rounded-full bg-slate-200">
+                  <div className="h-1.5 w-20 overflow-hidden rounded-full bg-white/[0.08]">
                     <div
-                      className={`h-full rounded-full ${percent === 100 ? 'bg-emerald-500' : 'bg-brand-500'}`}
+                      className={`h-full rounded-full ${percent === 100 ? 'bg-success-500/100' : 'bg-flame-500'}`}
                       style={{ width: `${percent}%` }}
                     />
                   </div>
-                  <span className="text-xs text-slate-500">{percent}%</span>
+                  <span className="text-xs text-steel-400">{percent}%</span>
                 </div>
               );
             },
@@ -177,7 +177,7 @@ export default function SalesOrders() {
                   {canPlan && (
                     <button
                       type="button"
-                      className="text-sm text-brand-600 hover:underline"
+                      className="row-action"
                       onClick={() => setAction({ type: 'plan', order: row })}
                     >
                       Plan
@@ -186,7 +186,7 @@ export default function SalesOrders() {
                   {canShip && fulfilment(row) < 100 && (
                     <button
                       type="button"
-                      className="text-sm text-brand-600 hover:underline"
+                      className="row-action"
                       onClick={() => setAction({ type: 'dispatch', order: row })}
                     >
                       Dispatch
@@ -195,7 +195,7 @@ export default function SalesOrders() {
                   {can('sales', 'accounts') && (
                     <button
                       type="button"
-                      className="text-sm text-emerald-600 hover:underline"
+                      className="row-action"
                       onClick={() => setAction({ type: 'invoice', order: row })}
                     >
                       Invoice
@@ -268,7 +268,7 @@ export default function SalesOrders() {
           />
 
           {formError && (
-            <div className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
+            <div className="rounded-lg bg-danger-500/10 px-3 py-2 text-sm text-danger-400">
               <p>{formError.message}</p>
               {formError.details?.map((detail) => (
                 <p key={detail.field} className="text-xs">
@@ -359,12 +359,12 @@ function OrderActionModal({ action, onClose, onDone }) {
     <Modal open={Boolean(action)} title={titles[action?.type] || ''} onClose={close} size="sm">
       {order && (
         <div className="space-y-4">
-          <div className="rounded-lg bg-slate-50 p-3 text-sm">
-            <p className="font-medium text-slate-800">{order.number}</p>
-            <p className="text-slate-500">
+          <div className="rounded-lg bg-white/[0.04] p-3 text-sm">
+            <p className="font-medium text-steel-50">{order.number}</p>
+            <p className="text-steel-400">
               {order.customer?.name} · {formatCurrency(order.grandTotal)}
             </p>
-            <ul className="mt-2 space-y-1 text-xs text-slate-500">
+            <ul className="mt-2 space-y-1 text-xs text-steel-400">
               {order.lines.map((line, index) => (
                 <li key={index}>
                   {line.product?.name || line.product} — {formatNumber(line.quantity)} pcs
@@ -374,10 +374,10 @@ function OrderActionModal({ action, onClose, onDone }) {
             </ul>
           </div>
 
-          <p className="text-sm text-slate-600">{descriptions[action.type]}</p>
+          <p className="text-sm text-steel-300">{descriptions[action.type]}</p>
 
-          {result && <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{result}</p>}
-          {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
+          {result && <p className="rounded-lg bg-success-500/10 px-3 py-2 text-sm text-success-400">{result}</p>}
+          {error && <p className="rounded-lg bg-danger-500/10 px-3 py-2 text-sm text-danger-400">{error}</p>}
 
           <div className="flex justify-end gap-2">
             <button type="button" className="btn-secondary" onClick={close}>

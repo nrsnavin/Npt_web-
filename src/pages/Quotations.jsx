@@ -107,13 +107,13 @@ export default function Quotations() {
               canWrite && !row.salesOrder && !['rejected', 'expired'].includes(row.status) ? (
                 <button
                   type="button"
-                  className="text-sm text-emerald-600 hover:underline"
+                  className="row-action"
                   onClick={() => setConverting(row)}
                 >
                   Convert to order
                 </button>
               ) : row.salesOrder ? (
-                <span className="text-xs text-slate-400">Order raised</span>
+                <span className="text-xs text-steel-500">Order raised</span>
               ) : null,
           },
         ]}
@@ -182,7 +182,7 @@ export default function Quotations() {
           </Field>
 
           {formError && (
-            <div className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
+            <div className="rounded-lg bg-danger-500/10 px-3 py-2 text-sm text-danger-400">
               <p>{formError.message}</p>
               {formError.details?.map((detail) => (
                 <p key={detail.field} className="text-xs">
@@ -244,8 +244,8 @@ function ConvertModal({ quotation, onClose, onDone }) {
     <Modal open={Boolean(quotation)} title="Convert to sales order" onClose={onClose} size="sm">
       {quotation && (
         <form onSubmit={submit} className="space-y-4">
-          <p className="text-sm text-slate-500">
-            Raises a sales order from <span className="font-medium text-slate-700">{quotation.number}</span> worth{' '}
+          <p className="text-sm text-steel-400">
+            Raises a sales order from <span className="font-medium text-steel-200">{quotation.number}</span> worth{' '}
             {formatCurrency(quotation.grandTotal)}, carrying the quoted prices across.
           </p>
           <Field label="Customer PO number">
@@ -277,7 +277,7 @@ function ConvertModal({ quotation, onClose, onDone }) {
             </select>
           </Field>
 
-          {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
+          {error && <p className="rounded-lg bg-danger-500/10 px-3 py-2 text-sm text-danger-400">{error}</p>}
 
           <div className="flex justify-end gap-2">
             <button type="button" className="btn-secondary" onClick={onClose}>

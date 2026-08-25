@@ -73,7 +73,7 @@ function AutoForm({ fields, record, onSubmit, onClose, saving, error, submitLabe
                 {...register(field.name, field.required && { required: `${field.label} is required` })}
               />
             ) : field.type === 'checkbox' ? (
-              <input type="checkbox" className="h-4 w-4 rounded border-slate-300" {...register(field.name)} />
+              <input type="checkbox" className="h-4 w-4 rounded border-white/10" {...register(field.name)} />
             ) : (
               <input
                 type={field.type || 'text'}
@@ -86,7 +86,7 @@ function AutoForm({ fields, record, onSubmit, onClose, saving, error, submitLabe
         ))}
       </div>
 
-      {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error.message}</p>}
+      {error && <p className="rounded-lg bg-danger-500/10 px-3 py-2 text-sm text-danger-400">{error.message}</p>}
 
       <div className="flex justify-end gap-2 pt-2">
         <button type="button" className="btn-secondary" onClick={onClose}>
@@ -135,11 +135,11 @@ export default function CrudPage({
           className: 'text-right whitespace-nowrap',
           render: (row) => (
             <div className="flex justify-end gap-3">
-              <button type="button" className="text-sm text-brand-600 hover:underline" onClick={() => setEditing(row)}>
+              <button type="button" className="row-action" onClick={() => setEditing(row)}>
                 Edit
               </button>
               {can() && (
-                <button type="button" className="text-sm text-rose-600 hover:underline" onClick={() => setDeleting(row)}>
+                <button type="button" className="row-action-danger" onClick={() => setDeleting(row)}>
                   Delete
                 </button>
               )}

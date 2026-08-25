@@ -97,8 +97,8 @@ export default function Production() {
             header: 'Order',
             render: (row) => (
               <div>
-                <p className="font-medium text-slate-800">{row.number}</p>
-                {row.salesOrder && <p className="text-xs text-slate-400">for {row.salesOrder.number}</p>}
+                <p className="font-medium text-steel-50">{row.number}</p>
+                {row.salesOrder && <p className="text-xs text-steel-500">for {row.salesOrder.number}</p>}
               </div>
             ),
           },
@@ -107,8 +107,8 @@ export default function Production() {
             header: 'Hanger',
             render: (row) => (
               <div>
-                <p className="text-slate-800">{row.product?.name || '—'}</p>
-                <p className="text-xs text-slate-400">{row.product?.sku}</p>
+                <p className="text-steel-50">{row.product?.name || '—'}</p>
+                <p className="text-xs text-steel-500">{row.product?.sku}</p>
               </div>
             ),
           },
@@ -122,15 +122,15 @@ export default function Production() {
               return (
                 <div>
                   <div className="flex items-center gap-2">
-                    <div className="h-1.5 w-20 overflow-hidden rounded-full bg-slate-200">
+                    <div className="h-1.5 w-20 overflow-hidden rounded-full bg-white/[0.08]">
                       <div
-                        className={`h-full rounded-full ${percent === 100 ? 'bg-emerald-500' : 'bg-amber-500'}`}
+                        className={`h-full rounded-full ${percent === 100 ? 'bg-success-500/100' : 'bg-warn-500/100'}`}
                         style={{ width: `${Math.min(percent, 100)}%` }}
                       />
                     </div>
-                    <span className="text-xs text-slate-500">{percent}%</span>
+                    <span className="text-xs text-steel-400">{percent}%</span>
                   </div>
-                  <p className="mt-0.5 text-xs text-slate-400">
+                  <p className="mt-0.5 text-xs text-steel-500">
                     {formatNumber(row.quantityProduced)} / {formatNumber(row.quantityPlanned)} pcs
                     {row.quantityScrapped > 0 && ` · ${formatNumber(row.quantityScrapped)} scrap`}
                   </p>
@@ -144,7 +144,7 @@ export default function Production() {
             render: (row) => (
               <div className="text-xs">
                 <p>{row.machine || '—'}</p>
-                <p className="text-slate-400">Shift {row.shift}</p>
+                <p className="text-steel-500">Shift {row.shift}</p>
               </div>
             ),
           },
@@ -171,7 +171,7 @@ export default function Production() {
                   {canIssue && !row.materialsIssued && row.materials?.length > 0 && (
                     <button
                       type="button"
-                      className="text-sm text-brand-600 hover:underline"
+                      className="row-action"
                       onClick={() => setAction({ type: 'issue', order: row })}
                     >
                       Issue materials
@@ -180,7 +180,7 @@ export default function Production() {
                   {canRun && (
                     <button
                       type="button"
-                      className="text-sm text-emerald-600 hover:underline"
+                      className="row-action"
                       onClick={() => setAction({ type: 'output', order: row })}
                     >
                       Record output
@@ -203,7 +203,7 @@ export default function Production() {
 
       <Modal open={creating} title="New production order" onClose={() => setCreating(false)}>
         <form onSubmit={submit} className="space-y-4">
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-steel-400">
             The active bill of materials for the chosen hanger is exploded automatically into the material
             requirement list.
           </p>
@@ -274,7 +274,7 @@ export default function Production() {
           </div>
 
           {formError && (
-            <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{formError.message}</p>
+            <p className="rounded-lg bg-danger-500/10 px-3 py-2 text-sm text-danger-400">{formError.message}</p>
           )}
 
           <div className="flex justify-end gap-2">
@@ -348,20 +348,20 @@ function ProductionActionModal({ action, onClose, onDone }) {
     >
       {order && (
         <form onSubmit={run} className="space-y-4">
-          <div className="rounded-lg bg-slate-50 p-3 text-sm">
-            <p className="font-medium text-slate-800">{order.number}</p>
-            <p className="text-slate-500">{order.product?.name}</p>
+          <div className="rounded-lg bg-white/[0.04] p-3 text-sm">
+            <p className="font-medium text-steel-50">{order.number}</p>
+            <p className="text-steel-400">{order.product?.name}</p>
           </div>
 
           {isIssue ? (
             <div>
-              <p className="mb-2 text-sm text-slate-600">
+              <p className="mb-2 text-sm text-steel-300">
                 Consumes the following from the raw material store, including the BOM scrap allowance:
               </p>
-              <ul className="space-y-1 rounded-lg border border-slate-200 p-3 text-sm">
+              <ul className="space-y-1 rounded-lg border border-white/[0.06] p-3 text-sm">
                 {order.materials.map((material, index) => (
                   <li key={index} className="flex justify-between">
-                    <span className="text-slate-700">{material.material?.name || 'Material'}</span>
+                    <span className="text-steel-200">{material.material?.name || 'Material'}</span>
                     <span className="font-medium">
                       {material.quantityRequired.toFixed(3)} {material.uom}
                     </span>
@@ -393,8 +393,8 @@ function ProductionActionModal({ action, onClose, onDone }) {
             </div>
           )}
 
-          {result && <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{result}</p>}
-          {error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
+          {result && <p className="rounded-lg bg-success-500/10 px-3 py-2 text-sm text-success-400">{result}</p>}
+          {error && <p className="rounded-lg bg-danger-500/10 px-3 py-2 text-sm text-danger-400">{error}</p>}
 
           <div className="flex justify-end gap-2">
             <button type="button" className="btn-secondary" onClick={close}>
