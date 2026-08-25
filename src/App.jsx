@@ -4,16 +4,7 @@ import { Spinner } from './components/ui.jsx';
 import { useAuth } from './context/AuthContext.jsx';
 
 import Login from './pages/Login.jsx';
-import Dashboard from './pages/Dashboard.jsx';
-import Leads from './pages/Leads.jsx';
-import Customers from './pages/Customers.jsx';
-import Quotations from './pages/Quotations.jsx';
-import SalesOrders from './pages/SalesOrders.jsx';
-import Production from './pages/Production.jsx';
-import Products from './pages/Products.jsx';
-import Materials from './pages/Materials.jsx';
-import PurchaseOrders from './pages/PurchaseOrders.jsx';
-import Suppliers from './pages/Suppliers.jsx';
+import Profile from './pages/Profile.jsx';
 
 /** Sends anyone without a session to the login screen, remembering where they were headed. */
 function RequireAuth({ children }) {
@@ -38,16 +29,8 @@ export default function App() {
           </RequireAuth>
         }
       >
-        <Route index element={<Dashboard />} />
-        <Route path="leads" element={<Leads />} />
-        <Route path="customers" element={<Customers />} />
-        <Route path="quotations" element={<Quotations />} />
-        <Route path="sales-orders" element={<SalesOrders />} />
-        <Route path="production" element={<Production />} />
-        <Route path="products" element={<Products />} />
-        <Route path="materials" element={<Materials />} />
-        <Route path="purchase-orders" element={<PurchaseOrders />} />
-        <Route path="suppliers" element={<Suppliers />} />
+        <Route index element={<Profile />} />
+        <Route path="profile" element={<Profile />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

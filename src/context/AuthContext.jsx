@@ -60,6 +60,12 @@ export function AuthProvider({ children }) {
         if (!user) return false;
         return user.role === 'admin' || roles.length === 0 || roles.includes(user.role);
       },
+      /** True when the signed-in user may use a feature, by its catalogue key. */
+      hasFeature(key) {
+        return Boolean(user?.features?.find((feature) => feature.key === key)?.allowed);
+      },
+      /** Replaces the cached user after a profile update. */
+      applyUser: setUser,
     }),
     [user, loading]
   );

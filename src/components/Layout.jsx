@@ -9,46 +9,13 @@ import { humanise } from '../utils/format.js';
  * stay optically consistent, and never shift with the platform's emoji font.
  */
 const ICONS = {
-  dashboard: 'M3 13h8V3H3v10Zm0 8h8v-6H3v6Zm10 0h8V11h-8v10Zm0-18v6h8V3h-8Z',
-  target: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Zm0-4a6 6 0 1 0 0-12 6 6 0 0 0 0 12Zm0-4a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z',
-  building: 'M3 21h18M5 21V5a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v16M15 21V9h4a2 2 0 0 1 2 2v10M9 7h2M9 11h2M9 15h2',
-  quote: 'M8 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2h-2M8 3v2h8V3M8 3h8m-6 8h4m-4 4h4',
-  box: 'm21 8-9-5-9 5m18 0-9 5m9-5v8l-9 5m0-8L3 8m9 5v8M3 8v8l9 5',
-  factory: 'M2 20h20M4 20V10l6 4V10l6 4V6l4-2v16M7 20v-4h3v4',
-  hanger: 'M12 4a2 2 0 0 1 2 2c0 1.1-.9 2-2 2v2m0 0L4 16h16l-8-6Z',
-  flask: 'M9 3h6M10 3v6L4.5 18a2 2 0 0 0 1.7 3h11.6a2 2 0 0 0 1.7-3L14 9V3M8 14h8',
-  cart: 'M3 4h2l2.4 11.2A2 2 0 0 0 9.4 17h7.9a2 2 0 0 0 2-1.6L21 8H6M9 21h.01M18 21h.01',
-  truck: 'M3 16V6a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v10M15 9h4l3 4v3h-3M7 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm11 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z',
+  user: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm0 0c-3.9 0-7 2.5-7 5.6V20h14v-2.4c0-3.1-3.1-5.6-7-5.6Z',
 };
 
 const NAV_SECTIONS = [
   {
-    title: 'Overview',
-    items: [{ to: '/', label: 'Dashboard', icon: 'dashboard', end: true }],
-  },
-  {
-    title: 'Revenue',
-    items: [
-      { to: '/leads', label: 'Leads', icon: 'target' },
-      { to: '/customers', label: 'Customers', icon: 'building' },
-      { to: '/quotations', label: 'Quotations', icon: 'quote' },
-      { to: '/sales-orders', label: 'Sales Orders', icon: 'box' },
-    ],
-  },
-  {
-    title: 'Plant',
-    items: [
-      { to: '/production', label: 'Production', icon: 'factory' },
-      { to: '/products', label: 'Hanger Catalogue', icon: 'hanger' },
-    ],
-  },
-  {
-    title: 'Supply chain',
-    items: [
-      { to: '/materials', label: 'Raw Materials', icon: 'flask' },
-      { to: '/purchase-orders', label: 'Purchase Orders', icon: 'cart' },
-      { to: '/suppliers', label: 'Suppliers', icon: 'truck' },
-    ],
+    title: 'Account',
+    items: [{ to: '/profile', label: 'My profile', icon: 'user' }],
   },
 ];
 

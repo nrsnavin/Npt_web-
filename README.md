@@ -1,9 +1,13 @@
-# NPT Web — CRM + ERP client
+# NPT Web — Navin Hangers console
 
-React front end for the NPT Hangers CRM and ERP API: leads and customers, quotations and
-sales orders, production, inventory, purchasing and the management dashboard.
+React front end for the Navin Hangers API. Currently scoped to authentication and the
+user profile: sign in, see your details and what your role can access, sign out.
 
-Vite + React + Tailwind, TanStack Query for server state, React Router for navigation.
+Vite + React + Tailwind, React Router for navigation.
+
+> The CRM and ERP screens (leads, customers, quotations, orders, production, inventory,
+> purchasing) were removed to reduce the app to this foundation. They remain in the git
+> history if any of it is worth recovering.
 
 ## Getting started
 
@@ -16,9 +20,9 @@ npm run dev
 Opens on `http://localhost:5173`. Without `VITE_API_URL` the dev server proxies `/api`
 to `http://localhost:5000`, so running the API locally needs no configuration.
 
-## Signing in
+## Screens
 
-Two options on the login screen:
+**Login** — two ways in:
 
 - **Password** — email and password.
 - **One-time code** — enter an email address *or* a phone number; the API sends a code by
@@ -28,6 +32,34 @@ Two options on the login screen:
 When the API runs in development without an SMTP or Twilio provider, the code comes back in
 the response and the login screen shows it in an amber notice, so you can sign in without
 setting up a provider account.
+
+**Profile** — name, role, department, email, phone and last sign-in, plus the feature
+access list. Name, phone and department are editable; email and role are set by an
+administrator. Sign out is in the header and at the foot of the page.
+
+### Feature access
+
+The list comes from the API, not the client: `GET /auth/me` returns the whole catalogue
+annotated with `allowed` for the caller's role, and the page groups it as the server
+declared it. Entries not yet built are marked *coming soon* — their access is already
+defined, so the moment one ships the right people have it.
+
+Access follows the **role**, not the department. Departments are organisational only.
+
+`useAuth().hasFeature('leads')` answers the same question for a component, so a screen added
+later can gate itself on the same source of truth the profile displays.
+
+## Layout
+
+```
+src/
+  api/          axios client (JWT interceptor) and the endpoint map
+  components/   Layout, the UI kit and the theme toggle
+  context/      AuthContext (session, sign-in, role and feature checks), ThemeContext
+  pages/        Login, Profile
+  utils/        formatting and status badge tones
+  theme.css     the dark and light palettes
+```
 
 The session token lives in `localStorage`; a 401 from any request clears it and returns you
 to the login screen.
@@ -44,7 +76,7 @@ swapping variables — no component knows which theme is active. The palettes li
 
 The scale *numbers* name a role, not a brightness: `ink-900` is always the page canvas and
 `steel-50` is always the strongest text, whether that reads light-on-dark or dark-on-light.
-One class therefore works in both themes, and dark is unchanged from the original design.
+One class therefore works in both themes.
 
 Theme resolution, in order:
 
@@ -54,8 +86,7 @@ Theme resolution, in order:
 
 A small inline script in `index.html` applies the stored choice before the first paint, so a
 reload never flashes the wrong palette. The toggle sits in the app header and on the login
-screen; `useTheme()` exposes it, and `useChartTheme()` supplies matching values to Recharts,
-which takes colours rather than classes.
+screen.
 
 A few tokens are deliberately theme-specific rather than mirrored, because the same treatment
 does not work in both: form fields need a stronger border on light (white-on-white is only a
@@ -63,53 +94,28 @@ border), the primary button lightens on hover in dark and deepens in light, sema
 shades darken on light so badge text clears AA on a pale fill, and the modal scrim stays dark
 in both.
 
-| Token | Value | Used for |
-| --- | --- | --- |
-| `flame-500` | `#F76800` | The one hot accent — primary buttons, active nav, key figures |
-| `flame-400` / `flame-600` | `#FF8124` / `#D95A00` | Hover and pressed states |
-| `aqua-500` | `#2C94A5` | Secondary accent, informational states |
-| `ink-950` → `ink-500` | Sunken, canvas, card, raised, dividers | Surface ramp by role |
-| `steel-50` → `steel-600` | Strongest → faintest | Text ramp by role |
-| `line` | White in dark, near-black in light | Hairlines and hover washes, always with an opacity modifier |
-| `success` / `warn` / `danger` | `#22C07A` / `#E8991F` / `#F0455B` | Semantic status |
+| Token | Role |
+| --- | --- |
+| `flame-500` (`#F76800`) | The one hot accent — primary buttons, active nav, key figures |
+| `aqua-500` (`#2C94A5`) | Secondary accent, informational states |
+| `ink-950` → `ink-500` | Surface ramp: sunken, canvas, card, raised, dividers |
+| `steel-50` → `steel-600` | Text ramp, strongest to faintest |
+| `line` | Hairlines and hover washes, always with an opacity modifier |
+| `success` / `warn` / `danger` | Semantic status |
 
 Typeface is **Manrope** (the brand face), 400–800, with tight tracking on headings.
 
 Principles the components follow:
 
 - **One hot element per view.** The accent goes to the single action the user came to
-  perform. Table row actions stay neutral and only warm on hover, so a row of them never
-  competes with the page's primary button.
-- **Elevation is a real step, not a hairline.** Dark builds depth with shadow on a near-black
-  canvas; light lifts white cards off a cool off-white canvas with a soft tinted shadow.
-- **Status has a fixed vocabulary.** Every document state maps to one of five tones in
-  `utils/statusStyles.js` — neutral, info, progress, success, danger — so a badge means
-  the same thing on every screen.
-- **Numbers are tabular.** Money and quantity columns use tabular figures so digits line up.
-- **Motion is short and purposeful.** 150–240ms ease-out on hover, entry and dialogs, and
-  everything collapses under `prefers-reduced-motion`.
-- **Focus is always visible.** A single flame focus ring is defined once in the base layer
-  and applies to every interactive element.
-
-## Layout
-
-```
-src/
-  api/          axios client (JWT interceptor) and the endpoint map
-  components/   Layout, DataTable, CrudPage, LineItemsEditor and the UI kit
-  context/      AuthContext — session, sign-in methods and role checks
-  hooks/        useResource / useListParams / useOptions over TanStack Query
-  pages/        one file per screen
-  utils/        currency, date and status formatting
-```
-
-`CrudPage` renders a whole master-data screen from a column and field spec — Customers,
-Suppliers, Products and Materials are each about 80 lines because of it. Transactional
-screens (quotations, orders, production, purchasing) are hand-built since each has its own
-document actions.
-
-Role checks come from `useAuth().can(...roles)`, mirroring the API's own authorisation, so
-buttons only appear for people allowed to use them. Admin passes every check.
+  perform.
+- **Elevation is a real step.** Dark builds depth with shadow on a near-black canvas; light
+  lifts white cards off a cool off-white canvas with a soft tinted shadow.
+- **Status has a fixed vocabulary.** Five tones in `utils/statusStyles.js` — neutral, info,
+  progress, success, danger — so a badge means the same thing everywhere.
+- **Numbers are tabular**, so digits line up in columns.
+- **Motion is short and purposeful**, and collapses under `prefers-reduced-motion`.
+- **Focus is always visible**, from one ring defined in the base layer.
 
 ## Build
 
@@ -117,8 +123,3 @@ buttons only appear for people allowed to use them. Admin passes every check.
 npm run build     # outputs to dist/
 npm run preview   # serve the production build
 ```
-
-## Not built yet
-
-Invoices, Inventory and BOM screens. Their API endpoints exist and are documented in the
-server repo; the nav will grow when the pages land.
