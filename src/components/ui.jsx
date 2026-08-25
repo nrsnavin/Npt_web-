@@ -66,14 +66,19 @@ export function PageHeader({ title, subtitle, actions }) {
   );
 }
 
+/**
+ * Labelled form control. The control is nested inside the label element so it is
+ * implicitly associated with it — clicking the text focuses the input, and screen
+ * readers announce the two together without needing matching id attributes.
+ */
 export function Field({ label, error, hint, children, className = '' }) {
   return (
-    <div className={className}>
-      <label className="label">{label}</label>
+    <label className={`block ${className}`}>
+      <span className="label">{label}</span>
       {children}
       {hint && !error && <p className="mt-1 text-xs text-slate-400">{hint}</p>}
       {error && <p className="mt-1 text-xs text-rose-600">{error.message || String(error)}</p>}
-    </div>
+    </label>
   );
 }
 

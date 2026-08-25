@@ -39,6 +39,17 @@ export function AuthProvider({ children }) {
         setUser(data.user);
         return data.user;
       },
+      /** Step one of OTP sign-in — returns the masked identifier and channel. */
+      requestOtp(identifier) {
+        return auth.requestOtp(identifier);
+      },
+      /** Step two of OTP sign-in — redeems the code for a session. */
+      async verifyOtp(identifier, code) {
+        const data = await auth.verifyOtp({ identifier, code });
+        setToken(data.token);
+        setUser(data.user);
+        return data.user;
+      },
       logout() {
         clearToken();
         setUser(null);

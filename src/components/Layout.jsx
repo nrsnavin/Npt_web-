@@ -18,23 +18,18 @@ const NAV_SECTIONS = [
   },
   {
     title: 'Sales',
-    items: [
-      { to: '/sales-orders', label: 'Sales Orders', icon: '📦' },
-      { to: '/invoices', label: 'Invoices', icon: '🧾' },
-    ],
+    items: [{ to: '/sales-orders', label: 'Sales Orders', icon: '📦' }],
   },
   {
     title: 'Manufacturing',
     items: [
       { to: '/production', label: 'Production', icon: '🏭' },
       { to: '/products', label: 'Hanger Catalogue', icon: '🪝' },
-      { to: '/boms', label: 'Bill of Materials', icon: '🧩' },
     ],
   },
   {
     title: 'Supply chain',
     items: [
-      { to: '/inventory', label: 'Inventory', icon: '📚' },
       { to: '/materials', label: 'Raw Materials', icon: '⚗️' },
       { to: '/purchase-orders', label: 'Purchase Orders', icon: '🛒' },
       { to: '/suppliers', label: 'Suppliers', icon: '🚚' },
