@@ -1,0 +1,215 @@
+/**
+ * Theme palettes.
+ *
+ * Values are space-separated RGB channels so Tailwind can apply opacity modifiers
+ * (`bg-flame-500/15`). The dark set is the shipped design, unchanged; the light set
+ * mirrors it role for role.
+ *
+ * Resolution order: an explicit `data-theme` on <html> always wins; with no explicit
+ * choice the system preference decides; dark is the fallback.
+ */
+
+:root,
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  /* Brand accent — identical in both themes at 500. */
+  --flame-50: 255 241 230;
+  --flame-100: 255 220 194;
+  --flame-200: 255 190 138;
+  --flame-300: 255 158 82;
+  --flame-400: 255 129 36;
+  --flame-500: 247 104 0;
+  --flame-600: 217 90 0;
+  --flame-700: 178 74 0;
+  --flame-800: 138 58 0;
+  --flame-900: 94 40 0;
+
+  --aqua-300: 95 211 228;
+  --aqua-400: 54 181 201;
+  --aqua-500: 44 148 165;
+  --aqua-600: 33 120 134;
+  --aqua-700: 15 49 55;
+
+  /* Surface ramp: sunken → canvas → card → raised → dividers. */
+  --ink-950: 8 13 17;
+  --ink-900: 12 20 26;
+  --ink-850: 18 28 34;
+  --ink-800: 23 38 47;
+  --ink-750: 27 46 57;
+  --ink-700: 35 58 71;
+  --ink-600: 44 72 85;
+  --ink-500: 60 92 107;
+
+  /* Text ramp: strongest → faintest. */
+  --steel-50: 247 250 251;
+  --steel-100: 233 240 244;
+  --steel-200: 201 214 222;
+  --steel-300: 163 179 189;
+  --steel-400: 120 133 141;
+  --steel-500: 92 105 112;
+  --steel-600: 74 82 87;
+
+  --success-400: 61 220 151;
+  --success-500: 34 192 122;
+  --success-600: 22 157 98;
+  --warn-400: 245 177 74;
+  --warn-500: 232 153 31;
+  --warn-600: 197 124 12;
+  --danger-400: 255 107 126;
+  --danger-500: 240 69 91;
+  --danger-600: 208 44 65;
+
+  /* Hairlines and hover washes lighten the surface they sit on. */
+  --line: 255 255 255;
+  --scrim: 8 13 17;
+  --accent: 255 129 36;
+
+  /* Depth on a dark canvas comes from shadow. */
+  --shadow-raised: 0 1px 2px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.25);
+  --shadow-float: 0 4px 12px rgba(0, 0, 0, 0.45), 0 12px 32px rgba(0, 0, 0, 0.35);
+  --shadow-modal: 0 24px 64px rgba(0, 0, 0, 0.65);
+
+  /* The primary button lightens on hover here, and darkens in light mode. */
+  --flame-hover: 255 129 36;
+  /* Ambient wash behind the canvas. */
+  --canvas-wash: rgba(247, 104, 0, 0.07);
+
+  /* Fields sit darker than their card here, so a faint border is enough. */
+  --field-bg: rgb(8 13 17 / 0.6);
+  --field-border: rgb(255 255 255 / 0.1);
+  --field-border-hover: rgb(255 255 255 / 0.2);
+
+  /* A segmented control raises its selected segment above the track. */
+  --tab-track: rgb(8 13 17 / 0.5);
+  --tab-active: rgb(255 255 255 / 0.08);
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  /* The accent holds its brand value; only the shades used as text move, for contrast. */
+  --flame-50: 255 241 230;
+  --flame-100: 255 220 194;
+  --flame-200: 255 190 138;
+  --flame-300: 217 90 0;
+  --flame-400: 194 81 10;
+  --flame-500: 247 104 0;
+  --flame-600: 217 90 0;
+  --flame-700: 178 74 0;
+  --flame-800: 138 58 0;
+  --flame-900: 94 40 0;
+
+  --aqua-300: 16 112 127;
+  --aqua-400: 33 120 134;
+  --aqua-500: 44 148 165;
+  --aqua-600: 23 92 103;
+  --aqua-700: 226 243 246;
+
+  /* Same roles, inverted lightness: white cards on a cool off-white canvas. */
+  --ink-950: 255 255 255;
+  --ink-900: 240 244 247;
+  --ink-850: 255 255 255;
+  --ink-800: 247 250 251;
+  --ink-750: 237 242 246;
+  --ink-700: 225 232 237;
+  --ink-600: 209 219 226;
+  --ink-500: 187 200 209;
+
+  --steel-50: 11 20 26;
+  --steel-100: 23 38 47;
+  --steel-200: 44 72 85;
+  --steel-300: 74 90 100;
+  --steel-400: 105 119 128;
+  --steel-500: 132 146 155;
+  --steel-600: 157 170 178;
+
+  /* Tints stay at 500; the 400s darken so badge text clears AA on a pale fill. */
+  --success-400: 15 122 78;
+  --success-500: 34 192 122;
+  --success-600: 12 100 63;
+  --warn-400: 158 96 8;
+  --warn-500: 232 153 31;
+  --warn-600: 130 78 6;
+  --danger-400: 190 27 50;
+  --danger-500: 240 69 91;
+  --danger-600: 158 22 41;
+
+  /* Hairlines and hover washes darken the surface they sit on. */
+  --line: 15 30 41;
+  --scrim: 12 20 26;
+  --accent: 194 81 10;
+
+  /* Lift on a light canvas is a soft, tinted drop shadow rather than a black one. */
+  --shadow-raised: 0 1px 2px rgba(15, 30, 41, 0.05), 0 1px 3px rgba(15, 30, 41, 0.06);
+  --shadow-float: 0 4px 10px rgba(15, 30, 41, 0.07), 0 12px 28px rgba(15, 30, 41, 0.09);
+  --shadow-modal: 0 24px 64px rgba(15, 30, 41, 0.22);
+
+  --flame-hover: 217 90 0;
+  --canvas-wash: rgba(247, 104, 0, 0.05);
+
+  /* A white field on a white card is only a border, so the border has to carry it. */
+  --field-bg: rgb(255 255 255);
+  --field-border: rgb(15 30 41 / 0.16);
+  --field-border-hover: rgb(15 30 41 / 0.3);
+
+  --tab-track: rgb(237 242 246);
+  --tab-active: rgb(255 255 255);
+}
+
+/* No explicit choice: follow the operating system. */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    color-scheme: light;
+
+    --flame-300: 217 90 0;
+    --flame-400: 194 81 10;
+
+    --aqua-300: 16 112 127;
+    --aqua-400: 33 120 134;
+    --aqua-600: 23 92 103;
+    --aqua-700: 226 243 246;
+
+    --ink-950: 255 255 255;
+    --ink-900: 240 244 247;
+    --ink-850: 255 255 255;
+    --ink-800: 247 250 251;
+    --ink-750: 237 242 246;
+    --ink-700: 225 232 237;
+    --ink-600: 209 219 226;
+    --ink-500: 187 200 209;
+
+    --steel-50: 11 20 26;
+    --steel-100: 23 38 47;
+    --steel-200: 44 72 85;
+    --steel-300: 74 90 100;
+    --steel-400: 105 119 128;
+    --steel-500: 132 146 155;
+    --steel-600: 157 170 178;
+
+    --success-400: 15 122 78;
+    --success-600: 12 100 63;
+    --warn-400: 158 96 8;
+    --warn-600: 130 78 6;
+    --danger-400: 190 27 50;
+    --danger-600: 158 22 41;
+
+    --line: 15 30 41;
+    --accent: 194 81 10;
+
+    --shadow-raised: 0 1px 2px rgba(15, 30, 41, 0.05), 0 1px 3px rgba(15, 30, 41, 0.06);
+    --shadow-float: 0 4px 10px rgba(15, 30, 41, 0.07), 0 12px 28px rgba(15, 30, 41, 0.09);
+    --shadow-modal: 0 24px 64px rgba(15, 30, 41, 0.22);
+
+    --flame-hover: 217 90 0;
+    --canvas-wash: rgba(247, 104, 0, 0.05);
+
+    /* A white field on a white card is only a border, so the border has to carry it. */
+    --field-bg: rgb(255 255 255);
+    --field-border: rgb(15 30 41 / 0.16);
+    --field-border-hover: rgb(15 30 41 / 0.3);
+
+    --tab-track: rgb(237 242 246);
+    --tab-active: rgb(255 255 255);
+  }
+}

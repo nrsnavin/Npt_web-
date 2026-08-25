@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { statusClass, toneClass } from '../utils/statusStyles.js';
 import { humanise } from '../utils/format.js';
 
@@ -18,7 +19,7 @@ export function Badge({ status, tone, children }) {
 export function Spinner({ label = 'Loading' }) {
   return (
     <div className="flex items-center justify-center gap-3 py-16 text-sm text-steel-400">
-      <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/10 border-t-flame-500" />
+      <span className="h-4 w-4 animate-spin rounded-full border-2 border-line/10 border-t-flame-500" />
       {label}…
     </div>
   );
@@ -28,8 +29,8 @@ export function Spinner({ label = 'Loading' }) {
 export function TableSkeleton({ rows = 5, columns = 5 }) {
   return (
     <div className="card overflow-hidden">
-      <div className="h-11 border-b border-white/[0.06] bg-ink-800/70" />
-      <div className="divide-y divide-white/[0.04]">
+      <div className="h-11 border-b border-line/[0.06] bg-ink-800/70" />
+      <div className="divide-y divide-line/[0.04]">
         {Array.from({ length: rows }).map((_, rowIndex) => (
           <div key={rowIndex} className="flex items-center gap-4 px-4 py-4">
             {Array.from({ length: columns }).map((_, columnIndex) => (
@@ -76,7 +77,7 @@ export function ErrorState({ error, onRetry }) {
 export function EmptyState({ title, description, action, icon = '◇' }) {
   return (
     <div className="card animate-fade-up flex flex-col items-center gap-3 px-6 py-16 text-center">
-      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/[0.04] text-xl text-steel-500 ring-1 ring-inset ring-white/[0.06]">
+      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-line/[0.04] text-xl text-steel-500 ring-1 ring-inset ring-line/[0.06]">
         {icon}
       </div>
       <p className="text-base font-bold tracking-tight text-steel-50">{title}</p>
@@ -139,13 +140,18 @@ export function Modal({ open, title, description, onClose, children, size = 'md'
 
   const width = { sm: 'max-w-md', md: 'max-w-2xl', lg: 'max-w-4xl' }[size];
 
-  return (
+  /**
+   * Rendered into <body> rather than in place. The page's <main> is animated, and a
+   * transformed ancestor makes `position: fixed` resolve against that ancestor instead of
+   * the viewport — which left the backdrop covering only the content column, not the nav.
+   */
+  return createPortal(
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <button
         type="button"
         aria-label="Close dialog"
         onClick={onClose}
-        className="fixed inset-0 animate-fade-in cursor-default bg-ink-950/80 backdrop-blur-sm"
+        className="fixed inset-0 animate-fade-in cursor-default bg-scrim/80 backdrop-blur-sm"
       />
 
       <div className="relative flex min-h-full items-start justify-center p-4 sm:p-8">
@@ -154,7 +160,7 @@ export function Modal({ open, title, description, onClose, children, size = 'md'
           aria-modal="true"
           className={`card animate-scale-in my-auto w-full ${width} !bg-ink-850 shadow-modal`}
         >
-          <div className="flex items-start justify-between gap-4 border-b border-white/[0.06] px-6 py-4">
+          <div className="flex items-start justify-between gap-4 border-b border-line/[0.06] px-6 py-4">
             <div>
               <h2 className="text-lg font-bold tracking-tight text-steel-50">{title}</h2>
               {description && <p className="mt-0.5 text-sm text-steel-400">{description}</p>}
@@ -162,7 +168,7 @@ export function Modal({ open, title, description, onClose, children, size = 'md'
             <button
               type="button"
               onClick={onClose}
-              className="-mr-1 rounded-lg p-1.5 text-steel-400 transition-colors hover:bg-white/[0.06] hover:text-steel-100"
+              className="-mr-1 rounded-lg p-1.5 text-steel-400 transition-colors hover:bg-line/[0.06] hover:text-steel-100"
               aria-label="Close"
             >
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -174,7 +180,8 @@ export function Modal({ open, title, description, onClose, children, size = 'md'
           <div className="px-6 py-5">{children}</div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

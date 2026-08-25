@@ -272,7 +272,7 @@ function ReceiveModal({ order, onClose, onDone }) {
             weighted average cost.
           </p>
 
-          <ul className="space-y-1 rounded-lg border border-white/[0.06] p-3 text-sm">
+          <ul className="space-y-1 rounded-lg border border-line/[0.06] p-3 text-sm">
             {order.lines.map((line, index) => {
               const pending = line.quantity - (line.quantityReceived || 0);
               return (

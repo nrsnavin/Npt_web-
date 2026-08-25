@@ -36,7 +36,7 @@ export default function DataTable({
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-white/[0.04]">
+          <tbody className="divide-y divide-line/[0.04]">
             {rows.map((row) => (
               <tr
                 key={row._id || row.id}
@@ -58,7 +58,7 @@ export default function DataTable({
       </div>
 
       {pagination && pagination.pages > 1 && (
-        <div className="flex items-center justify-between gap-4 border-t border-white/[0.06] px-4 py-3 text-[0.8125rem] text-steel-400">
+        <div className="flex items-center justify-between gap-4 border-t border-line/[0.06] px-4 py-3 text-[0.8125rem] text-steel-400">
           <span>
             Page <span className="font-semibold text-steel-200">{pagination.page}</span> of{' '}
             {pagination.pages} · {pagination.total} records

@@ -73,7 +73,7 @@ function AutoForm({ fields, record, onSubmit, onClose, saving, error, submitLabe
                 {...register(field.name, field.required && { required: `${field.label} is required` })}
               />
             ) : field.type === 'checkbox' ? (
-              <input type="checkbox" className="h-4 w-4 rounded border-white/10" {...register(field.name)} />
+              <input type="checkbox" className="h-4 w-4 rounded border-line/10" {...register(field.name)} />
             ) : (
               <input
                 type={field.type || 'text'}

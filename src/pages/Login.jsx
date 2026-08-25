@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { Field, Notice } from '../components/ui.jsx';
-import { Wordmark } from '../components/Layout.jsx';
+import { ThemeToggle, Wordmark } from '../components/Layout.jsx';
 
 const RESEND_SECONDS = 60;
 
@@ -14,11 +14,7 @@ function Tabs({ mode, onChange }) {
   ];
 
   return (
-    <div
-      role="tablist"
-      aria-label="Sign-in method"
-      className="mb-6 grid grid-cols-2 gap-1 rounded-lg border border-white/[0.06] bg-ink-950/50 p-1"
-    >
+    <div role="tablist" aria-label="Sign-in method" className="tab-track mb-6 grid-cols-2">
       {tabs.map((tab) => (
         <button
           key={tab.id}
@@ -28,11 +24,7 @@ function Tabs({ mode, onChange }) {
           aria-selected={mode === tab.id}
           aria-controls={`signin-panel-${tab.id}`}
           onClick={() => onChange(tab.id)}
-          className={`rounded-md px-3 py-2 text-[0.8125rem] font-semibold tracking-tight transition-all duration-150 ${
-            mode === tab.id
-              ? 'bg-white/[0.08] text-steel-50 shadow-raised'
-              : 'text-steel-400 hover:text-steel-200'
-          }`}
+          className="tab"
         >
           {tab.label}
         </button>
@@ -308,7 +300,7 @@ export default function Login() {
   return (
     <div className="grid min-h-screen lg:grid-cols-[1.1fr_minmax(0,32rem)]">
       {/* Brand panel — the story side. Hidden on small screens where it would only cost scroll. */}
-      <aside className="relative hidden overflow-hidden border-r border-white/[0.06] bg-ink-850 p-12 lg:flex lg:flex-col">
+      <aside className="relative hidden overflow-hidden border-r border-line/[0.06] bg-ink-850 p-12 lg:flex lg:flex-col">
         <div
           aria-hidden="true"
           className="pointer-events-none absolute -left-40 -top-40 h-[34rem] w-[34rem] rounded-full bg-flame-500/[0.13] blur-3xl"
@@ -324,7 +316,7 @@ export default function Login() {
 
         <div className="relative mt-auto max-w-lg">
           <p className="eyebrow mb-5 text-flame-500">Since 2004</p>
-          <h1 className="text-[2.75rem] font-extrabold leading-[1.05] tracking-tighter text-white">
+          <h1 className="text-[2.75rem] font-extrabold leading-[1.05] tracking-tighter text-steel-50">
             A hanger expert
             <br />
             you can{' '}
@@ -338,14 +330,14 @@ export default function Login() {
             moulding floor, the stores and the ledger.
           </p>
 
-          <dl className="mt-10 grid grid-cols-3 gap-6 border-t border-white/[0.08] pt-7">
+          <dl className="mt-10 grid grid-cols-3 gap-6 border-t border-line/[0.08] pt-7">
             {[
               ['600+', 'Moulds'],
               ['20 yrs', 'Manufacturing'],
               ['GRS', 'Certified recycled'],
             ].map(([value, label]) => (
               <div key={label}>
-                <dt className="text-xl font-extrabold tracking-tight text-white">{value}</dt>
+                <dt className="text-xl font-extrabold tracking-tight text-steel-50">{value}</dt>
                 <dd className="mt-0.5 text-xs font-medium text-steel-400">{label}</dd>
               </div>
             ))}
@@ -354,7 +346,11 @@ export default function Login() {
       </aside>
 
       {/* Form panel. */}
-      <main className="flex items-center justify-center px-5 py-10 sm:px-10">
+      <main className="relative flex items-center justify-center px-5 py-10 sm:px-10">
+        <div className="absolute right-4 top-4 sm:right-6 sm:top-6">
+          <ThemeToggle />
+        </div>
+
         <div className="w-full max-w-sm animate-fade-up">
           <div className="mb-8 lg:hidden">
             <Wordmark />
@@ -397,7 +393,7 @@ export default function Login() {
             </div>
           )}
 
-          <p className="mt-8 border-t border-white/[0.06] pt-5 text-center text-sm text-steel-400">
+          <p className="mt-8 border-t border-line/[0.06] pt-5 text-center text-sm text-steel-400">
             {registering ? 'Already registered?' : 'Need an account?'}{' '}
             <button
               type="button"

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useTheme } from '../context/ThemeContext.jsx';
 import { humanise } from '../utils/format.js';
 
 /**
@@ -51,6 +52,41 @@ const NAV_SECTIONS = [
   },
 ];
 
+/** Switches the palette. Shows the theme you would get, which is the one you don't have. */
+export function ThemeToggle({ className = '' }) {
+  const { isDark, toggle } = useTheme();
+
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      className={`btn-ghost px-2.5 py-1.5 ${className}`}
+      title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+      aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+    >
+      <svg
+        viewBox="0 0 24 24"
+        className="h-[1.05rem] w-[1.05rem]"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        {isDark ? (
+          <>
+            <circle cx="12" cy="12" r="4" />
+            <path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+          </>
+        ) : (
+          <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" />
+        )}
+      </svg>
+    </button>
+  );
+}
+
 function NavIcon({ name }) {
   return (
     <svg
@@ -78,8 +114,8 @@ function NavItem({ item, onNavigate }) {
         `group relative flex items-center gap-3 rounded-lg px-3 py-2 text-[0.8125rem] font-semibold
          tracking-tight transition-colors duration-150 ${
            isActive
-             ? 'bg-white/[0.07] text-steel-50'
-             : 'text-steel-400 hover:bg-white/[0.04] hover:text-steel-100'
+             ? 'bg-line/[0.07] text-steel-50'
+             : 'text-steel-400 hover:bg-line/[0.04] hover:text-steel-100'
          }`
       }
     >
@@ -141,7 +177,7 @@ export default function Layout() {
   return (
     <div className="flex min-h-screen">
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-64 shrink-0 flex-col border-r border-white/[0.06]
+        className={`fixed inset-y-0 left-0 z-40 flex w-64 shrink-0 flex-col border-r border-line/[0.06]
           bg-ink-850/95 backdrop-blur-xl transition-transform duration-300 ease-out
           lg:static lg:translate-x-0 ${menuOpen ? 'translate-x-0' : '-translate-x-full'}`}
       >
@@ -162,7 +198,7 @@ export default function Layout() {
           ))}
         </nav>
 
-        <div className="border-t border-white/[0.06] px-5 py-3">
+        <div className="border-t border-line/[0.06] px-5 py-3">
           <p className="text-[0.6875rem] text-steel-500">A hanger expert you can hang onto</p>
         </div>
       </aside>
@@ -171,13 +207,13 @@ export default function Layout() {
         <button
           type="button"
           aria-label="Close navigation"
-          className="fixed inset-0 z-30 animate-fade-in bg-ink-950/70 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-30 animate-fade-in bg-scrim/70 backdrop-blur-sm lg:hidden"
           onClick={() => setMenuOpen(false)}
         />
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-20 flex items-center gap-4 border-b border-white/[0.06] bg-ink-900/80 px-4 py-3 backdrop-blur-xl sm:px-6">
+        <header className="sticky top-0 z-20 flex items-center gap-4 border-b border-line/[0.06] bg-ink-900/80 px-4 py-3 backdrop-blur-xl sm:px-6">
           <button
             type="button"
             className="btn-ghost px-2.5 py-1.5 lg:hidden"
@@ -191,6 +227,7 @@ export default function Layout() {
           </button>
 
           <div className="ml-auto flex items-center gap-3">
+            <ThemeToggle />
             <div className="hidden text-right sm:block">
               <p className="text-[0.8125rem] font-semibold leading-tight text-steel-100">{user?.name}</p>
               <p className="text-[0.6875rem] font-medium text-steel-500">{humanise(user?.role)}</p>

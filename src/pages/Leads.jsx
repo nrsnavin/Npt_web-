@@ -275,7 +275,7 @@ function ActivityModal({ lead, onClose, onSaved }) {
           </Field>
 
           {lead.activities?.length > 0 && (
-            <div className="max-h-40 space-y-2 overflow-y-auto rounded-lg bg-white/[0.04] p-3">
+            <div className="max-h-40 space-y-2 overflow-y-auto rounded-lg bg-line/[0.04] p-3">
               {lead.activities
                 .slice()
                 .reverse()

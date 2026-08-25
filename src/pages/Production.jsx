@@ -122,7 +122,7 @@ export default function Production() {
               return (
                 <div>
                   <div className="flex items-center gap-2">
-                    <div className="h-1.5 w-20 overflow-hidden rounded-full bg-white/[0.08]">
+                    <div className="h-1.5 w-20 overflow-hidden rounded-full bg-line/[0.08]">
                       <div
                         className={`h-full rounded-full ${percent === 100 ? 'bg-success-500/100' : 'bg-warn-500/100'}`}
                         style={{ width: `${Math.min(percent, 100)}%` }}
@@ -348,7 +348,7 @@ function ProductionActionModal({ action, onClose, onDone }) {
     >
       {order && (
         <form onSubmit={run} className="space-y-4">
-          <div className="rounded-lg bg-white/[0.04] p-3 text-sm">
+          <div className="rounded-lg bg-line/[0.04] p-3 text-sm">
             <p className="font-medium text-steel-50">{order.number}</p>
             <p className="text-steel-400">{order.product?.name}</p>
           </div>
@@ -358,7 +358,7 @@ function ProductionActionModal({ action, onClose, onDone }) {
               <p className="mb-2 text-sm text-steel-300">
                 Consumes the following from the raw material store, including the BOM scrap allowance:
               </p>
-              <ul className="space-y-1 rounded-lg border border-white/[0.06] p-3 text-sm">
+              <ul className="space-y-1 rounded-lg border border-line/[0.06] p-3 text-sm">
                 {order.materials.map((material, index) => (
                   <li key={index} className="flex justify-between">
                     <span className="text-steel-200">{material.material?.name || 'Material'}</span>

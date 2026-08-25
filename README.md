@@ -34,15 +34,43 @@ to the login screen.
 
 ## Design system
 
-Dark-first, built on the Navin Hangers brand pulled from navinplastic.com.
+Built on the Navin Hangers brand pulled from navinplastic.com, in a dark and a light theme.
+
+### Theming
+
+Every colour is a CSS custom property on the root element, so the whole system re-themes by
+swapping variables — no component knows which theme is active. The palettes live in
+`src/theme.css`; `tailwind.config.js` maps the utility names onto them.
+
+The scale *numbers* name a role, not a brightness: `ink-900` is always the page canvas and
+`steel-50` is always the strongest text, whether that reads light-on-dark or dark-on-light.
+One class therefore works in both themes, and dark is unchanged from the original design.
+
+Theme resolution, in order:
+
+1. An explicit choice, stored in `localStorage` under `npt.theme`.
+2. Otherwise the operating system's `prefers-color-scheme`, followed live.
+3. Dark as the fallback.
+
+A small inline script in `index.html` applies the stored choice before the first paint, so a
+reload never flashes the wrong palette. The toggle sits in the app header and on the login
+screen; `useTheme()` exposes it, and `useChartTheme()` supplies matching values to Recharts,
+which takes colours rather than classes.
+
+A few tokens are deliberately theme-specific rather than mirrored, because the same treatment
+does not work in both: form fields need a stronger border on light (white-on-white is only a
+border), the primary button lightens on hover in dark and deepens in light, semantic `400`
+shades darken on light so badge text clears AA on a pale fill, and the modal scrim stays dark
+in both.
 
 | Token | Value | Used for |
 | --- | --- | --- |
 | `flame-500` | `#F76800` | The one hot accent — primary buttons, active nav, key figures |
 | `flame-400` / `flame-600` | `#FF8124` / `#D95A00` | Hover and pressed states |
 | `aqua-500` | `#2C94A5` | Secondary accent, informational states |
-| `ink-900` → `ink-750` | `#0C141A` → `#1B2E39` | Surface elevation ramp, back to front |
-| `steel-50` → `steel-500` | `#F7FAFB` → `#5C6970` | Text ramp, primary to muted |
+| `ink-950` → `ink-500` | Sunken, canvas, card, raised, dividers | Surface ramp by role |
+| `steel-50` → `steel-600` | Strongest → faintest | Text ramp by role |
+| `line` | White in dark, near-black in light | Hairlines and hover washes, always with an opacity modifier |
 | `success` / `warn` / `danger` | `#22C07A` / `#E8991F` / `#F0455B` | Semantic status |
 
 Typeface is **Manrope** (the brand face), 400–800, with tight tracking on headings.
@@ -52,8 +80,8 @@ Principles the components follow:
 - **One hot element per view.** The accent goes to the single action the user came to
   perform. Table row actions stay neutral and only warm on hover, so a row of them never
   competes with the page's primary button.
-- **Elevation by shadow, not by lighter fills.** Cards sit on the canvas with real depth;
-  hairlines are translucent white rather than solid greys.
+- **Elevation is a real step, not a hairline.** Dark builds depth with shadow on a near-black
+  canvas; light lifts white cards off a cool off-white canvas with a soft tinted shadow.
 - **Status has a fixed vocabulary.** Every document state maps to one of five tones in
   `utils/statusStyles.js` — neutral, info, progress, success, danger — so a badge means
   the same thing on every screen.

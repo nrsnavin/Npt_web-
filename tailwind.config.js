@@ -3,62 +3,50 @@
  *
  * Palette is lifted from the Navin Hangers brand — flame orange (#F76800) as the
  * single hot accent, deep navy (#17262F / #121C22) as the surface family, aqua
- * (#2C94A5) as the secondary — and applied dark-first: a near-black canvas with
- * content layered above it in discrete elevation steps, accent reserved for the
- * one action that matters on a screen.
+ * (#2C94A5) as the secondary.
+ *
+ * Every colour resolves to a CSS custom property defined in index.css, so the whole
+ * system re-themes by swapping variables on the root element. The scale *numbers* name
+ * a role, not a brightness: `ink-900` is always the page canvas and `steel-50` is always
+ * the strongest text, whether that reads dark-on-light or light-on-dark.
  *
  * @type {import('tailwindcss').Config}
  */
+
+/** Channels live in the variable so Tailwind can still apply its `/opacity` modifiers. */
+const themed = (name) => `rgb(var(--${name}) / <alpha-value>)`;
+
+const scale = (prefix, steps) =>
+  Object.fromEntries(steps.map((step) => [step, themed(`${prefix}-${step}`)]));
+
 export default {
   content: ['./index.html', './src/**/*.{js,jsx}'],
+  darkMode: ['class', '[data-theme="dark"]'],
   theme: {
     extend: {
       colors: {
-        /** Brand accent. 500 is the brand value; 400 lifts on hover, 600 presses. */
-        flame: {
-          50: '#FFF1E6',
-          100: '#FFDCC2',
-          200: '#FFBE8A',
-          300: '#FF9E52',
-          400: '#FF8124',
-          500: '#F76800',
-          600: '#D95A00',
-          700: '#B24A00',
-          800: '#8A3A00',
-          900: '#5E2800',
-        },
-        /** Secondary accent, used for informational states so they never read as "act now". */
-        aqua: {
-          300: '#5FD3E4',
-          400: '#36B5C9',
-          500: '#2C94A5',
-          600: '#217886',
-          700: '#0F3137',
-        },
-        /** Surface ramp. Lower numbers sit further back; each step is a real elevation change. */
-        ink: {
-          950: '#080D11',
-          900: '#0C141A',
-          850: '#121C22',
-          800: '#17262F',
-          750: '#1B2E39',
-          700: '#233A47',
-          600: '#2C4855',
-          500: '#3C5C6B',
-        },
-        /** Neutral text and hairlines. */
-        steel: {
-          50: '#F7FAFB',
-          100: '#E9F0F4',
-          200: '#C9D6DE',
-          300: '#A3B3BD',
-          400: '#78858D',
-          500: '#5C6970',
-          600: '#4A5257',
-        },
-        success: { 400: '#3DDC97', 500: '#22C07A', 600: '#169D62' },
-        warn: { 400: '#F5B14A', 500: '#E8991F', 600: '#C57C0C' },
-        danger: { 400: '#FF6B7E', 500: '#F0455B', 600: '#D02C41' },
+        /** Brand accent. 500 is the brand value and is identical in both themes. */
+        flame: scale('flame', [50, 100, 200, 300, 400, 500, 600, 700, 800, 900]),
+        /** Secondary accent, for informational states that must not read as "act now". */
+        aqua: scale('aqua', [300, 400, 500, 600, 700]),
+        /** Surface ramp: 950 sunken, 900 canvas, 850 card, 800 raised, 750+ dividers. */
+        ink: scale('ink', [950, 900, 850, 800, 750, 700, 600, 500]),
+        /** Text ramp: 50 strongest through 600 faintest. */
+        steel: scale('steel', [50, 100, 200, 300, 400, 500, 600]),
+        success: scale('success', [400, 500, 600]),
+        warn: scale('warn', [400, 500, 600]),
+        danger: scale('danger', [400, 500, 600]),
+
+        /**
+         * Hairlines, dividers and hover washes. Always applied with an opacity modifier
+         * (`border-line/[0.06]`): white in dark, near-black in light, so one class works
+         * for both without inverting anything by hand.
+         */
+        line: themed('line'),
+        /** Modal and drawer backdrop. Stays dark in both themes, as a scrim should. */
+        scrim: themed('scrim'),
+        /** Accent used as *text*, which needs more contrast on a light background. */
+        accent: themed('accent'),
       },
       fontFamily: {
         sans: ['Manrope', 'system-ui', '-apple-system', 'Segoe UI', 'sans-serif'],
@@ -73,10 +61,10 @@ export default {
         '2xl': '1.125rem',
       },
       boxShadow: {
-        /** Elevation on a dark canvas comes from depth of shadow, not from lighter fills. */
-        raised: '0 1px 2px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.25)',
-        float: '0 4px 12px rgba(0,0,0,0.45), 0 12px 32px rgba(0,0,0,0.35)',
-        modal: '0 24px 64px rgba(0,0,0,0.65)',
+        /** Elevation reads as depth in dark and as lift in light; both come from the vars. */
+        raised: 'var(--shadow-raised)',
+        float: 'var(--shadow-float)',
+        modal: 'var(--shadow-modal)',
         /** Reserved for the primary action, so the eye lands on it first. */
         glow: '0 0 0 1px rgba(247,104,0,0.35), 0 6px 20px rgba(247,104,0,0.28)',
       },

@@ -148,7 +148,7 @@ export default function SalesOrders() {
               const percent = fulfilment(row);
               return (
                 <div className="flex items-center gap-2">
-                  <div className="h-1.5 w-20 overflow-hidden rounded-full bg-white/[0.08]">
+                  <div className="h-1.5 w-20 overflow-hidden rounded-full bg-line/[0.08]">
                     <div
                       className={`h-full rounded-full ${percent === 100 ? 'bg-success-500/100' : 'bg-flame-500'}`}
                       style={{ width: `${percent}%` }}
@@ -359,7 +359,7 @@ function OrderActionModal({ action, onClose, onDone }) {
     <Modal open={Boolean(action)} title={titles[action?.type] || ''} onClose={close} size="sm">
       {order && (
         <div className="space-y-4">
-          <div className="rounded-lg bg-white/[0.04] p-3 text-sm">
+          <div className="rounded-lg bg-line/[0.04] p-3 text-sm">
             <p className="font-medium text-steel-50">{order.number}</p>
             <p className="text-steel-400">
               {order.customer?.name} · {formatCurrency(order.grandTotal)}

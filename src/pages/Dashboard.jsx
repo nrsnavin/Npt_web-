@@ -12,35 +12,13 @@ import {
 } from 'recharts';
 import { dashboard, invoices, leads, productionOrders, stock } from '../api/endpoints.js';
 import { PageHeader, Spinner, Badge } from '../components/ui.jsx';
+import { useChartTheme } from '../context/ThemeContext.jsx';
 import { formatCompactCurrency, formatCurrency, formatNumber, humanise } from '../utils/format.js';
-
-/** Pipeline stages warm up as they approach a win, so the funnel reads left to right. */
-const STAGE_COLOURS = {
-  new: '#3C5C6B',
-  contacted: '#2C94A5',
-  qualified: '#36B5C9',
-  quoted: '#F5B14A',
-  won: '#22C07A',
-  lost: '#F0455B',
-};
-
-/** Shared Recharts styling for the dark canvas. */
-const AXIS = { fontSize: 11, fill: '#78858D', fontWeight: 600 };
 
 /** Funnel order, so the pipeline chart reads top to bottom as a lead actually progresses. */
 const STAGE_ORDER = ['new', 'contacted', 'qualified', 'quoted', 'won', 'lost'];
 const byFunnelOrder = (rows = []) =>
   [...rows].sort((a, b) => STAGE_ORDER.indexOf(a.stage) - STAGE_ORDER.indexOf(b.stage));
-const GRID_STROKE = 'rgba(255,255,255,0.05)';
-const TOOLTIP_STYLE = {
-  borderRadius: 10,
-  border: '1px solid rgba(255,255,255,0.1)',
-  background: '#17262F',
-  boxShadow: '0 12px 32px rgba(0,0,0,0.5)',
-  fontSize: 12,
-  color: '#E9F0F4',
-};
-const TOOLTIP_CURSOR = { fill: 'rgba(255,255,255,0.04)' };
 
 function StatCard({ label, value, sublabel, to, tone = 'neutral' }) {
   const tones = {
@@ -81,6 +59,7 @@ function Panel({ title, action, children, className = '' }) {
 }
 
 export default function Dashboard() {
+  const chart = useChartTheme();
   const summary = useQuery({ queryKey: ['dashboard', 'summary'], queryFn: dashboard.summary });
   const trend = useQuery({ queryKey: ['dashboard', 'trend'], queryFn: () => dashboard.salesTrend(6) });
   const top = useQuery({ queryKey: ['dashboard', 'top'], queryFn: () => dashboard.topProducts(5) });
@@ -104,7 +83,7 @@ export default function Dashboard() {
         title="Dashboard"
         subtitle="Sales, production and stock at a glance"
         actions={
-          <span className="hidden items-center gap-2 rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 py-1.5 text-xs font-semibold text-steel-400 sm:inline-flex">
+          <span className="hidden items-center gap-2 rounded-lg border border-line/[0.06] bg-line/[0.03] px-3 py-1.5 text-xs font-semibold text-steel-400 sm:inline-flex">
             <span className="h-1.5 w-1.5 rounded-full bg-success-500" />
             Live
           </span>
@@ -160,20 +139,20 @@ export default function Dashboard() {
                     <stop offset="100%" stopColor="#D95A00" />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={GRID_STROKE} />
-                <XAxis dataKey="month" tick={AXIS} axisLine={false} tickLine={false} />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={chart.grid} />
+                <XAxis dataKey="month" tick={chart.axis} axisLine={false} tickLine={false} />
                 <YAxis
                   tickFormatter={formatCompactCurrency}
-                  tick={AXIS}
+                  tick={chart.axis}
                   axisLine={false}
                   tickLine={false}
                   width={70}
                 />
                 <Tooltip
                   formatter={(value) => [formatCurrency(value), 'Booked']}
-                  contentStyle={TOOLTIP_STYLE}
-                  labelStyle={{ color: '#A3B3BD', fontWeight: 700, marginBottom: 2 }}
-                  cursor={TOOLTIP_CURSOR}
+                  contentStyle={chart.tooltip}
+                  labelStyle={chart.tooltipLabel}
+                  cursor={chart.cursor}
                 />
                 <Bar dataKey="value" fill="url(#barFlame)" radius={[5, 5, 0, 0]} maxBarSize={52} />
               </BarChart>
@@ -192,13 +171,13 @@ export default function Dashboard() {
                 layout="vertical"
                 margin={{ top: 4, right: 8, left: 0, bottom: 0 }}
               >
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={GRID_STROKE} />
-                <XAxis type="number" tick={AXIS} axisLine={false} tickLine={false} allowDecimals={false} />
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={chart.grid} />
+                <XAxis type="number" tick={chart.axis} axisLine={false} tickLine={false} allowDecimals={false} />
                 <YAxis
                   type="category"
                   dataKey="stage"
                   tickFormatter={humanise}
-                  tick={AXIS}
+                  tick={chart.axis}
                   axisLine={false}
                   tickLine={false}
                   width={80}
@@ -208,13 +187,13 @@ export default function Dashboard() {
                     name === 'value' ? [formatCurrency(value), 'Value'] : [value, 'Leads']
                   }
                   labelFormatter={humanise}
-                  contentStyle={TOOLTIP_STYLE}
-                  labelStyle={{ color: '#A3B3BD', fontWeight: 700, marginBottom: 2 }}
-                  cursor={TOOLTIP_CURSOR}
+                  contentStyle={chart.tooltip}
+                  labelStyle={chart.tooltipLabel}
+                  cursor={chart.cursor}
                 />
                 <Bar dataKey="count" radius={[0, 5, 5, 0]} maxBarSize={22}>
                   {byFunnelOrder(pipeline.data).map((entry) => (
-                    <Cell key={entry.stage} fill={STAGE_COLOURS[entry.stage] || '#3C5C6B'} />
+                    <Cell key={entry.stage} fill={chart.stages[entry.stage] || chart.axis.fill} />
                   ))}
                 </Bar>
               </BarChart>
@@ -267,7 +246,7 @@ export default function Dashboard() {
                         {formatNumber(row.producedUnits)}/{formatNumber(row.plannedUnits)}
                       </span>
                     </div>
-                    <div className="h-1 overflow-hidden rounded-full bg-white/[0.07]">
+                    <div className="h-1 overflow-hidden rounded-full bg-line/[0.07]">
                       <div
                         className="h-full rounded-full bg-flame-500 transition-all duration-500"
                         style={{ width: `${percent}%` }}

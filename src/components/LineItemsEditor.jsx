@@ -59,8 +59,8 @@ export default function LineItemsEditor({
 
   return (
     <div>
-      <div className="overflow-x-auto rounded-lg border border-white/[0.06]">
-        <table className="min-w-full divide-y divide-white/[0.04] text-sm">
+      <div className="overflow-x-auto rounded-lg border border-line/[0.06]">
+        <table className="min-w-full divide-y divide-line/[0.04] text-sm">
           <thead className="table-head">
             <tr>
               <th className="px-3 py-2">{itemLabel}</th>
@@ -72,7 +72,7 @@ export default function LineItemsEditor({
               <th className="w-10 px-3 py-2" />
             </tr>
           </thead>
-          <tbody className="divide-y divide-white/[0.04]">
+          <tbody className="divide-y divide-line/[0.04]">
             {lines.map((line, index) => {
               const gross = (Number(line.quantity) || 0) * (Number(line.unitPrice) || 0);
               const discount = (gross * (Number(line.discountPercent) || 0)) / 100;
@@ -176,7 +176,7 @@ export default function LineItemsEditor({
             <dt className="text-steel-400">Tax</dt>
             <dd className="font-medium">{formatCurrency(totals.tax)}</dd>
           </div>
-          <div className="flex justify-between border-t border-white/[0.06] pt-1 text-base">
+          <div className="flex justify-between border-t border-line/[0.06] pt-1 text-base">
             <dt className="font-semibold text-steel-200">Total</dt>
             <dd className="font-semibold text-steel-50">{formatCurrency(totals.total)}</dd>
           </div>

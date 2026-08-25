@@ -10,7 +10,18 @@
       href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
-    <meta name="theme-color" content="#0C141A" />
+    <meta name="theme-color" content="#0C141A" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#F0F4F7" media="(prefers-color-scheme: light)" />
+    <script>
+      // Runs before the first paint so a stored preference never flashes the other theme.
+      // No stored choice leaves the attribute off, letting the stylesheet follow the OS.
+      try {
+        var saved = localStorage.getItem('npt.theme');
+        if (saved === 'light' || saved === 'dark') {
+          document.documentElement.setAttribute('data-theme', saved);
+        }
+      } catch (e) {}
+    </script>
     <meta
       name="description"
       content="Navin Hangers CRM and ERP — sales, production, inventory and accounts in one console."

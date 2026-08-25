@@ -47,7 +47,7 @@ const STATUS_TONES = {
 };
 
 const TONE_CLASSES = {
-  neutral: 'bg-white/[0.06] text-steel-300 ring-white/10',
+  neutral: 'bg-line/[0.06] text-steel-300 ring-line/10',
   info: 'bg-aqua-500/15 text-aqua-300 ring-aqua-500/25',
   progress: 'bg-warn-500/15 text-warn-400 ring-warn-500/25',
   success: 'bg-success-500/15 text-success-400 ring-success-500/25',
