@@ -130,11 +130,23 @@ export function CustomerForm({ customer, onClose, onSaved }) {
         <textarea rows={2} className="input" {...register('notes')} />
       </Field>
 
+      {/* A duplicate owned by a colleague is reported without being handed over, so the
+          warning names who to talk to rather than the record. */}
       {duplicate && (
         <Notice tone="warn">
-          {duplicate.customer.name} ({duplicate.customer.code}) already exists with the same{' '}
-          {duplicate.matchedOn}. Raise the enquiry against that record rather than creating a
-          second one.
+          {duplicate.customer ? (
+            <>
+              {duplicate.customer.name} ({duplicate.customer.code}) already exists with the same{' '}
+              {duplicate.matchedOn}. Raise the enquiry against that record rather than creating
+              a second one.
+            </>
+          ) : (
+            <>
+              A customer with the same {duplicate.matchedOn} already exists
+              {duplicate.owner ? `, and belongs to ${duplicate.owner}` : ''}. Speak to them
+              rather than creating a second record.
+            </>
+          )}
         </Notice>
       )}
 

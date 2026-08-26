@@ -4,7 +4,7 @@
  * the data — and a dropdown that waits on a round trip feels broken.
  */
 
-/** The eleven enquiry statuses, in the order work moves through them. */
+/** The enquiry statuses, in the order work moves through them. */
 export const ENQUIRY_STAGES = [
   { value: 'new', label: 'New' },
   { value: 'requirement_clarification', label: 'Clarifying requirement' },
@@ -33,7 +33,7 @@ export const OPEN_STAGES = ENQUIRY_STAGES.filter(
   (stage) => !CLOSED_STAGES.includes(stage.value) && stage.value !== 'hold'
 );
 
-/** The twelve sample statuses [§4], in the order work moves through them. */
+/** The sample statuses, in the order work moves through them. */
 export const SAMPLE_STAGES = [
   { value: 'request_received', label: 'Request received' },
   { value: 'checking_stock', label: 'Checking stock' },
@@ -47,12 +47,13 @@ export const SAMPLE_STAGES = [
   { value: 'approved', label: 'Approved' },
   { value: 'modification_required', label: 'Modification required' },
   { value: 'rejected', label: 'Rejected' },
+  { value: 'cancelled', label: 'Cancelled' },
 ];
 
 /** Set through the feedback action by whoever spoke to the customer, never by the maker. */
 export const FEEDBACK_OUTCOMES = ['approved', 'modification_required', 'rejected'];
 
-export const CLOSED_SAMPLE_STAGES = ['approved', 'rejected'];
+export const CLOSED_SAMPLE_STAGES = ['approved', 'rejected', 'cancelled'];
 
 /** Stages where the sample is with the customer, so the plant is no longer the holdup. */
 export const WITH_CUSTOMER_STAGES = ['dispatched', 'delivered', 'customer_feedback_pending'];

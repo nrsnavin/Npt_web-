@@ -244,14 +244,24 @@ export default function SampleDetail() {
             {sample.isOverdue && <Badge tone="danger">Overdue</Badge>}
             <Badge status={sample.status}>{sampleStageLabel(sample.status)}</Badge>
 
-            {maySample && !sample.assignedTo && !closed && (
+            {maySample && !closed && (
               <button
                 type="button"
                 className="btn-secondary"
                 disabled={busy}
-                onClick={() => act(async () => setData(await samplesApi.assign({ id: sample._id })))}
+                onClick={() =>
+                  act(async () =>
+                    setData(
+                      await samplesApi.assign({
+                        // Explicitly null hands it back; omitted takes it yourself.
+                        id: sample._id,
+                        ...(sample.assignedTo ? { assignedTo: null } : {}),
+                      })
+                    )
+                  )
+                }
               >
-                Pick this up
+                {sample.assignedTo ? 'Hand back to the queue' : 'Pick this up'}
               </button>
             )}
 
@@ -318,6 +328,14 @@ export default function SampleDetail() {
           <Notice tone="danger">
             Rejected{sample.feedbackNote ? ` — ${sample.feedbackNote}` : '.'} The enquiry is
             still open: re-sample it, or close it from the enquiry.
+          </Notice>
+        </div>
+      )}
+
+      {sample.status === 'cancelled' && (
+        <div className="mb-5">
+          <Notice tone="warn">
+            Cancelled — the enquiry behind this request was lost, so it is off the bench.
           </Notice>
         </div>
       )}
