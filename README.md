@@ -61,6 +61,11 @@ modification offers the next attempt, carrying the customer's words forward.
 Handover tasks appear in the dock, linked to the record that raised them, so acting on one
 is a click rather than a search.
 
+A **Courier** section takes the courier, tracking number, quantity and date whenever they are
+known — before the sample leaves, so the ready update can tell the customer how it is coming,
+and afterwards, since a tracking number typed wrong is otherwise stuck. Dispatching accepts
+what is already there rather than asking again.
+
 The customer is told automatically when a sample is ready and when it is dispatched, on
 WhatsApp and email. The sample screen carries the log of everything ever sent — channel,
 recipient, the text as it went, and whether a person or the automation sent it — plus a

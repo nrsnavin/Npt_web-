@@ -90,6 +90,9 @@ export const samples = {
   update: ({ id, ...payload }) => api.patch(`/samples/${id}`, payload).then(unwrap),
   assign: ({ id, ...payload }) => api.post(`/samples/${id}/assign`, payload).then(unwrap),
   setStatus: ({ id, ...payload }) => api.post(`/samples/${id}/status`, payload).then(unwrap),
+  /** Courier, tracking number, date and quantity — recorded whenever they are known. */
+  setDispatchDetails: ({ id, ...payload }) =>
+    api.patch(`/samples/${id}/dispatch-details`, payload).then(unwrap),
   /** What the customer said. On marketing's grant, not the sample team's. */
   recordFeedback: ({ id, ...payload }) => api.post(`/samples/${id}/feedback`, payload).then(unwrap),
   resample: ({ id, ...payload }) => api.post(`/samples/${id}/resample`, payload).then(unwrap),

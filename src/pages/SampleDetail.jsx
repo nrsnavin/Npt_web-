@@ -191,6 +191,105 @@ function FeedbackForm({ sample, onClose, onSaved }) {
 }
 
 
+
+/**
+ * Courier, tracking number, date and quantity.
+ *
+ * Reachable at any open stage, not only when dispatching: the courier is usually arranged
+ * before the sample leaves, and entering it early means the customer is told how it is coming
+ * in the ready message rather than being promised details later. It is also the only way to
+ * fix a tracking number typed wrong, since a sample dispatches once.
+ */
+function DispatchDetailsForm({ sample, onClose, onSaved }) {
+  const [courier, setCourier] = useState(sample.courier || '');
+  const [awbNumber, setAwbNumber] = useState(sample.awbNumber || '');
+  const [dispatchedQuantity, setDispatchedQuantity] = useState(
+    sample.dispatchedQuantity ?? sample.quantity ?? ''
+  );
+  const [dispatchedAt, setDispatchedAt] = useState(
+    sample.dispatchedAt ? sample.dispatchedAt.slice(0, 10) : ''
+  );
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+
+  const alreadyGone = WITH_CUSTOMER_STAGES.includes(sample.status);
+
+  const submit = async (event) => {
+    event.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      onSaved(
+        await samplesApi.setDispatchDetails({
+          id: sample._id,
+          courier: text(courier) ?? null,
+          awbNumber: text(awbNumber) ?? null,
+          dispatchedQuantity: numeric(dispatchedQuantity) ?? null,
+          dispatchedAt: text(dispatchedAt) ?? null,
+        })
+      );
+      onClose();
+    } catch (submitError) {
+      setError(submitError.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form onSubmit={submit} className="space-y-4">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Courier">
+          <input
+            className="input"
+            placeholder="Blue Dart"
+            value={courier}
+            onChange={(event) => setCourier(event.target.value)}
+          />
+        </Field>
+        <Field label="Tracking / AWB number">
+          <input
+            className="input"
+            value={awbNumber}
+            onChange={(event) => setAwbNumber(event.target.value)}
+          />
+        </Field>
+        <Field label="Quantity sent">
+          <input
+            type="number"
+            className="input"
+            value={dispatchedQuantity}
+            onChange={(event) => setDispatchedQuantity(event.target.value)}
+          />
+        </Field>
+        <Field label="Sent on" hint="Filled in automatically when you dispatch">
+          <input
+            type="date"
+            className="input"
+            value={dispatchedAt}
+            onChange={(event) => setDispatchedAt(event.target.value)}
+          />
+        </Field>
+      </div>
+
+      <Notice tone="info">
+        {alreadyGone
+          ? 'Correcting these does not message the customer on its own. Use “Tell the customer” to send them the correction.'
+          : 'Entered before you dispatch, these go to the customer with the ready update, instead of promising to confirm later.'}
+      </Notice>
+
+      {error && <Notice tone="danger">{error}</Notice>}
+
+      <div className="flex justify-end gap-2">
+        <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
+        <button type="submit" className="btn-primary" disabled={busy}>
+          {busy ? 'Saving…' : 'Save courier details'}
+        </button>
+      </div>
+    </form>
+  );
+}
+
 /**
  * Telling the customer by hand [§42].
  *
@@ -396,6 +495,7 @@ export default function SampleDetail() {
   const [movingStage, setMovingStage] = useState(false);
   const [givingFeedback, setGivingFeedback] = useState(false);
   const [messaging, setMessaging] = useState(false);
+  const [editingDispatch, setEditingDispatch] = useState(false);
   const [messagesKey, setMessagesKey] = useState(0);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState(null);
@@ -598,17 +698,33 @@ export default function SampleDetail() {
             />
           </Section>
 
-          {(sample.courier || sample.dispatchedAt) && (
-            <Section title="Dispatch">
-              <Facts
-                items={[
-                  { label: 'Courier', value: sample.courier },
-                  { label: 'AWB number', value: sample.awbNumber },
-                  { label: 'Sent on', value: sample.dispatchedAt && formatDate(sample.dispatchedAt) },
-                  { label: 'Quantity sent', value: sample.dispatchedQuantity && formatNumber(sample.dispatchedQuantity) },
-                  { label: 'Delivered on', value: sample.deliveredAt && formatDate(sample.deliveredAt) },
-                ]}
-              />
+          {(maySample || sample.courier) && (
+            <Section
+              title="Courier"
+              actions={
+                maySample && !closed ? (
+                  <button type="button" className="row-action" onClick={() => setEditingDispatch(true)}>
+                    {sample.courier ? 'Edit' : 'Add details'}
+                  </button>
+                ) : null
+              }
+            >
+              {sample.courier || sample.awbNumber ? (
+                <Facts
+                  items={[
+                    { label: 'Courier', value: sample.courier },
+                    { label: 'Tracking number', value: sample.awbNumber },
+                    { label: 'Sent on', value: sample.dispatchedAt && formatDate(sample.dispatchedAt) },
+                    { label: 'Quantity sent', value: sample.dispatchedQuantity && formatNumber(sample.dispatchedQuantity) },
+                    { label: 'Delivered on', value: sample.deliveredAt && formatDate(sample.deliveredAt) },
+                  ]}
+                />
+              ) : (
+                <p className="text-sm text-steel-500">
+                  Not arranged yet. Adding the courier before you dispatch means the customer is
+                  told how it is coming when the sample is ready.
+                </p>
+              )}
             </Section>
           )}
 
@@ -685,6 +801,19 @@ export default function SampleDetail() {
         onClose={() => setMovingStage(false)}
       >
         <StageForm sample={sample} onClose={() => setMovingStage(false)} onSaved={setData} />
+      </Modal>
+
+      <Modal
+        open={editingDispatch}
+        title="Courier details"
+        description="Record them whenever they are known — before dispatch, or to correct them after"
+        onClose={() => setEditingDispatch(false)}
+      >
+        <DispatchDetailsForm
+          sample={sample}
+          onClose={() => setEditingDispatch(false)}
+          onSaved={setData}
+        />
       </Modal>
 
       <Modal
