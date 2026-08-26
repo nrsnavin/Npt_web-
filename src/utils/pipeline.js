@@ -9,6 +9,7 @@ export const ENQUIRY_STAGES = [
   { value: 'new', label: 'New' },
   { value: 'requirement_clarification', label: 'Clarifying requirement' },
   { value: 'sample_required', label: 'Sample required' },
+  { value: 'sample_feedback_pending', label: 'Sample feedback' },
   { value: 'pricing_required', label: 'Pricing required' },
   { value: 'quote_submitted', label: 'Quote submitted' },
   { value: 'negotiation', label: 'Negotiation' },
@@ -21,10 +22,49 @@ export const ENQUIRY_STAGES = [
 
 export const CLOSED_STAGES = ['won', 'lost'];
 
+/**
+ * How many stages form the run an enquiry actually walks. Won, lost and hold sit outside it
+ * — they are outcomes, not positions — so a progress bar draws only these.
+ */
+export const WORKING_STAGE_COUNT = ENQUIRY_STAGES.findIndex((stage) => stage.value === 'won');
+
 /** The funnel, without the two terminal states and the parked one. */
 export const OPEN_STAGES = ENQUIRY_STAGES.filter(
   (stage) => !CLOSED_STAGES.includes(stage.value) && stage.value !== 'hold'
 );
+
+/** The twelve sample statuses [§4], in the order work moves through them. */
+export const SAMPLE_STAGES = [
+  { value: 'request_received', label: 'Request received' },
+  { value: 'checking_stock', label: 'Checking stock' },
+  { value: 'sample_available', label: 'Sample available' },
+  { value: 'production_required', label: 'Production required' },
+  { value: 'printing_required', label: 'Printing required' },
+  { value: 'sample_ready', label: 'Sample ready' },
+  { value: 'dispatched', label: 'Dispatched' },
+  { value: 'delivered', label: 'Delivered' },
+  { value: 'customer_feedback_pending', label: 'Awaiting feedback' },
+  { value: 'approved', label: 'Approved' },
+  { value: 'modification_required', label: 'Modification required' },
+  { value: 'rejected', label: 'Rejected' },
+];
+
+/** Set through the feedback action by whoever spoke to the customer, never by the maker. */
+export const FEEDBACK_OUTCOMES = ['approved', 'modification_required', 'rejected'];
+
+export const CLOSED_SAMPLE_STAGES = ['approved', 'rejected'];
+
+/** Stages where the sample is with the customer, so the plant is no longer the holdup. */
+export const WITH_CUSTOMER_STAGES = ['dispatched', 'delivered', 'customer_feedback_pending'];
+
+export const SAMPLE_PURPOSES = [
+  { value: 'existing_model', label: 'Existing model' },
+  { value: 'colour_approval', label: 'Colour approval' },
+  { value: 'print_approval', label: 'Print approval' },
+  { value: 'new_development', label: 'New development' },
+  { value: 'fit_test', label: 'Fit test' },
+  { value: 'buyer_approval', label: 'Buyer approval' },
+];
 
 export const LEAD_STAGES = [
   { value: 'new', label: 'New' },
@@ -118,7 +158,21 @@ const label = (options, value) =>
 
 export const stageLabel = (value) => label(ENQUIRY_STAGES, value);
 export const leadStageLabel = (value) => label(LEAD_STAGES, value);
+export const sampleStageLabel = (value) => label(SAMPLE_STAGES, value);
 export const optionLabel = label;
+
+/**
+ * Which sample stages the maker may move to.
+ *
+ * The three feedback outcomes are excluded on purpose: only the person who spoke to the
+ * customer may set those, and the server refuses them on this route regardless.
+ */
+export const nextSampleStagesFrom = (current) => {
+  if (CLOSED_SAMPLE_STAGES.includes(current)) return [];
+  return SAMPLE_STAGES.filter(
+    (stage) => stage.value !== current && !FEEDBACK_OUTCOMES.includes(stage.value)
+  );
+};
 
 /**
  * Which transitions the UI offers from a given stage. The server only forbids moving a

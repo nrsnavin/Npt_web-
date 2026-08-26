@@ -1,13 +1,13 @@
 # NPT Web — Navin Hangers console
 
-React front end for the Navin Hangers API. Currently scoped to authentication and the
-user profile: sign in, see your details and what your role can access, sign out.
+React front end for the Navin Hangers API: the pipeline from a lead to a customer to an
+enquiry, the sampling bench that enquiry hands its work to, the product master, and the
+account and access screens underneath them.
 
 Vite + React + Tailwind, React Router for navigation.
 
-> The CRM and ERP screens (leads, customers, quotations, orders, production, inventory,
-> purchasing) were removed to reduce the app to this foundation. They remain in the git
-> history if any of it is worth recovering.
+> Screens arrive as their module does. Every route is gated on the caller's module grant, so
+> what a person sees is decided by the API rather than by the client.
 
 ## Getting started
 
@@ -50,6 +50,17 @@ step otherwise.
 **Customers** — the master list, and per customer the details, contacts and the enquiry
 timeline. Business figures are placeholders until orders and payments land.
 
+**Sampling** — the bench: how many requests sit at each stage and how many of those are
+late, then Open / Overdue / Unassigned / Mine / All. A request's own screen splits the two
+jobs it involves. The sample team moves it along and dispatches it, which asks for the
+courier, AWB and quantity before it will let go. Marketing records what the customer said
+through a separate action, because only the person who spoke to them knows — and a maker
+marking their own work approved is how a sample register stops being worth reading. A
+modification offers the next attempt, carrying the customer's words forward.
+
+Handover tasks appear in the dock, linked to the record that raised them, so acting on one
+is a click rather than a search.
+
 **Product master** — every hanger model marketing can quote against, filterable by category
 and material. A new development is promoted into it from the enquiry that produced it.
 
@@ -80,8 +91,10 @@ src/
   api/          axios client (JWT interceptor) and the endpoint map
   components/   Layout, the UI kit and the theme toggle
   context/      AuthContext (session, sign-in, role and feature checks), ThemeContext
-  pages/        Login, Profile
-  utils/        formatting and status badge tones
+  components/dock/  the bottom-right dock: tasks, notes, announcements
+  hooks/        record and list loading, with a debounce for search boxes
+  pages/        Login, Profile, Users, and the pipeline and sampling screens
+  utils/        formatting, status badge tones, and the pipeline's enums and stage order
   theme.css     the dark and light palettes
 ```
 

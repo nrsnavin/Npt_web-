@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useWorkspace } from './WorkspaceContext.jsx';
 import DockIcon from './DockIcon.jsx';
 import { Notice } from '../ui.jsx';
@@ -58,7 +59,15 @@ function TodoRow({ todo, onToggle, onDelete }) {
             todo.completed ? 'text-steel-500 line-through' : 'font-medium text-steel-100'
           }`}
         >
-          {todo.title}
+          {/* A task raised by a handover points at the record that raised it, so acting on
+              it is one click rather than a search. */}
+          {todo.link && !todo.completed ? (
+            <Link to={todo.link} className="transition-colors hover:text-accent">
+              {todo.title}
+            </Link>
+          ) : (
+            todo.title
+          )}
         </p>
         <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[0.6875rem]">
           {due && !todo.completed && <span className={due.tone}>{due.text}</span>}

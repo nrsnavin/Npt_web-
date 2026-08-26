@@ -15,6 +15,8 @@ import Leads from './pages/Leads.jsx';
 import LeadDetail from './pages/LeadDetail.jsx';
 import Enquiries from './pages/Enquiries.jsx';
 import EnquiryDetail from './pages/EnquiryDetail.jsx';
+import Samples from './pages/Samples.jsx';
+import SampleDetail from './pages/SampleDetail.jsx';
 
 /** Blocks a route unless the user may read the module behind it. */
 function RequireModule({ moduleKey, children }) {
@@ -82,6 +84,22 @@ export default function App() {
           element={
             <RequireModule moduleKey="enquiries">
               <EnquiryDetail />
+            </RequireModule>
+          }
+        />
+        <Route
+          path="samples"
+          element={
+            <RequireModule moduleKey="samples">
+              <Samples />
+            </RequireModule>
+          }
+        />
+        <Route
+          path="samples/:id"
+          element={
+            <RequireModule moduleKey="samples">
+              <SampleDetail />
             </RequireModule>
           }
         />

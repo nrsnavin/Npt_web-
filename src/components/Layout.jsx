@@ -33,7 +33,7 @@ const RAIL = [
     label: 'Pipeline',
     icon: 'funnel',
     module: 'enquiries',
-    paths: ['/enquiries', '/leads', '/customers'],
+    paths: ['/enquiries', '/leads', '/customers', '/samples'],
   },
   { to: '/products', label: 'Catalogue', icon: 'box', module: 'products' },
   { to: '/profile', label: 'Profile', icon: 'user' },
@@ -65,6 +65,7 @@ const SIDEBARS = {
         items: [
           { to: '/leads', label: 'Leads', module: 'enquiries' },
           { to: '/enquiries', label: 'Enquiries', module: 'enquiries' },
+          { to: '/samples', label: 'Sampling', module: 'samples' },
         ],
       },
       {
@@ -178,6 +179,7 @@ export function ThemeToggle({ className = '' }) {
 /** Where a built module lives. Anything absent is available but has no screen of its own. */
 const MODULE_ROUTES = {
   enquiries: '/enquiries',
+  samples: '/samples',
   customers: '/customers',
   products: '/products',
   users: '/users',

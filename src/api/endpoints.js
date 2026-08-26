@@ -82,6 +82,20 @@ export const enquiries = {
   pipeline: () => api.get('/enquiries/pipeline').then(unwrap),
 };
 
+/** Phase 2: sample requests, from the enquiry that raised one to the customer's answer. */
+export const samples = {
+  list: (params) => api.get('/samples', { params }).then(listed),
+  get: (id) => api.get(`/samples/${id}`).then(unwrap),
+  create: (payload) => api.post('/samples', payload).then(unwrap),
+  update: ({ id, ...payload }) => api.patch(`/samples/${id}`, payload).then(unwrap),
+  assign: ({ id, ...payload }) => api.post(`/samples/${id}/assign`, payload).then(unwrap),
+  setStatus: ({ id, ...payload }) => api.post(`/samples/${id}/status`, payload).then(unwrap),
+  /** What the customer said. On marketing's grant, not the sample team's. */
+  recordFeedback: ({ id, ...payload }) => api.post(`/samples/${id}/feedback`, payload).then(unwrap),
+  resample: ({ id, ...payload }) => api.post(`/samples/${id}/resample`, payload).then(unwrap),
+  pipeline: () => api.get('/samples/pipeline').then(unwrap),
+};
+
 export const auth = {
   login: (payload) => api.post('/auth/login', payload).then(unwrap),
   register: (payload) => api.post('/auth/register', payload).then(unwrap),

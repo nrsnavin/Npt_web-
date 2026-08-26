@@ -1,7 +1,7 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import { enquiries as enquiriesApi } from '../api/endpoints.js';
+import { enquiries as enquiriesApi, samples as samplesApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useRecord } from '../hooks/useRecords.js';
 import {
@@ -9,8 +9,9 @@ import {
 } from '../components/ui.jsx';
 import { formatCurrency, formatDate, formatNumber } from '../utils/format.js';
 import {
-  CLOSED_STAGES, ENQUIRY_STAGES, HANGER_CATEGORIES, LOST_REASONS, MATERIALS, SOURCES,
-  followUpState, nextStagesFrom, numeric, optionLabel, stageLabel, text,
+  CLOSED_STAGES, ENQUIRY_STAGES, HANGER_CATEGORIES, LOST_REASONS, MATERIALS,
+  SAMPLE_PURPOSES, SOURCES, WORKING_STAGE_COUNT, followUpState, nextStagesFrom, numeric,
+  optionLabel, sampleStageLabel, stageLabel, text,
 } from '../utils/pipeline.js';
 
 const TONE_TEXT = {
@@ -239,9 +240,62 @@ function PromoteForm({ enquiry, onClose, onSaved }) {
   );
 }
 
+/**
+ * The samples raised against this enquiry, so an enquiry reads as one record rather than
+ * sending marketing to another screen to find out where its sample got to [§2].
+ */
+function EnquirySamples({ enquiryId }) {
+  const [rows, setRows] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    samplesApi
+      .list({ enquiry: enquiryId, limit: 20 })
+      .then((response) => {
+        if (!cancelled) setRows(response.data || []);
+      })
+      .catch(() => {
+        if (!cancelled) setRows([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [enquiryId]);
+
+  if (!rows?.length) return null;
+
+  return (
+    <Section title={`Samples (${rows.length})`}>
+      <ul className="space-y-2">
+        {rows.map((sample) => (
+          <li
+            key={sample._id}
+            className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line/[0.06] px-3.5 py-3"
+          >
+            <div className="min-w-0">
+              <Link to={`/samples/${sample._id}`} className="text-sm font-semibold text-steel-100 hover:text-accent">
+                {sample.number}
+              </Link>
+              <p className="text-xs text-steel-400">
+                {optionLabel(SAMPLE_PURPOSES, sample.purpose)}
+                {sample.colour && ` · ${sample.colour}`}
+                {sample.requiredDate && ` · due ${formatDate(sample.requiredDate)}`}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              {sample.isOverdue && <Badge tone="danger">Overdue</Badge>}
+              <Badge status={sample.status}>{sampleStageLabel(sample.status)}</Badge>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </Section>
+  );
+}
+
 export default function EnquiryDetail() {
   const { id } = useParams();
-  const { canWrite } = useAuth();
+  const { canRead, canWrite } = useAuth();
   const [movingStage, setMovingStage] = useState(false);
   const [promoting, setPromoting] = useState(false);
 
@@ -254,6 +308,7 @@ export default function EnquiryDetail() {
 
   const mayWrite = canWrite('enquiries');
   const mayWriteProducts = canWrite('products');
+  const mayReadSamples = canRead('samples');
   const open = !CLOSED_STAGES.includes(enquiry.status);
   const due = followUpState(enquiry.nextFollowUpDate);
   const stageIndex = ENQUIRY_STAGES.findIndex((stage) => stage.value === enquiry.status);
@@ -302,14 +357,17 @@ export default function EnquiryDetail() {
         </div>
       )}
 
-      {/* The funnel position, so the stage reads as a place rather than a word. */}
+      {/* The funnel position, so the stage reads as a place rather than a word. Won, lost
+          and hold sit outside the run, so only the nine working stages are drawn. */}
       <div className="mb-5 flex gap-1" aria-hidden="true">
-        {ENQUIRY_STAGES.slice(0, 8).map((stage, index) => (
+        {ENQUIRY_STAGES.slice(0, WORKING_STAGE_COUNT).map((stage, index) => (
           <span
             key={stage.value}
             title={stage.label}
             className={`h-1 flex-1 rounded-full ${
-              index <= stageIndex && stageIndex < 8 ? 'bg-flame-500' : 'bg-line/[0.08]'
+              index <= stageIndex && stageIndex < WORKING_STAGE_COUNT
+                ? 'bg-flame-500'
+                : 'bg-line/[0.08]'
             }`}
           />
         ))}
@@ -346,6 +404,8 @@ export default function EnquiryDetail() {
               ]}
             />
           </Section>
+
+          {mayReadSamples && <EnquirySamples enquiryId={enquiry._id} />}
 
           <Section title={`Stage history (${enquiry.statusHistory?.length || 0})`}>
             {enquiry.statusHistory?.length ? (
