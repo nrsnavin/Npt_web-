@@ -96,6 +96,8 @@ export const samples = {
   /** What the customer said. On marketing's grant, not the sample team's. */
   recordFeedback: ({ id, ...payload }) => api.post(`/samples/${id}/feedback`, payload).then(unwrap),
   resample: ({ id, ...payload }) => api.post(`/samples/${id}/resample`, payload).then(unwrap),
+  /** Attaches a request raised before its enquiry existed. */
+  linkEnquiry: ({ id, enquiry }) => api.post(`/samples/${id}/link-enquiry`, { enquiry }).then(unwrap),
   pipeline: () => api.get('/samples/pipeline').then(unwrap),
 
   /** Outbound customer updates [§42]: the draft, the send, and everything already sent. */

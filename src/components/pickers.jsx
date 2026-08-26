@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { customers as customersApi, products as productsApi } from '../api/endpoints.js';
+import { customers as customersApi, enquiries as enquiriesApi, products as productsApi } from '../api/endpoints.js';
 
 /**
  * Reference-data selects.
@@ -70,5 +70,42 @@ export function CustomerSelect({ value, onChange, ...rest }) {
         </option>
       ))}
     </select>
+  );
+}
+
+const loadOpenEnquiries = () => enquiriesApi.list({ limit: 200, open: 'true' });
+
+/** Open enquiries only: a sample is never raised against one that is already won or lost. */
+export function EnquirySelect({ value, onChange, customer, ...rest }) {
+  const enquiries = useOptions(loadOpenEnquiries);
+  // When the sample already names a customer, only that customer's enquiries can match.
+  const visible = customer
+    ? enquiries.filter((enquiry) => (enquiry.customer?._id || enquiry.customer) === customer)
+    : enquiries;
+
+  return (
+    <>
+      <select
+        className="input"
+        value={value || ''}
+        onChange={(event) => onChange(event.target.value || undefined)}
+        {...rest}
+      >
+        <option value="">No enquiry — this is a standalone request</option>
+        {visible.map((enquiry) => (
+          <option key={enquiry._id} value={enquiry._id}>
+            {enquiry.number} — {enquiry.customer?.name} · {enquiry.requirement?.modelNumber}
+          </option>
+        ))}
+      </select>
+
+      {/* A select holding only its placeholder explains nothing on its own. */}
+      {customer && visible.length === 0 && (
+        <p className="mt-1.5 text-xs text-steel-500">
+          That customer has no open enquiry to attach this to. Won and lost ones are not
+          offered — raise a new enquiry if the work is live again.
+        </p>
+      )}
+    </>
   );
 }

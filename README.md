@@ -61,6 +61,12 @@ modification offers the next attempt, carrying the customer's words forward.
 Handover tasks appear in the dock, linked to the record that raised them, so acting on one
 is a click rather than a search.
 
+**New request** raises one by hand, for what the automation cannot see: a buyer who asks at
+the counter before anyone writes an enquiry, or an internal trial that belongs to nobody.
+Leave the enquiry blank and the form asks what to make instead; leave the customer blank too
+and it is an internal trial. Such a request walks the same stages as any other, and can be
+attached to its enquiry once one exists.
+
 The sample carries a **Log**: notes and photos of each shot, with comments on either. Anyone
 who can see the sample can post and comment, marketing included — they hold read access only,
 and they are exactly who has to look at a photo and say what the buyer thinks. Photos open

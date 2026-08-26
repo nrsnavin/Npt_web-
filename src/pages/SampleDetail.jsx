@@ -7,6 +7,7 @@ import {
   Badge, ErrorState, Facts, Field, Modal, Notice, PageHeader, Section, Spinner,
 } from '../components/ui.jsx';
 import AuthedImage from '../components/AuthedImage.jsx';
+import { EnquirySelect } from '../components/pickers.jsx';
 import SampleLog from '../components/SampleLog.jsx';
 import { formatDate, formatNumber } from '../utils/format.js';
 import {
@@ -129,11 +130,20 @@ function FeedbackForm({ sample, onClose, onSaved }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
-  const outcomes = [
-    { value: 'approved', label: 'Approved', hint: 'Sends the enquiry on to pricing.' },
-    { value: 'modification_required', label: 'Modification required', hint: 'Ask the bench for another attempt.' },
-    { value: 'rejected', label: 'Rejected', hint: 'The enquiry stays open — whether to close it is your call.' },
-  ];
+  // A trial with no customer has no customer verdict and no enquiry to move on.
+  const internal = !sample.customer;
+
+  const outcomes = internal
+    ? [
+        { value: 'approved', label: 'Approved', hint: 'The trial worked. Closes this request.' },
+        { value: 'modification_required', label: 'Modification required', hint: 'Try again with a change.' },
+        { value: 'rejected', label: 'Rejected', hint: 'The trial did not work. Closes this request.' },
+      ]
+    : [
+        { value: 'approved', label: 'Approved', hint: 'Sends the enquiry on to pricing.' },
+        { value: 'modification_required', label: 'Modification required', hint: 'Ask the bench for another attempt.' },
+        { value: 'rejected', label: 'Rejected', hint: 'The enquiry stays open — whether to close it is your call.' },
+      ];
 
   const submit = async (event) => {
     event.preventDefault();
@@ -151,7 +161,7 @@ function FeedbackForm({ sample, onClose, onSaved }) {
 
   return (
     <form onSubmit={submit} className="space-y-4">
-      <div role="radiogroup" aria-label="What the customer said" className="space-y-2">
+      <div role="radiogroup" aria-label={internal ? 'How the trial went' : 'What the customer said'} className="space-y-2">
         {outcomes.map((option) => (
           <label
             key={option.value}
@@ -176,7 +186,10 @@ function FeedbackForm({ sample, onClose, onSaved }) {
         ))}
       </div>
 
-      <Field label="What they said" hint="Their own words carry into the next attempt">
+      <Field
+        label={internal ? 'What happened' : 'What they said'}
+        hint={internal ? 'Carries into the next attempt' : 'Their own words carry into the next attempt'}
+      >
         <textarea rows={3} className="input" value={note} onChange={(event) => setNote(event.target.value)} />
       </Field>
 
@@ -606,6 +619,64 @@ function CustomerMessages({ sampleId, refreshKey }) {
   );
 }
 
+
+/** Attaching a request raised before its enquiry existed. */
+function LinkEnquiryForm({ sample, onClose, onSaved }) {
+  const [enquiry, setEnquiry] = useState(undefined);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+
+  const submit = async (event) => {
+    event.preventDefault();
+    if (!enquiry) return;
+
+    setBusy(true);
+    setError(null);
+    try {
+      onSaved(await samplesApi.linkEnquiry({ id: sample._id, enquiry }));
+      onClose();
+    } catch (submitError) {
+      setError(submitError.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form onSubmit={submit} className="space-y-4">
+      <Field
+        label="Enquiry"
+        hint={
+          sample.customer
+            ? `Only ${sample.customer.name}'s open enquiries — a sample cannot move between customers`
+            : 'Attaching it also gives the request that enquiry’s customer'
+        }
+      >
+        <EnquirySelect
+          value={enquiry}
+          onChange={setEnquiry}
+          customer={sample.customer?._id}
+          aria-label="Enquiry"
+        />
+      </Field>
+
+      <Notice tone="info">
+        Once attached it stays attached. Re-pointing a sample at a different enquiry would
+        rewrite what was made for whom.
+      </Notice>
+
+      {error && <Notice tone="danger">{error}</Notice>}
+
+      <div className="flex justify-end gap-2">
+        <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
+        <button type="submit" className="btn-primary" disabled={busy || !enquiry}>
+          {busy ? 'Attaching…' : 'Attach'}
+        </button>
+      </div>
+    </form>
+  );
+}
+
 export default function SampleDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -614,6 +685,7 @@ export default function SampleDetail() {
   const [givingFeedback, setGivingFeedback] = useState(false);
   const [messaging, setMessaging] = useState(false);
   const [editingDispatch, setEditingDispatch] = useState(false);
+  const [linking, setLinking] = useState(false);
   const [messagesKey, setMessagesKey] = useState(0);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState(null);
@@ -626,7 +698,12 @@ export default function SampleDetail() {
   if (!sample) return null;
 
   const maySample = canWrite('samples');
-  const mayGiveFeedback = canWrite('enquiries');
+  /*
+   * Recording the outcome is normally marketing's, because it is the customer's verdict.
+   * A request with no customer has no such verdict — an internal trial is the bench's to
+   * judge — and the server allows exactly that, so the button has to as well.
+   */
+  const mayGiveFeedback = canWrite('enquiries') || (!sample.customer && canWrite('samples'));
   const mayMessage = canWrite('customer_comms');
   const mayReadMessages = canRead('customer_comms');
   // Only the stages §42.5 makes eligible have anything to say to a customer.
@@ -653,14 +730,24 @@ export default function SampleDetail() {
       <PageHeader
         title={sample.number}
         subtitle={
+          /* Either side can be absent: a counter request has no enquiry, an internal trial
+             has no customer either. Linking to an id that is not there is worse than not. */
           <>
-            <Link to={`/customers/${sample.customer?._id}`} className="hover:text-accent">
-              {sample.customer?.name}
-            </Link>
+            {sample.customer ? (
+              <Link to={`/customers/${sample.customer._id}`} className="hover:text-accent">
+                {sample.customer.name}
+              </Link>
+            ) : (
+              'Internal request'
+            )}
             {' · '}
-            <Link to={`/enquiries/${sample.enquiry?._id}`} className="hover:text-accent">
-              {sample.enquiry?.number}
-            </Link>
+            {sample.enquiry ? (
+              <Link to={`/enquiries/${sample.enquiry._id}`} className="hover:text-accent">
+                {sample.enquiry.number}
+              </Link>
+            ) : (
+              'No enquiry'
+            )}
           </>
         }
         actions={
@@ -689,6 +776,12 @@ export default function SampleDetail() {
               </button>
             )}
 
+            {maySample && !sample.enquiry && !closed && (
+              <button type="button" className="btn-secondary" onClick={() => setLinking(true)}>
+                Attach to an enquiry
+              </button>
+            )}
+
             {maySample && sample.status === 'modification_required' && !sample.supersededBy && (
               <button
                 type="button"
@@ -711,7 +804,7 @@ export default function SampleDetail() {
               </button>
             )}
 
-            {mayGiveFeedback && withCustomer && (
+            {mayGiveFeedback && (withCustomer || (!sample.customer && sample.status === 'sample_ready')) && (
               <button type="button" className="btn-primary" onClick={() => setGivingFeedback(true)}>
                 Record feedback
               </button>
@@ -903,6 +996,10 @@ export default function SampleDetail() {
                   value: sample.autoCreated ? 'Automatically, from the enquiry' : 'Raised by hand',
                 },
                 {
+                  label: 'Raised without an enquiry',
+                  value: !sample.enquiry ? sample.standaloneReason || 'Yes' : undefined,
+                },
+                {
                   label: 'Previous attempt',
                   value: sample.previousSample && (
                     <Link to={`/samples/${sample.previousSample._id}`} className="text-accent hover:underline">
@@ -923,6 +1020,15 @@ export default function SampleDetail() {
         onClose={() => setMovingStage(false)}
       >
         <StageForm sample={sample} onClose={() => setMovingStage(false)} onSaved={setData} />
+      </Modal>
+
+      <Modal
+        open={linking}
+        title="Attach to an enquiry"
+        description="For a request raised before anybody wrote the enquiry"
+        onClose={() => setLinking(false)}
+      >
+        <LinkEnquiryForm sample={sample} onClose={() => setLinking(false)} onSaved={setData} />
       </Modal>
 
       <Modal
@@ -957,8 +1063,12 @@ export default function SampleDetail() {
 
       <Modal
         open={givingFeedback}
-        title="Record customer feedback"
-        description="Only the person who spoke to them can answer this"
+        title={sample.customer ? 'Record customer feedback' : 'Record how the trial went'}
+        description={
+          sample.customer
+            ? 'Only the person who spoke to them can answer this'
+            : 'An internal trial has no customer verdict — the bench’s own is the verdict'
+        }
         onClose={() => setGivingFeedback(false)}
       >
         <FeedbackForm sample={sample} onClose={() => setGivingFeedback(false)} onSaved={setData} />
