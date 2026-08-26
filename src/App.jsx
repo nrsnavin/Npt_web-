@@ -8,6 +8,13 @@ import Login from './pages/Login.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Profile from './pages/Profile.jsx';
 import Users from './pages/Users.jsx';
+import Products from './pages/Products.jsx';
+import Customers from './pages/Customers.jsx';
+import CustomerDetail from './pages/CustomerDetail.jsx';
+import Leads from './pages/Leads.jsx';
+import LeadDetail from './pages/LeadDetail.jsx';
+import Enquiries from './pages/Enquiries.jsx';
+import EnquiryDetail from './pages/EnquiryDetail.jsx';
 
 /** Blocks a route unless the user may read the module behind it. */
 function RequireModule({ moduleKey, children }) {
@@ -44,6 +51,65 @@ export default function App() {
         <Route index element={<Dashboard />} />
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="profile" element={<Profile />} />
+
+        {/* Phase 1: the pipeline that runs from a lead to a customer to an enquiry. */}
+        <Route
+          path="leads"
+          element={
+            <RequireModule moduleKey="enquiries">
+              <Leads />
+            </RequireModule>
+          }
+        />
+        <Route
+          path="leads/:id"
+          element={
+            <RequireModule moduleKey="enquiries">
+              <LeadDetail />
+            </RequireModule>
+          }
+        />
+        <Route
+          path="enquiries"
+          element={
+            <RequireModule moduleKey="enquiries">
+              <Enquiries />
+            </RequireModule>
+          }
+        />
+        <Route
+          path="enquiries/:id"
+          element={
+            <RequireModule moduleKey="enquiries">
+              <EnquiryDetail />
+            </RequireModule>
+          }
+        />
+        <Route
+          path="customers"
+          element={
+            <RequireModule moduleKey="customers">
+              <Customers />
+            </RequireModule>
+          }
+        />
+        <Route
+          path="customers/:id"
+          element={
+            <RequireModule moduleKey="customers">
+              <CustomerDetail />
+            </RequireModule>
+          }
+        />
+        <Route
+          path="products"
+          element={
+            <RequireModule moduleKey="products">
+              <Products />
+            </RequireModule>
+          }
+        />
+
         <Route
           path="users"
           element={

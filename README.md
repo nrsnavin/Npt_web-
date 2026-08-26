@@ -37,17 +37,41 @@ setting up a provider account.
 access list. Name, phone and department are editable; email and role are set by an
 administrator. Sign out is in the header and at the foot of the page.
 
-### Feature access
+**Leads** — the funnel doubles as the stage filter. A lead's own screen carries its activity
+log, the qualify and disqualify actions, and **Convert to customer**, which creates the
+customer, its first contact and optionally the first enquiry in one submission.
 
-The list comes from the API, not the client: `GET /auth/me` returns the whole catalogue
-annotated with `allowed` for the caller's role, and the page groups it as the server
-declared it. Entries not yet built are marked *coming soon* — their access is already
-defined, so the moment one ships the right people have it.
+**Enquiries** — count and value per stage across the top, then Open / Due now / All. *Due
+now* is the morning follow-up list: everything open whose date has arrived. An enquiry's own
+screen shows its position in the funnel, the requirement, the full stage history, and the
+move-stage dialog — which asks for a reason when closing or holding, and insists on the next
+step otherwise.
 
-Access follows the **role**, not the department. Departments are organisational only.
+**Customers** — the master list, and per customer the details, contacts and the enquiry
+timeline. Business figures are placeholders until orders and payments land.
 
-`useAuth().hasFeature('leads')` answers the same question for a component, so a screen added
-later can gate itself on the same source of truth the profile displays.
+**Product master** — every hanger model marketing can quote against, filterable by category
+and material. A new development is promoted into it from the enquiry that produced it.
+
+### Module access
+
+The list comes from the API, not the client: sign-in returns the whole catalogue annotated
+with `canRead` and `canWrite` for the caller, and the profile groups it as the server
+declared it. Entries not yet built are marked *soon* — their access is already defined, so
+the moment one ships the right people have it.
+
+Access is a per-user grant on each module, at `read` or `write`. A department only proposes a
+starting set of grants when an administrator creates the account; what is stored on the user
+is always the explicit grant, so a department change never silently alters what somebody can
+already do. Admins bypass grants entirely.
+
+`useAuth().canRead('enquiries')` and `canWrite` answer the same question for a component, so
+every screen gates itself on the source of truth the profile displays — `RequireModule` keeps
+a route out of reach, and each page hides the actions the caller cannot use.
+
+Marketing carries a second, record-level rule on top: a marketing person sees only their own
+customers, leads and enquiries. That one is enforced server-side only, since it is about the
+data rather than the screen.
 
 ## Layout
 

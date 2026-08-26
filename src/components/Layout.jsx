@@ -18,11 +18,24 @@ const ICONS = {
   shield: 'M12 3l7 3v5.5c0 4.2-2.9 7.7-7 8.5-4.1-.8-7-4.3-7-8.5V6l7-3Z',
   megaphone: 'M3 11v2a1 1 0 0 0 1 1h2l4 4V6L6 10H4a1 1 0 0 0-1 1Zm13-4a6 6 0 0 1 0 10M6 14v5h3',
   factory: 'M2 20h20M4 20V10l6 4V10l6 4V6l4-2v16M7 20v-4h3v4',
+  funnel: 'M3 5h18l-7 8v6l-4 2v-8L3 5Z',
+  box: 'M12 3 4 7v10l8 4 8-4V7l-8-4Zm0 0v18M4 7l8 4 8-4',
 };
 
-/** The far-left rail: the top-level areas of the console. */
+/**
+ * The far-left rail: the top-level areas of the console. `paths` lists the routes an area
+ * owns, so a detail screen keeps its own sidebar rather than falling back to Home.
+ */
 const RAIL = [
   { to: '/', label: 'Home', icon: 'home', end: true },
+  {
+    to: '/enquiries',
+    label: 'Pipeline',
+    icon: 'funnel',
+    module: 'enquiries',
+    paths: ['/enquiries', '/leads', '/customers'],
+  },
+  { to: '/products', label: 'Catalogue', icon: 'box', module: 'products' },
   { to: '/profile', label: 'Profile', icon: 'user' },
   { to: '/users', label: 'Users', icon: 'users', module: 'users' },
 ];
@@ -40,6 +53,37 @@ const SIDEBARS = {
         items: [
           { to: '/', label: 'My day', end: true },
           { to: '/profile', label: 'Profile and access' },
+        ],
+      },
+    ],
+  },
+  '/enquiries': {
+    title: 'Pipeline',
+    sections: [
+      {
+        title: 'Before the order',
+        items: [
+          { to: '/leads', label: 'Leads', module: 'enquiries' },
+          { to: '/enquiries', label: 'Enquiries', module: 'enquiries' },
+        ],
+      },
+      {
+        title: 'Masters',
+        items: [
+          { to: '/customers', label: 'Customers', module: 'customers' },
+          { to: '/products', label: 'Product master', module: 'products' },
+        ],
+      },
+    ],
+  },
+  '/products': {
+    title: 'Catalogue',
+    sections: [
+      {
+        title: 'Masters',
+        items: [
+          { to: '/products', label: 'Product master', module: 'products' },
+          { to: '/customers', label: 'Customers', module: 'customers' },
         ],
       },
     ],
@@ -131,27 +175,52 @@ export function ThemeToggle({ className = '' }) {
   );
 }
 
+/** Where a built module lives. Anything absent is available but has no screen of its own. */
+const MODULE_ROUTES = {
+  enquiries: '/enquiries',
+  customers: '/customers',
+  products: '/products',
+  users: '/users',
+};
+
 /** The module tabs across the top. Unbuilt modules read as pending, not as links. */
 function TopTabs() {
   const { user } = useAuth();
   const modules = (user?.modules || []).filter((module) => module.canRead);
 
+  const classes = 'whitespace-nowrap rounded-md px-2.5 py-1 text-[0.8125rem] font-semibold transition-colors';
+
   return (
     <div className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto">
-      {modules.map((module) => (
-        <span
-          key={module.key}
-          title={module.available ? module.label : `${module.label} — not built yet`}
-          className={`whitespace-nowrap rounded-md px-2.5 py-1 text-[0.8125rem] font-semibold transition-colors ${
-            module.available
-              ? 'text-steel-200 hover:bg-line/[0.06]'
-              : 'cursor-default text-steel-500'
-          }`}
-        >
-          {module.label}
-          {!module.available && <span className="ml-1 text-[0.625rem] align-super">soon</span>}
-        </span>
-      ))}
+      {modules.map((module) => {
+        const route = module.available ? MODULE_ROUTES[module.key] : null;
+
+        if (route) {
+          return (
+            <NavLink
+              key={module.key}
+              to={route}
+              title={module.label}
+              className={({ isActive }) =>
+                `${classes} ${isActive ? 'bg-line/[0.08] text-flame-500' : 'text-steel-200 hover:bg-line/[0.06]'}`
+              }
+            >
+              {module.label}
+            </NavLink>
+          );
+        }
+
+        return (
+          <span
+            key={module.key}
+            title={module.available ? module.label : `${module.label} — not built yet`}
+            className={`${classes} ${module.available ? 'text-steel-200' : 'cursor-default text-steel-500'}`}
+          >
+            {module.label}
+            {!module.available && <span className="ml-1 text-[0.625rem] align-super">soon</span>}
+          </span>
+        );
+      })}
     </div>
   );
 }
@@ -170,9 +239,9 @@ export default function Layout() {
   };
 
   const railItems = RAIL.filter((item) => !item.module || canRead(item.module));
-  const sidebarKey = railItems.find(
-    (item) => item.to !== '/' && location.pathname.startsWith(item.to)
-  )?.to;
+  const owns = (item) =>
+    (item.paths || [item.to]).some((path) => location.pathname.startsWith(path));
+  const sidebarKey = railItems.find((item) => item.to !== '/' && owns(item))?.to;
   const sidebar = SIDEBARS[sidebarKey || '/'];
 
   return (
@@ -188,9 +257,10 @@ export default function Layout() {
               key={item.to}
               to={item.to}
               end={item.end}
+              /* An area stays lit across every route it owns, not just its landing page. */
               className={({ isActive }) =>
                 `flex w-[3.4rem] flex-col items-center gap-1 rounded-lg px-1 py-2 text-[0.625rem] font-semibold transition-colors ${
-                  isActive
+                  isActive || (!item.end && owns(item))
                     ? 'bg-line/[0.08] text-flame-500'
                     : 'text-steel-400 hover:bg-line/[0.05] hover:text-steel-100'
                 }`

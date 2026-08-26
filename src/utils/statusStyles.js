@@ -16,6 +16,7 @@ const STATUS_TONES = {
   confirmed: 'info',
   qualified: 'info',
   quoted: 'info',
+  quote_submitted: 'info',
 
   // In flight — work is underway.
   planned: 'progress',
@@ -27,10 +28,17 @@ const STATUS_TONES = {
   partially_received: 'progress',
   partially_paid: 'progress',
   on_hold: 'progress',
+  requirement_clarification: 'progress',
+  sample_required: 'progress',
+  pricing_required: 'progress',
+  negotiation: 'progress',
+  customer_decision_pending: 'progress',
+  hold: 'progress',
 
   // Resolved well.
   accepted: 'success',
   converted: 'success',
+  po_expected: 'success',
   won: 'success',
   active: 'success',
   paid: 'success',
@@ -41,6 +49,7 @@ const STATUS_TONES = {
   // Needs attention or ended badly.
   unpaid: 'danger',
   rejected: 'danger',
+  disqualified: 'danger',
   lost: 'danger',
   cancelled: 'danger',
   expired: 'danger',

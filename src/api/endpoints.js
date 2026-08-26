@@ -38,6 +38,50 @@ export const users = {
   remove: (id) => api.delete(`/users/${id}`).then(unwrap),
 };
 
+/**
+ * Phase 1: the product master and the pipeline that runs from a lead to a customer to an
+ * enquiry. List endpoints return `{ data, pagination }`, so those keep the whole envelope.
+ */
+const listed = (response) => response.data;
+
+export const products = {
+  list: (params) => api.get('/products', { params }).then(listed),
+  get: (id) => api.get(`/products/${id}`).then(unwrap),
+  create: (payload) => api.post('/products', payload).then(unwrap),
+  update: ({ id, ...payload }) => api.patch(`/products/${id}`, payload).then(unwrap),
+};
+
+export const customers = {
+  list: (params) => api.get('/customers', { params }).then(listed),
+  get: (id) => api.get(`/customers/${id}`).then(unwrap),
+  create: (payload) => api.post('/customers', payload).then(unwrap),
+  update: ({ id, ...payload }) => api.patch(`/customers/${id}`, payload).then(unwrap),
+  /** Warns before submitting, on the same GST-then-number rule the server enforces. */
+  checkDuplicate: (params) => api.get('/customers/check-duplicate', { params }).then(unwrap),
+};
+
+export const leads = {
+  list: (params) => api.get('/leads', { params }).then(listed),
+  get: (id) => api.get(`/leads/${id}`).then(unwrap),
+  create: (payload) => api.post('/leads', payload).then(unwrap),
+  update: ({ id, ...payload }) => api.patch(`/leads/${id}`, payload).then(unwrap),
+  addActivity: ({ id, ...payload }) => api.post(`/leads/${id}/activities`, payload).then(unwrap),
+  /** Creates the customer, its first contact and optionally the first enquiry in one go. */
+  convert: ({ id, ...payload }) => api.post(`/leads/${id}/convert`, payload).then(unwrap),
+};
+
+export const enquiries = {
+  list: (params) => api.get('/enquiries', { params }).then(listed),
+  get: (id) => api.get(`/enquiries/${id}`).then(unwrap),
+  create: (payload) => api.post('/enquiries', payload).then(unwrap),
+  createGroup: (payload) => api.post('/enquiries/group', payload).then(unwrap),
+  update: ({ id, ...payload }) => api.patch(`/enquiries/${id}`, payload).then(unwrap),
+  setStatus: ({ id, ...payload }) => api.post(`/enquiries/${id}/status`, payload).then(unwrap),
+  promoteToProduct: ({ id, ...payload }) =>
+    api.post(`/enquiries/${id}/promote-product`, payload).then(unwrap),
+  pipeline: () => api.get('/enquiries/pipeline').then(unwrap),
+};
+
 export const auth = {
   login: (payload) => api.post('/auth/login', payload).then(unwrap),
   register: (payload) => api.post('/auth/register', payload).then(unwrap),

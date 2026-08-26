@@ -202,6 +202,81 @@ export function ConfirmDialog({ open, title, message, confirmLabel = 'Confirm', 
   );
 }
 
+/** A titled block on a detail screen. */
+export function Section({ title, actions, children, className = '' }) {
+  return (
+    <section className={`card p-5 ${className}`}>
+      {(title || actions) && (
+        <div className="mb-4 flex items-center justify-between gap-3">
+          {title && <p className="eyebrow">{title}</p>}
+          {actions}
+        </div>
+      )}
+      {children}
+    </section>
+  );
+}
+
+/**
+ * Label/value pairs on a detail screen. A definition list rather than a table: these are
+ * attributes of one record, not rows to compare.
+ */
+export function Facts({ items, columns = 2 }) {
+  const visible = items.filter((item) => item && item.value !== undefined && item.value !== null && item.value !== '');
+  if (!visible.length) return null;
+
+  return (
+    <dl className={`grid gap-x-6 gap-y-4 ${columns === 1 ? '' : 'sm:grid-cols-2'}`}>
+      {visible.map((item) => (
+        <div key={item.label} className={item.wide ? 'sm:col-span-2' : ''}>
+          <dt className="text-[0.6875rem] font-bold uppercase tracking-[0.08em] text-steel-500">
+            {item.label}
+          </dt>
+          <dd className="mt-1 text-sm text-steel-100">{item.value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+/** Page-level paging control. Hidden entirely when everything fits on one page. */
+export function Pagination({ pagination, onChange }) {
+  if (!pagination || pagination.pages <= 1) return null;
+
+  const { page, pages, total, limit } = pagination;
+  const first = (page - 1) * limit + 1;
+  const last = Math.min(page * limit, total);
+
+  return (
+    <div className="mt-4 flex items-center justify-between gap-3 text-[0.8125rem] text-steel-400">
+      <span className="tabular-nums">
+        {first}–{last} of {total}
+      </span>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          className="btn-secondary px-3 py-1.5"
+          disabled={page <= 1}
+          onClick={() => onChange(page - 1)}
+        >
+          Previous
+        </button>
+        <span className="tabular-nums">
+          {page} / {pages}
+        </span>
+        <button
+          type="button"
+          className="btn-secondary px-3 py-1.5"
+          disabled={page >= pages}
+          onClick={() => onChange(page + 1)}
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /** Inline success/error feedback inside forms and action dialogs. */
 export function Notice({ tone = 'danger', children }) {
   const tones = {

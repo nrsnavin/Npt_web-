@@ -5,3 +5,7 @@ dist/
 *.log
 .DS_Store
 .vite/
+
+# Throwaway harnesses used to drive the app in a browser during development
+.browser-test.mjs
+.verify-script.mjs
