@@ -158,9 +158,16 @@
       transition-all duration-150 hover:text-steel-200;
   }
 
-  .tab[aria-selected='true'] {
+  /* Tabs report aria-selected; radio segments report aria-checked. Both mean "current". */
+  .tab[aria-selected='true'],
+  .tab[aria-checked='true'] {
     @apply text-steel-50 shadow-raised;
     background-color: var(--tab-active);
+  }
+
+  /* A granted level earns the accent; "none" is just the resting state. */
+  .tab[aria-checked='true'].tab-granted {
+    @apply text-flame-500;
   }
 
   select.input {

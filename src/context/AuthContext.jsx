@@ -60,10 +60,15 @@ export function AuthProvider({ children }) {
         if (!user) return false;
         return user.role === 'admin' || roles.length === 0 || roles.includes(user.role);
       },
-      /** True when the signed-in user may use a feature, by its catalogue key. */
-      hasFeature(key) {
-        return Boolean(user?.features?.find((feature) => feature.key === key)?.allowed);
+      /** True when the signed-in user may open a module. */
+      canRead(moduleKey) {
+        return Boolean(user?.modules?.find((module) => module.key === moduleKey)?.canRead);
       },
+      /** True when they may change anything in it. */
+      canWrite(moduleKey) {
+        return Boolean(user?.modules?.find((module) => module.key === moduleKey)?.canWrite);
+      },
+      isAdmin: user?.role === 'admin',
       /** Replaces the cached user after a profile update. */
       applyUser: setUser,
     }),

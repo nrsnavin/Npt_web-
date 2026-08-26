@@ -2,6 +2,19 @@ import api from './client.js';
 
 const unwrap = (response) => response.data.data;
 
+/** Admin-only user administration. Gated server-side on the users module. */
+export const users = {
+  catalogue: () => api.get('/users/catalogue').then(unwrap),
+  list: (params) => api.get('/users', { params }).then((response) => response.data),
+  get: (id) => api.get(`/users/${id}`).then(unwrap),
+  create: (payload) => api.post('/users', payload).then(unwrap),
+  update: ({ id, ...payload }) => api.patch(`/users/${id}`, payload).then(unwrap),
+  setAccess: ({ id, moduleAccess }) =>
+    api.put(`/users/${id}/access`, { moduleAccess }).then(unwrap),
+  resetAccess: (id) => api.post(`/users/${id}/access/reset`).then(unwrap),
+  remove: (id) => api.delete(`/users/${id}`).then(unwrap),
+};
+
 export const auth = {
   login: (payload) => api.post('/auth/login', payload).then(unwrap),
   register: (payload) => api.post('/auth/register', payload).then(unwrap),

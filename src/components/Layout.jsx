@@ -10,12 +10,21 @@ import { humanise } from '../utils/format.js';
  */
 const ICONS = {
   user: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm0 0c-3.9 0-7 2.5-7 5.6V20h14v-2.4c0-3.1-3.1-5.6-7-5.6Z',
+  users: 'M16 19v-1.6c0-2.4-2.4-4.4-5.5-4.4S5 15 5 17.4V19m5.5-8.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7ZM19 19v-1.6c0-1.8-1.3-3.4-3.2-4M15.5 4.2a3.5 3.5 0 0 1 0 6.6',
 };
 
+/**
+ * `module` gates an item on the signed-in user's grants, so the navigation can never
+ * offer a screen the API would refuse.
+ */
 const NAV_SECTIONS = [
   {
     title: 'Account',
     items: [{ to: '/profile', label: 'My profile', icon: 'user' }],
+  },
+  {
+    title: 'Administration',
+    items: [{ to: '/users', label: 'Users', icon: 'users', module: 'users' }],
   },
 ];
 
@@ -128,7 +137,7 @@ export function Wordmark({ compact = false }) {
 }
 
 export default function Layout() {
-  const { user, logout } = useAuth();
+  const { user, logout, canRead } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -153,16 +162,21 @@ export default function Layout() {
         </div>
 
         <nav className="flex-1 space-y-6 overflow-y-auto px-3 pb-6">
-          {NAV_SECTIONS.map((section) => (
-            <div key={section.title}>
-              <p className="eyebrow mb-1.5 px-3">{section.title}</p>
-              <div className="space-y-0.5">
-                {section.items.map((item) => (
-                  <NavItem key={item.to} item={item} onNavigate={() => setMenuOpen(false)} />
-                ))}
+          {NAV_SECTIONS.map((section) => {
+            const items = section.items.filter((item) => !item.module || canRead(item.module));
+            if (!items.length) return null;
+
+            return (
+              <div key={section.title}>
+                <p className="eyebrow mb-1.5 px-3">{section.title}</p>
+                <div className="space-y-0.5">
+                  {items.map((item) => (
+                    <NavItem key={item.to} item={item} onNavigate={() => setMenuOpen(false)} />
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </nav>
 
         <div className="border-t border-line/[0.06] px-5 py-3">

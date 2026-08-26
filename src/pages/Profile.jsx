@@ -5,18 +5,6 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { Badge, Field, Modal, Notice, PageHeader } from '../components/ui.jsx';
 import { formatDate, humanise } from '../utils/format.js';
 
-const DEPARTMENTS = [
-  'management',
-  'sales',
-  'production',
-  'stores',
-  'accounts',
-  'quality',
-  'maintenance',
-  'hr',
-  'other',
-];
-
 const SIGN_IN_METHODS = {
   password: 'Email and password',
   email_otp: 'Code sent by email',
@@ -37,39 +25,42 @@ function Detail({ label, value, children }) {
  * Groups the feature catalogue as the server declared it, keeping the order it
  * arrived in so the API stays the single source of truth for both access and layout.
  */
-function useGroupedFeatures(features = []) {
+function useGroupedModules(modules = []) {
   return useMemo(() => {
     const groups = new Map();
-    for (const feature of features) {
-      if (!groups.has(feature.group)) groups.set(feature.group, []);
-      groups.get(feature.group).push(feature);
+    for (const module of modules) {
+      if (!groups.has(module.group)) groups.set(module.group, []);
+      groups.get(module.group).push(module);
     }
     return [...groups.entries()].map(([group, items]) => ({ group, items }));
-  }, [features]);
+  }, [modules]);
 }
 
-function FeatureRow({ feature }) {
+/** One module row: what it is, and whether this user may read or change it. */
+export function ModuleRow({ module }) {
   return (
     <li className="flex items-start justify-between gap-4 py-3">
       <div className="min-w-0">
         <p
           className={`text-sm font-semibold ${
-            feature.allowed ? 'text-steel-100' : 'text-steel-400'
+            module.canRead ? 'text-steel-100' : 'text-steel-400'
           }`}
         >
-          {feature.label}
-          {!feature.available && (
+          {module.label}
+          {!module.available && (
             <span className="ml-2 align-middle text-[0.6875rem] font-bold uppercase tracking-wide text-steel-500">
               Coming soon
             </span>
           )}
         </p>
-        <p className="mt-0.5 text-xs leading-relaxed text-steel-400">{feature.description}</p>
+        <p className="mt-0.5 text-xs leading-relaxed text-steel-400">{module.description}</p>
       </div>
 
       <span className="shrink-0 pt-0.5">
-        {feature.allowed ? (
-          <Badge tone="success">Granted</Badge>
+        {module.canWrite ? (
+          <Badge tone="success">Read &amp; write</Badge>
+        ) : module.canRead ? (
+          <Badge tone="info">Read only</Badge>
         ) : (
           <Badge tone="neutral">No access</Badge>
         )}
@@ -85,11 +76,7 @@ function EditProfile({ user, onClose, onSaved }) {
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm({
-    defaultValues: {
-      name: user.name || '',
-      phone: user.phone || '',
-      department: user.department || 'other',
-    },
+    defaultValues: { name: user.name || '', phone: user.phone || '' },
   });
 
   const submit = async (values) => {
@@ -118,18 +105,9 @@ function EditProfile({ user, onClose, onSaved }) {
         <input type="tel" className="input" {...register('phone')} />
       </Field>
 
-      <Field label="Department">
-        <select className="input" {...register('department')}>
-          {DEPARTMENTS.map((department) => (
-            <option key={department} value={department}>
-              {humanise(department)}
-            </option>
-          ))}
-        </select>
-      </Field>
-
       <p className="text-xs text-steel-500">
-        Your email and role are set by an administrator and cannot be changed here.
+        Your email, department and module access are set by an administrator and cannot be
+        changed here.
       </p>
 
       {error && <Notice tone="danger">{error}</Notice>}
@@ -149,11 +127,14 @@ function EditProfile({ user, onClose, onSaved }) {
 export default function Profile() {
   const { user, applyUser, logout } = useAuth();
   const [editing, setEditing] = useState(false);
-  const grouped = useGroupedFeatures(user?.features);
+  const grouped = useGroupedModules(user?.modules);
 
   if (!user) return null;
 
-  const granted = (user.features || []).filter((feature) => feature.allowed).length;
+  const modules = user.modules || [];
+  const writable = modules.filter((module) => module.canWrite).length;
+  // Read-only excludes the writable ones, so the two numbers never double-count.
+  const readOnly = modules.filter((module) => module.canRead && !module.canWrite).length;
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -225,14 +206,15 @@ export default function Profile() {
       <section className="card mt-5 p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-base font-bold tracking-tight text-steel-50">Feature access</h2>
+            <h2 className="text-base font-bold tracking-tight text-steel-50">Module access</h2>
             <p className="mt-1 text-sm text-steel-400">
-              What the <span className="font-semibold text-steel-200">{humanise(user.role)}</span>{' '}
-              role can use. Access is set by your role, not your department.
+              {user.role === 'admin'
+                ? 'As an administrator you have read and write access to every module.'
+                : 'Granted per module by an administrator. Your department sets the starting point.'}
             </p>
           </div>
           <Badge tone="info">
-            {granted} of {user.features?.length ?? 0} granted
+            {writable} write · {readOnly} read-only · {modules.length - writable - readOnly} none
           </Badge>
         </div>
 
@@ -241,8 +223,8 @@ export default function Profile() {
             <div key={group}>
               <p className="eyebrow">{group}</p>
               <ul className="mt-1 divide-y divide-line/[0.04]">
-                {items.map((feature) => (
-                  <FeatureRow key={feature.key} feature={feature} />
+                {items.map((module) => (
+                  <ModuleRow key={module.key} module={module} />
                 ))}
               </ul>
             </div>
@@ -265,7 +247,7 @@ export default function Profile() {
       <Modal
         open={editing}
         title="Edit profile"
-        description="Name, phone and department"
+        description="Name and phone"
         onClose={() => setEditing(false)}
         size="sm"
       >

@@ -5,6 +5,14 @@ import { useAuth } from './context/AuthContext.jsx';
 
 import Login from './pages/Login.jsx';
 import Profile from './pages/Profile.jsx';
+import Users from './pages/Users.jsx';
+
+/** Blocks a route unless the user may read the module behind it. */
+function RequireModule({ moduleKey, children }) {
+  const { canRead } = useAuth();
+  if (!canRead(moduleKey)) return <Navigate to="/" replace />;
+  return children;
+}
 
 /** Sends anyone without a session to the login screen, remembering where they were headed. */
 function RequireAuth({ children }) {
@@ -31,6 +39,14 @@ export default function App() {
       >
         <Route index element={<Profile />} />
         <Route path="profile" element={<Profile />} />
+        <Route
+          path="users"
+          element={
+            <RequireModule moduleKey="users">
+              <Users />
+            </RequireModule>
+          }
+        />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
