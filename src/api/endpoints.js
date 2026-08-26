@@ -94,6 +94,13 @@ export const samples = {
   recordFeedback: ({ id, ...payload }) => api.post(`/samples/${id}/feedback`, payload).then(unwrap),
   resample: ({ id, ...payload }) => api.post(`/samples/${id}/resample`, payload).then(unwrap),
   pipeline: () => api.get('/samples/pipeline').then(unwrap),
+
+  /** Outbound customer updates [§42]: the draft, the send, and everything already sent. */
+  messagePreview: ({ id, event }) =>
+    api.get(`/samples/${id}/customer-message/preview`, { params: { event } }).then(unwrap),
+  sendMessage: ({ id, ...payload }) =>
+    api.post(`/samples/${id}/customer-message`, payload).then(unwrap),
+  messages: (id) => api.get(`/samples/${id}/customer-messages`).then(unwrap),
 };
 
 export const auth = {

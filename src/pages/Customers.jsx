@@ -35,7 +35,14 @@ export function CustomerForm({ customer, onClose, onSaved }) {
   } = useForm({
     defaultValues: editing
       ? customer
-      : { customerType: 'garment_factory', rating: 'B', source: 'manual', country: 'India', ...customer },
+      : {
+          customerType: 'garment_factory',
+          rating: 'B',
+          source: 'manual',
+          country: 'India',
+          notifications: { whatsapp: true, email: true },
+          ...customer,
+        },
   });
 
   const checkForDuplicate = async () => {
@@ -124,6 +131,24 @@ export function CustomerForm({ customer, onClose, onSaved }) {
             ))}
           </select>
         </Field>
+      </div>
+
+      <div className="rounded-lg border border-line/[0.06] p-4">
+        <p className="eyebrow mb-1">Automatic updates</p>
+        <p className="mb-3 text-xs leading-relaxed text-steel-500">
+          Sample ready and sample dispatched are sent to this customer without anyone pressing
+          send. Untick a channel they have asked not to be contacted on.
+        </p>
+        <div className="flex flex-wrap gap-5">
+          <label className="flex items-center gap-2 text-sm text-steel-200">
+            <input type="checkbox" className="h-4 w-4 accent-flame-500" {...register('notifications.whatsapp')} />
+            WhatsApp
+          </label>
+          <label className="flex items-center gap-2 text-sm text-steel-200">
+            <input type="checkbox" className="h-4 w-4 accent-flame-500" {...register('notifications.email')} />
+            Email
+          </label>
+        </div>
       </div>
 
       <Field label="Notes">

@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { samples as samplesApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -8,9 +8,10 @@ import {
 } from '../components/ui.jsx';
 import { formatDate, formatNumber } from '../utils/format.js';
 import {
-  CLOSED_SAMPLE_STAGES, HANGER_CATEGORIES, MATERIALS, SAMPLE_PURPOSES, SAMPLE_STAGES,
-  WITH_CUSTOMER_STAGES, followUpState, nextSampleStagesFrom, numeric, optionLabel,
-  sampleStageLabel, text,
+  CLOSED_SAMPLE_STAGES, HANGER_CATEGORIES, MATERIALS, MESSAGE_CHANNELS, MESSAGE_EVENTS,
+  NOTIFIABLE_STAGES,
+  SAMPLE_PURPOSES, SAMPLE_STAGES, SKIP_REASONS, WITH_CUSTOMER_STAGES, followUpState,
+  nextSampleStagesFrom, numeric, optionLabel, sampleStageLabel, text,
 } from '../utils/pipeline.js';
 
 const TONE_TEXT = {
@@ -189,12 +190,213 @@ function FeedbackForm({ sample, onClose, onSaved }) {
   );
 }
 
+
+/**
+ * Telling the customer by hand [§42].
+ *
+ * The two sample stages send themselves, so this is for the cases automation cannot cover:
+ * re-sending after a provider failure, reaching a customer who was opted out at the time, or
+ * saying it differently. The draft is the same one the automation would have sent, and
+ * editing it is the point of the dialog.
+ */
+function CustomerMessageForm({ sample, event, onClose, onSent }) {
+  const [preview, setPreview] = useState(null);
+  const [subject, setSubject] = useState('');
+  const [body, setBody] = useState('');
+  const [channels, setChannels] = useState(['whatsapp', 'email']);
+  const [force, setForce] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    samplesApi
+      .messagePreview({ id: sample._id, event })
+      .then((draft) => {
+        if (cancelled) return;
+        setPreview(draft);
+        setSubject(draft.subject);
+        setBody(draft.body);
+        // Offer only the channels this customer can actually be reached on.
+        setChannels(
+          draft.channels.filter((row) => row.address && row.enabled).map((row) => row.channel)
+        );
+      })
+      .catch((loadError) => !cancelled && setError(loadError.message));
+    return () => {
+      cancelled = true;
+    };
+  }, [sample._id, event]);
+
+  if (error && !preview) return <Notice tone="danger">{error}</Notice>;
+  if (!preview) return <Spinner label="Building the draft" />;
+
+  const toggle = (channel) =>
+    setChannels((current) =>
+      current.includes(channel) ? current.filter((item) => item !== channel) : [...current, channel]
+    );
+
+  const submit = async (submitEvent) => {
+    submitEvent.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      onSent(
+        await samplesApi.sendMessage({
+          id: sample._id,
+          event,
+          channels,
+          subject: text(subject),
+          body: text(body),
+          force,
+        })
+      );
+      onClose();
+    } catch (sendError) {
+      setError(sendError.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form onSubmit={submit} className="space-y-4">
+      {preview.alreadySent.length > 0 && (
+        <Notice tone="warn">
+          Already sent {preview.alreadySent.length === 1 ? 'once' : `${preview.alreadySent.length} times`} —
+          last on {formatDate(preview.alreadySent[0].sentAt)}
+          {preview.alreadySent[0].sentBy ? ` by ${preview.alreadySent[0].sentBy.name}` : ' automatically'}.
+          <label className="mt-2 flex items-center gap-2 text-xs font-semibold">
+            <input
+              type="checkbox"
+              className="h-3.5 w-3.5 accent-flame-500"
+              checked={force}
+              onChange={(changeEvent) => setForce(changeEvent.target.checked)}
+            />
+            Send it again anyway
+          </label>
+        </Notice>
+      )}
+
+      <div>
+        <span className="label">Channels</span>
+        <div className="space-y-2">
+          {preview.channels.map((row) => {
+            const unreachable = !row.address || !row.enabled;
+            return (
+              <label
+                key={row.channel}
+                className={`flex items-center justify-between gap-3 rounded-lg border px-3.5 py-2.5 ${
+                  unreachable ? 'border-line/[0.06] opacity-60' : 'border-line/10'
+                }`}
+              >
+                <span className="flex items-center gap-2.5">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-flame-500"
+                    disabled={unreachable}
+                    checked={channels.includes(row.channel)}
+                    onChange={() => toggle(row.channel)}
+                  />
+                  <span className="text-sm font-semibold text-steel-100">
+                    {optionLabel(MESSAGE_CHANNELS, row.channel)}
+                  </span>
+                </span>
+                <span className="truncate text-xs text-steel-500">
+                  {!row.address
+                    ? 'No address on file'
+                    : !row.enabled
+                      ? 'Customer opted out'
+                      : row.address}
+                </span>
+              </label>
+            );
+          })}
+        </div>
+      </div>
+
+      <Field label="Subject" hint="Email only — WhatsApp sends the message on its own">
+        <input className="input" value={subject} onChange={(e) => setSubject(e.target.value)} />
+      </Field>
+
+      <Field label="Message" hint="Edit freely. Only what is here goes to the customer.">
+        <textarea rows={9} className="input font-mono text-xs" value={body} onChange={(e) => setBody(e.target.value)} />
+      </Field>
+
+      {error && <Notice tone="danger">{error}</Notice>}
+
+      <div className="flex justify-end gap-2">
+        <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
+        <button type="submit" className="btn-primary" disabled={busy || channels.length === 0}>
+          {busy ? 'Sending…' : `Send to ${preview.customer?.name || 'the customer'}`}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+/** Everything ever sent to this customer about this sample [§42.6]. */
+function CustomerMessages({ sampleId, refreshKey }) {
+  const [rows, setRows] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    samplesApi
+      .messages(sampleId)
+      .then((data) => !cancelled && setRows(data))
+      .catch(() => !cancelled && setRows([]));
+    return () => {
+      cancelled = true;
+    };
+  }, [sampleId, refreshKey]);
+
+  if (!rows.length) return null;
+
+  const tone = { sent: 'success', failed: 'danger', skipped: 'neutral' };
+
+  return (
+    <Section title={`Sent to the customer (${rows.filter((row) => row.status === 'sent').length})`}>
+      <ul className="space-y-2">
+        {rows.map((row) => (
+          <li key={row._id} className="rounded-lg border border-line/[0.06] px-3.5 py-3">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-steel-100">
+                  {optionLabel(MESSAGE_CHANNELS, row.channel)} · {optionLabel(MESSAGE_EVENTS, row.event)}
+                </p>
+                <p className="text-xs text-steel-500">
+                  {formatDate(row.sentAt)}
+                  {row.recipient ? ` · ${row.recipient}` : ''}
+                  {' · '}
+                  {row.automatic ? 'automatic' : row.sentBy?.name || 'by hand'}
+                  {row.edited ? ' · edited' : ''}
+                </p>
+              </div>
+              <Badge tone={tone[row.status]}>
+                {row.status === 'skipped' ? optionLabel(SKIP_REASONS, row.skipReason) : row.status}
+              </Badge>
+            </div>
+            {row.error && <p className="mt-1.5 text-xs text-danger-400">{row.error}</p>}
+            {row.body && (
+              <p className="mt-2 whitespace-pre-wrap border-l-2 border-line/10 pl-3 text-xs leading-relaxed text-steel-400">
+                {row.body}
+              </p>
+            )}
+          </li>
+        ))}
+      </ul>
+    </Section>
+  );
+}
+
 export default function SampleDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { canWrite } = useAuth();
+  const { canRead, canWrite } = useAuth();
   const [movingStage, setMovingStage] = useState(false);
   const [givingFeedback, setGivingFeedback] = useState(false);
+  const [messaging, setMessaging] = useState(false);
+  const [messagesKey, setMessagesKey] = useState(0);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState(null);
 
@@ -207,6 +409,10 @@ export default function SampleDetail() {
 
   const maySample = canWrite('samples');
   const mayGiveFeedback = canWrite('enquiries');
+  const mayMessage = canWrite('customer_comms');
+  const mayReadMessages = canRead('customer_comms');
+  // Only the stages §42.5 makes eligible have anything to say to a customer.
+  const notifiable = NOTIFIABLE_STAGES[sample.status];
   const closed = CLOSED_SAMPLE_STAGES.includes(sample.status);
   const withCustomer = WITH_CUSTOMER_STAGES.includes(sample.status);
   const due = followUpState(sample.requiredDate);
@@ -278,6 +484,12 @@ export default function SampleDetail() {
                 }
               >
                 Raise the next attempt
+              </button>
+            )}
+
+            {mayMessage && notifiable && (
+              <button type="button" className="btn-secondary" onClick={() => setMessaging(true)}>
+                Tell the customer
               </button>
             )}
 
@@ -400,6 +612,8 @@ export default function SampleDetail() {
             </Section>
           )}
 
+          {mayReadMessages && <CustomerMessages sampleId={sample._id} refreshKey={messagesKey} />}
+
           <Section title={`Stage history (${sample.statusHistory?.length || 0})`}>
             {sample.statusHistory?.length ? (
               <ol className="space-y-3">
@@ -471,6 +685,23 @@ export default function SampleDetail() {
         onClose={() => setMovingStage(false)}
       >
         <StageForm sample={sample} onClose={() => setMovingStage(false)} onSaved={setData} />
+      </Modal>
+
+      <Modal
+        open={messaging}
+        title="Tell the customer"
+        description="Sample ready and dispatched already send themselves — this is for saying it again, or differently"
+        size="lg"
+        onClose={() => setMessaging(false)}
+      >
+        {messaging && notifiable && (
+          <CustomerMessageForm
+            sample={sample}
+            event={notifiable}
+            onClose={() => setMessaging(false)}
+            onSent={() => setMessagesKey((key) => key + 1)}
+          />
+        )}
       </Modal>
 
       <Modal

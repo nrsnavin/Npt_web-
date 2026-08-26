@@ -61,6 +61,14 @@ modification offers the next attempt, carrying the customer's words forward.
 Handover tasks appear in the dock, linked to the record that raised them, so acting on one
 is a click rather than a search.
 
+The customer is told automatically when a sample is ready and when it is dispatched, on
+WhatsApp and email. The sample screen carries the log of everything ever sent — channel,
+recipient, the text as it went, and whether a person or the automation sent it — plus a
+**Tell the customer** dialog that previews the same draft for editing, warns if it has
+already gone, and is how a failed send is retried. Both live on the `customer_comms` grant,
+so the sample team sees neither: they update internal status, and the customer relationship
+is marketing's. A customer's per-channel opt-out is on their own record.
+
 **Product master** — every hanger model marketing can quote against, filterable by category
 and material. A new development is promoted into it from the enquiry that produced it.
 

@@ -58,6 +58,31 @@ export const CLOSED_SAMPLE_STAGES = ['approved', 'rejected', 'cancelled'];
 /** Stages where the sample is with the customer, so the plant is no longer the holdup. */
 export const WITH_CUSTOMER_STAGES = ['dispatched', 'delivered', 'customer_feedback_pending'];
 
+/** The sample stages that have something to tell the customer [§42.5]. */
+export const NOTIFIABLE_STAGES = {
+  sample_ready: 'sample_ready',
+  dispatched: 'sample_dispatched',
+};
+
+/** Channel names are brand names, so `capitalize` gets WhatsApp wrong. */
+export const MESSAGE_CHANNELS = [
+  { value: 'whatsapp', label: 'WhatsApp' },
+  { value: 'email', label: 'Email' },
+];
+
+export const MESSAGE_EVENTS = [
+  { value: 'sample_ready', label: 'Sample ready' },
+  { value: 'sample_dispatched', label: 'Sample dispatched' },
+];
+
+/** Why a channel produced no message. Silence always has a reason on the record. */
+export const SKIP_REASONS = [
+  { value: 'no_address', label: 'No address on file' },
+  { value: 'opted_out', label: 'Customer opted out' },
+  { value: 'already_sent', label: 'Already sent' },
+  { value: 'no_provider', label: 'No provider configured' },
+];
+
 export const SAMPLE_PURPOSES = [
   { value: 'existing_model', label: 'Existing model' },
   { value: 'colour_approval', label: 'Colour approval' },
