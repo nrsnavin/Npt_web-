@@ -14,6 +14,17 @@ const api = axios.create({
 api.interceptors.request.use((config) => {
   const token = getToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;
+
+  /*
+   * The instance sets application/json for every request, which is right for all of them
+   * except an upload. A multipart body needs a boundary in its content type, and only the
+   * browser knows what boundary FormData produced — so the header has to be dropped here and
+   * left to it. Sending JSON's content type with a multipart body means the server never
+   * parses the file at all, and the failure looks like an empty request rather than a wrong
+   * header.
+   */
+  if (config.data instanceof FormData) delete config.headers['Content-Type'];
+
   return config;
 });
 

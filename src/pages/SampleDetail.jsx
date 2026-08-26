@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { samples as samplesApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -6,6 +6,8 @@ import { useRecord } from '../hooks/useRecords.js';
 import {
   Badge, ErrorState, Facts, Field, Modal, Notice, PageHeader, Section, Spinner,
 } from '../components/ui.jsx';
+import AuthedImage from '../components/AuthedImage.jsx';
+import SampleLog from '../components/SampleLog.jsx';
 import { formatDate, formatNumber } from '../utils/format.js';
 import {
   CLOSED_SAMPLE_STAGES, HANGER_CATEGORIES, MATERIALS, MESSAGE_CHANNELS, MESSAGE_EVENTS,
@@ -191,6 +193,122 @@ function FeedbackForm({ sample, onClose, onSaved }) {
 }
 
 
+
+
+/**
+ * The buyer's own reference — what they handed over or sent a picture of, as opposed to the
+ * log, which is what the bench produced. One photo, replaced rather than accumulated: a
+ * reference that is a gallery is not a reference.
+ */
+function ReferencePhoto({ sample, mayEdit, onSaved }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const [viewing, setViewing] = useState(false);
+  const input = useRef(null);
+
+  const upload = async (event) => {
+    const photo = event.target.files?.[0];
+    if (!photo) return;
+
+    setBusy(true);
+    setError(null);
+    try {
+      onSaved(await samplesApi.setReferencePhoto({ id: sample._id, photo }));
+    } catch (uploadError) {
+      setError(uploadError.message);
+    } finally {
+      setBusy(false);
+      if (input.current) input.current.value = '';
+    }
+  };
+
+  const clear = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      onSaved(await samplesApi.clearReferencePhoto(sample._id));
+    } catch (clearError) {
+      setError(clearError.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!sample.referencePhoto && !mayEdit) return null;
+
+  return (
+    <Section
+      title="Buyer's reference"
+      actions={
+        mayEdit ? (
+          <div className="flex items-center gap-3">
+            <label className="row-action cursor-pointer">
+              {busy ? 'Uploading…' : sample.referencePhoto ? 'Replace' : 'Add photo'}
+              <input
+                ref={input}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+                className="sr-only"
+                onChange={upload}
+                disabled={busy}
+              />
+            </label>
+            {sample.referencePhoto && (
+              <button type="button" className="row-action-danger" onClick={clear} disabled={busy}>
+                Remove
+              </button>
+            )}
+          </div>
+        ) : null
+      }
+    >
+      {sample.referencePhoto ? (
+        <button
+          type="button"
+          onClick={() => setViewing(true)}
+          className="block overflow-hidden rounded-lg border border-line/[0.06] transition-opacity hover:opacity-90"
+          aria-label="Open the reference photo full size"
+        >
+          <AuthedImage
+            attachmentKey={sample.referencePhoto.key}
+            alt="Buyer's reference"
+            className="h-44 w-full max-w-xs object-cover"
+          />
+        </button>
+      ) : (
+        <p className="text-sm text-steel-500">
+          Nothing supplied. Add the piece or drawing the buyer sent, so the bench works from
+          the same picture everyone else is looking at.
+        </p>
+      )}
+
+      {sample.referenceImageUrl && (
+        <p className="mt-2 text-xs text-steel-500">
+          Link from the enquiry:{' '}
+          <a href={sample.referenceImageUrl} className="text-accent hover:underline" target="_blank" rel="noreferrer">
+            {sample.referenceImageUrl}
+          </a>
+        </p>
+      )}
+
+      {error && (
+        <div className="mt-3">
+          <Notice tone="danger">{error}</Notice>
+        </div>
+      )}
+
+      <Modal open={viewing} title="Buyer's reference" size="lg" onClose={() => setViewing(false)}>
+        {sample.referencePhoto && (
+          <AuthedImage
+            attachmentKey={sample.referencePhoto.key}
+            alt="Buyer's reference"
+            className="max-h-[70vh] w-full rounded-lg object-contain"
+          />
+        )}
+      </Modal>
+    </Section>
+  );
+}
 
 /**
  * Courier, tracking number, date and quantity.
@@ -697,6 +815,10 @@ export default function SampleDetail() {
               ]}
             />
           </Section>
+
+          <ReferencePhoto sample={sample} mayEdit={maySample && !closed} onSaved={setData} />
+
+          <SampleLog sampleId={sample._id} />
 
           {(maySample || sample.courier) && (
             <Section

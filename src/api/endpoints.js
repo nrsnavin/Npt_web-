@@ -104,6 +104,35 @@ export const samples = {
   sendMessage: ({ id, ...payload }) =>
     api.post(`/samples/${id}/customer-message`, payload).then(unwrap),
   messages: (id) => api.get(`/samples/${id}/customer-messages`).then(unwrap),
+
+  /** The working record: notes, photos and comments on either. */
+  logs: (id) => api.get(`/samples/${id}/logs`).then(unwrap),
+  addLog: ({ id, body, photo }) => {
+    // Multipart only when there is a file; a plain note stays a JSON post.
+    if (!photo) return api.post(`/samples/${id}/logs`, { body }).then(unwrap);
+
+    const form = new FormData();
+    if (body) form.append('body', body);
+    form.append('photo', photo);
+    return api.post(`/samples/${id}/logs`, form).then(unwrap);
+  },
+  removeLog: ({ id, logId }) => api.delete(`/samples/${id}/logs/${logId}`).then(unwrap),
+  addComment: ({ id, logId, body }) =>
+    api.post(`/samples/${id}/logs/${logId}/comments`, { body }).then(unwrap),
+  removeComment: ({ id, logId, commentId }) =>
+    api.delete(`/samples/${id}/logs/${logId}/comments/${commentId}`).then(unwrap),
+
+  setReferencePhoto: ({ id, photo }) => {
+    const form = new FormData();
+    form.append('photo', photo);
+    return api.put(`/samples/${id}/reference-photo`, form).then(unwrap);
+  },
+  clearReferencePhoto: (id) => api.delete(`/samples/${id}/reference-photo`).then(unwrap),
+};
+
+/** A stored file, fetched with the session's token rather than linked to directly. */
+export const files = {
+  blob: (key) => api.get(`/files/${key}`, { responseType: 'blob' }).then((response) => response.data),
 };
 
 export const auth = {

@@ -61,6 +61,16 @@ modification offers the next attempt, carrying the customer's words forward.
 Handover tasks appear in the dock, linked to the record that raised them, so acting on one
 is a click rather than a search.
 
+The sample carries a **Log**: notes and photos of each shot, with comments on either. Anyone
+who can see the sample can post and comment, marketing included — they hold read access only,
+and they are exactly who has to look at a photo and say what the buyer thinks. Photos open
+full size, and only their author can remove what they wrote. Above it sits the **buyer's own
+reference** photo, which the bench uploads and replaces.
+
+Photos are fetched through the API rather than linked to: the file route checks the caller
+against the record before sending anything, so `AuthedImage` loads each one with the session's
+token and shows it from an object URL, revoked when it goes away.
+
 A **Courier** section takes the courier, tracking number, quantity and date whenever they are
 known — before the sample leaves, so the ready update can tell the customer how it is coming,
 and afterwards, since a tracking number typed wrong is otherwise stuck. Dispatching accepts
