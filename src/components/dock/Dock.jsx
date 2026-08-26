@@ -5,7 +5,6 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import TodoPanel from './TodoPanel.jsx';
 import NotesPanel from './NotesPanel.jsx';
 import AnnouncementsPanel from './AnnouncementsPanel.jsx';
-import RemindersPanel from './RemindersPanel.jsx';
 
 /**
  * The bottom-right utility dock: tasks, notes, announcements and the daily reminder.
@@ -13,20 +12,16 @@ import RemindersPanel from './RemindersPanel.jsx';
  */
 export default function Dock() {
   const { canRead } = useAuth();
-  const { todos, notes, reminders, announcementMeta } = useWorkspace();
+  const { todos, notes, announcementMeta } = useWorkspace();
   const [openKey, setOpenKey] = useState(null);
   const dockRef = useRef(null);
 
+  /*
+   * Reminders deliberately live on the dashboard, not here. A dock panel is for glancing
+   * at something while you work on something else; "what needs me today" is the thing you
+   * open the app to see, so it belongs on the screen that opens.
+   */
   const items = [
-    {
-      key: 'reminders',
-      label: 'Reminders',
-      icon: 'bell',
-      badge: reminders?.counts.actionable || 0,
-      // Overdue work is the one thing here worth shouting about.
-      urgent: (reminders?.counts.overdue || 0) > 0,
-      Panel: RemindersPanel,
-    },
     {
       key: 'todos',
       label: 'To-do',

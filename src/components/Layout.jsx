@@ -35,7 +35,13 @@ const SIDEBARS = {
   '/': {
     title: 'Home',
     sections: [
-      { title: 'Overview', items: [{ to: '/', label: 'Dashboard', end: true }] },
+      {
+        title: 'Overview',
+        items: [
+          { to: '/', label: 'My day', end: true },
+          { to: '/profile', label: 'Profile and access' },
+        ],
+      },
     ],
   },
   '/profile': {

@@ -5,6 +5,7 @@ import { Spinner } from './components/ui.jsx';
 import { useAuth } from './context/AuthContext.jsx';
 
 import Login from './pages/Login.jsx';
+import Dashboard from './pages/Dashboard.jsx';
 import Profile from './pages/Profile.jsx';
 import Users from './pages/Users.jsx';
 
@@ -40,7 +41,8 @@ export default function App() {
           </RequireAuth>
         }
       >
-        <Route index element={<Profile />} />
+        <Route index element={<Dashboard />} />
+        <Route path="dashboard" element={<Dashboard />} />
         <Route path="profile" element={<Profile />} />
         <Route
           path="users"
