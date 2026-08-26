@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import Layout from './components/Layout.jsx';
+import { WorkspaceProvider } from './components/dock/WorkspaceContext.jsx';
 import { Spinner } from './components/ui.jsx';
 import { useAuth } from './context/AuthContext.jsx';
 
@@ -33,7 +34,9 @@ export default function App() {
       <Route
         element={
           <RequireAuth>
-            <Layout />
+            <WorkspaceProvider>
+              <Layout />
+            </WorkspaceProvider>
           </RequireAuth>
         }
       >

@@ -2,6 +2,29 @@ import api from './client.js';
 
 const unwrap = (response) => response.data.data;
 
+/** The bottom-right dock: personal tasks and notes, plus plant-wide announcements. */
+export const workspace = {
+  todos: {
+    list: (params) => api.get('/workspace/todos', { params }).then(unwrap),
+    reminders: () => api.get('/workspace/todos/reminders').then(unwrap),
+    create: (payload) => api.post('/workspace/todos', payload).then(unwrap),
+    update: ({ id, ...payload }) => api.patch(`/workspace/todos/${id}`, payload).then(unwrap),
+    remove: (id) => api.delete(`/workspace/todos/${id}`).then(unwrap),
+  },
+  notes: {
+    list: () => api.get('/workspace/notes').then(unwrap),
+    create: (payload) => api.post('/workspace/notes', payload).then(unwrap),
+    update: ({ id, ...payload }) => api.patch(`/workspace/notes/${id}`, payload).then(unwrap),
+    remove: (id) => api.delete(`/workspace/notes/${id}`).then(unwrap),
+  },
+  announcements: {
+    list: () => api.get('/workspace/announcements').then((response) => response.data),
+    create: (payload) => api.post('/workspace/announcements', payload).then(unwrap),
+    markRead: (id) => api.post(`/workspace/announcements/${id}/read`).then(unwrap),
+    remove: (id) => api.delete(`/workspace/announcements/${id}`).then(unwrap),
+  },
+};
+
 /** Admin-only user administration. Gated server-side on the users module. */
 export const users = {
   catalogue: () => api.get('/users/catalogue').then(unwrap),
