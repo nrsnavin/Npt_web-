@@ -66,6 +66,19 @@ oldest open requests and what is awaiting customer feedback, each ranked worst-f
 age, average turnaround split at ready, and the rework rate. Ageing beats counts: "12 pending"
 hides the one that has sat three weeks.
 
+**Sample analytics** — the other question: not what is late now, but how long we take and
+why. Turnaround over the chosen period with its median, p90 and worst case; raised against
+fulfilled month by month across the trailing year, whichever period is selected, because a
+trend one column wide is not a trend; where the days are actually spent, split at ready so
+the courier's days are not read as the bench's; and the same figures broken down by purpose,
+printing, hook, material, category and quantity.
+
+Two rules the page never breaks. A mean never appears without its tail — and the worst case
+sits beside p90, because over a dozen samples p90 is the eleventh-fastest and the one that
+took forty days would hide above it. And every segment says how many samples it is drawn
+from, dimmed and marked *thin* below five, so a row over two is never read as equal to a row
+over forty.
+
 **New request** raises one by hand, for what the automation cannot see: a buyer who asks at
 the counter before anyone writes an enquiry, or an internal trial that belongs to nobody.
 Leave the enquiry blank and the form asks what to make instead; leave the customer blank too

@@ -68,6 +68,7 @@ const SIDEBARS = {
           // Exact, or the queue stays lit while the dashboard is open beneath it.
           { to: '/samples', label: 'Sampling', module: 'samples', end: true },
           { to: '/samples/dashboard', label: 'Sampling dashboard', module: 'samples' },
+          { to: '/samples/analytics', label: 'Sample analytics', module: 'samples' },
         ],
       },
       {

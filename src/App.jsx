@@ -18,6 +18,7 @@ import EnquiryDetail from './pages/EnquiryDetail.jsx';
 import Samples from './pages/Samples.jsx';
 import SampleDetail from './pages/SampleDetail.jsx';
 import SamplingDashboard from './pages/SamplingDashboard.jsx';
+import SampleAnalytics from './pages/SampleAnalytics.jsx';
 
 /** Blocks a route unless the user may read the module behind it. */
 function RequireModule({ moduleKey, children }) {
@@ -93,6 +94,14 @@ export default function App() {
           element={
             <RequireModule moduleKey="samples">
               <SamplingDashboard />
+            </RequireModule>
+          }
+        />
+        <Route
+          path="samples/analytics"
+          element={
+            <RequireModule moduleKey="samples">
+              <SampleAnalytics />
             </RequireModule>
           }
         />

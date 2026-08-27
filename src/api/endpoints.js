@@ -100,6 +100,7 @@ export const samples = {
   linkEnquiry: ({ id, enquiry }) => api.post(`/samples/${id}/link-enquiry`, { enquiry }).then(unwrap),
   pipeline: () => api.get('/samples/pipeline').then(unwrap),
   dashboard: () => api.get('/samples/dashboard').then(unwrap),
+  analytics: (params) => api.get('/samples/analytics', { params }).then(unwrap),
 
   /** Outbound customer updates [§42]: the draft, the send, and everything already sent. */
   messagePreview: ({ id, event }) =>
