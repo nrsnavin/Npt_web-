@@ -10,6 +10,8 @@ import {
 import BulkBar, { RowCheckbox, useSelection } from '../components/BulkReassign.jsx';
 import ExportButton from '../components/ExportButton.jsx';
 import PlaceInput from '../components/PlaceInput.jsx';
+import LeadAnalytics from '../components/LeadAnalytics.jsx';
+import Scoreboard from '../components/Scoreboard.jsx';
 import { formatCompactCurrency, formatNumber } from '../utils/format.js';
 import { LEAD_STAGES, SOURCES, followUpState, leadStageLabel } from '../utils/pipeline.js';
 
@@ -182,6 +184,16 @@ export default function Leads() {
           </div>
         }
       />
+
+      {/*
+        * The book before the list. Somebody arriving here wants to know what shape it is in
+        * and what has gone quiet; the rows are what they read after deciding where to look.
+        */}
+      <LeadAnalytics />
+
+      <div className="mb-5">
+        <Scoreboard />
+      </div>
 
       {/* The funnel doubles as the stage filter — clicking a stage narrows the list to it. */}
       <div

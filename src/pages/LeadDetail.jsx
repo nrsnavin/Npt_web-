@@ -8,6 +8,7 @@ import {
   Badge, ErrorState, Facts, Field, Modal, Notice, PageHeader, Section, Spinner,
 } from '../components/ui.jsx';
 import HistoryPanel from '../components/HistoryPanel.jsx';
+import LeadLog from '../components/LeadLog.jsx';
 import EnquiryFields from '../components/EnquiryFields.jsx';
 import { formatCompactCurrency, formatDate, formatNumber } from '../utils/format.js';
 import {
@@ -394,27 +395,7 @@ export default function LeadDetail() {
             />
           </Section>
 
-          <Section title={`Activity (${lead.activities?.length || 0})`}>
-            {mayWrite && open && <ActivityForm leadId={lead._id} onSaved={setData} />}
-
-            {lead.activities?.length ? (
-              <ol className="space-y-3">
-                {[...lead.activities].reverse().map((activity) => (
-                  <li key={activity._id} className="flex gap-3">
-                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-flame-500" />
-                    <div className="min-w-0">
-                      <p className="text-sm text-steel-100">{activity.summary}</p>
-                      <p className="text-xs text-steel-500">
-                        {optionLabel(ACTIVITY_TYPES, activity.type)} · {formatDate(activity.occurredAt)}
-                      </p>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            ) : (
-              <p className="text-sm text-steel-500">Nothing logged yet.</p>
-            )}
-          </Section>
+          <LeadLog lead={lead} onSaved={setData} />
 
           {/* The activity log above is what was said; this is what was changed. */}
           <HistoryPanel model="Lead" id={lead._id} />

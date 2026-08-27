@@ -68,6 +68,20 @@ export const leads = {
   addActivity: ({ id, ...payload }) => api.post(`/leads/${id}/activities`, payload).then(unwrap),
   /** Creates the customer, its first contact and optionally the first enquiry in one go. */
   convert: ({ id, ...payload }) => api.post(`/leads/${id}/convert`, payload).then(unwrap),
+
+  /** What the log adds up to — arithmetic over the entries, no model involved. */
+  logAnalytics: (id) => api.get(`/leads/${id}/log-analytics`).then(unwrap),
+  /**
+   * Reads the log and proposes a next step. Proposes only: nothing reaches the lead until
+   * somebody fills the form and saves, which is what keeps a misread cheap.
+   */
+  suggest: (id) => api.post(`/leads/${id}/suggest`).then(unwrap),
+  /** Whose leads need somebody today — overdue, due, undecided, and quietly cooling. */
+  followUps: () => api.get('/leads/follow-ups').then(unwrap),
+  /** Outcomes and habits. Never activity — see the service for why that matters. */
+  scoreboard: () => api.get('/leads/scoreboard').then(unwrap),
+  /** The shape of the book, and the leads that are only nominally alive in it. */
+  overview: () => api.get('/leads/overview').then(unwrap),
 };
 
 export const enquiries = {
