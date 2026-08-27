@@ -159,7 +159,9 @@ export default function SamplingDashboard() {
       </div>
 
       <div className="grid gap-5 lg:grid-cols-3">
-        <div className="space-y-5 lg:col-span-2">
+        {/* `min-w-0` for the same reason the cards inside it carry one: a grid child will
+            not shrink below its content, and the ranked tables here are wider than a phone. */}
+        <div className="min-w-0 space-y-5 lg:col-span-2">
           <Section title="Oldest open requests">
             <AgeTable rows={oldestOpen} empty="Nothing is sitting on the bench." ageLabel="On the bench" />
           </Section>

@@ -205,7 +205,14 @@ export function ConfirmDialog({ open, title, message, confirmLabel = 'Confirm', 
 /** A titled block on a detail screen. */
 export function Section({ title, actions, children, className = '' }) {
   return (
-    <section className={`card p-5 ${className}`}>
+    /*
+     * `min-w-0` because a section is nearly always a grid or flex child, and those default to
+     * `min-width: auto` — they refuse to shrink below their content's intrinsic width. One
+     * wide table inside then forces the whole track open, and on a phone the dashboard
+     * scrolls sideways instead of the table doing it. The tables already know how to scroll;
+     * this just lets the card be narrower than they are.
+     */
+    <section className={`card min-w-0 p-5 ${className}`}>
       {(title || actions) && (
         <div className="mb-4 flex items-center justify-between gap-3">
           {title && <p className="eyebrow">{title}</p>}

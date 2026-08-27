@@ -374,7 +374,7 @@ export default function EnquiryDetail() {
       </div>
 
       <div className="grid gap-5 lg:grid-cols-3">
-        <div className="space-y-5 lg:col-span-2">
+        <div className="min-w-0 space-y-5 lg:col-span-2">
           <Section title="Requirement">
             {enquiry.isNewDevelopment && (
               <div className="mb-4">

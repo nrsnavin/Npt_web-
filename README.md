@@ -61,13 +61,22 @@ modification offers the next attempt, carrying the customer's words forward.
 Handover tasks appear in the dock, linked to the record that raised them, so acting on one
 is a click rather than a search.
 
-**Search**, in the header on every screen and on ⌘K / Ctrl-K. One query across customers,
-enquiries, samples, leads and the catalogue [§32], grouped by record type rather than ranked
-into one list — "SMP-2026-0004" and "Trendline Apparels" are different questions, and merging
-them makes the reader find the type they meant among the types they did not. A customer's
-name reaches their enquiries and samples too, which is what §32 means by the entire related
-history. Arrow keys and Enter walk the results, and each group says when it is showing the
-first few of many.
+**Search** is a command palette on **⌘K / Ctrl-K**, from any screen — one query across
+customers, enquiries, samples, leads and the catalogue [§32]. A palette rather than a field
+in the corner because §32's promise is that *one* search answers "where is this customer's
+sample", and a field you have to find first is one you reach for after opening the wrong
+list. Results stay grouped by record type: "SMP-2026-0004" and "Trendline Apparels" are
+different questions, and merging them makes the reader hunt for the type they meant. A
+customer's name brings back their enquiries and samples too, which is what §32 means by the
+entire related history. Arrows walk, Enter opens, Escape closes, and each group says when it
+is showing the first few of many. On a phone the trigger collapses to its icon, since a
+control whose own label does not fit advertises nothing.
+
+The palette renders through a portal to `document.body`. Its trigger sits in the header, and
+the header carries `backdrop-blur` — which makes it a containing block for `position: fixed`
+descendants, so `inset-0` resolved against the header's own strip: the scrim covered a 96px
+band, clicks outside it did not dismiss, and the page behind stayed live while looking
+dimmed. A dialog should not depend on where its button happens to sit.
 
 **Marketing dashboard** — what needs doing today, then how the month is going. Overdue
 follow-ups, samples still on the bench and samples sitting with a buyer, each ranked
