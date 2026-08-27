@@ -69,6 +69,73 @@ export function useRecordList(fetcher, params = {}) {
   return { data, setData, pagination, loading, error, reload: load };
 }
 
+/**
+ * Loads a list that grows by appending — a feed rather than a table.
+ *
+ * Distinct from `useRecordList`, which replaces the page each time. A conversation is read
+ * downwards: paging it would take away what the reader has already read to show them what
+ * comes next, so here the next page joins the end and everything stays put.
+ *
+ * `reload` returns to the first page, which is what any write to the feed should do — a new
+ * entry belongs at the top, not appended to whatever was last fetched.
+ */
+export function usePagedFeed(fetcher, params = {}) {
+  const [data, setData] = useState([]);
+  const [pagination, setPagination] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState(null);
+  const requestId = useRef(0);
+
+  const key = JSON.stringify(params);
+
+  const fetchPage = useCallback(
+    async (page, { append }) => {
+      const current = ++requestId.current;
+      if (append) setLoadingMore(true);
+      else setLoading(true);
+      setError(null);
+
+      try {
+        const response = await fetcher({ ...JSON.parse(key), page });
+        if (current !== requestId.current) return;
+
+        const rows = response.data || [];
+        // Deduplicated on merge: an entry posted between two page fetches shifts everything
+        // down one, and without this the row on the boundary would appear twice.
+        setData((existing) => {
+          if (!append) return rows;
+          const seen = new Set(existing.map((row) => row._id));
+          return [...existing, ...rows.filter((row) => !seen.has(row._id))];
+        });
+        setPagination(response.pagination || null);
+      } catch (loadError) {
+        if (current === requestId.current) setError(loadError);
+      } finally {
+        if (current === requestId.current) {
+          setLoading(false);
+          setLoadingMore(false);
+        }
+      }
+    },
+    [fetcher, key]
+  );
+
+  const reload = useCallback(() => fetchPage(1, { append: false }), [fetchPage]);
+
+  useEffect(() => {
+    reload();
+  }, [reload]);
+
+  const hasMore = Boolean(pagination && pagination.page < pagination.pages);
+  const loadMore = useCallback(() => {
+    if (!hasMore || loading || loadingMore) return;
+    fetchPage(pagination.page + 1, { append: true });
+  }, [fetchPage, hasMore, loading, loadingMore, pagination]);
+
+  return { data, setData, pagination, loading, loadingMore, error, reload, loadMore, hasMore };
+}
+
 /** Delays a fast-changing value, so a search box queries on a pause rather than a keystroke. */
 export function useDebounced(value, delay = 300) {
   const [debounced, setDebounced] = useState(value);

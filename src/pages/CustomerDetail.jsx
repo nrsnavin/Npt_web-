@@ -78,7 +78,9 @@ export default function CustomerDetail() {
             />
           </Section>
 
-          <Section title={`Enquiry history (${timeline.enquiries.length})`}>
+          {/* The count is the customer's whole history; the table is the most recent page of
+              it. Saying "10" when they have sixty is the screen disagreeing with the books. */}
+          <Section title={`Enquiry history (${timeline.total ?? timeline.enquiries.length})`}>
             {timeline.enquiries.length ? (
               <div className="overflow-x-auto">
                 <table className="min-w-full text-sm">
@@ -118,6 +120,18 @@ export default function CustomerDetail() {
             ) : (
               <p className="py-6 text-center text-sm text-steel-500">
                 No enquiries yet. Raise one from the enquiries screen.
+              </p>
+            )}
+
+            {timeline.total > timeline.enquiries.length && (
+              <p className="mt-3 text-center text-xs text-steel-500">
+                Showing the {timeline.enquiries.length} most recent of {timeline.total}.{' '}
+                <Link
+                  to={`/enquiries?customer=${customer._id}`}
+                  className="font-semibold text-steel-300 hover:text-accent"
+                >
+                  See them all
+                </Link>
               </p>
             )}
           </Section>

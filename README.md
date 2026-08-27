@@ -95,6 +95,14 @@ Photos are fetched through the API rather than linked to: the file route checks 
 against the record before sending anything, so `AuthedImage` loads each one with the session's
 token and shows it from an object URL, revoked when it goes away.
 
+Each photo waits until it is near the viewport, and the log arrives fifteen entries at a
+time with **Show earlier entries** below them. This is the one screen where that matters:
+`loading="lazy"` on an `<img>` defers nothing when the source is a blob URL, because by the
+time that element exists the bytes are already downloaded. A sample with forty photographs
+was pulling all forty on open — on phone photographs, a hundred megabytes to read one note.
+`useNearViewport` moves the decision to where it can still be made, and the count in the
+heading stays the whole feed's rather than what happens to be loaded.
+
 A **Courier** section takes the courier, tracking number, quantity and date whenever they are
 known — before the sample leaves, so the ready update can tell the customer how it is coming,
 and afterwards, since a tracking number typed wrong is otherwise stuck. Dispatching accepts
@@ -110,6 +118,22 @@ is marketing's. A customer's per-channel opt-out is on their own record.
 
 **Product master** — every hanger model marketing can quote against, filterable by category
 and material. A new development is promoted into it from the enquiry that produced it.
+
+### Lists that outgrow the screen
+
+Every table pages, and the count beside it is always the whole set rather than the page.
+
+Where a record is chosen rather than browsed — customer, model, enquiry — the control is a
+`Combobox` that searches server-side. It replaces a `<select>` that loaded the first two
+hundred records, which worked until the plant had more than two hundred customers, at which
+point the two hundred and first could not be chosen at all: not slowly, not awkwardly, the
+option simply was not in the document and nothing said why. When more match than are shown,
+the list says how many are left, because "keep typing" is only obvious advice once the
+reader knows the list is short of the answer.
+
+Screens are split per route with `React.lazy`. Nobody uses more than a few in a session —
+the bench lives on sampling, marketing on the pipeline — so the rest arrive when visited
+rather than before the login screen paints.
 
 ### Module access
 
@@ -139,7 +163,7 @@ src/
   components/   Layout, the UI kit and the theme toggle
   context/      AuthContext (session, sign-in, role and feature checks), ThemeContext
   components/dock/  the bottom-right dock: tasks, notes, announcements
-  hooks/        record and list loading, with a debounce for search boxes
+  hooks/        record, list and feed loading; a search debounce; viewport observation
   pages/        Login, Profile, Users, and the pipeline and sampling screens
   utils/        formatting, status badge tones, and the pipeline's enums and stage order
   theme.css     the dark and light palettes

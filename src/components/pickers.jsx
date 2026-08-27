@@ -1,111 +1,114 @@
-import { useEffect, useState } from 'react';
+import { useCallback } from 'react';
 import { customers as customersApi, enquiries as enquiriesApi, products as productsApi } from '../api/endpoints.js';
+import Combobox from './Combobox.jsx';
 
 /**
  * Reference-data selects.
  *
- * Both load their whole (small) list once and filter in the browser. The catalogue runs to
- * a few dozen models and a marketing person's customer list is smaller still, so a
- * type-ahead round trip would add latency without adding anything.
+ * These used to load the first two hundred records into a `<select>` and filter in the
+ * browser, on the reasoning that the catalogue runs to a few dozen models and a marketing
+ * person's customer list is smaller still. That reasoning expires: the two hundred and first
+ * customer could not be selected at all, and nothing on screen said why.
+ *
+ * Each one now searches server-side through `Combobox`. The API already knows how to search
+ * and page all three collections, so this is the same query the list screens run.
  */
 
-const useOptions = (loader) => {
-  const [options, setOptions] = useState([]);
-
-  useEffect(() => {
-    let cancelled = false;
-    loader()
-      .then((response) => {
-        if (!cancelled) setOptions(response.data || []);
-      })
-      .catch(() => {
-        if (!cancelled) setOptions([]);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [loader]);
-
-  return options;
-};
-
-const loadProducts = () => productsApi.list({ limit: 200, isActive: true });
-const loadCustomers = () => customersApi.list({ limit: 200 });
+/** How many matches to offer at once. Enough to browse, few enough to read. */
+const PAGE = 20;
 
 export function ProductSelect({ value, onChange, disabled, includeBlank = 'Select a model…', ...rest }) {
-  const products = useOptions(loadProducts);
+  const loadOptions = useCallback(
+    (search) => productsApi.list({ search: search || undefined, isActive: true, limit: PAGE }),
+    []
+  );
+  const loadOne = useCallback((id) => productsApi.get(id), []);
+  const toOption = useCallback(
+    (product) => ({ value: product._id, label: `${product.modelCode} — ${product.name}` }),
+    []
+  );
 
   return (
-    <select
-      className="input"
-      value={value || ''}
-      onChange={(event) => onChange(event.target.value || undefined)}
+    <Combobox
+      value={value}
+      onChange={onChange}
       disabled={disabled}
+      loadOptions={loadOptions}
+      loadOne={loadOne}
+      toOption={toOption}
+      placeholder={includeBlank}
+      emptyLabel={includeBlank}
+      noMatchLabel="No model matches"
       {...rest}
-    >
-      <option value="">{includeBlank}</option>
-      {products.map((product) => (
-        <option key={product._id} value={product._id}>
-          {product.modelCode} — {product.name}
-        </option>
-      ))}
-    </select>
+    />
   );
 }
 
 export function CustomerSelect({ value, onChange, ...rest }) {
-  const customers = useOptions(loadCustomers);
+  const loadOptions = useCallback(
+    (search) => customersApi.list({ search: search || undefined, limit: PAGE }),
+    []
+  );
+  const loadOne = useCallback((id) => customersApi.get(id), []);
+  const toOption = useCallback(
+    (customer) => ({ value: customer._id, label: customer.name, hint: customer.code }),
+    []
+  );
 
   return (
-    <select
-      className="input"
-      value={value || ''}
-      onChange={(event) => onChange(event.target.value || undefined)}
+    <Combobox
+      value={value}
+      onChange={onChange}
+      loadOptions={loadOptions}
+      loadOne={loadOne}
+      toOption={toOption}
+      placeholder="Select a customer…"
+      emptyLabel="Select a customer…"
+      noMatchLabel="No customer matches"
       {...rest}
-    >
-      <option value="">Select a customer…</option>
-      {customers.map((customer) => (
-        <option key={customer._id} value={customer._id}>
-          {customer.name} ({customer.code})
-        </option>
-      ))}
-    </select>
+    />
   );
 }
 
-const loadOpenEnquiries = () => enquiriesApi.list({ limit: 200, open: 'true' });
-
 /** Open enquiries only: a sample is never raised against one that is already won or lost. */
 export function EnquirySelect({ value, onChange, customer, ...rest }) {
-  const enquiries = useOptions(loadOpenEnquiries);
-  // When the sample already names a customer, only that customer's enquiries can match.
-  const visible = customer
-    ? enquiries.filter((enquiry) => (enquiry.customer?._id || enquiry.customer) === customer)
-    : enquiries;
+  // Filtered by the server rather than in the browser. Narrowing a page of results locally
+  // is how a customer's enquiry goes missing when it happens to fall on the second page.
+  const loadOptions = useCallback(
+    (search) =>
+      enquiriesApi.list({
+        search: search || undefined,
+        open: 'true',
+        customer: customer || undefined,
+        limit: PAGE,
+      }),
+    [customer]
+  );
+  const loadOne = useCallback((id) => enquiriesApi.get(id), []);
+  const toOption = useCallback(
+    (enquiry) => ({
+      value: enquiry._id,
+      label: `${enquiry.number} — ${enquiry.customer?.name || 'No customer'}`,
+      hint: enquiry.requirement?.modelNumber,
+    }),
+    []
+  );
 
   return (
-    <>
-      <select
-        className="input"
-        value={value || ''}
-        onChange={(event) => onChange(event.target.value || undefined)}
-        {...rest}
-      >
-        <option value="">No enquiry — this is a standalone request</option>
-        {visible.map((enquiry) => (
-          <option key={enquiry._id} value={enquiry._id}>
-            {enquiry.number} — {enquiry.customer?.name} · {enquiry.requirement?.modelNumber}
-          </option>
-        ))}
-      </select>
-
-      {/* A select holding only its placeholder explains nothing on its own. */}
-      {customer && visible.length === 0 && (
-        <p className="mt-1.5 text-xs text-steel-500">
-          That customer has no open enquiry to attach this to. Won and lost ones are not
-          offered — raise a new enquiry if the work is live again.
-        </p>
-      )}
-    </>
+    <Combobox
+      value={value}
+      onChange={onChange}
+      loadOptions={loadOptions}
+      loadOne={loadOne}
+      toOption={toOption}
+      placeholder="Search an open enquiry…"
+      emptyLabel="No enquiry — this is a standalone request"
+      noMatchLabel={
+        customer
+          ? 'That customer has no open enquiry. Won and lost ones are not offered.'
+          : 'No open enquiry matches'
+      }
+      {...rest}
+    />
   );
 }

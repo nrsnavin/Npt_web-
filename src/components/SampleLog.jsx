@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { samples as samplesApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import { usePagedFeed } from '../hooks/useRecords.js';
 import { Modal, Notice, Section, Spinner } from './ui.jsx';
 import AuthedImage from './AuthedImage.jsx';
 import { formatDate } from '../utils/format.js';
@@ -164,7 +165,6 @@ function Entry({ entry, currentUserId, isAdmin, onComment, onRemove, onRemoveCom
 
 export default function SampleLog({ sampleId }) {
   const { user } = useAuth();
-  const [entries, setEntries] = useState(null);
   const [body, setBody] = useState('');
   const [photo, setPhoto] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -172,16 +172,16 @@ export default function SampleLog({ sampleId }) {
   const [viewing, setViewing] = useState(null);
   const fileInput = useRef(null);
 
-  const load = () =>
-    samplesApi
-      .logs(sampleId)
-      .then(setEntries)
-      .catch(() => setEntries([]));
-
-  useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sampleId]);
+  const fetcher = useCallback((params) => samplesApi.logs({ id: sampleId, ...params }), [sampleId]);
+  const {
+    data: entries,
+    pagination,
+    loading,
+    loadingMore,
+    reload: load,
+    loadMore,
+    hasMore,
+  } = usePagedFeed(fetcher);
 
   const submit = async (event) => {
     event.preventDefault();
@@ -212,10 +212,14 @@ export default function SampleLog({ sampleId }) {
     }
   };
 
-  if (!entries) return <Section title="Log"><Spinner label="Loading the log" /></Section>;
+  if (loading) return <Section title="Log"><Spinner label="Loading the log" /></Section>;
+
+  // The count is the whole feed's, not what happens to be loaded — "Log (15)" on a sample
+  // with sixty entries is the screen quietly disagreeing with the record.
+  const total = pagination?.total ?? entries.length;
 
   return (
-    <Section title={`Log (${entries.length})`}>
+    <Section title={`Log (${total})`}>
       <form onSubmit={submit} className="mb-4 space-y-2">
         <textarea
           rows={2}
@@ -291,6 +295,22 @@ export default function SampleLog({ sampleId }) {
         </p>
       )}
 
+      {hasMore && (
+        <div className="mt-3 flex flex-col items-center gap-1.5">
+          <button
+            type="button"
+            className="btn-secondary px-3 py-1.5 text-xs"
+            onClick={loadMore}
+            disabled={loadingMore}
+          >
+            {loadingMore ? 'Loading…' : 'Show earlier entries'}
+          </button>
+          <p className="text-[0.6875rem] text-steel-500">
+            {entries.length} of {total}
+          </p>
+        </div>
+      )}
+
       <Modal
         open={Boolean(viewing)}
         title={viewing?.filename || 'Photo'}
@@ -302,6 +322,8 @@ export default function SampleLog({ sampleId }) {
             attachmentKey={viewing.key}
             alt={viewing.filename || 'Sample photo'}
             className="max-h-[70vh] w-full rounded-lg object-contain"
+            // The one photo not to defer: the reader just clicked it.
+            eager
           />
         )}
       </Modal>

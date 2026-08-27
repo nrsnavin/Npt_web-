@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { enquiries as enquiriesApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -151,6 +151,7 @@ export default function Enquiries() {
   const [view, setView] = useState('open');
   const [page, setPage] = useState(1);
   const [creating, setCreating] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const term = useDebounced(search);
 
@@ -161,10 +162,15 @@ export default function Enquiries() {
     return date.toISOString();
   }, []);
 
+  // Arriving from a customer's history: that customer's enquiries, all stages. The whole
+  // history is what was asked for, so the open-only default would hide most of the answer.
+  const forCustomer = searchParams.get('customer') || undefined;
+
   const { data, pagination, loading, error, reload } = useRecordList(enquiriesApi.list, {
     search: term || undefined,
     status: status || undefined,
-    open: view === 'open' || view === 'due' ? 'true' : undefined,
+    customer: forCustomer,
+    open: !forCustomer && (view === 'open' || view === 'due') ? 'true' : undefined,
     dueBy: view === 'due' ? endOfToday() : undefined,
     page,
     limit: 25,
@@ -244,6 +250,26 @@ export default function Enquiries() {
           ))}
         </select>
       </div>
+
+      {/* An active filter the reader cannot see is a short list with no explanation. */}
+      {forCustomer && (
+        <div className="mb-3 flex items-center gap-2 text-xs text-steel-400">
+          <span>
+            Showing one customer&rsquo;s enquiries
+            {data[0]?.customer?.name ? ` — ${data[0].customer.name}` : ''}
+          </span>
+          <button
+            type="button"
+            className="font-semibold text-steel-300 hover:text-accent"
+            onClick={() => {
+              setSearchParams({});
+              setPage(1);
+            }}
+          >
+            Clear
+          </button>
+        </div>
+      )}
 
       {loading && <TableSkeleton columns={6} />}
       {error && <ErrorState error={error} onRetry={reload} />}

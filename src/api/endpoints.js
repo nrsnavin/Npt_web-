@@ -109,8 +109,8 @@ export const samples = {
     api.post(`/samples/${id}/customer-message`, payload).then(unwrap),
   messages: (id) => api.get(`/samples/${id}/customer-messages`).then(unwrap),
 
-  /** The working record: notes, photos and comments on either. */
-  logs: (id) => api.get(`/samples/${id}/logs`).then(unwrap),
+  /** The working record: notes, photos and comments on either. Paged — a feed, not a table. */
+  logs: ({ id, ...params }) => api.get(`/samples/${id}/logs`, { params }).then(listed),
   addLog: ({ id, body, photo }) => {
     // Multipart only when there is a file; a plain note stays a JSON post.
     if (!photo) return api.post(`/samples/${id}/logs`, { body }).then(unwrap);
