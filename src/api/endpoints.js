@@ -158,6 +158,18 @@ export const jarvis = {
   ask: (message) => api.post('/jarvis/ask', { message }).then(unwrap),
 };
 
+/**
+ * States and towns, suggested as somebody types one.
+ *
+ * The list exists for consistency rather than convenience: free text fills the database with
+ * three spellings of Tiruppur, which is one town to the plant and three to every report that
+ * groups by city.
+ */
+export const places = {
+  states: (params) => api.get('/places/states', { params }).then(unwrap),
+  cities: (params) => api.get('/places/cities', { params }).then(unwrap),
+};
+
 /** One search across everything [§32], grouped by record type. */
 export const search = (q) => api.get('/search', { params: { q } }).then(unwrap);
 

@@ -9,6 +9,7 @@ import {
 } from '../components/ui.jsx';
 import BulkBar, { RowCheckbox, useSelection } from '../components/BulkReassign.jsx';
 import ExportButton from '../components/ExportButton.jsx';
+import PlaceInput from '../components/PlaceInput.jsx';
 import { formatCompactCurrency, formatDate } from '../utils/format.js';
 import { CUSTOMER_TYPES, SOURCES, optionLabel } from '../utils/pipeline.js';
 
@@ -33,6 +34,8 @@ export function CustomerForm({ customer, onClose, onSaved }) {
     register,
     handleSubmit,
     getValues,
+    setValue,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm({
     defaultValues: editing
@@ -117,11 +120,27 @@ export function CustomerForm({ customer, onClose, onSaved }) {
         <Field label="GST number" hint="The strongest way to spot a duplicate">
           <input className="input uppercase" onBlurCapture={checkForDuplicate} {...register('gstin')} />
         </Field>
+        {/* The same suggestion list the lead form uses. Suggesting on one and not the other
+            would leave half the records free text, and the by-city report reads both. */}
         <Field label="City">
-          <input className="input" {...register('city')} />
+          <PlaceInput
+            kind="city"
+            aria-label="City"
+            placeholder="Tiruppur, Ludhiana, Surat…"
+            value={watch('city')}
+            state={watch('state')}
+            onChange={(next) => setValue('city', next, { shouldDirty: true })}
+            onResolveState={(next) => setValue('state', next, { shouldDirty: true })}
+          />
         </Field>
         <Field label="State">
-          <input className="input" {...register('state')} />
+          <PlaceInput
+            kind="state"
+            aria-label="State"
+            placeholder="Tamil Nadu…"
+            value={watch('state')}
+            onChange={(next) => setValue('state', next, { shouldDirty: true })}
+          />
         </Field>
         <Field label="Country">
           <input className="input" {...register('country')} />

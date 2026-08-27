@@ -9,6 +9,7 @@ import {
 } from '../components/ui.jsx';
 import BulkBar, { RowCheckbox, useSelection } from '../components/BulkReassign.jsx';
 import ExportButton from '../components/ExportButton.jsx';
+import PlaceInput from '../components/PlaceInput.jsx';
 import { formatCompactCurrency, formatNumber } from '../utils/format.js';
 import { LEAD_STAGES, SOURCES, followUpState, leadStageLabel } from '../utils/pipeline.js';
 
@@ -24,8 +25,15 @@ function LeadForm({ onClose, onSaved }) {
   const {
     register,
     handleSubmit,
+    setValue,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm({ defaultValues: { source: 'phone' } });
+
+  // Registered rather than spread onto an input, because the value comes from the suggestion
+  // list as well as the keyboard and react-hook-form has to see both.
+  const city = watch('city');
+  const state = watch('state');
 
   const submit = async (values) => {
     setError(null);
@@ -65,11 +73,27 @@ function LeadForm({ onClose, onSaved }) {
         <Field label="Email" error={errors.email}>
           <input type="email" className="input" {...register('email')} />
         </Field>
-        <Field label="City">
-          <input className="input" {...register('city')} />
+        {/* City before state, and choosing a town fills the state in — which is the order
+            somebody says an address in, and saves the second field most of the time. */}
+        <Field label="City" hint="Pick from the list where you can — one spelling per town keeps the reports honest">
+          <PlaceInput
+            kind="city"
+            aria-label="City"
+            placeholder="Tiruppur, Ludhiana, Surat…"
+            value={city}
+            state={state}
+            onChange={(next) => setValue('city', next, { shouldDirty: true })}
+            onResolveState={(next) => setValue('state', next, { shouldDirty: true })}
+          />
         </Field>
         <Field label="State">
-          <input className="input" {...register('state')} />
+          <PlaceInput
+            kind="state"
+            aria-label="State"
+            placeholder="Tamil Nadu…"
+            value={state}
+            onChange={(next) => setValue('state', next, { shouldDirty: true })}
+          />
         </Field>
         <Field label="How did they reach us">
           <select className="input" {...register('source')}>
