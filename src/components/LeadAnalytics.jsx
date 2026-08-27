@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { leads as leadsApi } from '../api/endpoints.js';
 import { useRecord } from '../hooks/useRecords.js';
 import { Section } from './ui.jsx';
+import LeadMap from './LeadMap.jsx';
 import { humanise } from '../utils/format.js';
 
 /**
@@ -141,7 +142,7 @@ function Tile({ label, value, hint, tone = 'neutral' }) {
   );
 }
 
-export default function LeadAnalytics() {
+export default function LeadAnalytics({ place = null, onPlaceChange }) {
   const fetch = useCallback(() => leadsApi.overview(), []);
   const { data, error } = useRecord(fetch, 'lead-overview');
 
@@ -241,11 +242,15 @@ export default function LeadAnalytics() {
         </Section>
       </div>
 
-      {Boolean(data.byCity?.length) && (
-        <Section title="Where they are">
-          <Bars rows={data.byCity} total={data.total} />
-        </Section>
-      )}
+      {/*
+        * Where they are, as a map rather than a ranking. The sorted list this replaced answered
+        * one question — which town has the most — and hid the ones somebody came for: whether
+        * this is one town with outliers or four states, and whether a whole region has gone
+        * quiet. The values live beside the map, because nobody reads eleven off a circle.
+        */}
+      <Section title="Where they are">
+        <LeadMap geography={data.geography} selected={place} onSelect={onPlaceChange} />
+      </Section>
     </div>
   );
 }

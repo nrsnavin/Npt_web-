@@ -148,12 +148,18 @@ export default function Leads() {
   const { canWrite, isAdmin } = useAuth();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
+  // Set by clicking a place on the map: `{ field: 'city' | 'state', value }`.
+  const [place, setPlace] = useState(null);
   const [page, setPage] = useState(1);
   const [creating, setCreating] = useState(false);
 
   const term = useDebounced(search);
   // One object for both the list and the export, so the file is exactly what is on screen.
-  const filters = { search: term || undefined, status: status || undefined };
+  const filters = {
+    search: term || undefined,
+    status: status || undefined,
+    [place?.field || 'city']: place?.value,
+  };
   const { data, pagination, loading, error, reload } = useRecordList(leadsApi.list, {
     ...filters,
     page,
@@ -165,6 +171,13 @@ export default function Leads() {
 
   const selectStage = (value) => {
     setStatus(value === status ? '' : value);
+    setPage(1);
+  };
+
+  // A dot on the map is a filter on the list below it. Back to page one, or the narrowed
+  // result is read from page four of a list that is now two pages long.
+  const selectPlace = (next) => {
+    setPlace(next);
     setPage(1);
   };
 
@@ -189,7 +202,7 @@ export default function Leads() {
         * The book before the list. Somebody arriving here wants to know what shape it is in
         * and what has gone quiet; the rows are what they read after deciding where to look.
         */}
-      <LeadAnalytics />
+      <LeadAnalytics place={place} onPlaceChange={selectPlace} />
 
       <div className="mb-5">
         <Scoreboard />
@@ -236,6 +249,16 @@ export default function Leads() {
         {status && (
           <button type="button" className="btn-secondary" onClick={() => selectStage(status)}>
             Clear stage filter
+          </button>
+        )}
+        {/*
+          * A filter set from a map has to be visible in the list's own controls too. Somebody
+          * who scrolled past the map and finds nine rows where there were forty must be able
+          * to see why without scrolling back up to look for a highlighted dot.
+          */}
+        {place && (
+          <button type="button" className="btn-secondary" onClick={() => selectPlace(null)}>
+            Clear {place.value} ✕
           </button>
         )}
       </div>
