@@ -157,9 +157,16 @@ bench*, *any new enquiries this week*, *where is SMP-2026-0004*, *what is happen
 Trendline*. All of that is already on a screen — finding the screen is the friction, three
 clicks and a filter to learn something that fits in a line.
 
-**No language model is involved.** The parse is rules, server-side; see the API's README for
-why. The short version: the questions are a closed set, a wrong answer is worse than no
-answer because somebody acts on the number, and it costs nothing to run.
+**Administrators only** — it answers across every module at once, which is a management view
+of the plant rather than anybody's own screen. The button is hidden for everyone else rather
+than shown and refused, and the route refuses them too: hiding a control is presentation, not
+permission.
+
+**A language model reads the question, and only the question.** It turns the sentence into a
+subject and an aspect from a fixed list; every figure still comes from a query the server
+runs, so the worst a misparse can do is answer a different question — visibly, since the reply
+says what it understood. With no API key configured it falls back to a rules parser and keeps
+working. See the API's README for the full reasoning.
 
 Two decisions shape the panel. **Every answer shows its records** — the sentence is the
 summary and the real rows sit under it, each a link, so nobody has to take a figure on trust.

@@ -12,7 +12,7 @@ import JarvisPanel from './JarvisPanel.jsx';
  * One panel is open at a time — these are glanceable tools, not windows to arrange.
  */
 export default function Dock() {
-  const { canRead } = useAuth();
+  const { canRead, isAdmin } = useAuth();
   const { todos, notes, announcementMeta } = useWorkspace();
   const [openKey, setOpenKey] = useState(null);
   const dockRef = useRef(null);
@@ -26,13 +26,15 @@ export default function Dock() {
     /*
      * First in the dock, because it is the one that answers a question rather than holding a
      * list — and the question is usually why somebody opened the app.
+     *
+     * Administrators only, matching the route. Hidden rather than shown and refused: an
+     * assistant that answers "you may not ask me that" to every question is worse than one
+     * that is not there, and it answers across every module at once, which is a management
+     * view of the plant rather than anybody's own screen.
      */
-    {
-      key: 'jarvis',
-      label: 'Ask Jarvis',
-      icon: 'spark',
-      Panel: JarvisPanel,
-    },
+    ...(isAdmin
+      ? [{ key: 'jarvis', label: 'Ask Jarvis', icon: 'spark', Panel: JarvisPanel }]
+      : []),
     {
       key: 'todos',
       label: 'To-do',

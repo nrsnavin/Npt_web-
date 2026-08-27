@@ -108,8 +108,8 @@ export default function JarvisPanel() {
           <div>
             <p className="text-[0.8125rem] leading-relaxed text-steel-300">
               Ask me about samples, enquiries, leads or customers
-              {user?.name ? `, ${user.name.split(' ')[0]}` : ''}. I answer from your own records
-              — the same ones your screens show you.
+              {user?.name ? `, ${user.name.split(' ')[0]}` : ''}. Every figure comes straight
+              from the records, with the rows behind it.
             </p>
             <div className="mt-3 flex flex-wrap gap-1.5">
               {OPENERS.map((opener) => (
