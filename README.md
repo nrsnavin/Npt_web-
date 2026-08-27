@@ -61,6 +61,20 @@ modification offers the next attempt, carrying the customer's words forward.
 Handover tasks appear in the dock, linked to the record that raised them, so acting on one
 is a click rather than a search.
 
+**Search**, in the header on every screen and on ⌘K / Ctrl-K. One query across customers,
+enquiries, samples, leads and the catalogue [§32], grouped by record type rather than ranked
+into one list — "SMP-2026-0004" and "Trendline Apparels" are different questions, and merging
+them makes the reader find the type they meant among the types they did not. A customer's
+name reaches their enquiries and samples too, which is what §32 means by the entire related
+history. Arrow keys and Enter walk the results, and each group says when it is showing the
+first few of many.
+
+**Marketing dashboard** — what needs doing today, then how the month is going. Overdue
+follow-ups, samples still on the bench and samples sitting with a buyer, each ranked
+worst-first with an age; then open value, raised this month, won, win rate, and breakdowns by
+stage, source and lost reason. Every tile and row opens the record behind it. Rows that need
+pricing, quotations, orders or payments join as those modules land.
+
 **Sampling dashboard** — the tiles (open, due today, overdue, escalated, unassigned), the
 oldest open requests and what is awaiting customer feedback, each ranked worst-first with an
 age, average turnaround split at ready, and the rework rate. Ageing beats counts: "12 pending"

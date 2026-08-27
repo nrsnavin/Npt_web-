@@ -137,6 +137,14 @@ export const samples = {
   clearReferencePhoto: (id) => api.delete(`/samples/${id}/reference-photo`).then(unwrap),
 };
 
+/** Per-department dashboards [§21-24]. */
+export const dashboards = {
+  marketing: () => api.get('/dashboard/marketing').then(unwrap),
+};
+
+/** One search across everything [§32], grouped by record type. */
+export const search = (q) => api.get('/search', { params: { q } }).then(unwrap);
+
 /** A stored file, fetched with the session's token rather than linked to directly. */
 export const files = {
   blob: (key) => api.get(`/files/${key}`, { responseType: 'blob' }).then((response) => response.data),

@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useTheme } from '../context/ThemeContext.jsx';
 import Dock from './dock/Dock.jsx';
+import GlobalSearch from './GlobalSearch.jsx';
 import { humanise } from '../utils/format.js';
 
 /**
@@ -33,7 +34,7 @@ const RAIL = [
     label: 'Pipeline',
     icon: 'funnel',
     module: 'enquiries',
-    paths: ['/enquiries', '/leads', '/customers', '/samples'],
+    paths: ['/enquiries', '/leads', '/customers', '/samples', '/dashboard'],
   },
   { to: '/products', label: 'Catalogue', icon: 'box', module: 'products' },
   { to: '/profile', label: 'Profile', icon: 'user' },
@@ -63,6 +64,7 @@ const SIDEBARS = {
       {
         title: 'Before the order',
         items: [
+          { to: '/dashboard/marketing', label: 'My dashboard', module: 'enquiries' },
           { to: '/leads', label: 'Leads', module: 'enquiries' },
           { to: '/enquiries', label: 'Enquiries', module: 'enquiries' },
           // Exact, or the queue stays lit while the dashboard is open beneath it.
@@ -355,7 +357,10 @@ export default function Layout() {
 
         {/* Main column */}
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="flex shrink-0 items-center gap-3 border-b border-line/[0.06] bg-ink-900/80 px-4 py-2 backdrop-blur-xl">
+          {/* `relative z-30` so the header's own overlays — the search results — paint above
+              the main pane. Without a stacking context here, `main` comes later in the DOM
+              and wins, and the results render behind the page they are offering to open. */}
+          <header className="relative z-30 flex shrink-0 items-center gap-3 border-b border-line/[0.06] bg-ink-900/80 px-4 py-2 backdrop-blur-xl">
             <button
               type="button"
               className="btn-ghost px-2.5 py-1.5 lg:hidden"
@@ -369,6 +374,8 @@ export default function Layout() {
             </button>
 
             <TopTabs />
+
+            <GlobalSearch />
 
             <div className="flex shrink-0 items-center gap-2">
               <ThemeToggle />

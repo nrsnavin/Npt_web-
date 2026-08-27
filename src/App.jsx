@@ -29,6 +29,7 @@ const Samples = lazy(() => import('./pages/Samples.jsx'));
 const SampleDetail = lazy(() => import('./pages/SampleDetail.jsx'));
 const SamplingDashboard = lazy(() => import('./pages/SamplingDashboard.jsx'));
 const SampleAnalytics = lazy(() => import('./pages/SampleAnalytics.jsx'));
+const MarketingDashboard = lazy(() => import('./pages/MarketingDashboard.jsx'));
 
 /** Blocks a route unless the user may read the module behind it. */
 function RequireModule({ moduleKey, children }) {
@@ -69,6 +70,14 @@ export default function App() {
           <Route path="profile" element={<Profile />} />
 
           {/* Phase 1: the pipeline that runs from a lead to a customer to an enquiry. */}
+          <Route
+            path="dashboard/marketing"
+            element={
+              <RequireModule moduleKey="enquiries">
+                <MarketingDashboard />
+              </RequireModule>
+            }
+          />
           <Route
             path="leads"
             element={
