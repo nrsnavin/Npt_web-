@@ -102,6 +102,12 @@ export const samples = {
   linkCustomer: ({ id, customer }) =>
     api.post(`/samples/${id}/link-customer`, { customer }).then(unwrap),
   pipeline: () => api.get('/samples/pipeline').then(unwrap),
+  /**
+   * Samples nobody is working on. Separate from `?overdue=true`, which asks whether a date
+   * has passed — this asks whether anyone has touched it, and catches the sample quietly on
+   * its way to being overdue while there is still time to do something about it.
+   */
+  anomalies: () => api.get('/samples/anomalies').then((response) => response.data),
   dashboard: () => api.get('/samples/dashboard').then(unwrap),
   analytics: (params) => api.get('/samples/analytics', { params }).then(unwrap),
 

@@ -84,6 +84,18 @@ worst-first with an age; then open value, raised this month, won, win rate, and 
 stage, source and lost reason. Every tile and row opens the record behind it. Rows that need
 pricing, quotations, orders or payments join as those modules land.
 
+**Anomalies** — samples nobody is working on, at the top of the sampling dashboard when there
+are any and out of the way when there are not. Distinct from *Overdue*, which says a date has
+passed: this says nobody is on it, which is usually true while the date is still comfortably
+ahead. Each row says why — "nobody has picked it up" and "no progress for three working days"
+are different situations with different fixes — and rows in the sample list carry an **Idle**
+badge, so the signal is wherever the sample is.
+
+Counted in working days, which the panel says out loud: in calendar days every open sample
+would be flagged every Monday morning because nobody worked Sunday, and a list that flags
+everything is one nobody reads. Management is also told directly — a task per stalled sample,
+raised again each further day of silence.
+
 **Sampling dashboard** — the tiles (open, due today, overdue, escalated, unassigned), the
 oldest open requests and what is awaiting customer feedback, each ranked worst-first with an
 age, average turnaround split at ready, and the rework rate. Ageing beats counts: "12 pending"

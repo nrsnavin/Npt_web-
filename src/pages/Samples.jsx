@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link } from 'react-router-dom';
 import { samples as samplesApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
-import { useDebounced, useRecordList } from '../hooks/useRecords.js';
+import { useDebounced, useRecord, useRecordList } from '../hooks/useRecords.js';
 import {
   Badge, EmptyState, ErrorState, Field, Modal, Notice, PageHeader, Pagination, TableSkeleton,
 } from '../components/ui.jsx';
@@ -253,6 +253,18 @@ export default function Samples() {
   const [view, setView] = useState('open');
   const [page, setPage] = useState(1);
 
+  /*
+   * Fetched alongside the page rather than derived here: what counts as stalled — which
+   * activity restarts the clock, and that a weekend is not a working day — is a rule with
+   * enough in it to be worth having in exactly one place, and that place is the server.
+   */
+  const stalledFetch = useCallback(() => samplesApi.anomalies(), []);
+  const { data: stalledData } = useRecord(stalledFetch, 'anomalies');
+  const stalled = useMemo(
+    () => new Map((stalledData?.data || []).map((row) => [row._id, row])),
+    [stalledData]
+  );
+
   const term = useDebounced(search);
   const { data, pagination, loading, error, reload } = useRecordList(samplesApi.list, {
     search: term || undefined,
@@ -372,12 +384,24 @@ export default function Samples() {
                 <tbody className="divide-y divide-line/[0.04]">
                   {data.map((sample) => {
                     const due = followUpState(sample.requiredDate);
+                    const idle = stalled.get(sample._id);
                     return (
                       <tr key={sample._id} className="row-hover">
                         <td className="whitespace-nowrap px-3 py-3.5">
                           <Link to={`/samples/${sample._id}`} className="font-semibold text-steel-100 hover:text-accent">
                             {sample.number}
                           </Link>
+                          {/* Overdue is already shown against the date. This is the other
+                              thing: nobody is working on it, which is often true while the
+                              date is still comfortably ahead. */}
+                          {idle && (
+                            <span
+                              title={idle.reason}
+                              className="ml-1.5 rounded bg-danger-500/15 px-1.5 py-0.5 text-[0.625rem] font-bold uppercase tracking-wide text-danger-400"
+                            >
+                              Idle {idle.idleDays}d
+                            </span>
+                          )}
                           <p className="text-xs text-steel-400">
                             {sample.enquiry?.number || 'No enquiry'}
                           </p>

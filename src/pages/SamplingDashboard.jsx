@@ -122,7 +122,10 @@ export default function SamplingDashboard() {
   if (error) return <ErrorState error={error} onRetry={reload} />;
   if (!data) return null;
 
-  const { tiles, turnaround, quality, queueByStatus, byPurpose, byRequester, oldestOpen, awaitingFeedback } = data;
+  const {
+    tiles, turnaround, quality, queueByStatus, byPurpose, byRequester, oldestOpen,
+    awaitingFeedback, stalled,
+  } = data;
 
   // An average of nothing is not zero days, and saying "0" would read as instant.
   const days = (value) => (value === null ? '—' : `${value}d`);
@@ -150,6 +153,12 @@ export default function SamplingDashboard() {
           to="/samples"
         />
         <Tile
+          label="Not moving"
+          value={tiles.stalled}
+          hint="No work for a day or more"
+          tone={tiles.stalled ? 'danger' : 'neutral'}
+        />
+        <Tile
           label="Escalated"
           value={tiles.escalated}
           hint="§25 has been raised"
@@ -157,6 +166,55 @@ export default function SamplingDashboard() {
         />
         <Tile label="Unassigned" value={tiles.unassigned} hint="Nobody has picked these up" />
       </div>
+
+      {/*
+        * Above everything else when there is something in it, because it is the only figure
+        * on this screen that is about work not happening. Overdue says a date has passed;
+        * this says nobody is on it, which is the same problem caught a week earlier.
+        */}
+      {Boolean(stalled?.length) && (
+        <div className="mb-5">
+          <Section title={`Anomalies — nothing happening (${stalled.length})`}>
+            <p className="mb-3 text-xs leading-relaxed text-steel-500">
+              No stage move and no note on the log. Counted in working days, so a weekend does
+              not put the whole bench on this list every Monday.
+            </p>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead className="table-head">
+                  <tr>
+                    <th className="px-3 py-2.5">Sample</th>
+                    <th className="px-3 py-2.5">Stage</th>
+                    <th className="px-3 py-2.5">Why</th>
+                    <th className="px-3 py-2.5 text-right">Idle</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-line/[0.04]">
+                  {stalled.map((row) => (
+                    <tr key={row._id} className="row-hover">
+                      <td className="px-3 py-3">
+                        <Link to={`/samples/${row._id}`} className="font-semibold text-steel-100 hover:text-accent">
+                          {row.number}
+                        </Link>
+                        <p className="text-xs text-steel-400">
+                          {[row.customer || 'Internal trial', row.modelNumber].filter(Boolean).join(' · ')}
+                        </p>
+                      </td>
+                      <td className="px-3 py-3">
+                        <Badge status={row.status}>{sampleStageLabel(row.status)}</Badge>
+                      </td>
+                      <td className="px-3 py-3 text-steel-300">{row.reason}</td>
+                      <td className="px-3 py-3 text-right tabular-nums font-semibold text-danger-400">
+                        {row.idleDays}d
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Section>
+        </div>
+      )}
 
       <div className="grid gap-5 lg:grid-cols-3">
         {/* `min-w-0` for the same reason the cards inside it carry one: a grid child will
