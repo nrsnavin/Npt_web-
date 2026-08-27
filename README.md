@@ -61,6 +61,11 @@ modification offers the next attempt, carrying the customer's words forward.
 Handover tasks appear in the dock, linked to the record that raised them, so acting on one
 is a click rather than a search.
 
+**Sampling dashboard** — the tiles (open, due today, overdue, escalated, unassigned), the
+oldest open requests and what is awaiting customer feedback, each ranked worst-first with an
+age, average turnaround split at ready, and the rework rate. Ageing beats counts: "12 pending"
+hides the one that has sat three weeks.
+
 **New request** raises one by hand, for what the automation cannot see: a buyer who asks at
 the counter before anyone writes an enquiry, or an internal trial that belongs to nobody.
 Leave the enquiry blank and the form asks what to make instead; leave the customer blank too

@@ -65,7 +65,9 @@ const SIDEBARS = {
         items: [
           { to: '/leads', label: 'Leads', module: 'enquiries' },
           { to: '/enquiries', label: 'Enquiries', module: 'enquiries' },
-          { to: '/samples', label: 'Sampling', module: 'samples' },
+          // Exact, or the queue stays lit while the dashboard is open beneath it.
+          { to: '/samples', label: 'Sampling', module: 'samples', end: true },
+          { to: '/samples/dashboard', label: 'Sampling dashboard', module: 'samples' },
         ],
       },
       {
