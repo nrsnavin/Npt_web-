@@ -70,7 +70,13 @@ export function CustomerForm({ customer, onClose, onSaved }) {
     };
 
     try {
-      onSaved(editing ? await customersApi.update({ id: customer._id, ...payload }) : await customersApi.create(payload));
+      onSaved(
+        editing
+          // The version this form was opened on, so a colleague's save is not silently
+          // overwritten by ours.
+          ? await customersApi.update({ id: customer._id, expectedUpdatedAt: customer.updatedAt, ...payload })
+          : await customersApi.create(payload)
+      );
       onClose();
     } catch (submitError) {
       setError(submitError);

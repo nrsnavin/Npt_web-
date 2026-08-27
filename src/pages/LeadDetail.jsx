@@ -244,6 +244,7 @@ function DisqualifyForm({ lead, onClose, onSaved }) {
       onSaved(
         await leadsApi.update({
           id: lead._id,
+          expectedUpdatedAt: lead.updatedAt,
           status: 'disqualified',
           disqualifyReason: reason,
           disqualifyNote: note || undefined,
@@ -304,7 +305,7 @@ export default function LeadDetail() {
     setBusy(true);
     setActionError(null);
     try {
-      setData(await leadsApi.update({ id: lead._id, status: 'qualified' }));
+      setData(await leadsApi.update({ id: lead._id, expectedUpdatedAt: lead.updatedAt, status: 'qualified' }));
     } catch (updateError) {
       setActionError(updateError.message);
     } finally {

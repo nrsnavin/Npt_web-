@@ -48,7 +48,13 @@ function ProductForm({ product, onClose, onSaved }) {
     };
 
     try {
-      onSaved(editing ? await productsApi.update({ id: product._id, ...payload }) : await productsApi.create(payload));
+      onSaved(
+        editing
+          // The version this form was opened on — the catalogue is shared, so two people
+          // correcting the same model at once is ordinary rather than unlucky.
+          ? await productsApi.update({ id: product._id, expectedUpdatedAt: product.updatedAt, ...payload })
+          : await productsApi.create(payload)
+      );
       onClose();
     } catch (submitError) {
       setError(submitError);
