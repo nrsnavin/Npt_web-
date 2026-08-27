@@ -5,7 +5,9 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { useRecord } from '../hooks/useRecords.js';
 import { Badge, ErrorState, Facts, Modal, PageHeader, Section, Spinner } from '../components/ui.jsx';
 import { formatCompactCurrency, formatCurrency, formatDate, formatNumber } from '../utils/format.js';
-import { CUSTOMER_TYPES, SOURCES, optionLabel, stageLabel } from '../utils/pipeline.js';
+import {
+  CUSTOMER_TYPES, SAMPLE_PURPOSES, SOURCES, optionLabel, sampleStageLabel, stageLabel,
+} from '../utils/pipeline.js';
 import { CustomerForm } from './Customers.jsx';
 
 function ContactCard({ contact }) {
@@ -132,6 +134,61 @@ export default function CustomerDetail() {
                 >
                   See them all
                 </Link>
+              </p>
+            )}
+          </Section>
+
+          {/* §2 asks for the whole story on one screen. Each strand joins as its module
+              lands; quotations, orders, dispatch and payments follow. */}
+          <Section title={`Samples (${timeline.sampleTotal ?? timeline.samples?.length ?? 0})`}>
+            {timeline.samples?.length ? (
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead className="table-head">
+                    <tr>
+                      <th className="px-3 py-2.5">Sample</th>
+                      <th className="px-3 py-2.5">Model</th>
+                      <th className="px-3 py-2.5">For</th>
+                      <th className="px-3 py-2.5 text-right">Qty</th>
+                      <th className="px-3 py-2.5">Stage</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-line/[0.04]">
+                    {timeline.samples.map((sample) => (
+                      <tr key={sample._id} className="row-hover">
+                        <td className="px-3 py-3">
+                          <Link
+                            to={`/samples/${sample._id}`}
+                            className="font-semibold text-steel-100 hover:text-accent"
+                          >
+                            {sample.number}
+                          </Link>
+                          <p className="text-xs text-steel-400">{formatDate(sample.requestedAt)}</p>
+                        </td>
+                        <td className="px-3 py-3 text-steel-200">{sample.modelNumber || '—'}</td>
+                        <td className="px-3 py-3 text-steel-400">
+                          {optionLabel(SAMPLE_PURPOSES, sample.purpose)}
+                        </td>
+                        <td className="px-3 py-3 text-right tabular-nums text-steel-200">
+                          {formatNumber(sample.quantity)}
+                        </td>
+                        <td className="px-3 py-3">
+                          <Badge status={sample.status}>{sampleStageLabel(sample.status)}</Badge>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="py-6 text-center text-sm text-steel-500">
+                No samples for this customer yet.
+              </p>
+            )}
+
+            {timeline.sampleTotal > (timeline.samples?.length || 0) && (
+              <p className="mt-3 text-center text-xs text-steel-500">
+                Showing the {timeline.samples.length} most recent of {timeline.sampleTotal}.
               </p>
             )}
           </Section>
