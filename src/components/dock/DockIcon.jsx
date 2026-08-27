@@ -9,6 +9,9 @@ const PATHS = {
   trash: 'M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m2 0v12a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V7',
   pin: 'M12 17v5M9 3h6l-1 6 3 3v2H7v-2l3-3-1-6Z',
   check: 'm5 12 5 5L20 7',
+  /* Ask Jarvis: a speech bubble with a spark in it. */
+  spark: 'M20 12a8 8 0 0 1-11.6 7.1L4 20l.9-4.4A8 8 0 1 1 20 12ZM12 8.5l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9.9-2.1Z',
+  send: 'M4 12h13m0 0-5-5m5 5-5 5',
 };
 
 export default function DockIcon({ name, className = 'h-[1.05rem] w-[1.05rem]' }) {

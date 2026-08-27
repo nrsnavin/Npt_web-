@@ -150,6 +150,27 @@ is marketing's. A customer's per-channel opt-out is on their own record.
 **Product master** — every hanger model marketing can quote against, filterable by category
 and material. A new development is promoted into it from the enquiry that produced it.
 
+### Ask Jarvis
+
+A text box in the dock that answers questions about the plant: *what is overdue on the
+bench*, *any new enquiries this week*, *where is SMP-2026-0004*, *what is happening with
+Trendline*. All of that is already on a screen — finding the screen is the friction, three
+clicks and a filter to learn something that fits in a line.
+
+**No language model is involved.** The parse is rules, server-side; see the API's README for
+why. The short version: the questions are a closed set, a wrong answer is worse than no
+answer because somebody acts on the number, and it costs nothing to run.
+
+Two decisions shape the panel. **Every answer shows its records** — the sentence is the
+summary and the real rows sit under it, each a link, so nobody has to take a figure on trust.
+And **the suggested questions are the documentation**: an empty box that answers some things
+and not others teaches nothing, and people give up after two misses, so the openers are real
+questions that work and the first thing anybody clicks is a success.
+
+Answers are scoped to the asker. An administrator sees the whole plant because their grants
+say so, not because the panel checks a role — a marketing person asking about a colleague's
+customer gets the same nothing the list screen gives them.
+
 ### On every record: documents and a change history
 
 **Documents** sit on customers and enquiries [§27] — the buyer's drawing, the print artwork,

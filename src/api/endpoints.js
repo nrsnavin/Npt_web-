@@ -142,6 +142,16 @@ export const dashboards = {
   marketing: () => api.get('/dashboard/marketing').then(unwrap),
 };
 
+/**
+ * Ask Jarvis — one question, one answer, from the asker's own records.
+ *
+ * Stateless: no thread is sent, because each question stands on its own. An assistant whose
+ * third answer depends on how it read the first is one nobody can retrace when it is wrong.
+ */
+export const jarvis = {
+  ask: (message) => api.post('/jarvis/ask', { message }).then(unwrap),
+};
+
 /** One search across everything [§32], grouped by record type. */
 export const search = (q) => api.get('/search', { params: { q } }).then(unwrap);
 

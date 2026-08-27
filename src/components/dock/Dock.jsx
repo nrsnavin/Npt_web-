@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import TodoPanel from './TodoPanel.jsx';
 import NotesPanel from './NotesPanel.jsx';
 import AnnouncementsPanel from './AnnouncementsPanel.jsx';
+import JarvisPanel from './JarvisPanel.jsx';
 
 /**
  * The bottom-right utility dock: tasks, notes, announcements and the daily reminder.
@@ -22,6 +23,16 @@ export default function Dock() {
    * open the app to see, so it belongs on the screen that opens.
    */
   const items = [
+    /*
+     * First in the dock, because it is the one that answers a question rather than holding a
+     * list — and the question is usually why somebody opened the app.
+     */
+    {
+      key: 'jarvis',
+      label: 'Ask Jarvis',
+      icon: 'spark',
+      Panel: JarvisPanel,
+    },
     {
       key: 'todos',
       label: 'To-do',
