@@ -7,7 +7,7 @@ import {
   Badge, ErrorState, Facts, Field, Modal, Notice, PageHeader, Section, Spinner,
 } from '../components/ui.jsx';
 import AuthedImage from '../components/AuthedImage.jsx';
-import { EnquirySelect } from '../components/pickers.jsx';
+import { CustomerSelect, EnquirySelect } from '../components/pickers.jsx';
 import SampleLog from '../components/SampleLog.jsx';
 import { formatDate, formatNumber } from '../utils/format.js';
 import {
@@ -621,6 +621,62 @@ function CustomerMessages({ sampleId, refreshKey }) {
 
 
 /** Attaching a request raised before its enquiry existed. */
+/**
+ * Names the buyer on a request raised for nobody.
+ *
+ * The counter job and the internal trial both start unattached, and some of them turn into
+ * real work. Re-raising the request to get the buyer onto it would throw away the log, the
+ * photographs and everything already made.
+ */
+function NameCustomerForm({ sample, onClose, onSaved }) {
+  const [customer, setCustomer] = useState(undefined);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+
+  const submit = async (event) => {
+    event.preventDefault();
+    if (!customer) return;
+
+    setBusy(true);
+    setError(null);
+    try {
+      onSaved(await samplesApi.linkCustomer({ id: sample._id, customer }));
+      onClose();
+    } catch (submitError) {
+      setError(submitError.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form onSubmit={submit} className="space-y-4">
+      <Field label="Customer" hint="Not in the list yet? Add them here.">
+        <CustomerSelect
+          value={customer}
+          onChange={setCustomer}
+          emptyLabel=""
+          aria-label="Customer"
+        />
+      </Field>
+
+      <Notice tone="info">
+        Once named it stays named. Moving a sample to a different customer would rewrite what
+        was made for whom.
+      </Notice>
+
+      {error && <Notice tone="danger">{error}</Notice>}
+
+      <div className="flex justify-end gap-2">
+        <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
+        <button type="submit" className="btn-primary" disabled={busy || !customer}>
+          {busy ? 'Saving…' : 'Name the customer'}
+        </button>
+      </div>
+    </form>
+  );
+}
+
 function LinkEnquiryForm({ sample, onClose, onSaved }) {
   const [enquiry, setEnquiry] = useState(undefined);
   const [busy, setBusy] = useState(false);
@@ -686,6 +742,7 @@ export default function SampleDetail() {
   const [messaging, setMessaging] = useState(false);
   const [editingDispatch, setEditingDispatch] = useState(false);
   const [linking, setLinking] = useState(false);
+  const [namingCustomer, setNamingCustomer] = useState(false);
   const [messagesKey, setMessagesKey] = useState(0);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState(null);
@@ -779,6 +836,14 @@ export default function SampleDetail() {
             {maySample && !sample.enquiry && !closed && (
               <button type="button" className="btn-secondary" onClick={() => setLinking(true)}>
                 Attach to an enquiry
+              </button>
+            )}
+
+            {/* Only where there is nobody to name and no enquiry to name them: with an
+                enquiry the customer comes from there, and the server refuses the rest. */}
+            {maySample && !sample.enquiry && !sample.customer && !closed && (
+              <button type="button" className="btn-secondary" onClick={() => setNamingCustomer(true)}>
+                Name the customer
               </button>
             )}
 
@@ -1020,6 +1085,19 @@ export default function SampleDetail() {
         onClose={() => setMovingStage(false)}
       >
         <StageForm sample={sample} onClose={() => setMovingStage(false)} onSaved={setData} />
+      </Modal>
+
+      <Modal
+        open={namingCustomer}
+        title="Name the customer"
+        description="For a request raised at the counter, or a trial that turned into real work"
+        onClose={() => setNamingCustomer(false)}
+      >
+        <NameCustomerForm
+          sample={sample}
+          onClose={() => setNamingCustomer(false)}
+          onSaved={setData}
+        />
       </Modal>
 
       <Modal

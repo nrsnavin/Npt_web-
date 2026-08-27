@@ -98,6 +98,9 @@ export const samples = {
   resample: ({ id, ...payload }) => api.post(`/samples/${id}/resample`, payload).then(unwrap),
   /** Attaches a request raised before its enquiry existed. */
   linkEnquiry: ({ id, enquiry }) => api.post(`/samples/${id}/link-enquiry`, { enquiry }).then(unwrap),
+  /** Names the buyer on a request raised for nobody — a counter job, or a trial gone real. */
+  linkCustomer: ({ id, customer }) =>
+    api.post(`/samples/${id}/link-customer`, { customer }).then(unwrap),
   pipeline: () => api.get('/samples/pipeline').then(unwrap),
   dashboard: () => api.get('/samples/dashboard').then(unwrap),
   analytics: (params) => api.get('/samples/analytics', { params }).then(unwrap),

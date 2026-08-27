@@ -33,6 +33,15 @@ export default function Combobox({
   emptyLabel = 'None',
   disabled = false,
   noMatchLabel = 'Nothing matches',
+  /**
+   * Called with whatever has been typed, to create the record that is not there yet.
+   *
+   * Searching a master and finding nothing is the moment the record is needed — being sent
+   * to another screen to add it, and back again, is where a half-filled form gets abandoned
+   * and the buyer ends up typed into a remarks box instead.
+   */
+  onCreate,
+  createLabel = 'Add',
   'aria-label': ariaLabel,
 }) {
   const [open, setOpen] = useState(false);
@@ -68,7 +77,13 @@ export default function Combobox({
     }
 
     loadOne?.(value)
-      .then((record) => !cancelled && record && setChosen(toOption(record)))
+      .then((record) => {
+        if (cancelled || !record) return;
+        const option = toOption(record);
+        // A label-less option would render as an empty box with no placeholder either —
+        // indistinguishable from having chosen nothing. Better to leave the prompt showing.
+        if (option?.label) setChosen(option);
+      })
       .catch(() => {});
 
     return () => {
@@ -138,7 +153,10 @@ export default function Combobox({
       if (rows[active]) choose(rows[active]);
       return undefined;
     }
-    if (event.key === 'Escape') {
+    if (event.key === 'Escape' && open) {
+      // Only the list closes. Letting this reach the dialog behind it would throw away a
+      // half-filled form for the sake of dismissing a dropdown.
+      event.stopPropagation();
       setOpen(false);
       setTerm('');
     }
@@ -214,6 +232,26 @@ export default function Combobox({
           {hidden > 0 && (
             <li className="border-t border-line/[0.06] px-3 py-2 text-[0.6875rem] text-steel-500">
               {hidden} more match. Type to narrow the list.
+            </li>
+          )}
+
+          {onCreate && (
+            <li className="border-t border-line/[0.06]">
+              <button
+                type="button"
+                className="flex w-full items-baseline gap-1.5 px-3 py-2 text-left text-[0.8125rem] font-semibold text-flame-500 hover:bg-line/[0.06]"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => {
+                  setOpen(false);
+                  // The typed text is the answer to "what is it called", so it goes with it.
+                  onCreate(term.trim());
+                }}
+              >
+                <span aria-hidden="true">+</span>
+                <span className="truncate">
+                  {term.trim() ? `${createLabel} “${term.trim()}”` : createLabel}
+                </span>
+              </button>
             </li>
           )}
         </ul>

@@ -138,8 +138,19 @@ function SampleRequestForm({ onClose, onSaved }) {
 
         {standalone && (
           <>
-            <Field label="Customer" className="sm:col-span-2" hint="Leave empty for an internal trial">
-              <CustomerSelect value={customer} onChange={setCustomer} aria-label="Customer" />
+            <Field
+              label="Customer"
+              className="sm:col-span-2"
+              hint="Not in the list? Add them here. Leave it as an internal trial if there is no buyer."
+            >
+              <CustomerSelect
+                value={customer}
+                onChange={setCustomer}
+                // Named as a decision, not a prompt: no customer is a legitimate answer here,
+                // and "Select a customer…" reads like a field waiting to be filled.
+                emptyLabel="No customer — internal trial"
+                aria-label="Customer"
+              />
             </Field>
             <Field label="Why, without an enquiry" className="sm:col-span-2">
               <input

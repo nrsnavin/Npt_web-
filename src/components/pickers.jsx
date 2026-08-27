@@ -1,6 +1,9 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { customers as customersApi, enquiries as enquiriesApi, products as productsApi } from '../api/endpoints.js';
+import { useAuth } from '../context/AuthContext.jsx';
 import Combobox from './Combobox.jsx';
+import CustomerQuickCreate from './CustomerQuickCreate.jsx';
+import ProductQuickCreate from './ProductQuickCreate.jsx';
 
 /**
  * Reference-data selects.
@@ -17,7 +20,26 @@ import Combobox from './Combobox.jsx';
 /** How many matches to offer at once. Enough to browse, few enough to read. */
 const PAGE = 20;
 
-export function ProductSelect({ value, onChange, disabled, includeBlank = 'Select a model…', ...rest }) {
+/**
+ * `allowCreate` adds a model to the catalogue without leaving the form. On by default, for
+ * the same reason as the customer picker: a sample is often the first time a model exists.
+ *
+ * Offered only to someone who may actually write the master. The grants differ by
+ * department — the sample team may add models but not customers — and an invitation that
+ * ends in a refusal is worse than no invitation at all.
+ */
+export function ProductSelect({
+  value,
+  onChange,
+  disabled,
+  includeBlank = 'Select a model…',
+  allowCreate = true,
+  ...rest
+}) {
+  const { canWrite } = useAuth();
+  const [creating, setCreating] = useState(null);
+  const mayCreate = allowCreate && !disabled && canWrite('products');
+
   const loadOptions = useCallback(
     (search) => productsApi.list({ search: search || undefined, isActive: true, limit: PAGE }),
     []
@@ -29,44 +51,97 @@ export function ProductSelect({ value, onChange, disabled, includeBlank = 'Selec
   );
 
   return (
-    <Combobox
-      value={value}
-      onChange={onChange}
-      disabled={disabled}
-      loadOptions={loadOptions}
-      loadOne={loadOne}
-      toOption={toOption}
-      placeholder={includeBlank}
-      emptyLabel={includeBlank}
-      noMatchLabel="No model matches"
-      {...rest}
-    />
+    <>
+      <Combobox
+        value={value}
+        onChange={onChange}
+        disabled={disabled}
+        loadOptions={loadOptions}
+        loadOne={loadOne}
+        toOption={toOption}
+        placeholder="Search the catalogue…"
+        emptyLabel={includeBlank}
+        noMatchLabel="No model matches"
+        onCreate={mayCreate ? (typed) => setCreating(typed ?? '') : undefined}
+        createLabel="Add a new model"
+        {...rest}
+      />
+
+      <ProductQuickCreate
+        open={creating !== null}
+        initialName={creating || ''}
+        onClose={() => setCreating(null)}
+        // Selected the moment it exists: adding it was only ever a way of choosing it.
+        onCreated={(product) => onChange(product._id)}
+      />
+    </>
   );
 }
 
-export function CustomerSelect({ value, onChange, ...rest }) {
+/**
+ * `allowCreate` adds a customer without leaving the form. On by default: every place that
+ * asks for a customer is a place where the buyer may not be in the master yet, and being
+ * sent away to add one is how a half-filled form gets abandoned.
+ *
+ * `emptyLabel` is what "no customer" is called. It reads as a real choice rather than as a
+ * placeholder wherever leaving it blank is a legitimate answer — a sample raised at the
+ * counter, or an internal trial that belongs to nobody.
+ */
+export function CustomerSelect({
+  value,
+  onChange,
+  allowCreate = true,
+  emptyLabel = 'Select a customer…',
+  ...rest
+}) {
+  const { canWrite } = useAuth();
+  const [creating, setCreating] = useState(null);
+  // The sample team holds customers at read only, and is exactly who raises counter
+  // requests. Offering them a form that ends in a refusal helps nobody.
+  const mayCreate = allowCreate && canWrite('customers');
+
   const loadOptions = useCallback(
     (search) => customersApi.list({ search: search || undefined, limit: PAGE }),
     []
   );
-  const loadOne = useCallback((id) => customersApi.get(id), []);
+  /*
+   * The customer detail route answers with `{ customer, timeline }` rather than the customer
+   * alone — it is what the detail screen needs. Unwrapped here, or resolving an already-chosen
+   * customer by id yields a record with no name and the box renders empty.
+   */
+  const loadOne = useCallback(
+    (id) => customersApi.get(id).then((data) => data?.customer || data),
+    []
+  );
   const toOption = useCallback(
     (customer) => ({ value: customer._id, label: customer.name, hint: customer.code }),
     []
   );
 
   return (
-    <Combobox
-      value={value}
-      onChange={onChange}
-      loadOptions={loadOptions}
-      loadOne={loadOne}
-      toOption={toOption}
-      placeholder="Select a customer…"
-      emptyLabel="Select a customer…"
-      noMatchLabel="No customer matches"
-      {...rest}
-    />
+    <>
+      <Combobox
+        value={value}
+        onChange={onChange}
+        loadOptions={loadOptions}
+        loadOne={loadOne}
+        toOption={toOption}
+        placeholder="Search a customer…"
+        emptyLabel={emptyLabel}
+        noMatchLabel="No customer matches"
+        onCreate={mayCreate ? (typed) => setCreating(typed ?? '') : undefined}
+        createLabel="Add a new customer"
+        {...rest}
+      />
+
+      <CustomerQuickCreate
+        open={creating !== null}
+        initialName={creating || ''}
+        onClose={() => setCreating(null)}
+        // Selected the moment it exists: adding it was only ever a way of choosing it.
+        onCreated={(customer) => onChange(customer._id)}
+      />
+    </>
   );
 }
 

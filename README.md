@@ -81,9 +81,17 @@ over forty.
 
 **New request** raises one by hand, for what the automation cannot see: a buyer who asks at
 the counter before anyone writes an enquiry, or an internal trial that belongs to nobody.
-Leave the enquiry blank and the form asks what to make instead; leave the customer blank too
-and it is an internal trial. Such a request walks the same stages as any other, and can be
-attached to its enquiry once one exists.
+Leave the enquiry blank and the form asks what to make instead; leave the customer as **No
+customer — internal trial** and it belongs to nobody. That option is named as a decision
+rather than left as a prompt, because a blank labelled *Select a customer…* reads as a field
+waiting to be filled rather than as a legitimate answer.
+
+Such a request walks the same stages as any other, and neither gap is permanent: **Attach to
+an enquiry** and **Name the customer** fill them in later, so a counter job or a trial that
+turns into real work keeps the log and the photographs it already has instead of being
+re-raised. Both are set once and never moved — repointing a sample at a different buyer
+would rewrite what was made for whom — and a request that came from an enquiry takes its
+customer from there.
 
 The sample carries a **Log**: notes and photos of each shot, with comments on either. Anyone
 who can see the sample can post and comment, marketing included — they hold read access only,
@@ -122,6 +130,26 @@ and material. A new development is promoted into it from the enquiry that produc
 ### Lists that outgrow the screen
 
 Every table pages, and the count beside it is always the whole set rather than the page.
+
+Where a customer or a model is chosen, it can also be **added on the spot**. Searching a
+master and finding nothing is the moment the record is wanted; being sent to another screen
+and back is where a half-filled request gets abandoned, or the buyer ends up typed into a
+remarks box instead. Whatever was typed into the search carries into the form.
+
+Both short forms ask only for what the record cannot exist without — a customer needs a name
+and a way to reach them, a model needs its code, category, size and material. Neither asks
+for the commercial half: credit terms and contacts stay on the customer's screen, and price,
+MOQ, packing and the mould stay on the model's. Those are decisions rather than details, and
+a price guessed at halfway through raising a sample is a price something later quotes.
+
+Each checks its uniqueness rule *before* submitting, because quick creation is exactly how a
+master fills with three spellings of the same firm. A duplicate customer you own is offered
+to be picked instead; one belonging to a colleague names them to talk to rather than handing
+over a record you cannot see. A model code already in the catalogue offers that model.
+
+The invitation only appears for someone who may actually write that master. The grants differ
+by department — the sample team may add models but not customers — and an invitation that
+ends in a refusal is worse than none.
 
 Where a record is chosen rather than browsed — customer, model, enquiry — the control is a
 `Combobox` that searches server-side. It replaces a `<select>` that loaded the first two
