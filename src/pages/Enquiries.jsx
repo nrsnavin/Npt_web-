@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import { enquiries as enquiriesApi } from '../api/endpoints.js';
+import { downloads, enquiries as enquiriesApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useDebounced, useRecordList } from '../hooks/useRecords.js';
 import {
@@ -9,6 +9,8 @@ import {
 } from '../components/ui.jsx';
 import EnquiryFields from '../components/EnquiryFields.jsx';
 import { CustomerSelect } from '../components/pickers.jsx';
+import BulkBar, { RowCheckbox, useSelection } from '../components/BulkReassign.jsx';
+import ExportButton from '../components/ExportButton.jsx';
 import { formatCompactCurrency, formatDate, formatNumber } from '../utils/format.js';
 import {
   CLOSED_STAGES, ENQUIRY_STAGES, SOURCES, buildEnquiryPayload, followUpState, stageLabel,
@@ -145,7 +147,7 @@ function EnquiryForm({ onClose, onSaved }) {
 }
 
 export default function Enquiries() {
-  const { canWrite } = useAuth();
+  const { canWrite, isAdmin } = useAuth();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const [view, setView] = useState('open');
@@ -166,17 +168,24 @@ export default function Enquiries() {
   // history is what was asked for, so the open-only default would hide most of the answer.
   const forCustomer = searchParams.get('customer') || undefined;
 
-  const { data, pagination, loading, error, reload } = useRecordList(enquiriesApi.list, {
+  // One object for both the list and the export, so the file is exactly what is on screen —
+  // exporting "due now" and getting every enquiry would be worse than no export at all.
+  const filters = {
     search: term || undefined,
     status: status || undefined,
     customer: forCustomer,
     open: !forCustomer && (view === 'open' || view === 'due') ? 'true' : undefined,
     dueBy: view === 'due' ? endOfToday() : undefined,
+  };
+
+  const { data, pagination, loading, error, reload } = useRecordList(enquiriesApi.list, {
+    ...filters,
     page,
     limit: 25,
   });
 
   const mayWrite = canWrite('enquiries');
+  const selection = useSelection(data);
 
   const change = (setter) => (value) => {
     setter(value);
@@ -204,11 +213,14 @@ export default function Enquiries() {
         title="Enquiries"
         subtitle="One enquiry per model, each carrying a next action until it closes"
         actions={
-          mayWrite && (
-            <button type="button" className="btn-primary" onClick={() => setCreating(true)}>
-              + New enquiry
-            </button>
-          )
+          <div className="flex items-center gap-2">
+            <ExportButton download={downloads.enquiries} params={filters} />
+            {mayWrite && (
+              <button type="button" className="btn-primary" onClick={() => setCreating(true)}>
+                + New enquiry
+              </button>
+            )}
+          </div>
         }
       />
 
@@ -290,6 +302,15 @@ export default function Enquiries() {
               <table className="min-w-full text-sm">
                 <thead className="table-head">
                   <tr>
+                    {isAdmin && (
+                      <th className="w-10 px-3 py-3">
+                        <RowCheckbox
+                          checked={selection.allSelected}
+                          onChange={selection.toggleAll}
+                          label="Select every enquiry on this page"
+                        />
+                      </th>
+                    )}
                     <th className="px-3 py-3">Enquiry</th>
                     <th className="px-3 py-3">Customer</th>
                     <th className="px-3 py-3">Model</th>
@@ -304,6 +325,15 @@ export default function Enquiries() {
                     const due = followUpState(enquiry.nextFollowUpDate);
                     return (
                       <tr key={enquiry._id} className="row-hover">
+                        {isAdmin && (
+                          <td className="px-3 py-3.5">
+                            <RowCheckbox
+                              checked={selection.selected.has(enquiry._id)}
+                              onChange={() => selection.toggle(enquiry._id)}
+                              label={`Select ${enquiry.number}`}
+                            />
+                          </td>
+                        )}
                         <td className="whitespace-nowrap px-3 py-3.5">
                           <Link to={`/enquiries/${enquiry._id}`} className="font-semibold text-steel-100 hover:text-accent">
                             {enquiry.number}
@@ -342,6 +372,9 @@ export default function Enquiries() {
             </div>
           </div>
           <Pagination pagination={pagination} onChange={setPage} />
+          {isAdmin && (
+            <BulkBar collection="enquiries" selection={selection} noun="enquiries" onDone={reload} />
+          )}
         </>
       ))}
 

@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import { customers as customersApi } from '../api/endpoints.js';
+import { customers as customersApi, downloads } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useDebounced, useRecordList } from '../hooks/useRecords.js';
 import {
   Badge, EmptyState, ErrorState, Field, Modal, Notice, PageHeader, Pagination, TableSkeleton,
 } from '../components/ui.jsx';
+import BulkBar, { RowCheckbox, useSelection } from '../components/BulkReassign.jsx';
+import ExportButton from '../components/ExportButton.jsx';
 import { formatCompactCurrency, formatDate } from '../utils/format.js';
 import { CUSTOMER_TYPES, SOURCES, optionLabel } from '../utils/pipeline.js';
 
@@ -201,7 +203,7 @@ export function CustomerForm({ customer, onClose, onSaved }) {
 }
 
 export default function Customers() {
-  const { canWrite } = useAuth();
+  const { canWrite, isAdmin } = useAuth();
   const [search, setSearch] = useState('');
   const [type, setType] = useState('');
   const [status, setStatus] = useState('');
@@ -209,15 +211,20 @@ export default function Customers() {
   const [creating, setCreating] = useState(false);
 
   const term = useDebounced(search);
-  const { data, pagination, loading, error, reload } = useRecordList(customersApi.list, {
+  // One object for both the list and the export, so the file is exactly what is on screen.
+  const filters = {
     search: term || undefined,
     customerType: type || undefined,
     status: status || undefined,
+  };
+  const { data, pagination, loading, error, reload } = useRecordList(customersApi.list, {
+    ...filters,
     page,
     limit: 25,
   });
 
   const mayWrite = canWrite('customers');
+  const selection = useSelection(data);
 
   const onFilterChange = (setter) => (event) => {
     setter(event.target.value);
@@ -230,11 +237,14 @@ export default function Customers() {
         title="Customers"
         subtitle="One master record per customer, with its full enquiry history"
         actions={
-          mayWrite && (
-            <button type="button" className="btn-primary" onClick={() => setCreating(true)}>
-              + New customer
-            </button>
-          )
+          <div className="flex items-center gap-2">
+            <ExportButton download={downloads.customers} params={filters} />
+            {mayWrite && (
+              <button type="button" className="btn-primary" onClick={() => setCreating(true)}>
+                + New customer
+              </button>
+            )}
+          </div>
         }
       />
 
@@ -275,6 +285,15 @@ export default function Customers() {
               <table className="min-w-full text-sm">
                 <thead className="table-head">
                   <tr>
+                    {isAdmin && (
+                      <th className="w-10 px-4 py-3">
+                        <RowCheckbox
+                          checked={selection.allSelected}
+                          onChange={selection.toggleAll}
+                          label="Select every customer on this page"
+                        />
+                      </th>
+                    )}
                     <th className="px-4 py-3">Customer</th>
                     <th className="px-4 py-3">Type</th>
                     <th className="px-4 py-3">Location</th>
@@ -287,6 +306,15 @@ export default function Customers() {
                 <tbody className="divide-y divide-line/[0.04]">
                   {data.map((customer) => (
                     <tr key={customer._id} className="row-hover">
+                      {isAdmin && (
+                        <td className="px-4 py-3.5">
+                          <RowCheckbox
+                            checked={selection.selected.has(customer._id)}
+                            onChange={() => selection.toggle(customer._id)}
+                            label={`Select ${customer.name}`}
+                          />
+                        </td>
+                      )}
                       <td className="px-4 py-3.5">
                         <Link to={`/customers/${customer._id}`} className="font-semibold text-steel-100 hover:text-accent">
                           {customer.name}
@@ -319,6 +347,9 @@ export default function Customers() {
             </div>
           </div>
           <Pagination pagination={pagination} onChange={setPage} />
+          {isAdmin && (
+            <BulkBar collection="customers" selection={selection} noun="customers" onDone={reload} />
+          )}
         </>
       ))}
 

@@ -4,6 +4,8 @@ import { customers as customersApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useRecord } from '../hooks/useRecords.js';
 import { Badge, ErrorState, Facts, Modal, PageHeader, Section, Spinner } from '../components/ui.jsx';
+import Documents from '../components/Documents.jsx';
+import HistoryPanel from '../components/HistoryPanel.jsx';
 import { formatCompactCurrency, formatCurrency, formatDate, formatNumber } from '../utils/format.js';
 import {
   CUSTOMER_TYPES, SAMPLE_PURPOSES, SOURCES, optionLabel, sampleStageLabel, stageLabel,
@@ -192,6 +194,11 @@ export default function CustomerDetail() {
               </p>
             )}
           </Section>
+          {/* §27: the buyer's drawing and their signed approvals belong on the record, not
+              in somebody's inbox. */}
+          <Documents collection="customers" id={customer._id} canWrite={mayWrite} />
+
+          <HistoryPanel model="Customer" id={customer._id} />
         </div>
 
         <div className="space-y-5">

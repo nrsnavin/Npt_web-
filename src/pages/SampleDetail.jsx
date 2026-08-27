@@ -6,6 +6,7 @@ import { useRecord } from '../hooks/useRecords.js';
 import {
   Badge, ErrorState, Facts, Field, Modal, Notice, PageHeader, Section, Spinner,
 } from '../components/ui.jsx';
+import HistoryPanel from '../components/HistoryPanel.jsx';
 import AuthedImage from '../components/AuthedImage.jsx';
 import { CustomerSelect, EnquirySelect } from '../components/pickers.jsx';
 import SampleLog from '../components/SampleLog.jsx';
@@ -1031,6 +1032,10 @@ export default function SampleDetail() {
               <p className="text-sm text-steel-500">No moves recorded.</p>
             )}
           </Section>
+
+          {/* The stage history says how it moved; this says who changed the quantity, the
+              specification or the promised date. */}
+          <HistoryPanel model="Sample" id={sample._id} />
         </div>
 
         <div className="space-y-5">

@@ -7,6 +7,7 @@ import { useRecord } from '../hooks/useRecords.js';
 import {
   Badge, ErrorState, Facts, Field, Modal, Notice, PageHeader, Section, Spinner,
 } from '../components/ui.jsx';
+import HistoryPanel from '../components/HistoryPanel.jsx';
 import EnquiryFields from '../components/EnquiryFields.jsx';
 import { formatCompactCurrency, formatDate, formatNumber } from '../utils/format.js';
 import {
@@ -414,6 +415,9 @@ export default function LeadDetail() {
               <p className="text-sm text-steel-500">Nothing logged yet.</p>
             )}
           </Section>
+
+          {/* The activity log above is what was said; this is what was changed. */}
+          <HistoryPanel model="Lead" id={lead._id} />
         </div>
 
         <div className="space-y-5">

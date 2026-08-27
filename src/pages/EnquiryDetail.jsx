@@ -7,6 +7,8 @@ import { useRecord } from '../hooks/useRecords.js';
 import {
   Badge, ErrorState, Facts, Field, Modal, Notice, PageHeader, Section, Spinner,
 } from '../components/ui.jsx';
+import Documents from '../components/Documents.jsx';
+import HistoryPanel from '../components/HistoryPanel.jsx';
 import { formatCurrency, formatDate, formatNumber } from '../utils/format.js';
 import {
   CLOSED_STAGES, ENQUIRY_STAGES, HANGER_CATEGORIES, LOST_REASONS, MATERIALS,
@@ -428,6 +430,14 @@ export default function EnquiryDetail() {
               <p className="text-sm text-steel-500">No moves recorded.</p>
             )}
           </Section>
+
+          {/* §27: the print artwork and the buyer's drawing sit with the enquiry that asked
+              for them, rather than in the thread they arrived on. */}
+          <Documents collection="enquiries" id={enquiry._id} canWrite={mayWrite} />
+
+          {/* The stage history above says how it moved; this says who changed the quantity,
+              the target price or the date the buyer is holding us to. */}
+          <HistoryPanel model="Enquiry" id={enquiry._id} />
         </div>
 
         <div className="space-y-5">

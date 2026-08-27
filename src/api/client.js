@@ -30,7 +30,7 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     // An expired or revoked token should drop the user back to the login screen.
     if (error.response?.status === 401 && getToken()) {
       clearToken();
@@ -39,11 +39,27 @@ api.interceptors.response.use(
       }
     }
 
-    const message =
-      error.response?.data?.message || error.message || 'Something went wrong. Please try again.';
-    const details = error.response?.data?.details;
+    /*
+     * A failed download arrives as a Blob, because `responseType: 'blob'` was set for the
+     * success case and axios applies it either way. Left alone, an export refused for want of
+     * a grant would report axios's "Request failed with status code 403" instead of the
+     * server's sentence saying which module is missing — the one useful thing in the reply,
+     * sitting unread inside the body.
+     */
+    let payload = error.response?.data;
+    if (payload instanceof Blob) {
+      try {
+        payload = JSON.parse(await payload.text());
+      } catch {
+        payload = undefined;
+      }
+    }
 
-    return Promise.reject(Object.assign(new Error(message), { details, status: error.response?.status }));
+    const message = payload?.message || error.message || 'Something went wrong. Please try again.';
+
+    return Promise.reject(
+      Object.assign(new Error(message), { details: payload?.details, status: error.response?.status })
+    );
   }
 );
 

@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { products as productsApi } from '../api/endpoints.js';
+import { downloads, products as productsApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useDebounced, useRecordList } from '../hooks/useRecords.js';
 import {
   Badge, EmptyState, ErrorState, Field, Modal, Notice, PageHeader, Pagination, TableSkeleton,
 } from '../components/ui.jsx';
+import ExportButton from '../components/ExportButton.jsx';
 import { formatCurrency, formatNumber } from '../utils/format.js';
 import { HANGER_CATEGORIES, HOOK_TYPES, MATERIALS, optionLabel } from '../utils/pipeline.js';
 
@@ -157,10 +158,14 @@ export default function Products() {
   const [editing, setEditing] = useState(null);
 
   const term = useDebounced(search);
-  const { data, pagination, loading, error, reload } = useRecordList(productsApi.list, {
+  // One object for both the list and the export, so the file is exactly what is on screen.
+  const filters = {
     search: term || undefined,
     category: category || undefined,
     material: material || undefined,
+  };
+  const { data, pagination, loading, error, reload } = useRecordList(productsApi.list, {
+    ...filters,
     page,
     limit: 25,
   });
@@ -178,11 +183,14 @@ export default function Products() {
         title="Product master"
         subtitle="Every hanger model marketing can quote against"
         actions={
-          mayWrite && (
-            <button type="button" className="btn-primary" onClick={() => setEditing({})}>
-              + New model
-            </button>
-          )
+          <div className="flex items-center gap-2">
+            <ExportButton download={downloads.products} params={filters} />
+            {mayWrite && (
+              <button type="button" className="btn-primary" onClick={() => setEditing({})}>
+                + New model
+              </button>
+            )}
+          </div>
         }
       />
 

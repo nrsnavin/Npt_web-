@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import { leads as leadsApi } from '../api/endpoints.js';
+import { downloads, leads as leadsApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useDebounced, useRecordList } from '../hooks/useRecords.js';
 import {
   Badge, EmptyState, ErrorState, Field, Modal, Notice, PageHeader, Pagination, TableSkeleton,
 } from '../components/ui.jsx';
+import BulkBar, { RowCheckbox, useSelection } from '../components/BulkReassign.jsx';
+import ExportButton from '../components/ExportButton.jsx';
 import { formatCompactCurrency, formatNumber } from '../utils/format.js';
 import { LEAD_STAGES, SOURCES, followUpState, leadStageLabel } from '../utils/pipeline.js';
 
@@ -117,21 +119,23 @@ function LeadForm({ onClose, onSaved }) {
 }
 
 export default function Leads() {
-  const { canWrite } = useAuth();
+  const { canWrite, isAdmin } = useAuth();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const [page, setPage] = useState(1);
   const [creating, setCreating] = useState(false);
 
   const term = useDebounced(search);
+  // One object for both the list and the export, so the file is exactly what is on screen.
+  const filters = { search: term || undefined, status: status || undefined };
   const { data, pagination, loading, error, reload } = useRecordList(leadsApi.list, {
-    search: term || undefined,
-    status: status || undefined,
+    ...filters,
     page,
     limit: 25,
   });
 
   const mayWrite = canWrite('enquiries');
+  const selection = useSelection(data);
 
   const selectStage = (value) => {
     setStatus(value === status ? '' : value);
@@ -144,11 +148,14 @@ export default function Leads() {
         title="Leads"
         subtitle="Parties we are not working yet. Qualify one and convert it into a customer."
         actions={
-          mayWrite && (
-            <button type="button" className="btn-primary" onClick={() => setCreating(true)}>
-              + New lead
-            </button>
-          )
+          <div className="flex items-center gap-2">
+            <ExportButton download={downloads.leads} params={filters} />
+            {mayWrite && (
+              <button type="button" className="btn-primary" onClick={() => setCreating(true)}>
+                + New lead
+              </button>
+            )}
+          </div>
         }
       />
 
@@ -212,6 +219,15 @@ export default function Leads() {
               <table className="min-w-full text-sm">
                 <thead className="table-head">
                   <tr>
+                    {isAdmin && (
+                      <th className="w-10 px-4 py-3">
+                        <RowCheckbox
+                          checked={selection.allSelected}
+                          onChange={selection.toggleAll}
+                          label="Select every lead on this page"
+                        />
+                      </th>
+                    )}
                     <th className="px-4 py-3">Lead</th>
                     <th className="px-4 py-3">Contact</th>
                     <th className="px-4 py-3">Interest</th>
@@ -225,6 +241,15 @@ export default function Leads() {
                     const due = followUpState(lead.nextFollowUpDate);
                     return (
                       <tr key={lead._id} className="row-hover">
+                        {isAdmin && (
+                          <td className="px-4 py-3.5">
+                            <RowCheckbox
+                              checked={selection.selected.has(lead._id)}
+                              onChange={() => selection.toggle(lead._id)}
+                              label={`Select ${lead.company}`}
+                            />
+                          </td>
+                        )}
                         <td className="px-4 py-3.5">
                           <Link to={`/leads/${lead._id}`} className="font-semibold text-steel-100 hover:text-accent">
                             {lead.company}
@@ -262,6 +287,7 @@ export default function Leads() {
             </div>
           </div>
           <Pagination pagination={pagination} onChange={setPage} />
+          {isAdmin && <BulkBar collection="leads" selection={selection} noun="leads" onDone={reload} />}
         </>
       ))}
 

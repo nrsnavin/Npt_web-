@@ -150,6 +150,53 @@ is marketing's. A customer's per-channel opt-out is on their own record.
 **Product master** — every hanger model marketing can quote against, filterable by category
 and material. A new development is promoted into it from the enquiry that produced it.
 
+### On every record: documents and a change history
+
+**Documents** sit on customers and enquiries [§27] — the buyer's drawing, the print artwork,
+the signed approval. Before this, everything except a sample photo lived in somebody's
+email, which is the filing cabinet this system replaces. Picking a file asks what it is
+before uploading, because `IMG_4821.pdf` tells the next reader nothing and the next reader is
+usually hunting for the approved drawing among six that came off the same phone. Only whoever
+attached a file, or an administrator, can remove it — the person who put it there is the one
+who knows whether it is still the right version.
+
+Access is the record's own. A drawing is exactly as confidential as the customer it hangs
+off, so a marketing colleague who cannot open the customer cannot see its files either. The
+sample bench holds a read grant on customers by design and *can* see them: they need the
+drawing to make the sample.
+
+**Change history** is the panel underneath. The stage strip already says how a record moved
+through the process; this says who shortened the required date, dropped a credit term or
+renamed the customer — none of which are stages, so none of which a stage history can
+answer. It reads as sentences rather than a diff: field names as the form writes them,
+references as names rather than ids, dates formatted, booleans as yes and no.
+
+It is quiet by design. A history that cannot be loaded renders nothing at all, because
+nothing on the screen depends on it and a red panel under a record that is otherwise fine
+reads as though something is wrong with the record.
+
+### Export, and moving a batch of records
+
+Every list screen has an **Export** button that downloads what is on screen as CSV, filters
+and all. The plant runs on spreadsheets alongside this and will for years; an export is how
+somebody builds a figure nobody thought to put on a dashboard, and without one they keep a
+parallel sheet by hand, which is the thing the CRM exists to stop.
+
+It goes through the API client rather than a plain link, because the download needs the
+session's token and an `<a href>` carries none. The filename comes from the server's
+`Content-Disposition`, so the date stamp on the file is the one the server put there.
+
+**Bulk reassign** appears for administrators only: tick rows, and a bar at the foot of the
+list offers to hand them to a colleague. The case it exists for is somebody leaving or a
+territory changing hands — forty customers to move one screen at a time, which nobody does,
+so instead the records keep a name that has left and the follow-ups they carry are chased by
+nobody. The move is written into each record's history with the mover's name on it.
+
+The checkboxes are hidden entirely for anybody who is not an administrator rather than shown
+and refused: offering an action somebody cannot take is a worse answer than not offering it.
+Ticks are cleared on every page, filter and search change, because a tick means "this
+record", and carrying one across a filter change means acting on records nobody can see.
+
 ### Lists that outgrow the screen
 
 Every table pages, and the count beside it is always the whole set rather than the page.

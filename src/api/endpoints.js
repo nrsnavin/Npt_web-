@@ -150,6 +150,73 @@ export const files = {
   blob: (key) => api.get(`/files/${key}`, { responseType: 'blob' }).then((response) => response.data),
 };
 
+/**
+ * Documents on the records that carry them [§27] — a drawing, artwork, a signed approval.
+ *
+ * One shape for every collection, because the rule is the owning record's own access and only
+ * the collection differs. `collection` is the URL segment: 'customers' or 'enquiries'.
+ */
+export const documents = {
+  list: ({ collection, id }) => api.get(`/${collection}/${id}/documents`).then(unwrap),
+  add: ({ collection, id, file, title }) => {
+    const form = new FormData();
+    form.append('file', file);
+    if (title) form.append('title', title);
+    return api.post(`/${collection}/${id}/documents`, form).then(unwrap);
+  },
+  remove: ({ collection, id, documentId }) =>
+    api.delete(`/${collection}/${id}/documents/${documentId}`).then(unwrap),
+};
+
+/** Who changed what, and when. Gated on the record, so this 404s exactly where the record does. */
+export const history = ({ model, id }) => api.get(`/history/${model}/${id}`).then(unwrap);
+
+/** Moving a batch of records to another owner. Administration only, server-side. */
+export const bulk = {
+  reassign: ({ collection, ids, assignTo }) =>
+    api.post(`/bulk/${collection}/reassign`, { ids, assignTo }).then(unwrap),
+};
+
+/**
+ * Saves a file the browser cannot simply be pointed at.
+ *
+ * An export needs the session's token and an `<a href>` carries none, so it goes through the
+ * same client as everything else and reaches the browser as a blob. The name comes from the
+ * server's Content-Disposition rather than being invented here, so the date stamp on the file
+ * is the one the server put on it.
+ */
+async function save(path, params, fallbackName) {
+  const response = await api.get(path, { params, responseType: 'blob' });
+
+  const disposition = response.headers['content-disposition'] || '';
+  const named = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(disposition);
+
+  const url = URL.createObjectURL(response.data);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = named ? decodeURIComponent(named[1]) : fallbackName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+
+  // Released on a later tick: revoking it synchronously can beat the download starting.
+  setTimeout(() => URL.revokeObjectURL(url), 30000);
+}
+
+/**
+ * The list on screen, as a spreadsheet [§34].
+ *
+ * Each takes the same filters as its list endpoint, so the file is what the screen is showing
+ * rather than a second query that drifts from it. Exporting "overdue follow-ups" and getting
+ * every enquiry would be worse than having no export at all, because the file looks right.
+ */
+export const downloads = {
+  customers: (params) => save('/customers/export', params, 'customers.csv'),
+  leads: (params) => save('/leads/export', params, 'leads.csv'),
+  enquiries: (params) => save('/enquiries/export', params, 'enquiries.csv'),
+  products: (params) => save('/products/export', params, 'products.csv'),
+};
+
 export const auth = {
   login: (payload) => api.post('/auth/login', payload).then(unwrap),
   register: (payload) => api.post('/auth/register', payload).then(unwrap),
