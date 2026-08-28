@@ -11,7 +11,7 @@ import BulkBar, { RowCheckbox, useSelection } from '../components/BulkReassign.j
 import ExportButton from '../components/ExportButton.jsx';
 import PlaceInput from '../components/PlaceInput.jsx';
 import StagePipeline from '../components/StagePipeline.jsx';
-import { formatCompactCurrency, formatNumber } from '../utils/format.js';
+import { formatCompactCurrency, formatNumber, humanise } from '../utils/format.js';
 import { SOURCES, followUpState, leadStageLabel } from '../utils/pipeline.js';
 
 const TONE_TEXT = {
@@ -168,6 +168,12 @@ export default function Leads() {
    * they are talking about rather than describing which dropdown to set.
    */
   const owner = params.get('assignedTo') || '';
+  /*
+   * Narrowing to where the leads came from. The server has always understood `source`; the
+   * screen did not read it, so a link promising "the leads from this feed" landed on the whole
+   * book — the integrations page offers exactly that link.
+   */
+  const source = params.get('source') || '';
 
   /*
    * The people holding leads, scoped exactly as the list is — so a marketing person is offered
@@ -184,6 +190,7 @@ export default function Leads() {
     search: term || undefined,
     status: status || undefined,
     assignedTo: owner || undefined,
+    source: source || undefined,
     [place?.field || 'city']: place?.value,
   };
   const { data, pagination, meta, loading, error, reload } = useRecordList(leadsApi.list, {
@@ -206,6 +213,13 @@ export default function Leads() {
     const next = new URLSearchParams(params);
     next.delete('city');
     next.delete('state');
+    setParams(next, { replace: true });
+    setPage(1);
+  };
+
+  const clearSource = () => {
+    const next = new URLSearchParams(params);
+    next.delete('source');
     setParams(next, { replace: true });
     setPage(1);
   };
@@ -294,6 +308,12 @@ export default function Leads() {
         {place && (
           <button type="button" className="btn-secondary" onClick={clearPlace}>
             Clear {place.value} ✕
+          </button>
+        )}
+        {/* Same argument as the place chip: a list that is narrowed has to say so. */}
+        {source && (
+          <button type="button" className="btn-secondary" onClick={clearSource}>
+            Clear {humanise(source)} ✕
           </button>
         )}
       </div>

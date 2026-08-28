@@ -263,6 +263,18 @@ export const places = {
 };
 
 /** One search across everything [§32], grouped by record type. */
+/**
+ * Outside feeds [§41 by analogy]. Administrators only — reading this says nothing about the
+ * pipeline and everything about the plumbing behind it.
+ */
+export const integrations = {
+  indiamart: {
+    status: () => api.get('/integrations/indiamart').then(unwrap),
+    /** Spends one of a small number of API calls the whole plant shares — see the controller. */
+    sync: () => api.post('/integrations/indiamart/sync').then(unwrap),
+  },
+};
+
 export const search = (q) => api.get('/search', { params: { q } }).then(unwrap);
 
 /** A stored file, fetched with the session's token rather than linked to directly. */

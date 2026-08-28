@@ -46,7 +46,7 @@ const RAIL = [
   },
   { to: '/products', label: 'Catalogue', icon: 'box', module: 'products' },
   { to: '/profile', label: 'Profile', icon: 'user' },
-  { to: '/users', label: 'Users', icon: 'users', module: 'users' },
+  { to: '/users', label: 'Users', icon: 'users', module: 'users', paths: ['/users', '/integrations'] },
 ];
 
 /**
@@ -121,6 +121,10 @@ const SIDEBARS = {
       {
         title: 'Security control',
         items: [{ to: '/users', label: 'Users and access', module: 'users' }],
+      },
+      {
+        title: 'Outside feeds',
+        items: [{ to: '/integrations', label: 'Integrations', admin: true }],
       },
     ],
   },
@@ -247,7 +251,7 @@ function TopTabs() {
 }
 
 export default function Layout() {
-  const { user, logout, canRead } = useAuth();
+  const { user, logout, canRead, isAdmin } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -317,7 +321,15 @@ export default function Layout() {
 
           <nav className="flex-1 space-y-5 overflow-y-auto px-3 pb-6">
             {sidebar.sections.map((section) => {
-              const items = section.items.filter((item) => !item.module || canRead(item.module));
+              /*
+               * `admin` sits beside `module` rather than pretending to be one. Some screens are
+               * not a module at all — the integrations page carries a third party's key state
+               * and spends API calls the whole plant shares — and inventing a grant for them
+               * would mean an access list with an entry nobody knows how to reason about.
+               */
+              const items = section.items.filter(
+                (item) => (!item.module || canRead(item.module)) && (!item.admin || isAdmin)
+              );
               if (!items.length) return null;
 
               return (

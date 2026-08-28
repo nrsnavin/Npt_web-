@@ -199,7 +199,7 @@ export default function QuotationDetail() {
                 </span>
                 <span
                   className={`text-lg font-bold tabular-nums ${
-                    given < 0 ? 'text-warn-400' : given > 0 ? 'text-ok-400' : 'text-steel-100'
+                    given < 0 ? 'text-warn-400' : given > 0 ? 'text-success-400' : 'text-steel-100'
                   }`}
                 >
                   {given > 0 ? '+' : ''}

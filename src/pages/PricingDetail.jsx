@@ -271,7 +271,7 @@ export default function PricingDetail() {
                   <p className="eyebrow">Gap</p>
                   <p
                     className={`stat-value mt-1 ${
-                      gap === null ? 'text-steel-50' : gap > 0 ? 'text-warn-400' : 'text-ok-400'
+                      gap === null ? 'text-steel-50' : gap > 0 ? 'text-warn-400' : 'text-success-400'
                     }`}
                   >
                     {gap === null ? '—' : `${gap > 0 ? '+' : ''}${gap.toFixed(1)}%`}

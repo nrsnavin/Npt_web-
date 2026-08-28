@@ -18,6 +18,7 @@ import Dashboard from './pages/Dashboard.jsx';
 
 const Profile = lazy(() => import('./pages/Profile.jsx'));
 const Users = lazy(() => import('./pages/Users.jsx'));
+const Integrations = lazy(() => import('./pages/Integrations.jsx'));
 const Products = lazy(() => import('./pages/Products.jsx'));
 const Customers = lazy(() => import('./pages/Customers.jsx'));
 const CustomerDetail = lazy(() => import('./pages/CustomerDetail.jsx'));
@@ -35,6 +36,20 @@ const SampleDetail = lazy(() => import('./pages/SampleDetail.jsx'));
 const SamplingDashboard = lazy(() => import('./pages/SamplingDashboard.jsx'));
 const SampleAnalytics = lazy(() => import('./pages/SampleAnalytics.jsx'));
 const MarketingDashboard = lazy(() => import('./pages/MarketingDashboard.jsx'));
+
+/**
+ * Blocks a route unless the reader is an administrator.
+ *
+ * Separate from `RequireModule` because this is not a module: the integrations screen carries
+ * a third party's credentials-adjacent state and spends API calls the whole plant shares, so
+ * it is gated on the role the server gates it on rather than on a grant nobody would think to
+ * withhold.
+ */
+function RequireAdmin({ children }) {
+  const { isAdmin } = useAuth();
+  if (!isAdmin) return <Navigate to="/" replace />;
+  return children;
+}
 
 /** Blocks a route unless the user may read the module behind it. */
 function RequireModule({ moduleKey, children }) {
@@ -222,6 +237,14 @@ export default function App() {
               <RequireModule moduleKey="users">
                 <Users />
               </RequireModule>
+            }
+          />
+          <Route
+            path="integrations"
+            element={
+              <RequireAdmin>
+                <Integrations />
+              </RequireAdmin>
             }
           />
         </Route>
