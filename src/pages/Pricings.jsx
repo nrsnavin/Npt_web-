@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { pricings as pricingsApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useDebounced, useRecordList } from '../hooks/useRecords.js';
@@ -53,7 +53,6 @@ function CostForm({ pricing, onClose, onSaved }) {
   const [targetMargin, setMargin] = useState(pricing.targetMargin ?? 20);
   const [minimum, setMinimum] = useState(pricing.minimumSellingPrice ?? '');
   const [approved, setApproved] = useState(pricing.approvedSellingPrice ?? '');
-  const [moq, setMoq] = useState(pricing.moq ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
@@ -85,7 +84,6 @@ function CostForm({ pricing, onClose, onSaved }) {
           targetMargin: number(targetMargin),
           minimumSellingPrice: number(minimum),
           approvedSellingPrice: number(approved),
-          moq: number(moq),
         })
       );
       onClose();
@@ -192,26 +190,6 @@ function CostForm({ pricing, onClose, onSaved }) {
         </Field>
       </div>
 
-      {/*
-        The MOQ belongs with the price rather than on the product master alone: it is the
-        quantity *this* price holds down to, and a quote raised off the sheet starts there.
-        Settled now, because an approved sheet is frozen — the price and its conditions are
-        signed off together or not at all.
-      */}
-      <Field
-        label="Minimum order quantity"
-        hint="The smallest lot this price holds for. A quote raised from this costing starts here"
-        className="sm:max-w-xs"
-      >
-        <input
-          type="number"
-          step="1"
-          min="0"
-          className="input"
-          value={moq}
-          onChange={(event) => setMoq(event.target.value)}
-        />
-      </Field>
 
       {/* Said before saving, not discovered after: the route this sheet is about to take. */}
       {minimum !== '' && approved !== '' && Number(approved) < Number(minimum) && (
@@ -322,8 +300,8 @@ function NewCostingForm({ onClose, onSaved }) {
     setError(null);
     try {
       /*
-       * The model number and the MOQ are left out when a product is chosen: the server copies
-       * both from the master [§28]. Sending a blank would overwrite what it knows with nothing.
+       * The model number is left out when a product is chosen: the server copies it from the
+       * master [§28]. Sending a blank would overwrite what it knows with nothing.
        */
       onSaved(
         await pricingsApi.create({
@@ -354,7 +332,7 @@ function NewCostingForm({ onClose, onSaved }) {
         <Field label="Customer">
           <CustomerSelect value={customer} onChange={setCustomer} aria-label="Customer" />
         </Field>
-        <Field label="Model" hint="From the catalogue — its MOQ and material come with it">
+        <Field label="Model" hint="From the catalogue — its code and material come with it">
           <ProductSelect value={product} onChange={setProduct} aria-label="Model" />
         </Field>
       </div>
@@ -412,17 +390,23 @@ function NewCostingForm({ onClose, onSaved }) {
 /**
  * Turning an approved costing into a quotation [§7 → §10].
  *
- * The quantity starts at the MOQ rather than at the quantity the sheet was costed for, because
- * the approved price holds down to the MOQ and no further. Offering the costed quantity would
- * be the safer-looking default and the wrong one: it hides the smallest lot the buyer could
- * actually order at this rate, which is usually the first thing they ask.
+ * The minimum order quantity is set *here*, not on the costing. It is a term of the offer —
+ * something the buyer reads beside the price and then argues about — rather than a fact about
+ * what the job costs, so it belongs to the quotation and starts from the model's catalogue
+ * standard [§28].
+ *
+ * The quantity then starts at that minimum rather than at the quantity the sheet was costed
+ * for. Offering the costed quantity would be the safer-looking default and the wrong one: it
+ * hides the smallest lot the buyer could actually order at this rate, which is usually the
+ * first thing they ask.
  *
  * Nothing here is retyped — the customer, the enquiry, the model and the price come off the
  * sheet. What is left is the quantity and the terms, which belong to the conversation.
  */
 function QuoteFromCosting({ pricing, onClose, onQuoted }) {
-  const startAt = pricing.moq || pricing.quantity || '';
-  const [quantity, setQuantity] = useState(startAt);
+  const standard = pricing.product?.moq || 0;
+  const [moq, setMoq] = useState(standard || '');
+  const [quantity, setQuantity] = useState(standard || pricing.quantity || '');
   const [unitPrice, setUnitPrice] = useState(pricing.approvedSellingPrice ?? '');
   const [gstPercent, setGst] = useState(18);
   const [isExport, setExport] = useState(false);
@@ -431,7 +415,7 @@ function QuoteFromCosting({ pricing, onClose, onQuoted }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
-  const belowMoq = pricing.moq && Number(quantity) < pricing.moq;
+  const belowMoq = Number(moq) > 0 && Number(quantity) < Number(moq);
   const value = Number(quantity) * Number(unitPrice) || 0;
 
   const submit = async (event) => {
@@ -442,6 +426,7 @@ function QuoteFromCosting({ pricing, onClose, onQuoted }) {
       const quote = await pricingsApi.quote({
         id: pricing._id,
         quantity: Number(quantity),
+        moq: moq === '' ? undefined : Number(moq),
         unitPrice: unitPrice === '' ? undefined : Number(unitPrice),
         gstPercent: isExport ? undefined : Number(gstPercent),
         isExport,
@@ -465,13 +450,9 @@ function QuoteFromCosting({ pricing, onClose, onQuoted }) {
           <p className="stat-value mt-1 text-steel-50">{rupees(pricing.approvedSellingPrice)}</p>
         </div>
         <div className="card px-4 py-3">
-          <p className="eyebrow">MOQ</p>
-          <p className="stat-value mt-1 text-steel-50">
-            {pricing.moq ? formatNumber(pricing.moq) : '—'}
-          </p>
-          <p className="mt-0.5 text-[0.6875rem] text-steel-500">
-            {pricing.moq ? 'The price holds down to here' : 'None set on this sheet'}
-          </p>
+          <p className="eyebrow">Costed for</p>
+          <p className="stat-value mt-1 text-steel-50">{formatNumber(pricing.quantity)}</p>
+          <p className="mt-0.5 text-[0.6875rem] text-steel-500">What the sheet was built on</p>
         </div>
         <div className="card px-4 py-3">
           <p className="eyebrow">Order value</p>
@@ -482,7 +463,7 @@ function QuoteFromCosting({ pricing, onClose, onQuoted }) {
       <div className="grid gap-4 sm:grid-cols-2">
         <Field
           label="Quantity"
-          hint={pricing.moq ? `Starts at the MOQ of ${formatNumber(pricing.moq)}` : 'Pieces'}
+          hint={standard ? `Starts at the catalogue minimum of ${formatNumber(standard)}` : 'Pieces'}
         >
           <input
             type="number"
@@ -504,11 +485,30 @@ function QuoteFromCosting({ pricing, onClose, onQuoted }) {
         </Field>
       </div>
 
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field
+          label="Minimum order quantity"
+          hint={
+            standard
+              ? `The catalogue standard is ${formatNumber(standard)}. This buyer may be offered another`
+              : 'The smallest lot this price is offered at. Printed on the quotation'
+          }
+        >
+          <input
+            type="number"
+            min="0"
+            className="input"
+            value={moq}
+            onChange={(event) => setMoq(event.target.value)}
+          />
+        </Field>
+      </div>
+
       {/* Said before saving, not discovered as a refusal after. */}
       {belowMoq && (
         <Notice tone="warn">
-          This is under the MOQ of {formatNumber(pricing.moq)}. The approved price does not hold
-          there — quote at least the MOQ, or have it re-costed for the smaller lot.
+          The quantity is under the minimum of {formatNumber(Number(moq))} this quote states.
+          Raise the quantity, or lower the minimum being offered.
         </Notice>
       )}
 
@@ -659,7 +659,7 @@ export default function Pricings() {
         />
       </div>
 
-      {loading && <TableSkeleton columns={mayCost ? 8 : 6} />}
+      {loading && <TableSkeleton columns={mayCost ? 7 : 5} />}
       {error && <ErrorState error={error} onRetry={reload} />}
 
       {!loading && !error && (data.length === 0 ? (
@@ -678,7 +678,6 @@ export default function Pricings() {
                     <th className="px-3 py-3">Customer</th>
                     <th className="px-3 py-3">Model</th>
                     <th className="px-3 py-3 text-right">Quantity</th>
-                    <th className="px-3 py-3 text-right">MOQ</th>
                     {mayCost && <th className="px-3 py-3 text-right">Cost</th>}
                     <th className="px-3 py-3 text-right">Price</th>
                     {mayCost && <th className="px-3 py-3 text-right">Margin</th>}
@@ -690,17 +689,18 @@ export default function Pricings() {
                   {data.map((row) => (
                     <tr key={row._id} className="row-hover">
                       <td className="whitespace-nowrap px-3 py-3.5">
-                        <p className="font-semibold text-steel-100">{row.number}</p>
+                        <Link
+                          to={`/pricings/${row._id}`}
+                          className="font-semibold text-steel-100 hover:text-accent"
+                        >
+                          {row.number}
+                        </Link>
                         <p className="text-xs text-steel-400">{formatDate(row.requestedAt)}</p>
                       </td>
                       <td className="px-3 py-3.5 text-steel-200">{row.customer?.name || '—'}</td>
                       <td className="px-3 py-3.5 text-steel-300">{row.modelNumber || '—'}</td>
                       <td className="whitespace-nowrap px-3 py-3.5 text-right tabular-nums text-steel-200">
                         {formatNumber(row.quantity)}
-                      </td>
-                      {/* The quantity the price holds down to — not the one it was costed at. */}
-                      <td className="whitespace-nowrap px-3 py-3.5 text-right tabular-nums text-steel-300">
-                        {row.moq ? formatNumber(row.moq) : '—'}
                       </td>
                       {mayCost && (
                         <td className="whitespace-nowrap px-3 py-3.5 text-right tabular-nums text-steel-400">

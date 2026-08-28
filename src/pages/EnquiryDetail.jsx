@@ -379,8 +379,8 @@ function EnquirySamples({ enquiryId }) {
  * that record wholesale after every action. "Ask for a price" is the action that creates a
  * costing, and a list hanging off the record would blank itself at the moment it filled up.
  *
- * The costings arrive already redacted [§8] — marketing sees the price and the MOQ, never the
- * cost base — so nothing here has to remember to hide anything.
+ * The costings arrive already redacted [§8] — marketing sees the price, never the cost base —
+ * so nothing here has to remember to hide anything.
  */
 function EnquiryCommercials({ enquiryId, canSeePricing, canSeeQuotes }) {
   const [pricings, setPricings] = useState(null);
@@ -425,14 +425,13 @@ function EnquiryCommercials({ enquiryId, canSeePricing, canSeeQuotes }) {
                 >
                   <div className="min-w-0">
                     <Link
-                      to={`/pricings?enquiry=${enquiryId}`}
+                      to={`/pricings/${row._id}`}
                       className="text-sm font-semibold text-steel-100 hover:text-accent"
                     >
                       {row.number}
                     </Link>
                     <p className="text-xs text-steel-400">
                       {formatNumber(row.quantity)} pcs
-                      {row.moq ? ` · MOQ ${formatNumber(row.moq)}` : ''}
                       {row.approvedSellingPrice ? ` · ${rupees(row.approvedSellingPrice)}` : ''}
                     </p>
                   </div>
@@ -464,6 +463,7 @@ function EnquiryCommercials({ enquiryId, canSeePricing, canSeeQuotes }) {
                     <p className="text-xs text-steel-400">
                       Rev {row.revision ?? 0} · {formatNumber(row.quantity)} pcs ·{' '}
                       {rupees(row.unitPrice)}
+                      {row.moq ? ` · MOQ ${formatNumber(row.moq)}` : ''}
                       {row.validUntil ? ` · valid to ${formatDate(row.validUntil)}` : ''}
                     </p>
                   </div>

@@ -55,6 +55,7 @@ function QuotationForm({ onClose, onSaved }) {
   const [values, setValues] = useState({
     modelNumber: '',
     quantity: '',
+    moq: '',
     unitPrice: '',
     gstPercent: 18,
     isExport: false,
@@ -86,6 +87,7 @@ function QuotationForm({ onClose, onSaved }) {
           customer,
           ...values,
           quantity: Number(values.quantity),
+          moq: values.moq === '' ? undefined : Number(values.moq),
           unitPrice: Number(values.unitPrice),
           gstPercent: values.isExport ? undefined : Number(values.gstPercent),
           validUntil: values.validUntil || undefined,
@@ -114,6 +116,11 @@ function QuotationForm({ onClose, onSaved }) {
         </Field>
         <Field label="Unit price (₹)" hint="Rev 0 — every later price keeps this one">
           <input type="number" step="0.01" min="0" required className="input" value={values.unitPrice} onChange={set('unitPrice')} />
+        </Field>
+        {/* A term of the offer: the buyer reads it beside the price, and it prints on the
+            document. Blank takes the model's catalogue standard [§28]. */}
+        <Field label="Minimum order quantity" hint="Blank uses the model's catalogue minimum">
+          <input type="number" min="0" className="input" value={values.moq} onChange={set('moq')} />
         </Field>
         <Field label="Valid until">
           <input type="date" className="input" value={values.validUntil} onChange={set('validUntil')} />
@@ -417,6 +424,11 @@ export default function Quotations() {
                       <td className="px-3 py-3.5 text-steel-300">{row.modelNumber || '—'}</td>
                       <td className="whitespace-nowrap px-3 py-3.5 text-right tabular-nums text-steel-200">
                         {formatNumber(row.quantity)}
+                        {row.moq ? (
+                          <p className="text-[0.6875rem] text-steel-500">
+                            min {formatNumber(row.moq)}
+                          </p>
+                        ) : null}
                       </td>
                       <td className="whitespace-nowrap px-3 py-3.5 text-right tabular-nums text-steel-100">
                         {rupees(row.unitPrice)}

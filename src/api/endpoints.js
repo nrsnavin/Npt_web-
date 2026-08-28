@@ -122,7 +122,14 @@ export const enquiries = {
  */
 export const pricings = {
   list: (params) => api.get('/pricings', { params }).then(listed),
-  get: (id) => api.get(`/pricings/${id}`).then(unwrap),
+  /**
+   * One costing, with the model master behind it and what has been quoted off it.
+   *
+   * Keeps the whole envelope rather than unwrapping to `data`: the detail screen answers "is
+   * this price right?", and that question needs the model's own standard and the offers
+   * already made as much as it needs the sheet.
+   */
+  get: (id) => api.get(`/pricings/${id}`).then((response) => response.data),
   create: (payload) => api.post('/pricings', payload).then(unwrap),
   /** Building the sheet. The calculated price is derived, never posted. */
   cost: ({ id, ...payload }) => api.patch(`/pricings/${id}/cost`, payload).then(unwrap),
