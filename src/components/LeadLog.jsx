@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { useWorkspace } from './dock/WorkspaceContext.jsx';
 import { Notice, Section } from './ui.jsx';
 import { formatDate, humanise } from '../utils/format.js';
+import { inDays } from '../utils/pipeline.js';
 
 /**
  * The lead's log — what has happened, what it adds up to, and what to do next.
@@ -45,12 +46,6 @@ const NEXT_ACTIONS = [
   { value: 'send_sample', label: 'Send a sample' },
   { value: 'other', label: 'Something else' },
 ];
-
-const inDays = (days) => {
-  const date = new Date();
-  date.setDate(date.getDate() + days);
-  return date.toISOString().slice(0, 10);
-};
 
 /** One figure, sized so the number is what the eye lands on. */
 function Stat({ label, value, hint, tone = 'neutral' }) {

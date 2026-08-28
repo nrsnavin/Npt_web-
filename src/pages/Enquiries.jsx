@@ -3,11 +3,12 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { downloads, enquiries as enquiriesApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
-import { useDebounced, useRecordList } from '../hooks/useRecords.js';
+import { useDebounced, useRecord, useRecordList } from '../hooks/useRecords.js';
 import {
   Badge, EmptyState, ErrorState, Field, Modal, Notice, PageHeader, Pagination, TableSkeleton,
 } from '../components/ui.jsx';
 import EnquiryFields from '../components/EnquiryFields.jsx';
+import StagePipeline from '../components/StagePipeline.jsx';
 import { CustomerSelect } from '../components/pickers.jsx';
 import BulkBar, { RowCheckbox, useSelection } from '../components/BulkReassign.jsx';
 import ExportButton from '../components/ExportButton.jsx';
@@ -22,49 +23,6 @@ const TONE_TEXT = {
   info: 'text-aqua-300',
   neutral: 'text-steel-400',
 };
-
-/** Counts and value per stage, in funnel order — the marketing dashboard's spine. */
-function Funnel({ selected, onSelect }) {
-  const [rows, setRows] = useState([]);
-
-  useEffect(() => {
-    enquiriesApi.pipeline().then(setRows).catch(() => setRows([]));
-  }, []);
-
-  const byStatus = Object.fromEntries(rows.map((row) => [row.status, row]));
-  const stages = ENQUIRY_STAGES.filter((stage) => byStatus[stage.value] || stage.value === selected);
-  if (!stages.length) return null;
-
-  return (
-    <div role="tablist" aria-label="Filter by stage" className="mb-5 grid gap-2 sm:grid-cols-3 lg:grid-cols-5">
-      {stages.map((stage) => {
-        const row = byStatus[stage.value] || { count: 0, value: 0 };
-        const active = selected === stage.value;
-
-        return (
-          <button
-            key={stage.value}
-            type="button"
-            role="tab"
-            aria-selected={active}
-            onClick={() => onSelect(active ? '' : stage.value)}
-            className={`card-interactive px-3.5 py-3 text-left ${active ? '!border-flame-500/40' : ''}`}
-          >
-            <p className="text-[0.6875rem] font-bold uppercase tracking-[0.08em] text-steel-500">
-              {stage.label}
-            </p>
-            <p className="mt-1 text-lg font-extrabold tabular-nums leading-none tracking-tight text-steel-50">
-              {row.count}
-            </p>
-            <p className="mt-1 text-xs tabular-nums text-steel-400">
-              {formatCompactCurrency(row.value)}
-            </p>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
 
 function EnquiryForm({ onClose, onSaved }) {
   const [error, setError] = useState(null);
@@ -168,6 +126,21 @@ export default function Enquiries() {
   // history is what was asked for, so the open-only default would hide most of the answer.
   const forCustomer = searchParams.get('customer') || undefined;
 
+  /*
+   * Whose enquiries. In the address so a manager can send somebody the view they are talking
+   * about, and so it survives the trip from another screen — the same rule the lead list holds.
+   */
+  const owner = searchParams.get('assignedTo') || '';
+
+  /*
+   * The people holding enquiries, scoped exactly as the list is: a marketing person is offered
+   * only themselves, so the picker below is simply not drawn for them. No role check needed on
+   * the screen — the answer already carries the rule.
+   */
+  const fetchOwners = useCallback(() => enquiriesApi.owners(), []);
+  const { data: owners } = useRecord(fetchOwners, 'enquiry-owners');
+  const team = owners || [];
+
   // One object for both the list and the export, so the file is exactly what is on screen —
   // exporting "due now" and getting every enquiry would be worse than no export at all.
   const filters = {
@@ -176,9 +149,10 @@ export default function Enquiries() {
     customer: forCustomer,
     open: !forCustomer && (view === 'open' || view === 'due') ? 'true' : undefined,
     dueBy: view === 'due' ? endOfToday() : undefined,
+    assignedTo: owner || undefined,
   };
 
-  const { data, pagination, loading, error, reload } = useRecordList(enquiriesApi.list, {
+  const { data, pagination, meta, loading, error, reload } = useRecordList(enquiriesApi.list, {
     ...filters,
     page,
     limit: 25,
@@ -224,13 +198,26 @@ export default function Enquiries() {
         }
       />
 
-      <Funnel selected={status} onSelect={selectStage} />
+      {/*
+        * The stage strip, fed by the tally that came back with the rows. It used to fetch its
+        * own counts once when the screen mounted: it showed the whole book while the table
+        * showed one customer, never moved when a filter did, and still read yesterday's
+        * figures after an enquiry was raised.
+        */}
+      <StagePipeline
+        stages={ENQUIRY_STAGES}
+        counts={meta.stageCounts}
+        selected={status}
+        onSelect={selectStage}
+        loading={loading}
+        dense
+      />
 
       <div className="mb-5 flex flex-wrap items-center gap-2">
         <input
           type="search"
           className="input max-w-xs"
-          placeholder="Search number, model or remarks…"
+          placeholder="Search customer, number, model or remarks…"
           value={search}
           onChange={(event) => change(setSearch)(event.target.value)}
         />
@@ -261,6 +248,32 @@ export default function Enquiries() {
             <option key={stage.value} value={stage.value}>{stage.label}</option>
           ))}
         </select>
+
+        {/*
+          * Drawn only when there is a choice to make. A marketing person is offered one name —
+          * their own — and a dropdown with a single option can only waste a click.
+          */}
+        {team.length > 1 && (
+          <select
+            className="input max-w-[14rem]"
+            aria-label="Filter by marketing person"
+            value={owner}
+            onChange={(event) => {
+              const next = new URLSearchParams(searchParams);
+              if (event.target.value) next.set('assignedTo', event.target.value);
+              else next.delete('assignedTo');
+              setSearchParams(next, { replace: true });
+              setPage(1);
+            }}
+          >
+            <option value="">Everyone&rsquo;s enquiries</option>
+            {team.map((person) => (
+              <option key={person._id} value={person._id}>
+                {person.name} ({person.leads})
+              </option>
+            ))}
+          </select>
+        )}
       </div>
 
       {/* An active filter the reader cannot see is a short list with no explanation. */}
@@ -283,7 +296,7 @@ export default function Enquiries() {
         </div>
       )}
 
-      {loading && <TableSkeleton columns={6} />}
+      {loading && <TableSkeleton columns={8} />}
       {error && <ErrorState error={error} onRetry={reload} />}
 
       {!loading && !error && (data.length === 0 ? (
@@ -317,6 +330,7 @@ export default function Enquiries() {
                     <th className="px-3 py-3 text-right">Quantity</th>
                     <th className="px-3 py-3 text-right">Value</th>
                     <th className="px-3 py-3">Next action</th>
+                    <th className="px-3 py-3">Owner</th>
                     <th className="px-3 py-3">Stage</th>
                   </tr>
                 </thead>
@@ -357,9 +371,14 @@ export default function Enquiries() {
                         <td className="whitespace-nowrap px-3 py-3.5 text-right tabular-nums text-steel-100">
                           {enquiry.estimatedValue ? formatCompactCurrency(enquiry.estimatedValue) : '—'}
                         </td>
-                        <td className="max-w-[15rem] px-3 py-3.5">
+                        <td className="max-w-[11rem] px-3 py-3.5">
                           <p className="truncate text-steel-300">{enquiry.nextAction || '—'}</p>
                           {due && <p className={`text-xs ${TONE_TEXT[due.tone]}`}>{due.text}</p>}
+                        </td>
+                        {/* Whose enquiry it is — the question most often asked about
+                            somebody else's, and previously answerable only by opening it. */}
+                        <td className="whitespace-nowrap px-3 py-3.5 text-steel-300">
+                          {enquiry.assignedTo?.name || <span className="text-warn-400">Unassigned</span>}
                         </td>
                         <td className="whitespace-nowrap px-3 py-3.5">
                           <Badge status={enquiry.status}>{stageLabel(enquiry.status)}</Badge>

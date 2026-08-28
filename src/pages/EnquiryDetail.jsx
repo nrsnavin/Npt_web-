@@ -12,7 +12,7 @@ import HistoryPanel from '../components/HistoryPanel.jsx';
 import { formatCurrency, formatDate, formatNumber } from '../utils/format.js';
 import {
   CLOSED_STAGES, ENQUIRY_STAGES, HANGER_CATEGORIES, LOST_REASONS, MATERIALS,
-  SAMPLE_PURPOSES, SOURCES, WORKING_STAGE_COUNT, followUpState, nextStagesFrom, numeric,
+  SAMPLE_PURPOSES, SOURCES, WORKING_STAGE_COUNT, followUpState, inDays, nextStagesFrom, numeric,
   optionLabel, sampleStageLabel, stageLabel, text,
 } from '../utils/pipeline.js';
 
@@ -31,18 +31,33 @@ const TONE_TEXT = {
  * going quiet halfway down the funnel.
  */
 function StageForm({ enquiry, onClose, onSaved }) {
-  const [status, setStatus] = useState(nextStagesFrom(enquiry.status)[0]?.value || '');
+  const options = nextStagesFrom(enquiry.status);
+  const [status, setStatus] = useState(options[0]?.value || '');
   const [note, setNote] = useState('');
   const [lostReason, setLostReason] = useState('price');
   const [holdReason, setHoldReason] = useState('');
+  const [value, setValue] = useState(enquiry.estimatedValue ?? '');
   const [nextAction, setNextAction] = useState(enquiry.nextAction || '');
-  const [nextFollowUpDate, setNextFollowUpDate] = useState(
-    enquiry.nextFollowUpDate ? enquiry.nextFollowUpDate.slice(0, 10) : ''
-  );
+  /*
+   * Defaulted rather than left blank, and never to a date already gone.
+   *
+   * Closing an enquiry clears its follow-up, so reopening one started with both fields empty
+   * and the first submit was always refused by the server — "an open enquiry needs a next
+   * action and a follow-up date" — which reads like a fault rather than a form that had not
+   * been filled in. The same holds for an enquiry whose date has slipped into the past: it is
+   * offered a fresh one instead of one that lands overdue the moment it is saved.
+   */
+  const [nextFollowUpDate, setNextFollowUpDate] = useState(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    const existing = enquiry.nextFollowUpDate ? enquiry.nextFollowUpDate.slice(0, 10) : null;
+    return existing && existing >= today ? existing : inDays(3);
+  });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
   const closing = CLOSED_STAGES.includes(status);
+  // Reopening: the enquiry is already closed and is being moved back into play.
+  const reopening = CLOSED_STAGES.includes(enquiry.status);
 
   const submit = async (event) => {
     event.preventDefault();
@@ -56,6 +71,7 @@ function StageForm({ enquiry, onClose, onSaved }) {
           note: note || undefined,
           lostReason: status === 'lost' ? lostReason : undefined,
           holdReason: status === 'hold' ? holdReason || undefined : undefined,
+          estimatedValue: status === 'won' && value !== '' ? Number(value) : undefined,
           nextAction: closing ? undefined : nextAction || undefined,
           nextFollowUpDate: closing ? undefined : nextFollowUpDate || undefined,
         })
@@ -88,21 +104,55 @@ function StageForm({ enquiry, onClose, onSaved }) {
         </Field>
       )}
 
+      {/* Required, for the same reason losing one is: an enquiry parked with no reason is
+          invisible — nobody can tell what would have to change for it to move again. */}
       {status === 'hold' && (
-        <Field label="Why is it on hold">
-          <input className="input" value={holdReason} onChange={(event) => setHoldReason(event.target.value)} />
+        <Field label="What is it waiting on" hint="Required — this is what somebody will look for later">
+          <input
+            className="input"
+            required
+            placeholder="Buyer waiting on their own customer's approval"
+            value={holdReason}
+            onChange={(event) => setHoldReason(event.target.value)}
+          />
         </Field>
       )}
 
+      {/* Asked at the moment it is known. Won with this empty, the enquiry drops out of the
+          confirmed-order figure the weekly review exists for, and nothing says it did. */}
+      {status === 'won' && (
+        <Field label="Confirmed value (₹)" hint="Required — this is the figure the month is counted in">
+          <input
+            type="number"
+            className="input"
+            required
+            min="0"
+            value={value}
+            onChange={(event) => setValue(event.target.value)}
+          />
+        </Field>
+      )}
+
+      {/* Required here because the server requires them: an open enquiry may not sit without
+          a defined next step [§3], and finding that out from a red banner after pressing save
+          is the worst place to learn it. */}
       {!closing && (
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Next action">
-            <input className="input" value={nextAction} onChange={(event) => setNextAction(event.target.value)} />
+          <Field label="Next action" hint="Required while the enquiry is open">
+            <input
+              className="input"
+              required
+              placeholder="Call the buyer about the revised price"
+              value={nextAction}
+              onChange={(event) => setNextAction(event.target.value)}
+            />
           </Field>
           <Field label="Follow up on">
             <input
               type="date"
               className="input"
+              required
+              min={new Date().toISOString().slice(0, 10)}
               value={nextFollowUpDate}
               onChange={(event) => setNextFollowUpDate(event.target.value)}
             />
@@ -110,13 +160,29 @@ function StageForm({ enquiry, onClose, onSaved }) {
         </div>
       )}
 
-      <Field label="Note" hint="Recorded against this move in the history">
-        <textarea rows={2} className="input" value={note} onChange={(event) => setNote(event.target.value)} />
+      <Field
+        label={reopening ? 'Why is it being reopened' : 'Note'}
+        hint={reopening ? 'Required — it goes into the history' : 'Recorded against this move in the history'}
+      >
+        <textarea
+          rows={2}
+          className="input"
+          required={reopening}
+          value={note}
+          onChange={(event) => setNote(event.target.value)}
+        />
       </Field>
 
-      {closing && (
+      {closing && !reopening && (
         <Notice tone="warn">
-          A {status} enquiry cannot be moved again, and its follow-up is cleared.
+          Closing clears the follow-up. It can be reopened later, but only with a note saying why.
+        </Notice>
+      )}
+
+      {reopening && (
+        <Notice tone="info">
+          This {enquiry.status} enquiry is being reopened. Say why in the note — it goes into the
+          history beside the close it undoes, and the reason it was {enquiry.status} is cleared.
         </Notice>
       )}
 
@@ -336,9 +402,15 @@ export default function EnquiryDetail() {
                 Add to catalogue
               </button>
             )}
-            {mayWrite && open && (
-              <button type="button" className="btn-primary" onClick={() => setMovingStage(true)}>
-                Move stage
+            {/* A closed enquiry keeps the control, renamed for what it now does: the buyer
+                who comes back is a reopen, not a fresh record with no history behind it. */}
+            {mayWrite && (
+              <button
+                type="button"
+                className={open ? 'btn-primary' : 'btn-secondary'}
+                onClick={() => setMovingStage(true)}
+              >
+                {open ? 'Move stage' : 'Reopen'}
               </button>
             )}
           </div>
@@ -482,8 +554,12 @@ export default function EnquiryDetail() {
 
       <Modal
         open={movingStage}
-        title="Move stage"
-        description="Every move is recorded, and the departments that pick up the work are notified"
+        title={CLOSED_STAGES.includes(enquiry.status) ? 'Reopen this enquiry' : 'Move stage'}
+        description={
+          CLOSED_STAGES.includes(enquiry.status)
+            ? 'It comes back with its history intact — the note explains why to whoever reads it next'
+            : 'Every move is recorded, and the departments that pick up the work are notified'
+        }
         onClose={() => setMovingStage(false)}
       >
         <StageForm enquiry={enquiry} onClose={() => setMovingStage(false)} onSaved={setData} />

@@ -92,6 +92,8 @@ export const leads = {
 };
 
 export const enquiries = {
+  /** Who is holding enquiries, for the owner filter. Scoped like the list itself. */
+  owners: () => api.get('/enquiries/owners').then(unwrap),
   list: (params) => api.get('/enquiries', { params }).then(listed),
   get: (id) => api.get(`/enquiries/${id}`).then(unwrap),
   create: (payload) => api.post('/enquiries', payload).then(unwrap),

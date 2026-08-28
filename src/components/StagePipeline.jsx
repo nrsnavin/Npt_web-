@@ -30,8 +30,18 @@ import { LEAD_STAGES } from '../utils/pipeline.js';
  * counted against each other.
  */
 
-/** Where the working stages end and the decided ones begin. */
-const DECIDED = ['converted', 'disqualified'];
+/**
+ * Tones by what the stage *means*, across both vocabularies.
+ *
+ * A lead is converted or disqualified and an enquiry is won or lost, and those are the same two
+ * ideas wearing different words. Keyed on meaning rather than on which list it came from, so
+ * the two screens cannot drift into disagreeing about what green is.
+ */
+const WON = ['converted', 'won'];
+const LOST = ['disqualified', 'lost'];
+const PARKED = ['hold'];
+
+const DECIDED = [...WON, ...LOST];
 
 const TONES = {
   working: {
@@ -40,33 +50,65 @@ const TONES = {
     wash: 'bg-flame-500/[0.07]',
     text: 'text-flame-400',
   },
-  converted: {
+  won: {
     bar: 'bg-success-500',
     ring: '!border-success-500/50',
     wash: 'bg-success-500/[0.07]',
     text: 'text-success-400',
   },
-  disqualified: {
+  lost: {
     bar: 'bg-steel-500',
     ring: '!border-steel-500/50',
     wash: 'bg-steel-500/[0.07]',
     text: 'text-steel-400',
   },
+  /* Parked is not lost and not being worked, and should read as neither. */
+  parked: {
+    bar: 'bg-warn-500',
+    ring: '!border-warn-500/50',
+    wash: 'bg-warn-500/[0.07]',
+    text: 'text-warn-400',
+  },
 };
 
-export default function StagePipeline({ counts = {}, selected, onSelect, loading = false }) {
+const toneFor = (value) => {
+  if (WON.includes(value)) return TONES.won;
+  if (LOST.includes(value)) return TONES.lost;
+  if (PARKED.includes(value)) return TONES.parked;
+  return TONES.working;
+};
+
+/**
+ * `stages` because this serves two lists now.
+ *
+ * Leads have five stages and every one is worth a card. Enquiries have twelve, and twelve cards
+ * is a wall rather than a strip — so with `dense` an enquiry stage nothing sits in is left out,
+ * and comes back the moment something reaches it. The stage currently filtered on always stays,
+ * or choosing an empty one would remove the control that undoes the choice.
+ */
+export default function StagePipeline({
+  stages = LEAD_STAGES,
+  counts = {},
+  selected,
+  onSelect,
+  loading = false,
+  dense = false,
+}) {
   /*
    * `amount`, not `value`. A stage already has a `value` — its identifier — and calling the
    * money by the same name spread over the top of it: the key became a rupee total, several
    * stages keyed on 0, and pressing Qualified filtered by Disqualified. Renaming the money is
    * the fix; the two things are not the same thing and should never have shared a word.
    */
-  const rows = LEAD_STAGES.map((stage) => ({
+  const all = stages.map((stage) => ({
     ...stage,
     leads: counts[stage.value]?.leads || 0,
     amount: counts[stage.value]?.value || 0,
-    tone: TONES[stage.value] || TONES.working,
+    tone: toneFor(stage.value),
   }));
+
+  const rows = dense ? all.filter((row) => row.leads || row.value === selected) : all;
+  if (!rows.length) return null;
 
   // Scaled across the row, not within each card — the comparison is between stages.
   const largest = Math.max(...rows.map((row) => row.leads), 1);

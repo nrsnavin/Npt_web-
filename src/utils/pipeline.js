@@ -205,9 +205,32 @@ export const nextSampleStagesFrom = (current) => {
  * closed enquiry and re-selecting the current stage, so this is guidance rather than a
  * rule: every open stage can still reach hold, won and lost.
  */
+/**
+ * Where an enquiry may go from where it is.
+ *
+ * A closed one used to offer nothing at all, which made reopening unreachable — the buyer who
+ * came back had to be re-keyed as a new enquiry, losing the history that explained why it was
+ * lost. It now offers the open stages and only those: a closed enquiry may come back into play,
+ * but won must not become lost in one step, which is a rewrite rather than a reopen.
+ */
 export const nextStagesFrom = (current) => {
-  if (CLOSED_STAGES.includes(current)) return [];
+  if (CLOSED_STAGES.includes(current)) {
+    return ENQUIRY_STAGES.filter((stage) => !CLOSED_STAGES.includes(stage.value));
+  }
   return ENQUIRY_STAGES.filter((stage) => stage.value !== current);
+};
+
+/**
+ * A date input's value, a number of days from today.
+ *
+ * Shared rather than copied into each form that needs a sensible default follow-up date: the
+ * server refuses one already in the past, so every screen that offers a default has to agree
+ * with every other about what "soon" means.
+ */
+export const inDays = (days) => {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return date.toISOString().slice(0, 10);
 };
 
 /** Empty inputs arrive as '', which the server's schema rejects — drop them instead. */
