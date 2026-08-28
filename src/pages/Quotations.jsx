@@ -50,9 +50,34 @@ const inDays = (days) => {
   return date.toISOString().slice(0, 10);
 };
 
-function QuotationForm({ onClose, onSaved }) {
-  const [customer, setCustomer] = useState(undefined);
-  const [values, setValues] = useState({
+/**
+ * One form for writing a quotation and for correcting one.
+ *
+ * Editing is only ever offered on a draft. Once a quote has gone to the customer, changing what
+ * it says goes through a revision instead — the server refuses it either way [§10], and a form
+ * that let you type a change it would then reject is worse than no form.
+ *
+ * Two fields behave differently when editing. The customer is fixed, because a quote to
+ * somebody else is a different offer rather than an edit of this one. And the price is shown
+ * but not editable: it is what Rev 0 recorded, and moving it is what `Revise` is for.
+ */
+function QuotationForm({ quotation, onClose, onSaved }) {
+  const editing = Boolean(quotation);
+  const [customer, setCustomer] = useState(quotation?.customer?._id || quotation?.customer);
+  const [values, setValues] = useState(quotation ? {
+    modelNumber: quotation.modelNumber ?? '',
+    quantity: quotation.quantity ?? '',
+    moq: quotation.moq ?? '',
+    unitPrice: quotation.unitPrice ?? '',
+    gstPercent: quotation.gstPercent ?? 18,
+    isExport: quotation.isExport ?? false,
+    paymentTerms: quotation.paymentTerms ?? '',
+    deliveryTerms: quotation.deliveryTerms ?? '',
+    freightTerms: quotation.freightTerms ?? 'ex_factory',
+    packing: quotation.packing ?? '',
+    validUntil: quotation.validUntil ? quotation.validUntil.slice(0, 10) : '',
+    remarks: quotation.remarks ?? '',
+  } : {
     modelNumber: '',
     quantity: '',
     moq: '',
@@ -82,16 +107,26 @@ function QuotationForm({ onClose, onSaved }) {
     setBusy(true);
     setError(null);
     try {
+      const payload = {
+        ...values,
+        quantity: Number(values.quantity),
+        moq: values.moq === '' ? undefined : Number(values.moq),
+        gstPercent: values.isExport ? undefined : Number(values.gstPercent),
+        validUntil: values.validUntil || undefined,
+      };
+
+      /*
+       * The price is left out of an edit entirely rather than sent unchanged. The server
+       * refuses a *changed* price here — it belongs to a revision — and sending the current
+       * one back would work only until a rounding difference made it look changed.
+       */
+      if (editing) delete payload.unitPrice;
+      else payload.unitPrice = Number(values.unitPrice);
+
       onSaved(
-        await quotationsApi.create({
-          customer,
-          ...values,
-          quantity: Number(values.quantity),
-          moq: values.moq === '' ? undefined : Number(values.moq),
-          unitPrice: Number(values.unitPrice),
-          gstPercent: values.isExport ? undefined : Number(values.gstPercent),
-          validUntil: values.validUntil || undefined,
-        })
+        editing
+          ? await quotationsApi.update({ id: quotation._id, ...payload })
+          : await quotationsApi.create({ customer, ...payload })
       );
       onClose();
     } catch (saveError) {
@@ -103,8 +138,14 @@ function QuotationForm({ onClose, onSaved }) {
 
   return (
     <form onSubmit={submit} className="space-y-5">
+      {/* Fixed once the quote exists: a quote to somebody else is a different offer. */}
       <Field label="Customer">
-        <CustomerSelect value={customer} onChange={setCustomer} aria-label="Customer" />
+        <CustomerSelect
+          value={customer}
+          onChange={setCustomer}
+          disabled={editing}
+          aria-label="Customer"
+        />
       </Field>
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -114,8 +155,20 @@ function QuotationForm({ onClose, onSaved }) {
         <Field label="Quantity">
           <input type="number" min="1" required className="input" value={values.quantity} onChange={set('quantity')} />
         </Field>
-        <Field label="Unit price (₹)" hint="Rev 0 — every later price keeps this one">
-          <input type="number" step="0.01" min="0" required className="input" value={values.unitPrice} onChange={set('unitPrice')} />
+        <Field
+          label="Unit price (₹)"
+          hint={editing ? 'Changed through Revise, so the old price is kept [§10]' : 'Rev 0 — every later price keeps this one'}
+        >
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            required={!editing}
+            disabled={editing}
+            className="input"
+            value={values.unitPrice}
+            onChange={set('unitPrice')}
+          />
         </Field>
         {/* A term of the offer: the buyer reads it beside the price, and it prints on the
             document. Blank takes the model's catalogue standard [§28]. */}
@@ -167,7 +220,7 @@ function QuotationForm({ onClose, onSaved }) {
       <div className="flex justify-end gap-2">
         <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
         <button type="submit" className="btn-primary" disabled={busy}>
-          {busy ? 'Saving…' : 'Create the quotation'}
+          {busy ? 'Saving…' : editing ? 'Save the quotation' : 'Create the quotation'}
         </button>
       </div>
     </form>
@@ -301,6 +354,7 @@ export default function Quotations() {
   const [creating, setCreating] = useState(false);
   const [revising, setRevising] = useState(null);
   const [viewing, setViewing] = useState(null);
+  const [editing, setEditing] = useState(null);
   const [responding, setResponding] = useState(null);
   const [sendError, setSendError] = useState(null);
   const [params] = useSearchParams();
@@ -340,6 +394,7 @@ export default function Quotations() {
     setRevising(null);
     setResponding(null);
     setCreating(false);
+    setEditing(null);
     reload();
   };
 
@@ -462,6 +517,21 @@ export default function Quotations() {
                           </button>
                           {mayWrite && !['accepted', 'rejected'].includes(row.status) && (
                             <>
+                            {/*
+                              Only while it is still a draft. Once the quote has gone out, what
+                              it says changes through a revision — the server refuses it either
+                              way, and a button that opens a form the next screen rejects is
+                              worse than no button.
+                            */}
+                            {!row.sentAt && (
+                              <button
+                                type="button"
+                                className="btn-secondary px-2.5 py-1 text-xs"
+                                onClick={() => setEditing(row)}
+                              >
+                                Edit
+                              </button>
+                            )}
                             <button
                               type="button"
                               className="btn-secondary px-2.5 py-1 text-xs"
@@ -529,6 +599,22 @@ export default function Quotations() {
       >
         {responding && (
           <ResponseForm quotation={responding} onClose={() => setResponding(null)} onSaved={saved} />
+        )}
+      </Modal>
+
+      <Modal
+        open={Boolean(editing)}
+        title={`Edit ${editing?.number || ''}`}
+        description="While it is still a draft. Once it has gone out, changes are revisions"
+        size="lg"
+        onClose={() => setEditing(null)}
+      >
+        {editing && (
+          <QuotationForm
+            quotation={editing}
+            onClose={() => setEditing(null)}
+            onSaved={saved}
+          />
         )}
       </Modal>
 

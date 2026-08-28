@@ -12,6 +12,7 @@ import CostingDetailsForm from '../components/CostingDetailsForm.jsx';
 import { CustomerSelect, ProductSelect } from '../components/pickers.jsx';
 import QuotationPdf from '../components/QuotationPdf.jsx';
 import { formatCompactCurrency, formatDate, formatNumber, humanise } from '../utils/format.js';
+import { inDays } from '../utils/pipeline.js';
 
 /**
  * Costing sheets [BLUEPRINT §7, §9].
@@ -237,6 +238,12 @@ function QuoteFromCosting({ pricing, onClose, onQuoted }) {
   const [isExport, setExport] = useState(false);
   const [paymentTerms, setPayment] = useState('');
   const [deliveryTerms, setDelivery] = useState('');
+  /*
+   * Defaulted rather than left blank. A quotation with no validity prints "Valid until —" on
+   * the document, and §10 lists the validity among the terms the buyer reads — an offer with
+   * no expiry is one the plant is still honouring two years later.
+   */
+  const [validUntil, setValidUntil] = useState(inDays(30));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
@@ -257,6 +264,7 @@ function QuoteFromCosting({ pricing, onClose, onQuoted }) {
         isExport,
         paymentTerms: paymentTerms || undefined,
         deliveryTerms: deliveryTerms || undefined,
+        validUntil: validUntil || undefined,
       });
       onQuoted(quote);
       onClose();
@@ -352,6 +360,14 @@ function QuoteFromCosting({ pricing, onClose, onQuoted }) {
             placeholder="4 weeks from PO"
             value={deliveryTerms}
             onChange={(event) => setDelivery(event.target.value)}
+          />
+        </Field>
+        <Field label="Valid until" hint="Printed on the quotation">
+          <input
+            type="date"
+            className="input"
+            value={validUntil}
+            onChange={(event) => setValidUntil(event.target.value)}
           />
         </Field>
       </div>
