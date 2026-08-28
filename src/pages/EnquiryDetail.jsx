@@ -36,7 +36,7 @@ const TONE_TEXT = {
  * going quiet halfway down the funnel.
  */
 function StageForm({ enquiry, onClose, onSaved }) {
-  const options = nextStagesFrom(enquiry.status);
+  const options = nextStagesFrom(enquiry);
   const [status, setStatus] = useState(options[0]?.value || '');
   const [note, setNote] = useState('');
   const [lostReason, setLostReason] = useState('price');
@@ -93,7 +93,7 @@ function StageForm({ enquiry, onClose, onSaved }) {
     <form onSubmit={submit} className="space-y-4">
       <Field label="Move to">
         <select className="input" value={status} onChange={(event) => setStatus(event.target.value)}>
-          {nextStagesFrom(enquiry.status).map((stage) => (
+          {options.map((stage) => (
             <option key={stage.value} value={stage.value}>{stage.label}</option>
           ))}
         </select>

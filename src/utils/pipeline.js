@@ -213,11 +213,65 @@ export const nextSampleStagesFrom = (current) => {
  * lost. It now offers the open stages and only those: a closed enquiry may come back into play,
  * but won must not become lost in one step, which is a rewrite rather than a reopen.
  */
-export const nextStagesFrom = (current) => {
+/**
+ * The stages an enquiry works *through*, in order — the ladder it climbs.
+ *
+ * Mirrors the server's own list. `lost` and `hold` are not on it: an enquiry can be lost from
+ * anywhere and parked from anywhere, and coming off a park resumes wherever it was.
+ */
+export const ENQUIRY_STAGE_ORDER = OPEN_STAGES.map((stage) => stage.value).concat('won');
+
+const stageRank = (status) => ENQUIRY_STAGE_ORDER.indexOf(status);
+
+/**
+ * The furthest an enquiry has climbed, which is the floor it may not drop below.
+ *
+ * Read off the history rather than the current status, because `hold` is not a rung: an
+ * enquiry parked during negotiation reads as `hold` and still may not go back to pricing.
+ * Only what has happened since it was last reopened counts — reopening is a deliberate
+ * rewind, so the stages before it stop being a floor.
+ *
+ * The server enforces all of this; this is the same rule stated again so the dropdown does
+ * not offer a move the next screen refuses. A choice that can only produce an error teaches
+ * people to distrust the ones beside it.
+ */
+export function furthestStage(enquiry) {
+  const history = enquiry?.statusHistory || [];
+
+  let since = 0;
+  history.forEach((entry, index) => {
+    if (CLOSED_STAGES.includes(entry.from)) since = index;
+  });
+
+  return history
+    .slice(since)
+    .reduce((furthest, entry) => Math.max(furthest, stageRank(entry.to)), stageRank(enquiry?.status));
+}
+
+/**
+ * Where this enquiry may go next.
+ *
+ * Takes the enquiry rather than a bare status: whether a stage is available depends on where
+ * it has *been*, not only where it is.
+ *
+ * Reopening a closed enquiry is the exception, and offers every open stage — it is the one
+ * move whose purpose is to rewind, and it costs a note explaining why.
+ */
+export const nextStagesFrom = (enquiry) => {
+  const current = typeof enquiry === 'string' ? enquiry : enquiry?.status;
+
   if (CLOSED_STAGES.includes(current)) {
     return ENQUIRY_STAGES.filter((stage) => !CLOSED_STAGES.includes(stage.value));
   }
-  return ENQUIRY_STAGES.filter((stage) => stage.value !== current);
+
+  const floor = typeof enquiry === 'string' ? stageRank(current) : furthestStage(enquiry);
+
+  return ENQUIRY_STAGES.filter((stage) => {
+    if (stage.value === current) return false;
+    // Off the ladder — lost and hold — is never a fall back, and stays available from anywhere.
+    const rank = stageRank(stage.value);
+    return rank === -1 || rank >= floor;
+  });
 };
 
 /**
