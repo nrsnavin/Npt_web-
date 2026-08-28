@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useTheme } from '../context/ThemeContext.jsx';
-import Dock from './dock/Dock.jsx';
+import WorkspaceRail from './dock/WorkspaceRail.jsx';
 import GlobalSearch from './GlobalSearch.jsx';
 import { humanise } from '../utils/format.js';
 
@@ -28,21 +28,13 @@ const ICONS = {
  * owns, so a detail screen keeps its own sidebar rather than falling back to Home.
  */
 const RAIL = [
-  { to: '/', label: 'Home', icon: 'home', end: true },
+  { to: '/', label: 'Home', icon: 'home', end: true, paths: ['/dashboard'] },
   {
     to: '/enquiries',
     label: 'Pipeline',
     icon: 'funnel',
     module: 'enquiries',
-    paths: [
-      '/enquiries',
-      '/leads',
-      '/customers',
-      '/samples',
-      '/pricings',
-      '/quotations',
-      '/dashboard',
-    ],
+    paths: ['/enquiries', '/leads', '/customers', '/samples', '/pricings', '/quotations'],
   },
   { to: '/products', label: 'Catalogue', icon: 'box', module: 'products' },
   { to: '/profile', label: 'Profile', icon: 'user' },
@@ -61,6 +53,12 @@ const SIDEBARS = {
         title: 'Overview',
         items: [
           { to: '/', label: 'My day', end: true },
+          /*
+           * Moved here from Pipeline. It answers "how am I doing" where My day answers "what
+           * needs me now" — the same question at two ranges, and both are why somebody opens
+           * the app rather than something they navigate to mid-task.
+           */
+          { to: '/dashboard/marketing', label: 'My dashboard', module: 'enquiries' },
           { to: '/profile', label: 'Profile and access' },
         ],
       },
@@ -72,7 +70,6 @@ const SIDEBARS = {
       {
         title: 'Before the order',
         items: [
-          { to: '/dashboard/marketing', label: 'My dashboard', module: 'enquiries' },
           // Exact, or Leads stays lit while its analytics page is open.
           { to: '/leads', label: 'Leads', module: 'enquiries', end: true },
           { to: '/leads/analytics', label: 'Lead analytics', module: 'enquiries' },
@@ -285,7 +282,13 @@ export default function Layout() {
               /* An area stays lit across every route it owns, not just its landing page. */
               className={({ isActive }) =>
                 `flex w-[3.4rem] flex-col items-center gap-1 rounded-lg px-1 py-2 text-[0.625rem] font-semibold transition-colors ${
-                  isActive || (!item.end && owns(item))
+                  /*
+                   * `owns` is consulted for every area now, not only the ones without `end`.
+                   * Home is exact-matched on `/` so that My day does not light it from every
+                   * route, but it still owns the dashboards — and an area with no lit icon on
+                   * a screen it owns reads as the navigation having lost its place.
+                   */
+                  isActive || owns(item)
                     ? 'bg-line/[0.08] text-flame-500'
                     : 'text-steel-400 hover:bg-line/[0.05] hover:text-steel-100'
                 }`
@@ -426,16 +429,20 @@ export default function Layout() {
             <Outlet />
           </main>
         </div>
+
+        {/*
+          The workspace, on the right of every screen. A sibling of the main column rather than
+          something floating above it: that is what lets the page reflow around it and the
+          to-do list stay open while you work, instead of covering the work it refers to.
+        */}
+        <WorkspaceRail />
       </div>
 
-      {/* Bottom bar: context on the left, the utility dock on the right. */}
+      {/* Bottom bar: who is signed in, and nothing else — the tools moved to the right. */}
       <footer className="flex shrink-0 items-center gap-3 border-t border-line/[0.06] bg-ink-850 px-3 py-1">
         <span className="hidden text-[0.6875rem] text-steel-500 sm:block">
           {user?.name} · {humanise(user?.department)}
         </span>
-        <div className="ml-auto">
-          <Dock />
-        </div>
       </footer>
     </div>
   );
