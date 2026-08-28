@@ -100,6 +100,16 @@ export const shadeOf = (value, largest) =>
 const aqua = (alpha) => `rgb(var(--aqua-500) / ${alpha})`;
 
 /**
+ * How tall the map is allowed to be, and with it the panel beside it.
+ *
+ * One figure, used twice on purpose: the map and its list are two halves of one answer, and a
+ * section whose two columns end at different places reads as two things that happened to be put
+ * near each other. It also keeps the whole section a knowable height instead of however tall
+ * eleven states of list happen to be.
+ */
+const MAP_HEIGHT = 'md:h-[24rem] lg:h-[26rem] xl:h-[32rem]';
+
+/**
  * Which marks get their name written beside them.
  *
  * Not simply the biggest few: the biggest few of this business are Tiruppur, Coimbatore and
@@ -268,10 +278,27 @@ export default function LeadMap({ geography, selected, onSelect }) {
       <div className="lg:col-span-3">
         <p className="mb-3 text-[0.8125rem] leading-relaxed text-steel-400">{headline()}</p>
 
-        <div className="relative">
+      {/*
+        * Two boxes rather than one, and the reason is the tooltip.
+        *
+        * India is thirty degrees of latitude, so a map drawn to the column's width came out
+        * eight hundred pixels tall — one section taller than the screen, with every chart on
+        * the page below the fold. The cap fixes that, but capping height while the width is
+        * also fixed would letterbox the drawing inside its element, and both the tooltip and
+        * the hit-testing measure that element to convert pixels into places: they would have
+        * pointed at the wrong town by however wide the empty margins were.
+        *
+        * So only ever one dimension is constrained — width on a narrow screen, height on a
+        * wide one — and the inner box shrinks to whatever the drawing actually is, which is
+        * what the tooltip is positioned against.
+        */}
+        <div className="flex justify-center">
+          {/* `w-auto` switches on at exactly the breakpoint the height does, so the two are
+              never constrained at once and the drawing always fills its element. */}
+          <div className="relative w-full md:w-auto">
           <svg
             viewBox={`0 0 ${WIDTH} ${HEIGHT.toFixed(0)}`}
-            className="h-auto w-full"
+            className={`block w-full md:w-auto ${MAP_HEIGHT}`}
             role="img"
             aria-label={`Map of India showing leads in ${places.length} places across ${byState.size} states`}
           >
@@ -443,6 +470,7 @@ export default function LeadMap({ geography, selected, onSelect }) {
               }
             />
           )}
+          </div>
         </div>
 
         <Legend largest={largest} largestState={largestState} />
@@ -452,26 +480,35 @@ export default function LeadMap({ geography, selected, onSelect }) {
         * The values, beside the shape, grouped the way the shading is. Nobody reads eleven off
         * a circle, and a map without its numbers next to it is a picture rather than a report.
         */}
-      <div className="lg:col-span-2">
-        <StateList
-          byState={byState}
-          onPlace={choose}
-          onState={chooseState}
-          onHover={(place, state) => {
-            setHovered(place ? idOf(place) : null);
-            setHoveredState(state || null);
-          }}
-          isSelected={isSelected}
-          isSelectedState={isSelectedState}
-        />
+      <div className="flex min-h-0 flex-col lg:col-span-2">
+        {/*
+          * Scrolls within itself rather than setting the height of the whole section. Eleven
+          * states of list ran a third of a screen past the map it belongs to, which left the
+          * section ending in a column of names beside nothing at all.
+          */}
+        {/* Written out rather than derived from MAP_HEIGHT: Tailwind only generates the
+            classes it can see in the source, and a name built at runtime is not one. */}
+        <div className="min-h-0 flex-1 overflow-y-auto pr-1 lg:max-h-[26rem] xl:max-h-[32rem]">
+          <StateList
+            byState={byState}
+            onPlace={choose}
+            onState={chooseState}
+            onHover={(place, state) => {
+              setHovered(place ? idOf(place) : null);
+              setHoveredState(state || null);
+            }}
+            isSelected={isSelected}
+            isSelectedState={isSelectedState}
+          />
+        </div>
 
         {/*
-          * What could not be drawn, said out loud. A map that quietly omits places looks
-          * exactly like a business that has none there, and this is the only line that can
-          * tell the two apart.
+          * What could not be drawn, said out loud, and outside the scrolling part: a map that
+          * quietly omits places looks exactly like a business that has none there, and the one
+          * line that can tell those apart must not be the line you have to scroll to find.
           */}
         {Boolean(unplaced.length) && (
-          <div className="mt-4 border-t border-line/[0.06] pt-3">
+          <div className="mt-3 shrink-0 border-t border-line/[0.06] pt-3">
             <p className="text-[0.625rem] font-bold uppercase tracking-[0.08em] text-steel-500">
               Not on the map ({geography.unplacedTotal})
             </p>

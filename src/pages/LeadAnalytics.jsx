@@ -251,7 +251,7 @@ export default function LeadAnalytics() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-line/[0.04]">
-                {quiet.slice(0, 12).map((row) => (
+                {quiet.slice(0, 8).map((row) => (
                   <tr key={row._id} className="row-hover">
                     <td className="px-3 py-3">
                       <Link to={row.link} className="font-semibold text-steel-100 hover:text-accent">
@@ -270,8 +270,8 @@ export default function LeadAnalytics() {
               </tbody>
             </table>
           </div>
-          {quiet.length > 12 && (
-            <p className="mt-3 text-xs text-steel-500">Showing the 12 quietest of {quiet.length}.</p>
+          {quiet.length > 8 && (
+            <p className="mt-3 text-xs text-steel-500">Showing the 8 quietest of {quiet.length}.</p>
           )}
         </Section>
       )}
