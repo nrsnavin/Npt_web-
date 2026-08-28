@@ -10,8 +10,9 @@ import {
 import BulkBar, { RowCheckbox, useSelection } from '../components/BulkReassign.jsx';
 import ExportButton from '../components/ExportButton.jsx';
 import PlaceInput from '../components/PlaceInput.jsx';
+import StagePipeline from '../components/StagePipeline.jsx';
 import { formatCompactCurrency, formatNumber } from '../utils/format.js';
-import { LEAD_STAGES, SOURCES, followUpState, leadStageLabel } from '../utils/pipeline.js';
+import { SOURCES, followUpState, leadStageLabel } from '../utils/pipeline.js';
 
 const TONE_TEXT = {
   danger: 'text-danger-400',
@@ -185,7 +186,7 @@ export default function Leads() {
     assignedTo: owner || undefined,
     [place?.field || 'city']: place?.value,
   };
-  const { data, pagination, loading, error, reload } = useRecordList(leadsApi.list, {
+  const { data, pagination, meta, loading, error, reload } = useRecordList(leadsApi.list, {
     ...filters,
     page,
     limit: 25,
@@ -237,32 +238,17 @@ export default function Leads() {
         }
       />
 
-      {/* The stage filter. What shape the book is in lives on its own page — see the header. */}
-      <div
-        role="tablist"
-        aria-label="Filter by stage"
-        className="mb-5 grid gap-2 sm:grid-cols-3 lg:grid-cols-5"
-      >
-        {LEAD_STAGES.map((stage) => (
-          <button
-            key={stage.value}
-            type="button"
-            role="tab"
-            aria-selected={status === stage.value}
-            onClick={() => selectStage(stage.value)}
-            className={`card-interactive px-3.5 py-3 text-left ${
-              status === stage.value ? '!border-flame-500/40' : ''
-            }`}
-          >
-            <p className="text-[0.6875rem] font-bold uppercase tracking-[0.08em] text-steel-500">
-              {stage.label}
-            </p>
-            <p className="mt-1 text-sm font-semibold text-steel-100">
-              {status === stage.value ? 'Filtering' : 'Show'}
-            </p>
-          </button>
-        ))}
-      </div>
+      {/*
+        * The stage filter, which is also the shape of the book in miniature. The counts come
+        * back with the rows rather than from their own request, so they narrow when the town
+        * or the colleague does and can never disagree with the list beneath them.
+        */}
+      <StagePipeline
+        counts={meta.stageCounts}
+        selected={status}
+        onSelect={selectStage}
+        loading={loading}
+      />
 
       <div className="mb-5 flex flex-wrap gap-2">
         <input

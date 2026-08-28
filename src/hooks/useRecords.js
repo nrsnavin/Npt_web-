@@ -39,6 +39,13 @@ export function useRecord(fetcher, id) {
 export function useRecordList(fetcher, params = {}) {
   const [data, setData] = useState([]);
   const [pagination, setPagination] = useState(null);
+  /*
+   * Whatever else the reply carried about the whole result rather than this page of it — a
+   * tally per stage, say. Kept here rather than fetched separately by whoever wants it,
+   * because it was computed from the same filter and must change at the same moment the rows
+   * do; two requests would show a count that disagreed with the list beneath it.
+   */
+  const [meta, setMeta] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const requestId = useRef(0);
@@ -52,8 +59,10 @@ export function useRecordList(fetcher, params = {}) {
     try {
       const response = await fetcher(JSON.parse(key));
       if (current !== requestId.current) return;
-      setData(response.data || []);
-      setPagination(response.pagination || null);
+      const { data: rows, pagination: pages, success, ...rest } = response;
+      setData(rows || []);
+      setPagination(pages || null);
+      setMeta(rest);
     } catch (loadError) {
       if (current !== requestId.current) return;
       setError(loadError);
@@ -66,7 +75,7 @@ export function useRecordList(fetcher, params = {}) {
     load();
   }, [load]);
 
-  return { data, setData, pagination, loading, error, reload: load };
+  return { data, setData, pagination, meta, loading, error, reload: load };
 }
 
 /**
