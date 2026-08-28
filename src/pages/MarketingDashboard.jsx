@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { dashboards } from '../api/endpoints.js';
 import { useRecord } from '../hooks/useRecords.js';
 import { Badge, ErrorState, PageHeader, Section, Spinner } from '../components/ui.jsx';
+import TodoBoard from '../components/TodoBoard.jsx';
 import { formatCompactCurrency, formatDate } from '../utils/format.js';
 import { LOST_REASONS, SOURCES, optionLabel, sampleStageLabel, stageLabel } from '../utils/pipeline.js';
 
@@ -106,6 +107,15 @@ export default function MarketingDashboard() {
         title="Marketing dashboard"
         subtitle="What needs doing today, then how the month is going"
       />
+
+      {/*
+        * The tasks first — including every one the plant raised itself. They used to live
+        * behind a dock icon in the corner, which meant the queue the morning should be planned
+        * from had to be opened to be read, and mostly was not.
+        */}
+      <div className="mb-5">
+        <TodoBoard />
+      </div>
 
       {/* §37: action required today, before any analysis. */}
       <div className="mb-5 grid gap-2 sm:grid-cols-3 lg:grid-cols-5">

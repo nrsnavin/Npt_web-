@@ -18,7 +18,7 @@ const PRIORITY_TONE = {
  * yesterday is only seven hours before today's midnight, so measuring elapsed time and
  * rounding would call it "Today" and disagree with the server's overdue bucket.
  */
-function dueLabel(dueDate) {
+export function dueLabel(dueDate) {
   if (!dueDate) return null;
 
   const due = new Date(dueDate);
@@ -33,7 +33,7 @@ function dueLabel(dueDate) {
   return { text: formatDate(dueDate), tone: 'text-steel-400' };
 }
 
-function TodoRow({ todo, onToggle, onDelete }) {
+export function TodoRow({ todo, onToggle, onDelete }) {
   const due = dueLabel(todo.dueDate);
 
   return (

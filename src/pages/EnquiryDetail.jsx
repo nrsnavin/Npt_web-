@@ -8,6 +8,7 @@ import {
   Badge, ErrorState, Facts, Field, Modal, Notice, PageHeader, Section, Spinner,
 } from '../components/ui.jsx';
 import Documents from '../components/Documents.jsx';
+import EnquiryActions from '../components/EnquiryActions.jsx';
 import HistoryPanel from '../components/HistoryPanel.jsx';
 import { formatCurrency, formatDate, formatNumber } from '../utils/format.js';
 import {
@@ -404,13 +405,18 @@ export default function EnquiryDetail() {
             )}
             {/* A closed enquiry keeps the control, renamed for what it now does: the buyer
                 who comes back is a reopen, not a fresh record with no history behind it. */}
+            {/*
+              * Kept, and demoted. The named actions cover what happens on an ordinary day;
+              * this is for the day that is not ordinary — and for reopening, which is the one
+              * move a closed enquiry has.
+              */}
             {mayWrite && (
               <button
                 type="button"
-                className={open ? 'btn-primary' : 'btn-secondary'}
+                className="btn-secondary"
                 onClick={() => setMovingStage(true)}
               >
-                {open ? 'Move stage' : 'Reopen'}
+                {open ? 'Move stage by hand' : 'Reopen'}
               </button>
             )}
           </div>
@@ -449,6 +455,12 @@ export default function EnquiryDetail() {
 
       <div className="grid gap-5 lg:grid-cols-3">
         <div className="min-w-0 space-y-5 lg:col-span-2">
+          {/*
+            * First, because it is what somebody came here to do. Reading the requirement is
+            * what they do on the way to deciding which of these to press.
+            */}
+          <EnquiryActions enquiry={enquiry} onSaved={setData} canWrite={mayWrite} />
+
           <Section title="Requirement">
             {enquiry.isNewDevelopment && (
               <div className="mb-4">

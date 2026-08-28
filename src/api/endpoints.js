@@ -100,6 +100,14 @@ export const enquiries = {
   createGroup: (payload) => api.post('/enquiries/group', payload).then(unwrap),
   update: ({ id, ...payload }) => api.patch(`/enquiries/${id}`, payload).then(unwrap),
   setStatus: ({ id, ...payload }) => api.post(`/enquiries/${id}/status`, payload).then(unwrap),
+  /**
+   * What can be done to this enquiry from where it is, and doing one.
+   *
+   * The action carries the stage move, the follow-up it implies and the handover to whichever
+   * department picks the work up — so the screen offers verbs rather than a list of stages.
+   */
+  actions: (id) => api.get(`/enquiries/${id}/actions`).then(unwrap),
+  act: ({ id, ...payload }) => api.post(`/enquiries/${id}/actions`, payload).then(unwrap),
   promoteToProduct: ({ id, ...payload }) =>
     api.post(`/enquiries/${id}/promote-product`, payload).then(unwrap),
   pipeline: () => api.get('/enquiries/pipeline').then(unwrap),
