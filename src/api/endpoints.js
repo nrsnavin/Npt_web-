@@ -113,6 +113,35 @@ export const enquiries = {
   pipeline: () => api.get('/enquiries/pipeline').then(unwrap),
 };
 
+/**
+ * Phase 3: costings and the quotations priced off them [§7, §9, §10].
+ *
+ * A costing comes back redacted for anyone without `pricing: write` — the cost base, the
+ * margin and the minimum are management's [§8] — and carries `costingHidden` so the screen can
+ * say why it is thin rather than looking broken.
+ */
+export const pricings = {
+  list: (params) => api.get('/pricings', { params }).then(listed),
+  get: (id) => api.get(`/pricings/${id}`).then(unwrap),
+  create: (payload) => api.post('/pricings', payload).then(unwrap),
+  /** Building the sheet. The calculated price is derived, never posted. */
+  cost: ({ id, ...payload }) => api.patch(`/pricings/${id}/cost`, payload).then(unwrap),
+  /** Signing off, or refusing, a price below the floor. */
+  decide: ({ id, ...payload }) => api.post(`/pricings/${id}/decision`, payload).then(unwrap),
+};
+
+export const quotations = {
+  list: (params) => api.get('/quotations', { params }).then(listed),
+  get: (id) => api.get(`/quotations/${id}`).then(unwrap),
+  create: (payload) => api.post('/quotations', payload).then(unwrap),
+  update: ({ id, ...payload }) => api.patch(`/quotations/${id}`, payload).then(unwrap),
+  /** A new price, keeping the old one [§10]. */
+  revise: ({ id, ...payload }) => api.post(`/quotations/${id}/revisions`, payload).then(unwrap),
+  /** Putting it in front of the customer — where §9's gate applies. */
+  send: ({ id, ...payload }) => api.post(`/quotations/${id}/send`, payload).then(unwrap),
+  respond: ({ id, ...payload }) => api.post(`/quotations/${id}/response`, payload).then(unwrap),
+};
+
 /** Phase 2: sample requests, from the enquiry that raised one to the customer's answer. */
 export const samples = {
   list: (params) => api.get('/samples', { params }).then(listed),

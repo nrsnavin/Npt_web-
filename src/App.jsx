@@ -23,6 +23,8 @@ const Customers = lazy(() => import('./pages/Customers.jsx'));
 const CustomerDetail = lazy(() => import('./pages/CustomerDetail.jsx'));
 const Leads = lazy(() => import('./pages/Leads.jsx'));
 const LeadAnalytics = lazy(() => import('./pages/LeadAnalytics.jsx'));
+const Pricings = lazy(() => import('./pages/Pricings.jsx'));
+const Quotations = lazy(() => import('./pages/Quotations.jsx'));
 const LeadDetail = lazy(() => import('./pages/LeadDetail.jsx'));
 const Enquiries = lazy(() => import('./pages/Enquiries.jsx'));
 const EnquiryDetail = lazy(() => import('./pages/EnquiryDetail.jsx'));
@@ -118,6 +120,24 @@ export default function App() {
             element={
               <RequireModule moduleKey="enquiries">
                 <EnquiryDetail />
+              </RequireModule>
+            }
+          />
+          {/* Phase 3 [§39]. Costings sit on the pricing grant, which marketing holds as read
+              — §8's field split decides what actually comes back. */}
+          <Route
+            path="pricings"
+            element={
+              <RequireModule moduleKey="pricing">
+                <Pricings />
+              </RequireModule>
+            }
+          />
+          <Route
+            path="quotations"
+            element={
+              <RequireModule moduleKey="quotations">
+                <Quotations />
               </RequireModule>
             }
           />

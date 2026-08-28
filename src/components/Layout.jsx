@@ -34,7 +34,15 @@ const RAIL = [
     label: 'Pipeline',
     icon: 'funnel',
     module: 'enquiries',
-    paths: ['/enquiries', '/leads', '/customers', '/samples', '/dashboard'],
+    paths: [
+      '/enquiries',
+      '/leads',
+      '/customers',
+      '/samples',
+      '/pricings',
+      '/quotations',
+      '/dashboard',
+    ],
   },
   { to: '/products', label: 'Catalogue', icon: 'box', module: 'products' },
   { to: '/profile', label: 'Profile', icon: 'user' },
@@ -69,6 +77,8 @@ const SIDEBARS = {
           { to: '/leads', label: 'Leads', module: 'enquiries', end: true },
           { to: '/leads/analytics', label: 'Lead analytics', module: 'enquiries' },
           { to: '/enquiries', label: 'Enquiries', module: 'enquiries' },
+          { to: '/pricings', label: 'Costings', module: 'pricing' },
+          { to: '/quotations', label: 'Quotations', module: 'quotations' },
           // Exact, or the queue stays lit while the dashboard is open beneath it.
           { to: '/samples', label: 'Sampling', module: 'samples', end: true },
           { to: '/samples/dashboard', label: 'Sampling dashboard', module: 'samples' },
@@ -186,6 +196,8 @@ export function ThemeToggle({ className = '' }) {
 /** Where a built module lives. Anything absent is available but has no screen of its own. */
 const MODULE_ROUTES = {
   enquiries: '/enquiries',
+  pricing: '/pricings',
+  quotations: '/quotations',
   samples: '/samples',
   customers: '/customers',
   products: '/products',
