@@ -319,7 +319,15 @@ export default function LeadDetail() {
     <div className="mx-auto max-w-6xl">
       <PageHeader
         title={lead.company}
-        subtitle={`${lead.number} · ${optionLabel(SOURCES, lead.source)}`}
+        /*
+         * Whose lead it is, in the line that says what this record is. It was one row among
+         * nine in the details card, which is the wrong place for the question most often asked
+         * about somebody else's lead. Unassigned is named rather than omitted — a lead nobody
+         * owns is the thing §3 exists to prevent, and a missing line reads as nothing at all.
+         */
+        subtitle={`${lead.number} · ${optionLabel(SOURCES, lead.source)} · ${
+          lead.assignedTo?.name ? `Owned by ${lead.assignedTo.name}` : 'Unassigned'
+        }`}
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <Badge status={lead.status}>{leadStageLabel(lead.status)}</Badge>
@@ -383,7 +391,8 @@ export default function LeadDetail() {
             <Facts
               items={[
                 { label: 'Contact', value: [lead.contactName, lead.designation].filter(Boolean).join(' · ') },
-                { label: 'Owner', value: lead.assignedTo?.name },
+                // The owner is in the header, where the question "whose is this?" is asked.
+                { label: 'Owner', value: lead.assignedTo?.name || 'Unassigned' },
                 { label: 'Mobile', value: lead.mobile },
                 { label: 'Email', value: lead.email },
                 { label: 'Location', value: [lead.city, lead.state].filter(Boolean).join(', ') },

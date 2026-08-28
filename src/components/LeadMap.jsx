@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { BOUNDS, INDIA_OUTLINE, SQUEEZE } from '../data/indiaOutline.js';
+import { useMemo, useState } from 'react';
+import { BOUNDS, INDIA_STATES, SQUEEZE } from '../data/indiaStates.js';
 import { formatNumber } from '../utils/format.js';
 
 /**
@@ -7,25 +7,27 @@ import { formatNumber } from '../utils/format.js';
  *
  * "Where they are" was a sorted list of towns, which answers exactly one question — which town
  * has the most — and hides the ones somebody came for. Is this a Tiruppur business with a few
- * outliers, or is it spread across four states? Is there a cluster in Gujarat nobody has been
- * to since March? Is the whole of the north one customer? A sorted list cannot show any of
- * those, because sorting is precisely the act of throwing away where the places are.
+ * outliers, or is it four regions? Is there a cluster in Gujarat nobody has been to since
+ * March? Is the whole of the north one customer? A sorted list cannot show any of those,
+ * because sorting is precisely the act of throwing away where the places are.
  *
- * The list stays beside the map rather than being replaced by it. A map is very good at shape
- * and very bad at value: nobody reads eleven off a circle. Together they answer both questions;
- * either alone answers half.
+ * **Two layers, two questions, two jobs.** The states are the base: shaded by how many leads
+ * are in each, they answer "where do we sell at all, and how strongly" at a glance — the
+ * regional reading nobody can get by summing circles by eye. The circles on top are towns, and
+ * they answer "how many here, and is it healthy". Different units, so the two encodings do not
+ * compete; a cool tint and warm marks, so they do not blur.
  *
- * **Three channels, and no more.** Size is how many. Colour is whether anything there has gone
- * quiet — the one status worth interrupting the eye for. A dashed edge means the town was not
- * recognised and the mark sits in the middle of its state, which is a guess and is drawn as
- * one. A fourth channel would make this a puzzle rather than a picture.
+ * **The list stays beside the map**, now grouped by state to match what the shading says. A map
+ * is very good at shape and very bad at value — nobody reads eleven off a circle — and the two
+ * together answer both halves of the question.
  *
  * **Area, not radius.** A place with four times the leads gets a circle of four times the
- * *area*, which is what the eye actually compares. Scaling the radius instead is the commonest
- * chart lie there is — it draws that place sixteen times as large.
+ * *area*, which is what the eye compares. Scaling the radius instead is the commonest chart lie
+ * there is: it draws that place sixteen times as large.
  */
 
-/** The frame. Longitude squeezed by the cosine of the middle latitude — see the data file. */
+/* --------------------------------- The frame --------------------------------- */
+
 const WIDTH = 1000;
 const SCALE = WIDTH / ((BOUNDS.east - BOUNDS.west) * SQUEEZE);
 const HEIGHT = (BOUNDS.north - BOUNDS.south) * SCALE;
@@ -35,14 +37,31 @@ const project = (lat, lng) => [
   (BOUNDS.north - lat) * SCALE,
 ];
 
-const OUTLINE = `${INDIA_OUTLINE.map(([lng, lat], index) => {
-  const [x, y] = project(lat, lng);
-  return `${index ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`;
-}).join('')}Z`;
+/**
+ * The state outlines, turned into paths once.
+ *
+ * At module scope on purpose: thirty-six states of geometry do not change when a lead does, and
+ * rebuilding four thousand points on every hover is how a map starts to feel slow.
+ */
+const STATE_PATHS = INDIA_STATES.map(([name, rings]) => ({
+  name,
+  d: rings
+    .map((flat) => {
+      let path = '';
+      for (let index = 0; index < flat.length; index += 2) {
+        const [x, y] = project(flat[index + 1], flat[index]);
+        path += `${index ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`;
+      }
+      return `${path}Z`;
+    })
+    .join(''),
+}));
+
+/* --------------------------------- The marks --------------------------------- */
 
 /** Big enough to hit with a finger at the smallest, small enough not to swallow its neighbours. */
-const MIN_RADIUS = 10;
-const MAX_RADIUS = 40;
+const MIN_RADIUS = 9;
+const MAX_RADIUS = 38;
 
 const radiusFor = (value, largest) =>
   MIN_RADIUS + (MAX_RADIUS - MIN_RADIUS) * Math.sqrt(value / Math.max(largest, 1));
@@ -51,29 +70,53 @@ const radiusFor = (value, largest) =>
  * A place's identity, which is not its name.
  *
  * Delhi is a city and Delhi is a state, and a book with leads in both draws two marks with one
- * label. Keyed on the label alone, hovering one of them showed the other's figures — a tooltip
+ * label. Keyed on the label alone, hovering one showed the other's figures — a tooltip
  * confidently describing the wrong place, which is the worst kind of wrong a map can be.
  */
 const idOf = (place) => `${place.precision}:${place.label}`;
 
 /**
+ * How dark a state is shaded.
+ *
+ * Four steps rather than a continuous ramp. A continuous one implies a precision that is not
+ * there — the difference between six leads and seven is not a difference anybody should be
+ * reading off a fill — and four bands are the most a person can tell apart without a legend
+ * they have to keep looking back at.
+ */
+const SHADES = [0.14, 0.26, 0.4, 0.56];
+
+/**
+ * Opacities rather than classes, and the swatch built from the same numbers.
+ *
+ * Tailwind only generates the classes it can see in the source. The legend built its swatch by
+ * rewriting the map's class at runtime — a string Tailwind never sees — so the key to the
+ * shading rendered blank while the map itself was shaded. A legend that does not match the
+ * picture is worse than no legend, and the fix is for both to read one array of numbers.
+ */
+export const shadeOf = (value, largest) =>
+  value ? SHADES[Math.min(SHADES.length - 1, Math.floor(((value - 1) / Math.max(largest, 1)) * SHADES.length))] : 0;
+
+/** The tint itself, from the theme's own channels, so it follows light and dark. */
+const aqua = (alpha) => `rgb(var(--aqua-500) / ${alpha})`;
+
+/**
  * Which marks get their name written beside them.
  *
- * Not the top five: the top five of this business are Tiruppur, Coimbatore and Erode, which are
- * fifty kilometres apart and printed one on top of another — three names in the same place,
- * none of them readable. So it is greedy by size, and a name is only written where it does not
- * land on one already written. The ones that lose out are in the list beside the map, spelled
- * out, which is where somebody reads a name off anyway.
+ * Not simply the biggest few: the biggest few of this business are Tiruppur, Coimbatore and
+ * Erode, which are fifty kilometres apart and printed one on top of another — three names in
+ * the same place, none readable. So it is greedy by size, and a name is written only where it
+ * does not land on one already written. The ones that lose out are spelled out in the list
+ * beside the map, which is where somebody reads a name off anyway.
  */
 function labelled(places, largest) {
   const placed = [];
 
   for (const place of places) {
     const [x, y] = project(place.lat, place.lng);
-    const top = y - radiusFor(place.total, largest) - 8;
+    const top = y - radiusFor(place.total, largest) - 7;
     // Rough, and rough is enough: it decides whether to write a word, not where a dot goes.
-    const halfWidth = place.label.length * 6 + 6;
-    const box = { left: x - halfWidth, right: x + halfWidth, top: top - 22, bottom: top + 4 };
+    const halfWidth = place.label.length * 5.5 + 6;
+    const box = { left: x - halfWidth, right: x + halfWidth, top: top - 20, bottom: top + 4 };
 
     const clashes = placed.some(
       (other) =>
@@ -84,88 +127,110 @@ function labelled(places, largest) {
     );
 
     if (!clashes) placed.push({ place, x, y: top, box });
-    if (placed.length >= 7) break;
+    if (placed.length >= 8) break;
   }
 
   return placed;
 }
 
-function Tooltip({ place }) {
-  const [x, y] = project(place.lat, place.lng);
-  // A card that hangs above a mark near the top edge hangs off the map. Ludhiana and Srinagar
-  // are real places with real leads, so it flips under them rather than being cut in half.
-  const below = y / HEIGHT < 0.22;
+/* -------------------------------- The tooltip -------------------------------- */
+
+function Tooltip({ at, title, subtitle, tone, lines }) {
+  const [x, y] = at;
+  // A card hanging above a mark near the top edge hangs off the map. Ludhiana and Srinagar are
+  // real places with real leads, so it flips under them rather than being cut in half.
+  const below = y / HEIGHT < 0.2;
+  const left = x / WIDTH;
 
   return (
     <div
-      className={`pointer-events-none absolute z-10 w-max max-w-[15rem] -translate-x-1/2 rounded-lg border border-line/[0.1] bg-ink-800 px-3 py-2 shadow-float ${
+      className={`pointer-events-none absolute z-10 w-max max-w-[16rem] rounded-xl border border-line/[0.1] bg-ink-800 px-3.5 py-2.5 shadow-float ${
         below ? '' : '-translate-y-full'
-      }`}
-      style={{
-        left: `${(x / WIDTH) * 100}%`,
-        top: `calc(${(y / HEIGHT) * 100}% ${below ? '+' : '-'} 1.75rem)`,
-      }}
+      } ${left > 0.72 ? '-translate-x-full' : left < 0.28 ? '' : '-translate-x-1/2'}`}
+      style={{ left: `${left * 100}%`, top: `calc(${(y / HEIGHT) * 100}% ${below ? '+' : '-'} 1.6rem)` }}
     >
-      <p className="text-sm font-semibold text-steel-50">{place.label}</p>
-      {place.precision === 'state' ? (
-        <p className="mt-0.5 text-[0.6875rem] leading-snug text-warn-400">
-          Somewhere in {place.label} — {place.towns.length ? place.towns.join(', ') : 'town not recorded'}
-        </p>
-      ) : (
-        place.state && <p className="text-[0.6875rem] text-steel-500">{place.state}</p>
-      )}
-
-      <p className="mt-1.5 text-sm tabular-nums text-steel-100">
-        {formatNumber(place.total)} {place.total === 1 ? 'lead' : 'leads'}
-      </p>
-      <p className="text-[0.6875rem] tabular-nums text-steel-400">
-        {place.open} open · {place.converted} converted
-        {place.quiet ? <span className="text-danger-400"> · {place.quiet} gone quiet</span> : null}
-      </p>
+      <p className="text-sm font-semibold leading-tight text-steel-50">{title}</p>
+      {subtitle && <p className={`mt-0.5 text-[0.6875rem] leading-snug ${tone || 'text-steel-500'}`}>{subtitle}</p>}
+      {lines}
     </div>
   );
 }
 
+/* ------------------------------- The component ------------------------------- */
+
 export default function LeadMap({ geography, selected, onSelect }) {
   const [hovered, setHovered] = useState(null);
+  const [hoveredState, setHoveredState] = useState(null);
 
   const places = geography?.places || [];
   const unplaced = geography?.unplaced || [];
+
+  /**
+   * The same leads, added up by state.
+   *
+   * Built here rather than asked for, because the state total is exactly the sum of the town
+   * marks and a second figure from the server could disagree with the dots drawn over it.
+   */
+  const byState = useMemo(() => {
+    const totals = new Map();
+    for (const place of places) {
+      if (!place.state) continue;
+      const row = totals.get(place.state) || { total: 0, quiet: 0, converted: 0, towns: [] };
+      row.total += place.total;
+      row.quiet += place.quiet;
+      row.converted += place.converted;
+      row.towns.push(place);
+      totals.set(place.state, row);
+    }
+    for (const row of totals.values()) row.towns.sort((a, b) => b.total - a.total);
+    return totals;
+  }, [places]);
 
   if (!places.length && !unplaced.length) {
     return <p className="py-6 text-center text-sm text-steel-500">No addresses recorded yet.</p>;
   }
 
   const largest = Math.max(...places.map((place) => place.total), 1);
-  // Drawn largest first so a small dot is never buried under a big one it sits inside.
+  const largestState = Math.max(...[...byState.values()].map((row) => row.total), 1);
+  // Drawn largest first so a small town is never buried under a big one it sits inside.
   const drawn = [...places].sort((a, b) => b.total - a.total);
   const names = labelled(drawn, largest);
-  const active = hovered && places.find((place) => idOf(place) === hovered);
 
-  const isSelected = (place) =>
-    selected && selected.value === place.label && selected.field === (place.precision === 'state' ? 'state' : 'city');
+  const active = hovered && places.find((place) => idOf(place) === hovered);
+  const activeState = !active && hoveredState && byState.get(hoveredState);
+
+  const fieldFor = (place) => (place.precision === 'state' ? 'state' : 'city');
+
+  const isSelected = (place) => selected?.value === place.label && selected?.field === fieldFor(place);
+  const isSelectedState = (name) => selected?.field === 'state' && selected?.value === name;
 
   const choose = (place) => {
     if (!onSelect || !place) return;
-    const field = place.precision === 'state' ? 'state' : 'city';
-    // Clicking the place already filtered clears it — the same handle both ways round.
-    onSelect(isSelected(place) ? null : { field, value: place.label });
+    // Choosing what is already chosen clears it — the same handle both ways round.
+    onSelect(isSelected(place) ? null : { field: fieldFor(place), value: place.label });
+  };
+
+  const chooseState = (name) => {
+    if (!onSelect || !byState.has(name)) return;
+    onSelect(isSelectedState(name) ? null : { field: 'state', value: name });
   };
 
   /**
-   * Which place the pointer is asking about — the nearest one, not the topmost ink.
+   * What the pointer is asking about — the nearest town, not the topmost ink.
    *
    * Circles are painted largest first so a small town is never buried inside a big one, and
    * that is the right order to *look* at. It is the wrong order to *click*: Tiruppur, the
    * biggest mark this business has, sits under Coimbatore and Erode fifty kilometres either
-   * side of it, and hit-testing by ink made the single most important dot on the map
-   * unreachable — at its centre and at its edge both.
-   *
-   * So pointing is answered by distance instead. Aim at where a place is and you get that
-   * place, whoever is drawn over it.
+   * side, and hit-testing by ink made the most important dot on the map unreachable — at its
+   * centre and at its edge both. Pointing is answered by distance instead.
    */
   const nearest = (event) => {
-    const box = event.currentTarget.getBoundingClientRect();
+    /*
+     * The svg's box, never the target's. The pointer lands on whichever state path is under it,
+     * and measuring that path's own bounds put every coordinate somewhere else entirely — the
+     * map answered with the wrong town, or with none.
+     */
+    const box = (event.currentTarget.ownerSVGElement || event.currentTarget).getBoundingClientRect();
     // Uniform scale — the svg keeps the viewBox's aspect — so this mapping is exact.
     const x = ((event.clientX - box.left) / box.width) * WIDTH;
     const y = ((event.clientY - box.top) / box.height) * HEIGHT;
@@ -177,7 +242,7 @@ export default function LeadMap({ geography, selected, onSelect }) {
       const [px, py] = project(place.lat, place.lng);
       const distance = (px - x) ** 2 + (py - y) ** 2;
       // Its own circle, or a finger's width for the smallest marks.
-      const reach = Math.max(radiusFor(place.total, largest), 18);
+      const reach = Math.max(radiusFor(place.total, largest), 16);
       if (distance < closest && distance <= reach ** 2) {
         found = place;
         closest = distance;
@@ -187,33 +252,67 @@ export default function LeadMap({ geography, selected, onSelect }) {
     return found;
   };
 
+  const headline = () => {
+    const total = places.reduce((sum, place) => sum + place.total, 0);
+    const quiet = places.reduce((sum, place) => sum + place.quiet, 0);
+    const states = byState.size;
+
+    if (!total) return 'Nothing has an address on it yet.';
+    return `${formatNumber(total)} ${total === 1 ? 'lead' : 'leads'} across ${states} ${
+      states === 1 ? 'state' : 'states'
+    }${quiet ? `, ${quiet} of them gone quiet` : ''}.`;
+  };
+
   return (
-    <div className="grid gap-5 lg:grid-cols-5">
+    <div className="grid gap-6 lg:grid-cols-5">
       <div className="lg:col-span-3">
+        <p className="mb-3 text-[0.8125rem] leading-relaxed text-steel-400">{headline()}</p>
+
         <div className="relative">
           <svg
             viewBox={`0 0 ${WIDTH} ${HEIGHT.toFixed(0)}`}
-            className="h-auto w-full overflow-visible"
+            className="h-auto w-full"
             role="img"
-            aria-label={`Map of India showing leads in ${places.length} places`}
+            aria-label={`Map of India showing leads in ${places.length} places across ${byState.size} states`}
           >
-            {/* The country behind the data, faint enough that the dots are the picture. */}
-            <path
-              d={OUTLINE}
-              className="pointer-events-none fill-line/[0.03] stroke-line/[0.14]"
-              strokeWidth={2}
-            />
+            {/* The base: which states this business is in, and how strongly. */}
+            <g className="pointer-events-none">
+              {STATE_PATHS.map(({ name, d }) => {
+                const row = byState.get(name);
+                const chosen = isSelectedState(name);
 
+                const lit = hoveredState === name && row;
+
+                return (
+                  <path
+                    key={name}
+                    d={d}
+                    // A state this business is not in still gets a face, just a blank one:
+                    // the country has to read as a country for the shaded parts to mean
+                    // anything against it.
+                    fill={row ? aqua(shadeOf(row.total, largestState) + (lit ? 0.12 : 0)) : 'rgb(var(--line) / 0.05)'}
+                    className={`transition-[fill] ${
+                      chosen ? 'stroke-steel-100' : lit ? 'stroke-aqua-400' : 'stroke-line/[0.16]'
+                    }`}
+                    strokeWidth={chosen ? 3 : lit ? 2.5 : 1.2}
+                    strokeLinejoin="round"
+                  />
+                );
+              })}
+            </g>
+
+            {/* The towns. */}
             {drawn.map((place) => {
               const [x, y] = project(place.lat, place.lng);
               const radius = radiusFor(place.total, largest);
               const quiet = place.quiet > 0;
               const chosen = isSelected(place);
+              const dimmed = (hovered && hovered !== idOf(place)) || (activeState && place.state !== hoveredState);
 
               return (
                 <g key={idOf(place)}>
                   {chosen && (
-                    <circle cx={x} cy={y} r={radius + 7} className="fill-none stroke-steel-50" strokeWidth={2.5} />
+                    <circle cx={x} cy={y} r={radius + 6} className="fill-none stroke-steel-50" strokeWidth={2.5} />
                   )}
                   <circle
                     cx={x}
@@ -222,9 +321,9 @@ export default function LeadMap({ geography, selected, onSelect }) {
                     tabIndex={0}
                     role={onSelect ? 'button' : 'img'}
                     className={`outline-none transition-opacity ${
-                      quiet ? 'fill-danger-500/45 stroke-danger-400' : 'fill-flame-500/40 stroke-flame-400'
-                    } ${hovered && hovered !== idOf(place) ? 'opacity-40' : 'opacity-100'}`}
-                    strokeWidth={2}
+                      quiet ? 'fill-danger-500/50 stroke-danger-400' : 'fill-flame-500/45 stroke-flame-400'
+                    } ${dimmed ? 'opacity-45' : 'opacity-100'}`}
+                    strokeWidth={1.8}
                     // A guess drawn as a guess: the town was not recognised, so this is the
                     // middle of its state and the edge says so without needing the tooltip.
                     strokeDasharray={place.precision === 'state' ? '5 4' : undefined}
@@ -251,8 +350,8 @@ export default function LeadMap({ geography, selected, onSelect }) {
             })}
 
             {/*
-              * Only the biggest few, and only where the name has room. Every dot named is a map
-              * nobody can read; two names in the same place is worse than neither.
+              * Only where the name has room. Every dot named is a map nobody can read; two
+              * names in the same place is worse than neither.
               */}
             {names.map(({ place, x, y }) => (
               <text
@@ -264,91 +363,107 @@ export default function LeadMap({ geography, selected, onSelect }) {
                 style={{ paintOrder: 'stroke' }}
                 strokeWidth={5}
                 strokeLinejoin="round"
-                className="pointer-events-none fill-steel-200 stroke-ink-850 text-[22px] font-semibold"
+                className="pointer-events-none fill-steel-100 stroke-ink-850 text-[21px] font-semibold"
               >
                 {place.label}
               </text>
             ))}
 
             {/*
-              * One sheet over the whole map that answers "which place is this?" by distance.
-              * Above everything, so it is asked before any circle is; see `nearest` for why
-              * pointing cannot be left to whichever circle happens to be painted on top.
+              * One sheet over the whole map, asked before any shape below it: which town is
+              * nearest, and failing that, which state is under the pointer. Two questions on
+              * one surface, so a click never depends on which layer happens to be on top.
               */}
-            <rect
-              width={WIDTH}
-              height={HEIGHT}
-              fill="transparent"
-              className={onSelect && hovered ? 'cursor-pointer' : undefined}
-              onMouseMove={(event) => {
-                const place = nearest(event);
-                setHovered(place ? idOf(place) : null);
+            <g
+              onMouseLeave={() => {
+                setHovered(null);
+                setHoveredState(null);
               }}
-              onMouseLeave={() => setHovered(null)}
-              onClick={(event) => choose(nearest(event))}
-            />
+            >
+              {STATE_PATHS.map(({ name, d }) => (
+                <path
+                  key={`hit-${name}`}
+                  d={d}
+                  fill="transparent"
+                  className={onSelect && byState.has(name) ? 'cursor-pointer' : undefined}
+                  onMouseMove={(event) => {
+                    const place = nearest(event);
+                    setHovered(place ? idOf(place) : null);
+                    setHoveredState(place ? place.state : name);
+                  }}
+                  onClick={(event) => {
+                    const place = nearest(event);
+                    if (place) choose(place);
+                    else chooseState(name);
+                  }}
+                />
+              ))}
+            </g>
           </svg>
 
-          {active && <Tooltip place={active} />}
+          {active && (
+            <Tooltip
+              at={project(active.lat, active.lng)}
+              title={active.label}
+              subtitle={
+                active.precision === 'state'
+                  ? `Somewhere in ${active.label} — ${active.towns.length ? active.towns.join(', ') : 'town not recorded'}`
+                  : active.state
+              }
+              tone={active.precision === 'state' ? 'text-warn-400' : undefined}
+              lines={
+                <>
+                  <p className="mt-1.5 text-sm tabular-nums text-steel-100">
+                    {formatNumber(active.total)} {active.total === 1 ? 'lead' : 'leads'}
+                  </p>
+                  <p className="text-[0.6875rem] tabular-nums text-steel-400">
+                    {active.open} open · {active.converted} converted
+                    {active.quiet ? <span className="text-danger-400"> · {active.quiet} gone quiet</span> : null}
+                  </p>
+                </>
+              }
+            />
+          )}
+
+          {activeState && (
+            <Tooltip
+              at={project(...stateAnchor(activeState))}
+              title={hoveredState}
+              subtitle={`${activeState.towns.length} ${activeState.towns.length === 1 ? 'place' : 'places'}`}
+              lines={
+                <>
+                  <p className="mt-1.5 text-sm tabular-nums text-steel-100">
+                    {formatNumber(activeState.total)} {activeState.total === 1 ? 'lead' : 'leads'}
+                  </p>
+                  <p className="text-[0.6875rem] tabular-nums text-steel-400">
+                    {activeState.converted} converted
+                    {activeState.quiet ? <span className="text-danger-400"> · {activeState.quiet} gone quiet</span> : null}
+                  </p>
+                </>
+              }
+            />
+          )}
         </div>
 
-        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[0.6875rem] text-steel-500">
-          <span className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-flame-500/50 ring-1 ring-flame-400" />
-            Being worked
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-danger-500/50 ring-1 ring-danger-400" />
-            Something here has gone quiet
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full border border-dashed border-steel-400" />
-            Town not recognised — placed in its state
-          </span>
-          <span>Circle area is the number of leads.</span>
-        </div>
+        <Legend largest={largest} largestState={largestState} />
       </div>
 
       {/*
-        * The values, beside the shape. Nobody reads eleven off a circle, and a map without the
-        * numbers next to it is a picture rather than a report.
+        * The values, beside the shape, grouped the way the shading is. Nobody reads eleven off
+        * a circle, and a map without its numbers next to it is a picture rather than a report.
         */}
       <div className="lg:col-span-2">
-        <ul className="space-y-1">
-          {places.slice(0, 9).map((place) => {
-            const chosen = isSelected(place);
-            return (
-              <li key={idOf(place)}>
-                <button
-                  type="button"
-                  onClick={() => choose(place)}
-                  onMouseEnter={() => setHovered(idOf(place))}
-                  onMouseLeave={() => setHovered(null)}
-                  className={`flex w-full items-baseline justify-between gap-3 rounded-md px-2 py-1.5 text-left transition-colors ${
-                    chosen ? 'bg-flame-500/10' : 'hover:bg-line/[0.05]'
-                  }`}
-                >
-                  <span className="truncate text-[0.8125rem] text-steel-200">
-                    {place.label}
-                    {place.precision === 'state' && (
-                      <span className="ml-1.5 text-[0.625rem] uppercase tracking-wide text-warn-400">state only</span>
-                    )}
-                  </span>
-                  <span className="shrink-0 text-[0.8125rem] tabular-nums text-steel-100">
-                    {place.total}
-                    {place.quiet ? (
-                      <span className="ml-1.5 text-[0.6875rem] text-danger-400">{place.quiet} quiet</span>
-                    ) : null}
-                  </span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-
-        {places.length > 9 && (
-          <p className="mt-2 px-2 text-xs text-steel-500">and {places.length - 9} more on the map.</p>
-        )}
+        <StateList
+          byState={byState}
+          onPlace={choose}
+          onState={chooseState}
+          onHover={(place, state) => {
+            setHovered(place ? idOf(place) : null);
+            setHoveredState(state || null);
+          }}
+          isSelected={isSelected}
+          isSelectedState={isSelectedState}
+        />
 
         {/*
           * What could not be drawn, said out loud. A map that quietly omits places looks
@@ -367,5 +482,164 @@ export default function LeadMap({ geography, selected, onSelect }) {
         )}
       </div>
     </div>
+  );
+}
+
+/** Where a state's tooltip points: its busiest town, which is where the eye already is. */
+function stateAnchor(row) {
+  const busiest = row.towns[0];
+  return [busiest.lat, busiest.lng];
+}
+
+/* --------------------------------- The legend --------------------------------- */
+
+/**
+ * A legend somebody can read without looking back at it twice.
+ *
+ * The size scale is drawn as nested circles rather than described in a sentence, because "area
+ * is the count" is a claim a reader has to take on trust and three circles with numbers under
+ * them is a thing they can check against the map in front of them.
+ */
+function Legend({ largest, largestState }) {
+  const steps = [...new Set([1, Math.max(2, Math.round(largest / 3)), largest])].filter(
+    (value) => value <= largest
+  );
+
+  return (
+    <div className="mt-4 flex flex-wrap items-end gap-x-7 gap-y-4 border-t border-line/[0.06] pt-4">
+      <div>
+        <p className="mb-2 text-[0.625rem] font-bold uppercase tracking-[0.08em] text-steel-500">
+          Leads in a town
+        </p>
+        <div className="flex items-end gap-3">
+          {steps.map((value) => {
+            const radius = MIN_RADIUS + (MAX_RADIUS - MIN_RADIUS) * Math.sqrt(value / largest);
+            const size = (radius / MAX_RADIUS) * 34;
+            return (
+              <div key={value} className="flex flex-col items-center gap-1">
+                <span
+                  className="rounded-full border border-flame-400 bg-flame-500/45"
+                  style={{ width: `${size}px`, height: `${size}px` }}
+                />
+                <span className="text-[0.625rem] tabular-nums text-steel-500">{value}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div>
+        <p className="mb-2 text-[0.625rem] font-bold uppercase tracking-[0.08em] text-steel-500">
+          How it is going
+        </p>
+        <div className="space-y-1">
+          <span className="flex items-center gap-1.5 text-[0.6875rem] text-steel-400">
+            <span className="h-2.5 w-2.5 rounded-full border border-flame-400 bg-flame-500/45" />
+            Being worked
+          </span>
+          <span className="flex items-center gap-1.5 text-[0.6875rem] text-steel-400">
+            <span className="h-2.5 w-2.5 rounded-full border border-danger-400 bg-danger-500/50" />
+            Something here has gone quiet
+          </span>
+          <span className="flex items-center gap-1.5 text-[0.6875rem] text-steel-400">
+            <span className="h-2.5 w-2.5 rounded-full border border-dashed border-steel-400" />
+            Town not recognised — placed in its state
+          </span>
+        </div>
+      </div>
+
+      <div>
+        <p className="mb-2 text-[0.625rem] font-bold uppercase tracking-[0.08em] text-steel-500">
+          Leads in a state
+        </p>
+        <div className="flex items-center gap-0.5">
+          {SHADES.map((shade) => (
+            <span
+              key={shade}
+              className="h-4 w-8 border border-line/[0.12]"
+              style={{ backgroundColor: aqua(shade) }}
+              aria-hidden
+            />
+          ))}
+        </div>
+        <div className="mt-1 flex justify-between text-[0.625rem] tabular-nums text-steel-500">
+          <span>1</span>
+          <span>{largestState}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------------------------- The list ---------------------------------- */
+
+/**
+ * The book by state, then by town.
+ *
+ * Grouped rather than a flat top nine, so the panel says the same thing the shading does. A
+ * flat list ordered by town buries the fact that four of the top nine are one state fifty
+ * kilometres across — which is the single most useful thing on this screen for anybody
+ * planning a week of visits.
+ */
+function StateList({ byState, onPlace, onState, onHover, isSelected, isSelectedState }) {
+  const states = [...byState.entries()].sort((a, b) => b[1].total - a[1].total);
+
+  return (
+    <ul className="space-y-3">
+      {states.map(([name, row]) => (
+        <li key={name}>
+          <button
+            type="button"
+            onClick={() => onState(name)}
+            onMouseEnter={() => onHover(null, name)}
+            onMouseLeave={() => onHover(null, null)}
+            className={`flex w-full items-baseline justify-between gap-3 rounded-md px-2 py-1.5 text-left transition-colors ${
+              isSelectedState(name) ? 'bg-aqua-500/10' : 'hover:bg-line/[0.05]'
+            }`}
+          >
+            <span className="truncate text-[0.8125rem] font-semibold text-steel-100">{name}</span>
+            <span className="shrink-0 text-[0.8125rem] tabular-nums text-steel-200">
+              {row.total}
+              {row.quiet ? <span className="ml-1.5 text-[0.6875rem] text-danger-400">{row.quiet} quiet</span> : null}
+            </span>
+          </button>
+
+          <ul className="mt-0.5 space-y-px border-l border-line/[0.08] pl-2">
+            {row.towns.map((place) => (
+              <li key={idOf(place)}>
+                <button
+                  type="button"
+                  onClick={() => onPlace(place)}
+                  onMouseEnter={() => onHover(place, place.state)}
+                  onMouseLeave={() => onHover(null, null)}
+                  className={`flex w-full items-baseline justify-between gap-3 rounded-md px-2 py-1 text-left transition-colors ${
+                    isSelected(place) ? 'bg-flame-500/10' : 'hover:bg-line/[0.05]'
+                  }`}
+                >
+                  <span className="truncate text-[0.8125rem] text-steel-300">
+                    {place.precision === 'state' ? (
+                      <span className="text-steel-400">
+                        Elsewhere in {place.label}
+                        <span className="ml-1.5 text-[0.625rem] uppercase tracking-wide text-warn-400">
+                          town unknown
+                        </span>
+                      </span>
+                    ) : (
+                      place.label
+                    )}
+                  </span>
+                  <span className="shrink-0 text-[0.8125rem] tabular-nums text-steel-300">
+                    {place.total}
+                    {place.quiet ? (
+                      <span className="ml-1.5 text-[0.6875rem] text-danger-400">{place.quiet}</span>
+                    ) : null}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </li>
+      ))}
+    </ul>
   );
 }

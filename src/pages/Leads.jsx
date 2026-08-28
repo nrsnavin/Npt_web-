@@ -1,17 +1,15 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useCallback, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { downloads, leads as leadsApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
-import { useDebounced, useRecordList } from '../hooks/useRecords.js';
+import { useDebounced, useRecord, useRecordList } from '../hooks/useRecords.js';
 import {
   Badge, EmptyState, ErrorState, Field, Modal, Notice, PageHeader, Pagination, TableSkeleton,
 } from '../components/ui.jsx';
 import BulkBar, { RowCheckbox, useSelection } from '../components/BulkReassign.jsx';
 import ExportButton from '../components/ExportButton.jsx';
 import PlaceInput from '../components/PlaceInput.jsx';
-import LeadAnalytics from '../components/LeadAnalytics.jsx';
-import Scoreboard from '../components/Scoreboard.jsx';
 import { formatCompactCurrency, formatNumber } from '../utils/format.js';
 import { LEAD_STAGES, SOURCES, followUpState, leadStageLabel } from '../utils/pipeline.js';
 
@@ -148,16 +146,43 @@ export default function Leads() {
   const { canWrite, isAdmin } = useAuth();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
-  // Set by clicking a place on the map: `{ field: 'city' | 'state', value }`.
-  const [place, setPlace] = useState(null);
   const [page, setPage] = useState(1);
   const [creating, setCreating] = useState(false);
+
+  /*
+   * The place filter lives in the address rather than in state, because it mostly arrives from
+   * somewhere else: clicking a town on the analytics map opens this list already narrowed. A
+   * filter in the URL is also a link somebody can send to a colleague, which a piece of
+   * component state never is.
+   */
+  const [params, setParams] = useSearchParams();
+  const place = params.get('city')
+    ? { field: 'city', value: params.get('city') }
+    : params.get('state')
+      ? { field: 'state', value: params.get('state') }
+      : null;
+
+  /*
+   * Whose leads. In the address like the place filter, so a manager can send somebody the view
+   * they are talking about rather than describing which dropdown to set.
+   */
+  const owner = params.get('assignedTo') || '';
+
+  /*
+   * The people holding leads, scoped exactly as the list is — so a marketing person is offered
+   * only themselves, and the picker below simply is not drawn. No role check on the screen: the
+   * answer already carries the rule.
+   */
+  const fetchOwners = useCallback(() => leadsApi.owners(), []);
+  const { data: owners } = useRecord(fetchOwners, 'lead-owners');
+  const team = owners || [];
 
   const term = useDebounced(search);
   // One object for both the list and the export, so the file is exactly what is on screen.
   const filters = {
     search: term || undefined,
     status: status || undefined,
+    assignedTo: owner || undefined,
     [place?.field || 'city']: place?.value,
   };
   const { data, pagination, loading, error, reload } = useRecordList(leadsApi.list, {
@@ -174,10 +199,21 @@ export default function Leads() {
     setPage(1);
   };
 
-  // A dot on the map is a filter on the list below it. Back to page one, or the narrowed
-  // result is read from page four of a list that is now two pages long.
-  const selectPlace = (next) => {
-    setPlace(next);
+  // Back to page one, or the narrowed result is read from page four of a list that is now two
+  // pages long.
+  const clearPlace = () => {
+    const next = new URLSearchParams(params);
+    next.delete('city');
+    next.delete('state');
+    setParams(next, { replace: true });
+    setPage(1);
+  };
+
+  const selectOwner = (value) => {
+    const next = new URLSearchParams(params);
+    if (value) next.set('assignedTo', value);
+    else next.delete('assignedTo');
+    setParams(next, { replace: true });
     setPage(1);
   };
 
@@ -188,6 +224,9 @@ export default function Leads() {
         subtitle="Parties we are not working yet. Qualify one and convert it into a customer."
         actions={
           <div className="flex items-center gap-2">
+            <Link to="/leads/analytics" className="btn-secondary">
+              Analytics
+            </Link>
             <ExportButton download={downloads.leads} params={filters} />
             {mayWrite && (
               <button type="button" className="btn-primary" onClick={() => setCreating(true)}>
@@ -198,17 +237,7 @@ export default function Leads() {
         }
       />
 
-      {/*
-        * The book before the list. Somebody arriving here wants to know what shape it is in
-        * and what has gone quiet; the rows are what they read after deciding where to look.
-        */}
-      <LeadAnalytics place={place} onPlaceChange={selectPlace} />
-
-      <div className="mb-5">
-        <Scoreboard />
-      </div>
-
-      {/* The funnel doubles as the stage filter — clicking a stage narrows the list to it. */}
+      {/* The stage filter. What shape the book is in lives on its own page — see the header. */}
       <div
         role="tablist"
         aria-label="Filter by stage"
@@ -246,6 +275,26 @@ export default function Leads() {
             setPage(1);
           }}
         />
+        {/*
+          * Drawn only when there is a choice to make. A marketing person is offered one name —
+          * their own — and a dropdown with a single option is a control that can only waste a
+          * click, so it is simply not there.
+          */}
+        {team.length > 1 && (
+          <select
+            className="input max-w-[14rem]"
+            aria-label="Filter by marketing person"
+            value={owner}
+            onChange={(event) => selectOwner(event.target.value)}
+          >
+            <option value="">Everyone&apos;s leads</option>
+            {team.map((person) => (
+              <option key={person._id} value={person._id}>
+                {person.name} ({person.leads})
+              </option>
+            ))}
+          </select>
+        )}
         {status && (
           <button type="button" className="btn-secondary" onClick={() => selectStage(status)}>
             Clear stage filter
@@ -257,13 +306,13 @@ export default function Leads() {
           * to see why without scrolling back up to look for a highlighted dot.
           */}
         {place && (
-          <button type="button" className="btn-secondary" onClick={() => selectPlace(null)}>
+          <button type="button" className="btn-secondary" onClick={clearPlace}>
             Clear {place.value} ✕
           </button>
         )}
       </div>
 
-      {loading && <TableSkeleton columns={6} />}
+      {loading && <TableSkeleton columns={7} />}
       {error && <ErrorState error={error} onRetry={reload} />}
 
       {!loading && !error && (data.length === 0 ? (
@@ -292,6 +341,7 @@ export default function Leads() {
                     <th className="px-4 py-3">Interest</th>
                     <th className="px-4 py-3 text-right">Estimate</th>
                     <th className="px-4 py-3">Next action</th>
+                    <th className="px-4 py-3">Owner</th>
                     <th className="px-4 py-3">Stage</th>
                   </tr>
                 </thead>
@@ -334,6 +384,25 @@ export default function Leads() {
                         <td className="px-4 py-3.5">
                           <p className="text-steel-300">{lead.nextAction || '—'}</p>
                           {due && <p className={`text-xs ${TONE_TEXT[due.tone]}`}>{due.text}</p>}
+                        </td>
+                        {/*
+                          * Whose lead it is. Unassigned is called out rather than left blank —
+                          * a lead nobody owns is the thing §3 exists to prevent, and an empty
+                          * cell reads as "not filled in yet" instead of as a problem.
+                          */}
+                        <td className="whitespace-nowrap px-4 py-3.5">
+                          {lead.assignedTo?.name ? (
+                            <button
+                              type="button"
+                              onClick={() => selectOwner(lead.assignedTo._id)}
+                              className="text-left text-steel-300 hover:text-accent"
+                              title={`Show only ${lead.assignedTo.name}'s leads`}
+                            >
+                              {lead.assignedTo.name}
+                            </button>
+                          ) : (
+                            <span className="text-warn-400">Unassigned</span>
+                          )}
                         </td>
                         <td className="px-4 py-3.5">
                           <Badge status={lead.status}>{leadStageLabel(lead.status)}</Badge>

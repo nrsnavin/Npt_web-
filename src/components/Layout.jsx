@@ -65,7 +65,9 @@ const SIDEBARS = {
         title: 'Before the order',
         items: [
           { to: '/dashboard/marketing', label: 'My dashboard', module: 'enquiries' },
-          { to: '/leads', label: 'Leads', module: 'enquiries' },
+          // Exact, or Leads stays lit while its analytics page is open.
+          { to: '/leads', label: 'Leads', module: 'enquiries', end: true },
+          { to: '/leads/analytics', label: 'Lead analytics', module: 'enquiries' },
           { to: '/enquiries', label: 'Enquiries', module: 'enquiries' },
           // Exact, or the queue stays lit while the dashboard is open beneath it.
           { to: '/samples', label: 'Sampling', module: 'samples', end: true },

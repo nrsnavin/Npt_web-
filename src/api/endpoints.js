@@ -82,6 +82,13 @@ export const leads = {
   scoreboard: () => api.get('/leads/scoreboard').then(unwrap),
   /** The shape of the book, and the leads that are only nominally alive in it. */
   overview: () => api.get('/leads/overview').then(unwrap),
+  /**
+   * Who is holding leads, for the owner filter.
+   *
+   * Scoped like the list itself, so a marketing person is offered only themselves — which is
+   * why the screen can decide whether to draw the picker from the answer alone.
+   */
+  owners: () => api.get('/leads/owners').then(unwrap),
 };
 
 export const enquiries = {

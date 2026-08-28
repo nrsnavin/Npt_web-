@@ -22,6 +22,7 @@ const Products = lazy(() => import('./pages/Products.jsx'));
 const Customers = lazy(() => import('./pages/Customers.jsx'));
 const CustomerDetail = lazy(() => import('./pages/CustomerDetail.jsx'));
 const Leads = lazy(() => import('./pages/Leads.jsx'));
+const LeadAnalytics = lazy(() => import('./pages/LeadAnalytics.jsx'));
 const LeadDetail = lazy(() => import('./pages/LeadDetail.jsx'));
 const Enquiries = lazy(() => import('./pages/Enquiries.jsx'));
 const EnquiryDetail = lazy(() => import('./pages/EnquiryDetail.jsx'));
@@ -75,6 +76,16 @@ export default function App() {
             element={
               <RequireModule moduleKey="enquiries">
                 <MarketingDashboard />
+              </RequireModule>
+            }
+          />
+          {/* Above `leads`, so the literal segment wins over nothing — and above `leads/:id`,
+              which would otherwise swallow it as a lead called "analytics". */}
+          <Route
+            path="leads/analytics"
+            element={
+              <RequireModule moduleKey="enquiries">
+                <LeadAnalytics />
               </RequireModule>
             }
           />
