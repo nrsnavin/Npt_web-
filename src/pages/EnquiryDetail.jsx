@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import { enquiries as enquiriesApi, samples as samplesApi } from '../api/endpoints.js';
+import {
+  enquiries as enquiriesApi, pricings as pricingsApi, quotations as quotationsApi,
+  samples as samplesApi,
+} from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useRecord } from '../hooks/useRecords.js';
 import {
@@ -10,7 +13,8 @@ import {
 import Documents from '../components/Documents.jsx';
 import EnquiryActions from '../components/EnquiryActions.jsx';
 import HistoryPanel from '../components/HistoryPanel.jsx';
-import { formatCurrency, formatDate, formatNumber } from '../utils/format.js';
+import QuotationPdf from '../components/QuotationPdf.jsx';
+import { formatCurrency, formatDate, formatNumber, humanise } from '../utils/format.js';
 import {
   CLOSED_STAGES, ENQUIRY_STAGES, HANGER_CATEGORIES, LOST_REASONS, MATERIALS,
   SAMPLE_PURPOSES, SOURCES, WORKING_STAGE_COUNT, followUpState, inDays, nextStagesFrom, numeric,
@@ -362,6 +366,134 @@ function EnquirySamples({ enquiryId }) {
   );
 }
 
+
+/**
+ * What this enquiry has been priced and quoted at [§7, §10].
+ *
+ * The commercial half of an enquiry's story, on the enquiry. Without it the trail stops at the
+ * stage badge: an enquiry sitting at "Quote submitted" says a quote exists and gives no way to
+ * see it, so whoever wants the number goes to the quotations list and searches by customer —
+ * which is exactly the work having the relation is supposed to remove.
+ *
+ * Fetched here rather than carried on the enquiry record, because the detail screen replaces
+ * that record wholesale after every action. "Ask for a price" is the action that creates a
+ * costing, and a list hanging off the record would blank itself at the moment it filled up.
+ *
+ * The costings arrive already redacted [§8] — marketing sees the price and the MOQ, never the
+ * cost base — so nothing here has to remember to hide anything.
+ */
+function EnquiryCommercials({ enquiryId, canSeePricing, canSeeQuotes }) {
+  const [pricings, setPricings] = useState(null);
+  const [quotes, setQuotes] = useState(null);
+  const [viewing, setViewing] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const load = (allowed, call, set) => {
+      if (!allowed) return set([]);
+      return call
+        .then((response) => !cancelled && set(response.data || []))
+        .catch(() => !cancelled && set([]));
+    };
+
+    load(canSeePricing, pricingsApi.list({ enquiry: enquiryId, limit: 20 }), setPricings);
+    load(canSeeQuotes, quotationsApi.list({ enquiry: enquiryId, limit: 20 }), setQuotes);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [enquiryId, canSeePricing, canSeeQuotes]);
+
+  const nothingYet = pricings?.length === 0 && quotes?.length === 0;
+  if (!pricings || !quotes || nothingYet) return null;
+
+  const rupees = (value) =>
+    value === undefined || value === null ? '—' : `₹${Number(value).toFixed(2)}`;
+
+  return (
+    <>
+      <Section title={`Pricing and quotations (${pricings.length + quotes.length})`}>
+        {pricings.length > 0 && (
+          <>
+            <p className="eyebrow mb-2">Costings</p>
+            <ul className="mb-4 space-y-2">
+              {pricings.map((row) => (
+                <li
+                  key={row._id}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line/[0.06] px-3.5 py-3"
+                >
+                  <div className="min-w-0">
+                    <Link
+                      to={`/pricings?enquiry=${enquiryId}`}
+                      className="text-sm font-semibold text-steel-100 hover:text-accent"
+                    >
+                      {row.number}
+                    </Link>
+                    <p className="text-xs text-steel-400">
+                      {formatNumber(row.quantity)} pcs
+                      {row.moq ? ` · MOQ ${formatNumber(row.moq)}` : ''}
+                      {row.approvedSellingPrice ? ` · ${rupees(row.approvedSellingPrice)}` : ''}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {/*
+                      No separate "needs approval" flag here: unlike the costings list, this
+                      shows the status itself, and `Approval pending` beside `Needs approval`
+                      is the same sentence twice.
+                    */}
+                    <Badge status={row.status}>{humanise(row.status)}</Badge>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+
+        {quotes.length > 0 && (
+          <>
+            <p className="eyebrow mb-2">Quotations</p>
+            <ul className="space-y-2">
+              {quotes.map((row) => (
+                <li
+                  key={row._id}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line/[0.06] px-3.5 py-3"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-steel-100">{row.number}</p>
+                    <p className="text-xs text-steel-400">
+                      Rev {row.revision ?? 0} · {formatNumber(row.quantity)} pcs ·{' '}
+                      {rupees(row.unitPrice)}
+                      {row.validUntil ? ` · valid to ${formatDate(row.validUntil)}` : ''}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {/* The document, from the record it belongs to. */}
+                    <button
+                      type="button"
+                      className="btn-secondary px-3 py-1 text-xs"
+                      onClick={() => setViewing(row)}
+                    >
+                      PDF
+                    </button>
+                    <Badge status={row.status}>{humanise(row.status)}</Badge>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </Section>
+
+      <QuotationPdf
+        quotation={viewing}
+        open={Boolean(viewing)}
+        onClose={() => setViewing(null)}
+      />
+    </>
+  );
+}
+
 export default function EnquiryDetail() {
   const { id } = useParams();
   const { canRead, canWrite } = useAuth();
@@ -378,6 +510,8 @@ export default function EnquiryDetail() {
   const mayWrite = canWrite('enquiries');
   const mayWriteProducts = canWrite('products');
   const mayReadSamples = canRead('samples');
+  const mayReadPricing = canRead('pricing');
+  const mayReadQuotes = canRead('quotations');
   const open = !CLOSED_STAGES.includes(enquiry.status);
   const due = followUpState(enquiry.nextFollowUpDate);
   const stageIndex = ENQUIRY_STAGES.findIndex((stage) => stage.value === enquiry.status);
@@ -492,6 +626,15 @@ export default function EnquiryDetail() {
           </Section>
 
           {mayReadSamples && <EnquirySamples enquiryId={enquiry._id} />}
+
+          {/* What this enquiry has been priced and quoted at — the commercial half of its story. */}
+          {(mayReadPricing || mayReadQuotes) && (
+            <EnquiryCommercials
+              enquiryId={enquiry._id}
+              canSeePricing={mayReadPricing}
+              canSeeQuotes={mayReadQuotes}
+            />
+          )}
 
           <Section title={`Stage history (${enquiry.statusHistory?.length || 0})`}>
             {enquiry.statusHistory?.length ? (

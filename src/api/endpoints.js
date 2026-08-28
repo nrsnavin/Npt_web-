@@ -128,6 +128,15 @@ export const pricings = {
   cost: ({ id, ...payload }) => api.patch(`/pricings/${id}/cost`, payload).then(unwrap),
   /** Signing off, or refusing, a price below the floor. */
   decide: ({ id, ...payload }) => api.post(`/pricings/${id}/decision`, payload).then(unwrap),
+  /**
+   * Turning an approved costing into a quotation [§7 → §10].
+   *
+   * The quantity may be left out, and usually is: the server starts it at the MOQ, which is the
+   * smallest lot the approved price actually holds for.
+   */
+  quote: ({ id, ...payload }) => api.post(`/pricings/${id}/quotation`, payload).then(unwrap),
+  /** What this sheet has already been quoted at. */
+  quotations: (id) => api.get(`/pricings/${id}/quotations`).then(unwrap),
 };
 
 export const quotations = {
@@ -140,6 +149,15 @@ export const quotations = {
   /** Putting it in front of the customer — where §9's gate applies. */
   send: ({ id, ...payload }) => api.post(`/quotations/${id}/send`, payload).then(unwrap),
   respond: ({ id, ...payload }) => api.post(`/quotations/${id}/response`, payload).then(unwrap),
+  /**
+   * The document itself, as a blob.
+   *
+   * Fetched rather than linked, because the route needs the session's bearer token and an
+   * `<iframe src>` cannot carry one. The caller owns the object URL it makes from this and is
+   * responsible for revoking it — an un-revoked blob URL holds the whole PDF in memory for the
+   * life of the tab.
+   */
+  pdf: (id) => api.get(`/quotations/${id}/pdf`, { responseType: 'blob' }).then((r) => r.data),
 };
 
 /** Phase 2: sample requests, from the enquiry that raised one to the customer's answer. */

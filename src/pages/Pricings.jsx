@@ -7,6 +7,8 @@ import {
   Badge, EmptyState, ErrorState, Field, Modal, Notice, PageHeader, Pagination, TableSkeleton,
 } from '../components/ui.jsx';
 import StagePipeline from '../components/StagePipeline.jsx';
+import { CustomerSelect, ProductSelect } from '../components/pickers.jsx';
+import QuotationPdf from '../components/QuotationPdf.jsx';
 import { formatCompactCurrency, formatDate, formatNumber, humanise } from '../utils/format.js';
 
 /**
@@ -51,6 +53,7 @@ function CostForm({ pricing, onClose, onSaved }) {
   const [targetMargin, setMargin] = useState(pricing.targetMargin ?? 20);
   const [minimum, setMinimum] = useState(pricing.minimumSellingPrice ?? '');
   const [approved, setApproved] = useState(pricing.approvedSellingPrice ?? '');
+  const [moq, setMoq] = useState(pricing.moq ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
@@ -82,6 +85,7 @@ function CostForm({ pricing, onClose, onSaved }) {
           targetMargin: number(targetMargin),
           minimumSellingPrice: number(minimum),
           approvedSellingPrice: number(approved),
+          moq: number(moq),
         })
       );
       onClose();
@@ -188,6 +192,27 @@ function CostForm({ pricing, onClose, onSaved }) {
         </Field>
       </div>
 
+      {/*
+        The MOQ belongs with the price rather than on the product master alone: it is the
+        quantity *this* price holds down to, and a quote raised off the sheet starts there.
+        Settled now, because an approved sheet is frozen — the price and its conditions are
+        signed off together or not at all.
+      */}
+      <Field
+        label="Minimum order quantity"
+        hint="The smallest lot this price holds for. A quote raised from this costing starts here"
+        className="sm:max-w-xs"
+      >
+        <input
+          type="number"
+          step="1"
+          min="0"
+          className="input"
+          value={moq}
+          onChange={(event) => setMoq(event.target.value)}
+        />
+      </Field>
+
       {/* Said before saving, not discovered after: the route this sheet is about to take. */}
       {minimum !== '' && approved !== '' && Number(approved) < Number(minimum) && (
         <Notice tone="warn">
@@ -266,6 +291,283 @@ function DecisionForm({ pricing, onClose, onSaved }) {
   );
 }
 
+
+/**
+ * A costing raised by hand, with no enquiry behind it.
+ *
+ * The automation covers an enquiry reaching Pricing required; this covers everything else — a
+ * rate wanted for a tender, a standing price refreshed because the resin rate moved, a walk-in
+ * asking what a model would cost. Without it the only way to get a number is to invent an
+ * enquiry, and a pipeline fills with enquiries nobody is working.
+ *
+ * The customer is still required: the same hanger costs different money for a buyer taking
+ * 40,000 and one taking 2,000, so a cost with no customer on it is not a cost of anything.
+ */
+function NewCostingForm({ onClose, onSaved }) {
+  const [customer, setCustomer] = useState('');
+  const [product, setProduct] = useState('');
+  const [modelNumber, setModel] = useState('');
+  const [quantity, setQuantity] = useState('');
+  const [targetPrice, setTargetPrice] = useState('');
+  const [remarks, setRemarks] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+
+  const submit = async (event) => {
+    event.preventDefault();
+    if (!customer) return setError('Pick the customer this costing is for.');
+    if (!quantity) return setError('Say what quantity to cost.');
+
+    setBusy(true);
+    setError(null);
+    try {
+      /*
+       * The model number and the MOQ are left out when a product is chosen: the server copies
+       * both from the master [§28]. Sending a blank would overwrite what it knows with nothing.
+       */
+      onSaved(
+        await pricingsApi.create({
+          customer,
+          product: product || undefined,
+          modelNumber: modelNumber || undefined,
+          quantity: Number(quantity),
+          targetPrice: targetPrice === '' ? undefined : Number(targetPrice),
+          remarks: remarks || undefined,
+        })
+      );
+      onClose();
+    } catch (saveError) {
+      setError(saveError.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form onSubmit={submit} className="space-y-4">
+      <Notice tone="info">
+        No enquiry needed. Raise one here for a tender, a repeat job or a walk-in — it becomes
+        the same costing sheet either way.
+      </Notice>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Customer">
+          <CustomerSelect value={customer} onChange={setCustomer} aria-label="Customer" />
+        </Field>
+        <Field label="Model" hint="From the catalogue — its MOQ and material come with it">
+          <ProductSelect value={product} onChange={setProduct} aria-label="Model" />
+        </Field>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Field label="Quantity to cost">
+          <input
+            type="number"
+            min="1"
+            className="input"
+            value={quantity}
+            onChange={(event) => setQuantity(event.target.value)}
+          />
+        </Field>
+        <Field label="Model number" hint="Only if it is not in the catalogue">
+          <input
+            className="input"
+            value={modelNumber}
+            onChange={(event) => setModel(event.target.value)}
+          />
+        </Field>
+        <Field label="Target price" hint="What the buyer wants to pay, if they said">
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            className="input"
+            value={targetPrice}
+            onChange={(event) => setTargetPrice(event.target.value)}
+          />
+        </Field>
+      </div>
+
+      <Field label="Remarks">
+        <textarea
+          rows={2}
+          className="input"
+          value={remarks}
+          onChange={(event) => setRemarks(event.target.value)}
+        />
+      </Field>
+
+      {error && <Notice tone="danger">{error}</Notice>}
+
+      <div className="flex justify-end gap-2">
+        <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
+        <button type="submit" className="btn-primary" disabled={busy}>
+          {busy ? 'Raising…' : 'Raise the costing'}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+/**
+ * Turning an approved costing into a quotation [§7 → §10].
+ *
+ * The quantity starts at the MOQ rather than at the quantity the sheet was costed for, because
+ * the approved price holds down to the MOQ and no further. Offering the costed quantity would
+ * be the safer-looking default and the wrong one: it hides the smallest lot the buyer could
+ * actually order at this rate, which is usually the first thing they ask.
+ *
+ * Nothing here is retyped — the customer, the enquiry, the model and the price come off the
+ * sheet. What is left is the quantity and the terms, which belong to the conversation.
+ */
+function QuoteFromCosting({ pricing, onClose, onQuoted }) {
+  const startAt = pricing.moq || pricing.quantity || '';
+  const [quantity, setQuantity] = useState(startAt);
+  const [unitPrice, setUnitPrice] = useState(pricing.approvedSellingPrice ?? '');
+  const [gstPercent, setGst] = useState(18);
+  const [isExport, setExport] = useState(false);
+  const [paymentTerms, setPayment] = useState('');
+  const [deliveryTerms, setDelivery] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+
+  const belowMoq = pricing.moq && Number(quantity) < pricing.moq;
+  const value = Number(quantity) * Number(unitPrice) || 0;
+
+  const submit = async (event) => {
+    event.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      const quote = await pricingsApi.quote({
+        id: pricing._id,
+        quantity: Number(quantity),
+        unitPrice: unitPrice === '' ? undefined : Number(unitPrice),
+        gstPercent: isExport ? undefined : Number(gstPercent),
+        isExport,
+        paymentTerms: paymentTerms || undefined,
+        deliveryTerms: deliveryTerms || undefined,
+      });
+      onQuoted(quote);
+      onClose();
+    } catch (saveError) {
+      setError(saveError.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form onSubmit={submit} className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className="card px-4 py-3">
+          <p className="eyebrow">Approved price</p>
+          <p className="stat-value mt-1 text-steel-50">{rupees(pricing.approvedSellingPrice)}</p>
+        </div>
+        <div className="card px-4 py-3">
+          <p className="eyebrow">MOQ</p>
+          <p className="stat-value mt-1 text-steel-50">
+            {pricing.moq ? formatNumber(pricing.moq) : '—'}
+          </p>
+          <p className="mt-0.5 text-[0.6875rem] text-steel-500">
+            {pricing.moq ? 'The price holds down to here' : 'None set on this sheet'}
+          </p>
+        </div>
+        <div className="card px-4 py-3">
+          <p className="eyebrow">Order value</p>
+          <p className="stat-value mt-1 text-steel-50">{formatCompactCurrency(value)}</p>
+        </div>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field
+          label="Quantity"
+          hint={pricing.moq ? `Starts at the MOQ of ${formatNumber(pricing.moq)}` : 'Pieces'}
+        >
+          <input
+            type="number"
+            min="1"
+            className="input"
+            value={quantity}
+            onChange={(event) => setQuantity(event.target.value)}
+          />
+        </Field>
+        <Field label="Unit price" hint="From the costing. Change it and §9 is re-checked">
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            className="input"
+            value={unitPrice}
+            onChange={(event) => setUnitPrice(event.target.value)}
+          />
+        </Field>
+      </div>
+
+      {/* Said before saving, not discovered as a refusal after. */}
+      {belowMoq && (
+        <Notice tone="warn">
+          This is under the MOQ of {formatNumber(pricing.moq)}. The approved price does not hold
+          there — quote at least the MOQ, or have it re-costed for the smaller lot.
+        </Notice>
+      )}
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Payment terms">
+          <input
+            className="input"
+            placeholder="30 days from invoice"
+            value={paymentTerms}
+            onChange={(event) => setPayment(event.target.value)}
+          />
+        </Field>
+        <Field label="Delivery">
+          <input
+            className="input"
+            placeholder="4 weeks from PO"
+            value={deliveryTerms}
+            onChange={(event) => setDelivery(event.target.value)}
+          />
+        </Field>
+      </div>
+
+      <div className="flex flex-wrap items-end gap-4">
+        <label className="flex items-center gap-2 text-sm text-steel-200">
+          <input
+            type="checkbox"
+            className="h-4 w-4 rounded border-line/20 bg-ink-800"
+            checked={isExport}
+            onChange={(event) => setExport(event.target.checked)}
+          />
+          This is an export quote (no GST)
+        </label>
+        {!isExport && (
+          <Field label="GST (%)" className="w-28">
+            <input
+              type="number"
+              step="0.1"
+              min="0"
+              max="100"
+              className="input"
+              value={gstPercent}
+              onChange={(event) => setGst(event.target.value)}
+            />
+          </Field>
+        )}
+      </div>
+
+      {error && <Notice tone="danger">{error}</Notice>}
+
+      <div className="flex justify-end gap-2">
+        <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
+        <button type="submit" className="btn-primary" disabled={busy || belowMoq}>
+          {busy ? 'Raising…' : 'Raise the quotation'}
+        </button>
+      </div>
+    </form>
+  );
+}
+
 export default function Pricings() {
   const { canWrite } = useAuth();
   const [search, setSearch] = useState('');
@@ -273,9 +575,15 @@ export default function Pricings() {
   const [page, setPage] = useState(1);
   const [costing, setCosting] = useState(null);
   const [deciding, setDeciding] = useState(null);
+  const [raising, setRaising] = useState(null);
+  const [quoting, setQuoting] = useState(null);
+  const [madeQuote, setMadeQuote] = useState(null);
   const [params] = useSearchParams();
 
   const mayCost = canWrite('pricing');
+  /* Raising a quote is a quoting right, not a costing one: marketing may turn an approved
+     price into a quotation without ever seeing the cost behind it. */
+  const mayQuote = canWrite('quotations');
   const term = useDebounced(search);
 
   const filters = {
@@ -297,6 +605,17 @@ export default function Pricings() {
   const saved = () => {
     setCosting(null);
     setDeciding(null);
+    setRaising(null);
+    reload();
+  };
+
+  /*
+   * A raised quote opens straight into its document. The question immediately after quoting is
+   * always "what does that look like" — and the moment to catch a wrong quantity or a missing
+   * payment term is while it is still a draft, not after it has been sent.
+   */
+  const quoted = (quotation) => {
+    setMadeQuote(quotation);
     reload();
   };
 
@@ -308,6 +627,13 @@ export default function Pricings() {
           mayCost
             ? 'What a job costs to make, and the price marketing may quote against it'
             : 'The price you may quote. The cost behind it is management’s [§8]'
+        }
+        actions={
+          mayCost && (
+            <button type="button" className="btn-primary" onClick={() => setRaising(true)}>
+              + New costing
+            </button>
+          )
         }
       />
 
@@ -333,7 +659,7 @@ export default function Pricings() {
         />
       </div>
 
-      {loading && <TableSkeleton columns={mayCost ? 7 : 5} />}
+      {loading && <TableSkeleton columns={mayCost ? 8 : 6} />}
       {error && <ErrorState error={error} onRetry={reload} />}
 
       {!loading && !error && (data.length === 0 ? (
@@ -352,6 +678,7 @@ export default function Pricings() {
                     <th className="px-3 py-3">Customer</th>
                     <th className="px-3 py-3">Model</th>
                     <th className="px-3 py-3 text-right">Quantity</th>
+                    <th className="px-3 py-3 text-right">MOQ</th>
                     {mayCost && <th className="px-3 py-3 text-right">Cost</th>}
                     <th className="px-3 py-3 text-right">Price</th>
                     {mayCost && <th className="px-3 py-3 text-right">Margin</th>}
@@ -370,6 +697,10 @@ export default function Pricings() {
                       <td className="px-3 py-3.5 text-steel-300">{row.modelNumber || '—'}</td>
                       <td className="whitespace-nowrap px-3 py-3.5 text-right tabular-nums text-steel-200">
                         {formatNumber(row.quantity)}
+                      </td>
+                      {/* The quantity the price holds down to — not the one it was costed at. */}
+                      <td className="whitespace-nowrap px-3 py-3.5 text-right tabular-nums text-steel-300">
+                        {row.moq ? formatNumber(row.moq) : '—'}
                       </td>
                       {mayCost && (
                         <td className="whitespace-nowrap px-3 py-3.5 text-right tabular-nums text-steel-400">
@@ -401,9 +732,23 @@ export default function Pricings() {
                             Decide
                           </button>
                         )}
-                        {mayCost && row.status !== 'approval_pending' && row.status !== 'rejected' && (
+                        {mayCost && row.status !== 'approval_pending' && row.status !== 'rejected' && row.status !== 'approved' && (
                           <button type="button" className="btn-secondary px-3 py-1 text-xs" onClick={() => setCosting(row)}>
                             {row.status === 'requested' ? 'Build it' : 'Edit'}
+                          </button>
+                        )}
+                        {/*
+                          The action that follows an approved price, on the row that carries it.
+                          Everything the quote needs is on this sheet — sending somebody to the
+                          quotations screen to retype it is how the link between them gets lost.
+                        */}
+                        {mayQuote && row.status === 'approved' && (
+                          <button
+                            type="button"
+                            className="btn-primary ml-2 px-3 py-1 text-xs"
+                            onClick={() => setQuoting(row)}
+                          >
+                            Raise a quote
                           </button>
                         )}
                       </td>
@@ -445,6 +790,39 @@ export default function Pricings() {
           <DecisionForm pricing={deciding} onClose={() => setDeciding(null)} onSaved={saved} />
         )}
       </Modal>
+
+      <Modal
+        open={Boolean(raising)}
+        title="New costing"
+        description="For a job with no enquiry behind it — a tender, a repeat, a walk-in"
+        size="lg"
+        onClose={() => setRaising(null)}
+      >
+        {raising && <NewCostingForm onClose={() => setRaising(null)} onSaved={saved} />}
+      </Modal>
+
+      <Modal
+        open={Boolean(quoting)}
+        title={`Quote from ${quoting?.number || ''}`}
+        description="The customer, the model and the price come off the costing. Set the quantity and the terms"
+        size="lg"
+        onClose={() => setQuoting(null)}
+      >
+        {quoting && (
+          <QuoteFromCosting
+            pricing={quoting}
+            onClose={() => setQuoting(null)}
+            onQuoted={quoted}
+          />
+        )}
+      </Modal>
+
+      {/* The document, opened on the quote that was just raised. */}
+      <QuotationPdf
+        quotation={madeQuote}
+        open={Boolean(madeQuote)}
+        onClose={() => setMadeQuote(null)}
+      />
     </div>
   );
 }

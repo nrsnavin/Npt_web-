@@ -7,6 +7,7 @@ import {
   Badge, EmptyState, ErrorState, Field, Modal, Notice, PageHeader, Pagination, TableSkeleton,
 } from '../components/ui.jsx';
 import StagePipeline from '../components/StagePipeline.jsx';
+import QuotationPdf from '../components/QuotationPdf.jsx';
 import { CustomerSelect } from '../components/pickers.jsx';
 import { formatCompactCurrency, formatDate, formatNumber, humanise } from '../utils/format.js';
 
@@ -292,6 +293,7 @@ export default function Quotations() {
   const [page, setPage] = useState(1);
   const [creating, setCreating] = useState(false);
   const [revising, setRevising] = useState(null);
+  const [viewing, setViewing] = useState(null);
   const [responding, setResponding] = useState(null);
   const [sendError, setSendError] = useState(null);
   const [params] = useSearchParams();
@@ -432,8 +434,22 @@ export default function Quotations() {
                         )}
                       </td>
                       <td className="whitespace-nowrap px-3 py-3.5 text-right">
-                        {mayWrite && !['accepted', 'rejected'].includes(row.status) && (
-                          <div className="flex justify-end gap-1.5">
+                        <div className="flex justify-end gap-1.5">
+                          {/*
+                            Outside the write guard and outside the open check, on purpose. The
+                            document is what somebody goes looking for months later — after the
+                            quote was accepted, or lost — and a reader who may see the quotation
+                            may see what was sent.
+                          */}
+                          <button
+                            type="button"
+                            className="btn-secondary px-2.5 py-1 text-xs"
+                            onClick={() => setViewing(row)}
+                          >
+                            PDF
+                          </button>
+                          {mayWrite && !['accepted', 'rejected'].includes(row.status) && (
+                            <>
                             <button
                               type="button"
                               className="btn-secondary px-2.5 py-1 text-xs"
@@ -458,8 +474,9 @@ export default function Quotations() {
                                 Answer
                               </button>
                             )}
-                          </div>
-                        )}
+                            </>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -502,6 +519,12 @@ export default function Quotations() {
           <ResponseForm quotation={responding} onClose={() => setResponding(null)} onSaved={saved} />
         )}
       </Modal>
+
+      <QuotationPdf
+        quotation={viewing}
+        open={Boolean(viewing)}
+        onClose={() => setViewing(null)}
+      />
     </div>
   );
 }
