@@ -26,6 +26,7 @@ const LeadAnalytics = lazy(() => import('./pages/LeadAnalytics.jsx'));
 const Pricings = lazy(() => import('./pages/Pricings.jsx'));
 const PricingDetail = lazy(() => import('./pages/PricingDetail.jsx'));
 const Quotations = lazy(() => import('./pages/Quotations.jsx'));
+const QuotationDetail = lazy(() => import('./pages/QuotationDetail.jsx'));
 const LeadDetail = lazy(() => import('./pages/LeadDetail.jsx'));
 const Enquiries = lazy(() => import('./pages/Enquiries.jsx'));
 const EnquiryDetail = lazy(() => import('./pages/EnquiryDetail.jsx'));
@@ -147,6 +148,14 @@ export default function App() {
             element={
               <RequireModule moduleKey="quotations">
                 <Quotations />
+              </RequireModule>
+            }
+          />
+          <Route
+            path="quotations/:id"
+            element={
+              <RequireModule moduleKey="quotations">
+                <QuotationDetail />
               </RequireModule>
             }
           />

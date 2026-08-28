@@ -459,7 +459,12 @@ function EnquiryCommercials({ enquiryId, canSeePricing, canSeeQuotes }) {
                   className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line/[0.06] px-3.5 py-3"
                 >
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-steel-100">{row.number}</p>
+                    <Link
+                      to={`/quotations/${row._id}`}
+                      className="text-sm font-semibold text-steel-100 hover:text-accent"
+                    >
+                      {row.number}
+                    </Link>
                     <p className="text-xs text-steel-400">
                       Rev {row.revision ?? 0} · {formatNumber(row.quantity)} pcs ·{' '}
                       {rupees(row.unitPrice)}

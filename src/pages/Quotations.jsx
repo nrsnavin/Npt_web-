@@ -469,7 +469,12 @@ export default function Quotations() {
                   {data.map((row) => (
                     <tr key={row._id} className="row-hover">
                       <td className="whitespace-nowrap px-3 py-3.5">
-                        <p className="font-semibold text-steel-100">{row.number}</p>
+                        <Link
+                          to={`/quotations/${row._id}`}
+                          className="font-semibold text-steel-100 hover:text-accent"
+                        >
+                          {row.number}
+                        </Link>
                         <p className="text-xs text-steel-400">
                           Rev {row.revision}
                           {row.sentAt ? ` · sent ${formatDate(row.sentAt)}` : ''}

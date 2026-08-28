@@ -302,7 +302,12 @@ export default function PricingDetail() {
                     className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line/[0.06] px-3.5 py-3"
                   >
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold text-steel-100">{quote.number}</p>
+                      <Link
+                        to={`/quotations/${quote._id}`}
+                        className="text-sm font-semibold text-steel-100 hover:text-accent"
+                      >
+                        {quote.number}
+                      </Link>
                       <p className="text-xs text-steel-400">
                         Rev {quote.revision ?? 0} · {formatNumber(quote.quantity)} pcs ·{' '}
                         {rupees(quote.unitPrice)}
