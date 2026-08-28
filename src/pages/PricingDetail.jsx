@@ -1,9 +1,11 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { pricings as pricingsApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useRecord } from '../hooks/useRecords.js';
-import { Badge, ErrorState, Notice, PageHeader, Section, Spinner } from '../components/ui.jsx';
+import { Badge, ErrorState, Modal, Notice, PageHeader, Section, Spinner } from '../components/ui.jsx';
+import CostingSheetForm from '../components/CostingSheetForm.jsx';
+import CostingDetailsForm from '../components/CostingDetailsForm.jsx';
 import { formatCompactCurrency, formatDate, formatNumber, humanise } from '../utils/format.js';
 
 /**
@@ -65,6 +67,7 @@ export default function PricingDetail() {
 
   const fetch = useCallback((pricingId) => pricingsApi.get(pricingId), []);
   const { data, loading, error, reload } = useRecord(fetch, id);
+  const [editing, setEditing] = useState(null);
 
   if (loading) return <Spinner label="Loading the costing" />;
   if (error) return <ErrorState error={error} onRetry={reload} />;
@@ -110,7 +113,37 @@ export default function PricingDetail() {
             {formatNumber(pricing.quantity)} pcs
           </>
         }
-        actions={<Badge status={pricing.status}>{humanise(pricing.status)}</Badge>}
+        actions={
+          <div className="flex items-center gap-2">
+            {mayCost && (
+              <>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setEditing('details')}
+                >
+                  Edit details
+                </button>
+                {/*
+                  Offered on a settled sheet too. A costing goes stale for ordinary reasons —
+                  the resin rate moves, a gram weight was mistyped — and correcting the sheet
+                  beats abandoning it for a second one nobody can tell apart. §9 re-runs on
+                  save, so a price that no longer clears the floor goes back for signature.
+                */}
+                {pricing.status !== 'approval_pending' && (
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => setEditing('sheet')}
+                  >
+                    {pricing.status === 'requested' ? 'Build the costing' : 'Re-cost'}
+                  </button>
+                )}
+              </>
+            )}
+            <Badge status={pricing.status}>{humanise(pricing.status)}</Badge>
+          </div>
+        }
       />
 
       {pricing.needsApproval && (
@@ -384,6 +417,34 @@ export default function PricingDetail() {
           </Section>
         </div>
       </div>
+
+      <Modal
+        open={editing === 'details'}
+        title={`Details of ${pricing.number}`}
+        description="What this costing is for. The cost lines are on the sheet itself"
+        size="lg"
+        onClose={() => setEditing(null)}
+      >
+        <CostingDetailsForm
+          pricing={pricing}
+          onClose={() => setEditing(null)}
+          onSaved={reload}
+        />
+      </Modal>
+
+      <Modal
+        open={editing === 'sheet'}
+        title={`Costing ${pricing.number}`}
+        description="Every line is per piece. The calculated price is worked out, not typed"
+        size="lg"
+        onClose={() => setEditing(null)}
+      >
+        <CostingSheetForm
+          pricing={pricing}
+          onClose={() => setEditing(null)}
+          onSaved={reload}
+        />
+      </Modal>
     </div>
   );
 }

@@ -131,6 +131,13 @@ export const pricings = {
    */
   get: (id) => api.get(`/pricings/${id}`).then((response) => response.data),
   create: (payload) => api.post('/pricings', payload).then(unwrap),
+  /**
+   * What the costing is *of* — the quantity, the model, the target price.
+   *
+   * A different door from `cost` on purpose: correcting a quantity must not re-open an
+   * approved price, and changing a price must not skip §9's floor.
+   */
+  update: ({ id, ...payload }) => api.patch(`/pricings/${id}`, payload).then(unwrap),
   /** Building the sheet. The calculated price is derived, never posted. */
   cost: ({ id, ...payload }) => api.patch(`/pricings/${id}/cost`, payload).then(unwrap),
   /** Signing off, or refusing, a price below the floor. */
