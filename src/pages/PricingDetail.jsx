@@ -95,9 +95,10 @@ export default function PricingDetail() {
           : 'Not entered',
       value: pricing.materialCost,
     },
-    { label: 'Production', value: cost.productionCost },
-    { label: 'Printing', value: cost.printingCost },
-    { label: 'Hook / clip', value: cost.hookCost },
+    { label: 'Job work', value: cost.jobWorkCost },
+    { label: 'Hook', value: cost.hookCost },
+    { label: 'Metal clips', value: cost.metalClipsCost },
+    { label: 'Print price', value: cost.printingCost },
     { label: 'Packing', value: cost.packingCost },
     { label: 'Anything else', value: cost.otherCost },
   ];
@@ -184,29 +185,54 @@ export default function PricingDetail() {
                   when they are shown as such: one is arithmetic, one is a decision, one is a
                   limit.
                 */}
-                <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                  <div className="card px-4 py-3">
-                    <p className="eyebrow">Calculated</p>
-                    <p className="stat-value mt-1 text-steel-50">
-                      {rupees(pricing.calculatedSellingPrice)}
-                    </p>
-                    <p className="mt-0.5 text-[0.6875rem] text-steel-500">
-                      Cost at {pricing.targetMargin || 0}% margin
-                    </p>
+                {/*
+                  The standing tiers as the sheet shows them, with the one this costing is
+                  working to marked. A single calculated price would hide the choice, and the
+                  choice is the pricing.
+                */}
+                <div className="mt-4">
+                  <p className="eyebrow mb-2">Cost plus</p>
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    {[10, 15, 20].map((percent) => {
+                      const chosen = (pricing.markupPercent ?? 10) === percent;
+                      return (
+                        <div
+                          key={percent}
+                          className={`card px-4 py-3 ${chosen ? 'ring-1 ring-flame-500/50' : ''}`}
+                        >
+                          <p className="eyebrow">
+                            {percent}%{percent === 10 ? ' · floor' : ''}
+                          </p>
+                          <p className={`stat-value mt-1 ${chosen ? 'text-flame-400' : 'text-steel-50'}`}>
+                            {rupees(pricing.tiers?.[percent])}
+                          </p>
+                        </div>
+                      );
+                    })}
                   </div>
+                </div>
+
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
                   <div className="card px-4 py-3">
                     <p className="eyebrow">Approved</p>
                     <p className="stat-value mt-1 text-steel-50">{rupees(asking)}</p>
                     <p className="mt-0.5 text-[0.6875rem] text-steel-500">
-                      What marketing may quote
+                      {pricing.effectiveMarkupPercent === null ||
+                      pricing.effectiveMarkupPercent === undefined
+                        ? 'What marketing may quote'
+                        : `Cost plus ${pricing.effectiveMarkupPercent}% — what marketing may quote`}
                     </p>
                   </div>
                   <div className="card px-4 py-3">
-                    <p className="eyebrow">Minimum</p>
+                    <p className="eyebrow">Floor [§9]</p>
                     <p className="stat-value mt-1 text-steel-50">
                       {rupees(pricing.minimumSellingPrice)}
                     </p>
-                    <p className="mt-0.5 text-[0.6875rem] text-steel-500">The floor [§9]</p>
+                    <p className="mt-0.5 text-[0.6875rem] text-steel-500">
+                      {pricing.minimumOverride == null
+                        ? 'The 10% tier, by standing policy'
+                        : 'Set for this job'}
+                    </p>
                   </div>
                 </div>
 
@@ -347,7 +373,12 @@ export default function PricingDetail() {
                 }
               />
               <Fact label="Quantity costed" value={`${formatNumber(pricing.quantity)} pcs`} />
-              <Fact label="Material" value={pricing.material && humanise(pricing.material)} />
+              <Fact label="Material" value={pricing.material?.toUpperCase()} />
+              <Fact
+                label="Trade or manufacture"
+                value={pricing.procurement && humanise(pricing.procurement)}
+              />
+              <Fact label="Printing" value={pricing.printing} />
               <Fact label="Asked by" value={pricing.requestedBy?.name} />
               <Fact label="Asked on" value={formatDate(pricing.requestedAt)} />
               <Fact label="Costed by" value={pricing.costedBy?.name} />

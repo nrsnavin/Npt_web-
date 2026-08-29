@@ -21,14 +21,18 @@ export default function CostingSheetForm({ pricing, onClose, onSaved }) {
   const [cost, setCost] = useState({
     gramWeight: pricing.cost?.gramWeight ?? '',
     rawMaterialRate: pricing.cost?.rawMaterialRate ?? '',
-    productionCost: pricing.cost?.productionCost ?? '',
-    printingCost: pricing.cost?.printingCost ?? '',
+    jobWorkCost: pricing.cost?.jobWorkCost ?? '',
     hookCost: pricing.cost?.hookCost ?? '',
+    metalClipsCost: pricing.cost?.metalClipsCost ?? '',
+    printingCost: pricing.cost?.printingCost ?? '',
     packingCost: pricing.cost?.packingCost ?? '',
     otherCost: pricing.cost?.otherCost ?? '',
   });
-  const [targetMargin, setMargin] = useState(pricing.targetMargin ?? 20);
-  const [minimum, setMinimum] = useState(pricing.minimumSellingPrice ?? '');
+  const [markupPercent, setMarkup] = useState(pricing.markupPercent ?? 10);
+  const [printing, setPrinting] = useState(pricing.printing ?? '');
+  const [procurement, setProcurement] = useState(pricing.procurement ?? 'manufacture');
+  /* Blank means "the standing floor" — the 10% tier. Only a job with its own floor fills it. */
+  const [minimumOverride, setMinimumOverride] = useState(pricing.minimumOverride ?? '');
   const [approved, setApproved] = useState(pricing.approvedSellingPrice ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -40,12 +44,21 @@ export default function CostingSheetForm({ pricing, onClose, onSaved }) {
   const material = (Number(cost.gramWeight) * Number(cost.rawMaterialRate)) / 1000 || 0;
   const total =
     material +
-    ['productionCost', 'printingCost', 'hookCost', 'packingCost', 'otherCost'].reduce(
+    ['jobWorkCost', 'hookCost', 'metalClipsCost', 'printingCost', 'packingCost', 'otherCost'].reduce(
       (sum, key) => sum + (Number(cost[key]) || 0),
       0
     );
-  const margin = Number(targetMargin) || 0;
-  const calculated = total && margin < 100 ? total / (1 - margin / 100) : total;
+
+  /*
+   * Cost *plus* a markup, which is how the sheet works — not cost divided by one minus a
+   * margin. The two agree at 10% and diverge fast: at 20% they are ₹8.34 and ₹8.69 on the
+   * sheet's own first row.
+   */
+  const priceAt = (percent) => Math.round(total * (1 + (Number(percent) || 0) / 100) * 100) / 100;
+  const calculated = priceAt(markupPercent);
+  /* The standing tiers, side by side, because choosing between them is the pricing decision. */
+  const tiers = [10, 15, 20];
+  const floor = minimumOverride === '' ? priceAt(10) : Number(minimumOverride);
 
   const submit = async (event) => {
     event.preventDefault();
@@ -58,9 +71,11 @@ export default function CostingSheetForm({ pricing, onClose, onSaved }) {
           cost: Object.fromEntries(
             Object.entries(cost).map(([key, value]) => [key, number(value)])
           ),
-          targetMargin: number(targetMargin),
-          minimumSellingPrice: number(minimum),
+          markupPercent: number(markupPercent),
+          minimumOverride: number(minimumOverride),
           approvedSellingPrice: number(approved),
+          printing: printing || undefined,
+          procurement,
         })
       );
       onClose();
@@ -103,55 +118,112 @@ export default function CostingSheetForm({ pricing, onClose, onSaved }) {
         </p>
       </div>
 
+      {/* Named as the sheet names them, and in the sheet's order. */}
       <div className="grid gap-4 sm:grid-cols-2">
-        {line('productionCost', 'Production', 'Per piece')}
-        {line('printingCost', 'Printing', 'Per piece')}
-        {line('hookCost', 'Hook / clip', 'Per piece')}
+        {line('jobWorkCost', 'Job work', 'Per piece')}
+        {line('hookCost', 'Hook', 'Per piece')}
+        {line('metalClipsCost', 'Metal clips', 'Per piece')}
+        {line('printingCost', 'Print price', 'Per piece')}
         {line('packingCost', 'Packing', 'Per piece')}
         {line('otherCost', 'Anything else', 'Per piece')}
-        <Field label="Target margin (%)" hint="On the selling price, not added to the cost">
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Printing" hint="What is printed — the sheet says “1 COLOUR”">
           <input
-            type="number"
-            step="0.1"
-            min="0"
-            max="100"
             className="input"
-            value={targetMargin}
-            onChange={(event) => setMargin(event.target.value)}
+            placeholder="1 COLOUR"
+            value={printing}
+            onChange={(event) => setPrinting(event.target.value)}
           />
+        </Field>
+        <Field label="Trade or manufacture" hint="Bought in and resold, or made here">
+          <select
+            className="input"
+            value={procurement}
+            onChange={(event) => setProcurement(event.target.value)}
+          >
+            <option value="manufacture">Manufacture</option>
+            <option value="trade">Trade</option>
+          </select>
         </Field>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="card px-4 py-3">
+        <p className="eyebrow">Net total — what one piece costs</p>
+        <p className="stat-value mt-1 text-steel-50">{rupees(total)}</p>
+      </div>
+
+      {/*
+        The three standing tiers, side by side and clickable, exactly as the sheet lays them
+        out. Choosing between them is the pricing decision; showing one number would hide it.
+        The lowest is the floor, so it is labelled rather than left to be inferred.
+      */}
+      <div>
+        <p className="eyebrow mb-2">Cost plus</p>
+        <div className="grid gap-3 sm:grid-cols-3">
+          {tiers.map((percent) => {
+            const price = priceAt(percent);
+            const chosen = Number(markupPercent) === percent;
+            return (
+              <button
+                key={percent}
+                type="button"
+                onClick={() => {
+                  setMarkup(percent);
+                  setApproved(price ? String(price) : '');
+                }}
+                className={`card px-4 py-3 text-left transition-colors ${
+                  chosen ? 'ring-1 ring-flame-500/50' : 'hover:bg-line/[0.04]'
+                }`}
+              >
+                <p className="eyebrow">
+                  {percent}%{percent === 10 ? ' · floor' : ''}
+                </p>
+                <p className={`stat-value mt-1 ${chosen ? 'text-flame-400' : 'text-steel-50'}`}>
+                  {rupees(price)}
+                </p>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
         <div className="card px-4 py-3">
-          <p className="eyebrow">Total cost</p>
-          <p className="stat-value mt-1 text-steel-50">{rupees(total)}</p>
+          <p className="eyebrow">Markup on the approved price</p>
+          <p className="stat-value mt-1 text-steel-50">
+            {approved && total ? `${(((approved - total) / total) * 100).toFixed(1)}%` : '—'}
+          </p>
+          <p className="mt-0.5 text-[0.6875rem] text-steel-500">What is being added to cost</p>
         </div>
         <div className="card px-4 py-3">
-          <p className="eyebrow">Calculated price</p>
-          <p className="stat-value mt-1 text-steel-50">{rupees(calculated)}</p>
-          <p className="mt-0.5 text-[0.6875rem] text-steel-500">Cost at {margin}% margin</p>
-        </div>
-        <div className="card px-4 py-3">
-          <p className="eyebrow">Margin on approved</p>
+          <p className="eyebrow">Margin on the approved price</p>
           <p className="stat-value mt-1 text-steel-50">
             {approved && total ? `${(((approved - total) / approved) * 100).toFixed(1)}%` : '—'}
           </p>
+          <p className="mt-0.5 text-[0.6875rem] text-steel-500">What the job earns</p>
         </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
+        {/*
+          Blank by design. The floor is the 10% tier — standing policy applied to this cost —
+          so asking for it again would invite a number that disagrees with the arithmetic
+          above it. This is only for the job that genuinely has a floor of its own.
+        */}
         <Field
-          label="Minimum selling price"
-          hint="The floor. Below it, nothing is quoted until management signs it off"
+          label="Floor override"
+          hint={`Blank means the standing floor, ${rupees(priceAt(10))}`}
         >
           <input
             type="number"
             step="0.01"
             min="0"
             className="input"
-            value={minimum}
-            onChange={(event) => setMinimum(event.target.value)}
+            placeholder={priceAt(10) ? priceAt(10).toFixed(2) : ''}
+            value={minimumOverride}
+            onChange={(event) => setMinimumOverride(event.target.value)}
           />
         </Field>
         <Field label="Approved selling price" hint="What marketing may quote. Blank uses the calculated price">
@@ -169,10 +241,15 @@ export default function CostingSheetForm({ pricing, onClose, onSaved }) {
 
 
       {/* Said before saving, not discovered after: the route this sheet is about to take. */}
-      {minimum !== '' && approved !== '' && Number(approved) < Number(minimum) && (
+      {/*
+        Reads the derived floor now, not a typed one — so it fires on the ordinary sheet where
+        nobody entered a minimum, which is every sheet. Before, a blank minimum meant this
+        warning never appeared and the approval arrived as a surprise after saving.
+      */}
+      {approved !== '' && floor > 0 && Number(approved) < floor && (
         <Notice tone="warn">
-          This is below the minimum, so it will go to management for approval and nothing can be
-          quoted until they sign it off.
+          {rupees(Number(approved))} is below the floor of {rupees(floor)}, so this goes to
+          management for approval and nothing can be quoted until they sign it off.
         </Notice>
       )}
 
