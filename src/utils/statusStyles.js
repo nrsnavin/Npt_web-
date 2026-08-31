@@ -43,6 +43,9 @@ const STATUS_TONES = {
   printing_required: 'progress',
   customer_feedback_pending: 'progress',
   modification_required: 'progress',
+  /* A tool in the tool room is work underway, the same as a job on a press is. */
+  maintenance: 'progress',
+  development: 'info',
 
   // Resolved well.
   accepted: 'success',

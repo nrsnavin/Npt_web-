@@ -36,7 +36,14 @@ const RAIL = [
     module: 'enquiries',
     paths: ['/enquiries', '/leads', '/customers', '/samples', '/pricings', '/quotations'],
   },
-  { to: '/products', label: 'Catalogue', icon: 'box', module: 'products' },
+  {
+    to: '/products',
+    label: 'Catalogue',
+    icon: 'box',
+    module: 'products',
+    /* The register is the catalogue's other half — what a model is, and what makes it. */
+    paths: ['/products', '/moulds'],
+  },
   { to: '/profile', label: 'Profile', icon: 'user' },
   { to: '/users', label: 'Users', icon: 'users', module: 'users', paths: ['/users', '/integrations'] },
 ];
@@ -87,6 +94,7 @@ const SIDEBARS = {
         items: [
           { to: '/customers', label: 'Customers', module: 'customers' },
           { to: '/products', label: 'Product master', module: 'products' },
+          { to: '/moulds', label: 'Mould register', module: 'moulds' },
         ],
       },
     ],
@@ -98,6 +106,7 @@ const SIDEBARS = {
         title: 'Masters',
         items: [
           { to: '/products', label: 'Product master', module: 'products' },
+          { to: '/moulds', label: 'Mould register', module: 'moulds' },
           { to: '/customers', label: 'Customers', module: 'customers' },
         ],
       },
@@ -202,6 +211,7 @@ const MODULE_ROUTES = {
   samples: '/samples',
   customers: '/customers',
   products: '/products',
+  moulds: '/moulds',
   users: '/users',
 };
 

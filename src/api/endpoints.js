@@ -51,6 +51,20 @@ export const products = {
   update: ({ id, ...payload }) => api.patch(`/products/${id}`, payload).then(unwrap),
 };
 
+/**
+ * The mould register. Read by everyone with the grant, written by the plant.
+ *
+ * The derived figures — consumption per piece, pieces an hour, shot weight — come back on
+ * every row rather than being recomputed here. They are the register's answer, and a second
+ * implementation in the browser is a second answer waiting to disagree with it.
+ */
+export const moulds = {
+  list: (params) => api.get('/moulds', { params }).then(listed),
+  get: (id) => api.get(`/moulds/${id}`).then(unwrap),
+  create: (payload) => api.post('/moulds', payload).then(unwrap),
+  update: ({ id, ...payload }) => api.patch(`/moulds/${id}`, payload).then(unwrap),
+};
+
 export const customers = {
   list: (params) => api.get('/customers', { params }).then(listed),
   get: (id) => api.get(`/customers/${id}`).then(unwrap),
@@ -347,6 +361,7 @@ export const downloads = {
   leads: (params) => save('/leads/export', params, 'leads.csv'),
   enquiries: (params) => save('/enquiries/export', params, 'enquiries.csv'),
   products: (params) => save('/products/export', params, 'products.csv'),
+  moulds: (params) => save('/moulds/export', params, 'moulds.csv'),
 };
 
 export const auth = {

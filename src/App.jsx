@@ -20,6 +20,7 @@ const Profile = lazy(() => import('./pages/Profile.jsx'));
 const Users = lazy(() => import('./pages/Users.jsx'));
 const Integrations = lazy(() => import('./pages/Integrations.jsx'));
 const Products = lazy(() => import('./pages/Products.jsx'));
+const Moulds = lazy(() => import('./pages/Moulds.jsx'));
 const Customers = lazy(() => import('./pages/Customers.jsx'));
 const CustomerDetail = lazy(() => import('./pages/CustomerDetail.jsx'));
 const Leads = lazy(() => import('./pages/Leads.jsx'));
@@ -227,6 +228,14 @@ export default function App() {
             element={
               <RequireModule moduleKey="products">
                 <Products />
+              </RequireModule>
+            }
+          />
+          <Route
+            path="moulds"
+            element={
+              <RequireModule moduleKey="moulds">
+                <Moulds />
               </RequireModule>
             }
           />

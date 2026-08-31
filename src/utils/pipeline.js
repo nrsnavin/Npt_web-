@@ -143,13 +143,38 @@ export const HANGER_CATEGORIES = [
   { value: 'accessory', label: 'Accessory' },
 ];
 
+/**
+ * The resins first, then the rest.
+ *
+ * `pp` and `hips` were added to the server's list when the costing sheet started naming them
+ * and never reached this one, so no screen could select either — a model made of polypropylene
+ * had to be filed as "Plastic", which is not a thing anybody buys by the kilo and cannot be
+ * checked against a resin rate. They lead the list because they are what nearly everything
+ * here is actually moulded from.
+ */
 export const MATERIALS = [
-  { value: 'plastic', label: 'Plastic' },
+  { value: 'pp', label: 'PP (polypropylene)' },
+  { value: 'hips', label: 'HIPS' },
+  { value: 'recycled_pp', label: 'Recycled PP' },
+  { value: 'plastic', label: 'Plastic — unspecified' },
   { value: 'wood', label: 'Wood' },
   { value: 'metal', label: 'Metal' },
   { value: 'velvet', label: 'Velvet' },
   { value: 'acrylic', label: 'Acrylic' },
-  { value: 'recycled_pp', label: 'Recycled PP' },
+];
+
+/** Where a tool is in its life. A retired mould stays on the register; it stops running. */
+export const MOULD_STATUSES = [
+  { value: 'development', label: 'In development' },
+  { value: 'active', label: 'Running' },
+  { value: 'maintenance', label: 'In maintenance' },
+  { value: 'retired', label: 'Retired' },
+];
+
+/** Buyer-funded tools are ordinary here, and the model on one is not ours to offer around. */
+export const MOULD_OWNERSHIP = [
+  { value: 'company', label: 'Ours' },
+  { value: 'customer', label: "Customer's" },
 ];
 
 export const HOOK_TYPES = [

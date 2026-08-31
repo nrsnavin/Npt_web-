@@ -30,12 +30,14 @@ const paise = (value) =>
   value === undefined || value === null ? '—' : `₹${Number(value).toFixed(3)}`;
 
 /** One line of the per-piece build-up. */
-function CostLine({ label, hint, value, share, strong }) {
+function CostLine({ label, hint, note, value, share, strong }) {
   return (
     <div className="flex items-baseline justify-between gap-4 py-2">
       <div className="min-w-0">
         <p className={`text-sm ${strong ? 'font-bold text-steel-50' : 'text-steel-200'}`}>{label}</p>
         {hint && <p className="text-[0.6875rem] text-steel-500">{hint}</p>}
+        {/* Where a figure came from, when it came from somewhere rather than from a keyboard. */}
+        {note && <p className="text-[0.6875rem] text-flame-400/80">{note}</p>}
       </div>
       <div className="flex shrink-0 items-baseline gap-3">
         {/*
@@ -86,6 +88,22 @@ export default function PricingDetail() {
   const asking = pricing.approvedSellingPrice;
   const gap = target && asking ? ((asking - target) / target) * 100 : null;
 
+  /*
+   * Where the gram weight came from, when it came off a tool.
+   *
+   * Worth a line of its own because the figure on the sheet is deliberately *not* the
+   * catalogue's weight: a piece off a four-cavity tool with a 12 g runner weighs 30 g and
+   * consumes 33. Without this, the first person to compare the two assumes the sheet is wrong
+   * and corrects it downwards, which is the error the register exists to prevent.
+   */
+  const mould = pricing.mould;
+  const fromTool =
+    mould && cost.gramWeight
+      ? `${mould.mouldCode} — ${mould.partWeightGrams}g part + ${(
+          cost.gramWeight - mould.partWeightGrams
+        ).toFixed(2)}g runner share, ${mould.runningCavities ?? mould.cavities} up`
+      : null;
+
   const lines = [
     {
       label: 'Raw material',
@@ -94,6 +112,7 @@ export default function PricingDetail() {
           ? `${cost.gramWeight}g × ₹${cost.rawMaterialRate}/kg ÷ 1000`
           : 'Not entered',
       value: pricing.materialCost,
+      note: fromTool,
     },
     { label: 'Job work', value: cost.jobWorkCost },
     { label: 'Hook', value: cost.hookCost },
@@ -170,6 +189,7 @@ export default function PricingDetail() {
                       key={line.label}
                       label={line.label}
                       hint={line.hint}
+                      note={line.note}
                       value={paise(line.value)}
                       share={share(line.value)}
                     />
