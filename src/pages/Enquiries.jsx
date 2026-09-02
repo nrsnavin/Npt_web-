@@ -8,7 +8,10 @@ import {
   Badge, EmptyState, ErrorState, Field, Modal, Notice, PageHeader, Pagination, TableSkeleton,
 } from '../components/ui.jsx';
 import EnquiryFields from '../components/EnquiryFields.jsx';
+import EnquiryBoard from '../components/boards/EnquiryBoard.jsx';
 import StagePipeline from '../components/StagePipeline.jsx';
+import ViewSwitch from '../components/ViewSwitch.jsx';
+import { useViewMode } from '../hooks/useBoard.js';
 import { CustomerSelect } from '../components/pickers.jsx';
 import BulkBar, { RowCheckbox, useSelection } from '../components/BulkReassign.jsx';
 import ExportButton from '../components/ExportButton.jsx';
@@ -23,6 +26,15 @@ const TONE_TEXT = {
   info: 'text-aqua-300',
   neutral: 'text-steel-400',
 };
+
+/**
+ * What the list hook fetches while the board is showing: nothing.
+ *
+ * A hook cannot be called conditionally, and the table's request is real work — a query, a
+ * count and a twelve-way tally — that nobody is going to look at. Swapping the fetcher rather
+ * than the hook keeps the rule and drops the request.
+ */
+const idle = async () => ({ data: [], pagination: null });
 
 function EnquiryForm({ onClose, onSaved }) {
   const [error, setError] = useState(null);
@@ -109,6 +121,7 @@ export default function Enquiries() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const [view, setView] = useState('open');
+  const [mode, setMode] = useViewMode('enquiries');
   const [page, setPage] = useState(1);
   const [creating, setCreating] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -152,11 +165,12 @@ export default function Enquiries() {
     assignedTo: owner || undefined,
   };
 
-  const { data, pagination, meta, loading, error, reload } = useRecordList(enquiriesApi.list, {
-    ...filters,
-    page,
-    limit: 25,
-  });
+  const board = mode === 'board';
+
+  const { data, pagination, meta, loading, error, reload } = useRecordList(
+    board ? idle : enquiriesApi.list,
+    { ...filters, page, limit: 25 }
+  );
 
   const mayWrite = canWrite('enquiries');
   const selection = useSelection(data);
@@ -182,12 +196,22 @@ export default function Enquiries() {
   };
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className={
+      /*
+        * A board wants every column it can get. The table's measure is set for reading rows —
+        * a line of text stops being comfortable somewhere around here — but a funnel squeezed
+        * into it puts two thirds of itself off the right-hand edge, and the shape of the book
+        * is the thing a board exists to show. It still scrolls when it has to; it just does not
+        * start out having to.
+        */
+      board ? 'mx-auto w-full' : 'mx-auto max-w-6xl'
+    }>
       <PageHeader
         title="Enquiries"
         subtitle="One enquiry per model, each carrying a next action until it closes"
         actions={
           <div className="flex items-center gap-2">
+            <ViewSwitch mode={mode} onChange={setMode} boardLabel="Funnel board" />
             <ExportButton download={downloads.enquiries} params={filters} />
             {mayWrite && (
               <button type="button" className="btn-primary" onClick={() => setCreating(true)}>
@@ -204,14 +228,18 @@ export default function Enquiries() {
         * showed one customer, never moved when a filter did, and still read yesterday's
         * figures after an enquiry was raised.
         */}
-      <StagePipeline
-        stages={ENQUIRY_STAGES}
-        counts={meta.stageCounts}
-        selected={status}
-        onSelect={selectStage}
-        loading={loading}
-        dense
-      />
+      {/* Not on the board, where every column already carries its own count and its own bar —
+          two tallies of the same thing on one screen is one of them being doubted. */}
+      {!board && (
+        <StagePipeline
+          stages={ENQUIRY_STAGES}
+          counts={meta.stageCounts}
+          selected={status}
+          onSelect={selectStage}
+          loading={loading}
+          dense
+        />
+      )}
 
       <div className="mb-5 flex flex-wrap items-center gap-2">
         <input
@@ -237,17 +265,21 @@ export default function Enquiries() {
           ))}
         </div>
 
-        <select
-          className="input w-52"
-          aria-label="Stage"
-          value={status}
-          onChange={(event) => change(setStatus)(event.target.value)}
-        >
-          <option value="">All stages</option>
-          {ENQUIRY_STAGES.map((stage) => (
-            <option key={stage.value} value={stage.value}>{stage.label}</option>
-          ))}
-        </select>
+        {/* The columns are the stage filter on a board, so the dropdown would be asking the
+            same question twice and could only contradict what is drawn. */}
+        {!board && (
+          <select
+            className="input w-52"
+            aria-label="Stage"
+            value={status}
+            onChange={(event) => change(setStatus)(event.target.value)}
+          >
+            <option value="">All stages</option>
+            {ENQUIRY_STAGES.map((stage) => (
+              <option key={stage.value} value={stage.value}>{stage.label}</option>
+            ))}
+          </select>
+        )}
 
         {/*
           * Drawn only when there is a choice to make. A marketing person is offered one name —
@@ -296,10 +328,12 @@ export default function Enquiries() {
         </div>
       )}
 
-      {loading && <TableSkeleton columns={8} />}
-      {error && <ErrorState error={error} onRetry={reload} />}
+      {board && <EnquiryBoard filters={filters} canMove={mayWrite} />}
 
-      {!loading && !error && (data.length === 0 ? (
+      {!board && loading && <TableSkeleton columns={8} />}
+      {!board && error && <ErrorState error={error} onRetry={reload} />}
+
+      {!board && !loading && !error && (data.length === 0 ? (
         <EmptyState
           title={view === 'due' ? 'Nothing due' : 'No enquiries here'}
           description={

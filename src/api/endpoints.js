@@ -44,6 +44,16 @@ export const users = {
  */
 const listed = (response) => response.data;
 
+/**
+ * A board reply: the columns, plus the sort they were built with.
+ *
+ * The sort is not decoration. "Show more" on a column pages the ordinary list endpoint, and a
+ * list ordered any differently would repeat some cards on page two while hiding others — with
+ * page one still on screen to be compared against. Passing the board's own sort string back
+ * through is what keeps the two halves of a column one list.
+ */
+const boarded = (response) => ({ columns: response.data.data.columns, sort: response.data.meta?.sort });
+
 export const products = {
   list: (params) => api.get('/products', { params }).then(listed),
   get: (id) => api.get(`/products/${id}`).then(unwrap),
@@ -111,6 +121,8 @@ export const customers = {
 
 export const leads = {
   list: (params) => api.get('/leads', { params }).then(listed),
+  /** The same book as `list`, arranged as columns — every stage, the head of each. */
+  board: (params) => api.get('/leads/board', { params }).then(boarded),
   get: (id) => api.get(`/leads/${id}`).then(unwrap),
   create: (payload) => api.post('/leads', payload).then(unwrap),
   update: ({ id, ...payload }) => api.patch(`/leads/${id}`, payload).then(unwrap),
@@ -160,6 +172,8 @@ export const enquiries = {
   promoteToProduct: ({ id, ...payload }) =>
     api.post(`/enquiries/${id}/promote-product`, payload).then(unwrap),
   pipeline: () => api.get('/enquiries/pipeline').then(unwrap),
+  /** The funnel as columns you can work in, rather than a strip of counts you can only read. */
+  board: (params) => api.get('/enquiries/board', { params }).then(boarded),
 };
 
 /**
@@ -243,6 +257,8 @@ export const samples = {
   linkCustomer: ({ id, customer }) =>
     api.post(`/samples/${id}/link-customer`, { customer }).then(unwrap),
   pipeline: () => api.get('/samples/pipeline').then(unwrap),
+  /** The bench as columns. The four outcome columns are drawn but refuse a dropped card. */
+  board: (params) => api.get('/samples/board', { params }).then(boarded),
   /**
    * Samples nobody is working on. Separate from `?overdue=true`, which asks whether a date
    * has passed — this asks whether anyone has touched it, and catches the sample quietly on

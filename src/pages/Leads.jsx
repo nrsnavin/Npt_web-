@@ -11,6 +11,9 @@ import BulkBar, { RowCheckbox, useSelection } from '../components/BulkReassign.j
 import ExportButton from '../components/ExportButton.jsx';
 import PlaceInput from '../components/PlaceInput.jsx';
 import StagePipeline from '../components/StagePipeline.jsx';
+import LeadBoard from '../components/boards/LeadBoard.jsx';
+import ViewSwitch from '../components/ViewSwitch.jsx';
+import { useViewMode } from '../hooks/useBoard.js';
 import { formatCompactCurrency, formatNumber, humanise } from '../utils/format.js';
 import { SOURCES, followUpState, leadStageLabel } from '../utils/pipeline.js';
 
@@ -143,10 +146,14 @@ function LeadForm({ onClose, onSaved }) {
   );
 }
 
+/** What the list hook fetches while the board is showing — see the note on the enquiry list. */
+const idle = async () => ({ data: [], pagination: null });
+
 export default function Leads() {
   const { canWrite, isAdmin } = useAuth();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
+  const [mode, setMode] = useViewMode('leads');
   const [page, setPage] = useState(1);
   const [creating, setCreating] = useState(false);
 
@@ -193,11 +200,12 @@ export default function Leads() {
     source: source || undefined,
     [place?.field || 'city']: place?.value,
   };
-  const { data, pagination, meta, loading, error, reload } = useRecordList(leadsApi.list, {
-    ...filters,
-    page,
-    limit: 25,
-  });
+  const board = mode === 'board';
+
+  const { data, pagination, meta, loading, error, reload } = useRecordList(
+    board ? idle : leadsApi.list,
+    { ...filters, page, limit: 25 }
+  );
 
   const mayWrite = canWrite('enquiries');
   const selection = useSelection(data);
@@ -233,12 +241,22 @@ export default function Leads() {
   };
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className={
+      /*
+        * A board wants every column it can get. The table's measure is set for reading rows —
+        * a line of text stops being comfortable somewhere around here — but a funnel squeezed
+        * into it puts two thirds of itself off the right-hand edge, and the shape of the book
+        * is the thing a board exists to show. It still scrolls when it has to; it just does not
+        * start out having to.
+        */
+      board ? 'mx-auto w-full' : 'mx-auto max-w-6xl'
+    }>
       <PageHeader
         title="Leads"
         subtitle="Parties we are not working yet. Qualify one and convert it into a customer."
         actions={
           <div className="flex items-center gap-2">
+            <ViewSwitch mode={mode} onChange={setMode} />
             <Link to="/leads/analytics" className="btn-secondary">
               Analytics
             </Link>
@@ -257,12 +275,15 @@ export default function Leads() {
         * back with the rows rather than from their own request, so they narrow when the town
         * or the colleague does and can never disagree with the list beneath them.
         */}
-      <StagePipeline
-        counts={meta.stageCounts}
-        selected={status}
-        onSelect={selectStage}
-        loading={loading}
-      />
+      {/* Not on the board, where every column carries its own count and its own bar. */}
+      {!board && (
+        <StagePipeline
+          counts={meta.stageCounts}
+          selected={status}
+          onSelect={selectStage}
+          loading={loading}
+        />
+      )}
 
       <div className="mb-5 flex flex-wrap gap-2">
         <input
@@ -318,10 +339,12 @@ export default function Leads() {
         )}
       </div>
 
-      {loading && <TableSkeleton columns={7} />}
-      {error && <ErrorState error={error} onRetry={reload} />}
+      {board && <LeadBoard filters={filters} canMove={mayWrite} />}
 
-      {!loading && !error && (data.length === 0 ? (
+      {!board && loading && <TableSkeleton columns={7} />}
+      {!board && error && <ErrorState error={error} onRetry={reload} />}
+
+      {!board && !loading && !error && (data.length === 0 ? (
         <EmptyState
           title="No leads here"
           description="Every enquiry that is not from an existing customer starts as a lead."

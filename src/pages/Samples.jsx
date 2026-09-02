@@ -8,6 +8,9 @@ import {
   Badge, EmptyState, ErrorState, Field, Modal, Notice, PageHeader, Pagination, TableSkeleton,
 } from '../components/ui.jsx';
 import { CustomerSelect, EnquirySelect, ProductSelect } from '../components/pickers.jsx';
+import SampleBoard from '../components/boards/SampleBoard.jsx';
+import ViewSwitch from '../components/ViewSwitch.jsx';
+import { useViewMode } from '../hooks/useBoard.js';
 import { formatDate, formatNumber } from '../utils/format.js';
 import {
   HANGER_CATEGORIES, MATERIALS, SAMPLE_PURPOSES, SAMPLE_STAGES, followUpState, numeric,
@@ -245,9 +248,13 @@ function SampleRequestForm({ onClose, onSaved }) {
   );
 }
 
+/** What the list hook fetches while the board is showing — see the note on the enquiry list. */
+const idle = async () => ({ data: [], pagination: null });
+
 export default function Samples() {
   const { user, canWrite } = useAuth();
   const [creating, setCreating] = useState(false);
+  const [mode, setMode] = useViewMode('samples');
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const [view, setView] = useState('open');
@@ -266,16 +273,22 @@ export default function Samples() {
   );
 
   const term = useDebounced(search);
-  const { data, pagination, loading, error, reload } = useRecordList(samplesApi.list, {
+  const board = mode === 'board';
+
+  /* One object for the table and the board, so switching between them shows the same requests. */
+  const filters = {
     search: term || undefined,
     status: status || undefined,
     open: view === 'open' || view === 'overdue' || view === 'unassigned' ? 'true' : undefined,
     overdue: view === 'overdue' ? 'true' : undefined,
     unassigned: view === 'unassigned' ? 'true' : undefined,
     mine: view === 'mine' ? 'true' : undefined,
-    page,
-    limit: 25,
-  });
+  };
+
+  const { data, pagination, loading, error, reload } = useRecordList(
+    board ? idle : samplesApi.list,
+    { ...filters, page, limit: 25 }
+  );
 
   const change = (setter) => (value) => {
     setter(value);
@@ -300,21 +313,34 @@ export default function Samples() {
   };
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className={
+      /*
+        * A board wants every column it can get. The table's measure is set for reading rows —
+        * a line of text stops being comfortable somewhere around here — but a funnel squeezed
+        * into it puts two thirds of itself off the right-hand edge, and the shape of the book
+        * is the thing a board exists to show. It still scrolls when it has to; it just does not
+        * start out having to.
+        */
+      board ? 'mx-auto w-full' : 'mx-auto max-w-6xl'
+    }>
       <PageHeader
         title="Sampling"
         subtitle="Requests raised from enquiries, through the bench to the customer's answer"
         actions={
-          /* Marketing raises what a buyer asks for; the bench raises its own trials. */
-          (canWrite('samples') || canWrite('enquiries')) && (
-            <button type="button" className="btn-primary" onClick={() => setCreating(true)}>
-              + New request
-            </button>
-          )
+          <div className="flex items-center gap-2">
+            <ViewSwitch mode={mode} onChange={setMode} boardLabel="Bench board" />
+            {/* Marketing raises what a buyer asks for; the bench raises its own trials. */}
+            {(canWrite('samples') || canWrite('enquiries')) && (
+              <button type="button" className="btn-primary" onClick={() => setCreating(true)}>
+                + New request
+              </button>
+            )}
+          </div>
         }
       />
 
-      <Bench selected={status} onSelect={change(setStatus)} />
+      {/* Not on the board, where every column already carries its own count. */}
+      {!board && <Bench selected={status} onSelect={change(setStatus)} />}
 
       <div className="mb-5 flex flex-wrap items-center gap-2">
         <input
@@ -340,23 +366,28 @@ export default function Samples() {
           ))}
         </div>
 
-        <select
-          className="input w-52"
-          aria-label="Stage"
-          value={status}
-          onChange={(event) => change(setStatus)(event.target.value)}
-        >
-          <option value="">All stages</option>
-          {SAMPLE_STAGES.map((stage) => (
-            <option key={stage.value} value={stage.value}>{stage.label}</option>
-          ))}
-        </select>
+        {/* The columns are the stage filter on a board — see the enquiry list for the argument. */}
+        {!board && (
+          <select
+            className="input w-52"
+            aria-label="Stage"
+            value={status}
+            onChange={(event) => change(setStatus)(event.target.value)}
+          >
+            <option value="">All stages</option>
+            {SAMPLE_STAGES.map((stage) => (
+              <option key={stage.value} value={stage.value}>{stage.label}</option>
+            ))}
+          </select>
+        )}
       </div>
 
-      {loading && <TableSkeleton columns={6} />}
-      {error && <ErrorState error={error} onRetry={reload} />}
+      {board && <SampleBoard filters={filters} canMove={canWrite('samples')} />}
 
-      {!loading && !error && (data.length === 0 ? (
+      {!board && loading && <TableSkeleton columns={6} />}
+      {!board && error && <ErrorState error={error} onRetry={reload} />}
+
+      {!board && !loading && !error && (data.length === 0 ? (
         <EmptyState
           title={view === 'overdue' ? 'Nothing overdue' : 'No sample requests here'}
           description={
