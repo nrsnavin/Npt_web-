@@ -52,23 +52,40 @@ function Fact({ label, value }) {
 function changesBetween(revision, previous) {
   if (!previous) return [];
 
+  /*
+   * The lines first, compared as a set: on a multi-model quote the interesting change is which
+   * models moved, and a field-by-field diff of a list cannot say that.
+   */
+  const priced = (revision.lines || [])
+    .filter((line) => {
+      const before = (previous.lines || []).find((other) => other.modelNumber === line.modelNumber);
+      return before && before.unitPrice !== line.unitPrice;
+    })
+    .map((line) => {
+      const before = previous.lines.find((other) => other.modelNumber === line.modelNumber);
+      return `${line.modelNumber || 'Line'} ${rupees(before.unitPrice)} → ${rupees(line.unitPrice)}`;
+    });
+
   const fields = [
-    ['Price', 'unitPrice', rupees],
-    ['Quantity', 'quantity', formatNumber],
-    ['MOQ', 'moq', formatNumber],
     ['Payment', 'paymentTerms', (value) => value],
     ['Delivery', 'deliveryTerms', (value) => value],
     ['Freight', 'freightTerms', (value) => FREIGHT_LABELS[value] || value],
     ['Packing', 'packing', (value) => value],
   ];
 
-  return fields
+  const termChanges = fields
     .filter(([, key]) => (revision[key] ?? null) !== (previous[key] ?? null))
     .map(([label, key, show]) => ({
       label,
       from: previous[key] === undefined || previous[key] === null ? '—' : show(previous[key]),
       to: revision[key] === undefined || revision[key] === null ? '—' : show(revision[key]),
     }));
+
+  /* Price moves first — they are what the reader came for — then the terms that shifted. */
+  return [
+    ...priced.map((text) => ({ label: 'Price', from: null, to: text })),
+    ...termChanges,
+  ];
 }
 
 export default function QuotationDetail() {
@@ -88,9 +105,20 @@ export default function QuotationDetail() {
    * What the negotiation has cost so far, which is the number nobody works out by hand. Six
    * weeks of small concessions read as small; the total rarely does.
    */
-  const opening = first?.unitPrice;
-  const given =
-    opening && quotation.unitPrice ? ((quotation.unitPrice - opening) / opening) * 100 : null;
+  /* Off the whole document, since that is what the negotiation is actually about. */
+  const opening = (first?.lines || []).reduce((sum, line) => sum + line.quantity * line.unitPrice, 0);
+  const given = opening && quotation.netValue ? ((quotation.netValue - opening) / opening) * 100 : null;
+
+  const sole = quotation.lines?.length === 1 ? quotation.lines[0] : null;
+
+  /** The lines that came off a costing — the only ones §9's floor has anything to say about. */
+  const costed = (quotation.lines || []).filter((line) => line.pricing);
+
+  /** Lines priced under what their own costing sanctioned — the discount somebody gave. */
+  const under = costed.filter(
+    (line) =>
+      line.pricing.approvedSellingPrice && line.unitPrice < line.pricing.approvedSellingPrice
+  );
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -98,9 +126,11 @@ export default function QuotationDetail() {
         title={quotation.number}
         subtitle={
           <>
-            {quotation.customer?.name}
-            {quotation.modelNumber ? ` · ${quotation.modelNumber}` : ''} ·{' '}
-            {formatNumber(quotation.quantity)} pcs · Rev {quotation.revision ?? 0}
+            {quotation.customer?.name} ·{' '}
+            {sole
+              ? `${sole.modelNumber || 'one model'} · ${formatNumber(sole.quantity)} pcs`
+              : `${quotation.lines?.length ?? 0} models`}{' '}
+            · Rev {quotation.revision ?? 0}
           </>
         }
         actions={
@@ -134,24 +164,60 @@ export default function QuotationDetail() {
         <div className="space-y-5">
           {/* ------------------------------ The live offer ------------------------------ */}
           <Section title="What is on offer now">
-            <div className="grid gap-3 sm:grid-cols-3">
+            {/*
+              The lines, as the document lays them out. A quotation covering eight models is a
+              table, not three summary cards — the buyer quotes item numbers back at you, and
+              the person answering the phone needs the same rows in front of them.
+            */}
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead className="table-head">
+                  <tr>
+                    <th className="px-3 py-2 text-left">Item</th>
+                    <th className="px-3 py-2 text-left">Model</th>
+                    <th className="px-3 py-2 text-right">Quantity</th>
+                    <th className="px-3 py-2 text-right">Unit price</th>
+                    <th className="px-3 py-2 text-right">Net value</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-line/[0.04]">
+                  {(quotation.lines || []).map((line, index) => (
+                    <tr key={line._id || index}>
+                      <td className="px-3 py-2.5 tabular-nums text-steel-500">{(index + 1) * 10}</td>
+                      <td className="px-3 py-2.5">
+                        <p className="text-steel-100">{line.modelNumber || '—'}</p>
+                        {line.product?.name && (
+                          <p className="text-[0.6875rem] text-steel-500">{line.product.name}</p>
+                        )}
+                      </td>
+                      <td className="px-3 py-2.5 text-right tabular-nums text-steel-200">
+                        {formatNumber(line.quantity)}
+                        {line.moq ? (
+                          <p className="text-[0.6875rem] text-steel-500">
+                            min {formatNumber(line.moq)}
+                          </p>
+                        ) : null}
+                      </td>
+                      <td className="px-3 py-2.5 text-right tabular-nums text-steel-100">
+                        {rupees(line.unitPrice)}
+                      </td>
+                      <td className="px-3 py-2.5 text-right tabular-nums text-steel-100">
+                        {formatCurrency(line.quantity * line.unitPrice)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <div className="card px-4 py-3">
-                <p className="eyebrow">Unit price</p>
-                <p className="stat-value mt-1 text-steel-50">{rupees(quotation.unitPrice)}</p>
+                <p className="eyebrow">Net value</p>
+                <p className="stat-value mt-1 text-steel-50">{formatCurrency(quotation.netValue)}</p>
                 <p className="mt-0.5 text-[0.6875rem] text-steel-500">
-                  Rev {quotation.revision ?? 0}
+                  {quotation.lines?.length ?? 0}{' '}
+                  {quotation.lines?.length === 1 ? 'model' : 'models'} · Rev {quotation.revision ?? 0}
                 </p>
-              </div>
-              <div className="card px-4 py-3">
-                <p className="eyebrow">Quantity</p>
-                <p className="stat-value mt-1 text-steel-50">
-                  {formatNumber(quotation.quantity)}
-                </p>
-                {quotation.moq ? (
-                  <p className="mt-0.5 text-[0.6875rem] text-steel-500">
-                    Minimum {formatNumber(quotation.moq)}
-                  </p>
-                ) : null}
               </div>
               <div className="card px-4 py-3">
                 <p className="eyebrow">Order value</p>
@@ -170,7 +236,6 @@ export default function QuotationDetail() {
             </div>
 
             <dl className="mt-4 space-y-3 border-t border-line/[0.06] pt-4 text-sm">
-              <Fact label="Net value" value={formatCurrency(quotation.lineValue)} />
               <Fact label="Payment terms" value={quotation.paymentTerms} />
               <Fact label="Delivery" value={quotation.deliveryTerms} />
               <Fact
@@ -206,7 +271,7 @@ export default function QuotationDetail() {
                   {given.toFixed(1)}%
                 </span>
                 <span className="text-xs text-steel-400">
-                  {rupees(opening)} → {rupees(quotation.unitPrice)}
+                  {formatCurrency(opening)} → {formatCurrency(quotation.netValue)}
                 </span>
               </div>
             )}
@@ -230,13 +295,20 @@ export default function QuotationDetail() {
                           Rev {revision.revision}
                         </span>
                         <span className="text-base font-bold tabular-nums text-steel-50">
-                          {rupees(revision.unitPrice)}
+                          {revision.lines?.length === 1
+                            ? rupees(revision.lines[0].unitPrice)
+                            : formatCurrency(
+                                (revision.lines || []).reduce(
+                                  (sum, line) => sum + line.quantity * line.unitPrice,
+                                  0
+                                )
+                              )}
                         </span>
-                        {revision.quantity ? (
-                          <span className="text-xs text-steel-400">
-                            {formatNumber(revision.quantity)} pcs
-                          </span>
-                        ) : null}
+                        <span className="text-xs text-steel-400">
+                          {revision.lines?.length === 1
+                            ? `${formatNumber(revision.lines[0].quantity)} pcs`
+                            : `${revision.lines?.length ?? 0} models`}
+                        </span>
                         {live && (
                           <span className="text-[0.625rem] font-bold uppercase tracking-wide text-flame-400">
                             Live
@@ -252,11 +324,19 @@ export default function QuotationDetail() {
 
                     {changes.length > 0 && (
                       <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
-                        {changes.map((change) => (
-                          <li key={change.label} className="text-xs text-steel-400">
+                        {/* A price entry already reads "MODEL old → new", so it has no separate
+                            from/to to strike through. */}
+                        {changes.map((change, at) => (
+                          <li key={`${change.label}-${at}`} className="text-xs text-steel-400">
                             <span className="text-steel-500">{change.label}</span>{' '}
-                            <span className="line-through opacity-60">{change.from}</span>{' '}
-                            <span className="text-steel-200">→ {change.to}</span>
+                            {change.from === null ? (
+                              <span className="text-steel-200">{change.to}</span>
+                            ) : (
+                              <>
+                                <span className="line-through opacity-60">{change.from}</span>{' '}
+                                <span className="text-steel-200">→ {change.to}</span>
+                              </>
+                            )}
                           </li>
                         ))}
                       </ul>
@@ -315,50 +395,52 @@ export default function QuotationDetail() {
                   )
                 }
               />
-              <Fact
-                label="Costing"
-                value={
-                  quotation.pricing ? (
-                    <Link
-                      to={`/pricings/${quotation.pricing._id}`}
-                      className="text-steel-100 hover:text-accent"
-                    >
-                      {quotation.pricing.number}
-                    </Link>
-                  ) : (
-                    'Quoted from a known price'
-                  )
-                }
-              />
               {/*
-                The price the costing sanctioned, beside the one being quoted. §8 lets marketing
-                see this figure — it is the price they may quote — and the gap between the two
-                is the discount somebody gave, which is otherwise invisible on the quotation.
+                One costing per line, so this is a list. The sanctioned price sits beside the one
+                actually quoted: §8 lets marketing see that figure — it is the price they may
+                quote — and the gap between the two is the discount somebody gave, which is
+                otherwise invisible on the document.
               */}
               <Fact
-                label="Approved price"
+                label="Costings behind it"
                 value={
-                  quotation.pricing?.approvedSellingPrice &&
-                  rupees(quotation.pricing.approvedSellingPrice)
-                }
-              />
-              <Fact
-                label="Model"
-                value={
-                  quotation.product
-                    ? `${quotation.product.modelCode} — ${quotation.product.name}`
-                    : quotation.modelNumber
+                  costed.length ? (
+                    <ul className="space-y-1">
+                      {costed.map((line) => (
+                        <li key={line._id} className="flex items-baseline justify-between gap-3">
+                          <Link
+                            to={`/pricings/${line.pricing._id}`}
+                            className="text-steel-100 hover:text-accent"
+                          >
+                            {line.modelNumber || line.pricing.number}
+                          </Link>
+                          <span className="text-xs tabular-nums text-steel-400">
+                            {rupees(line.unitPrice)}
+                            {line.pricing.approvedSellingPrice &&
+                            line.unitPrice < line.pricing.approvedSellingPrice ? (
+                              <span className="ml-1 text-warn-400">
+                                under {rupees(line.pricing.approvedSellingPrice)}
+                              </span>
+                            ) : null}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    'Quoted from known prices'
+                  )
                 }
               />
             </dl>
 
-            {quotation.pricing?.approvedSellingPrice &&
-              quotation.unitPrice < quotation.pricing.approvedSellingPrice && (
-                <p className="mt-3 text-xs text-warn-400">
-                  This is being quoted under the approved price of{' '}
-                  {rupees(quotation.pricing.approvedSellingPrice)}.
-                </p>
-              )}
+            {/* Said once for the document, counting the lines rather than naming one price. */}
+            {under.length > 0 && (
+              <p className="mt-3 text-xs text-warn-400">
+                {under.length === 1
+                  ? `${under[0].modelNumber || 'One line'} is being quoted under its approved price.`
+                  : `${under.length} lines are being quoted under their approved prices.`}
+              </p>
+            )}
           </Section>
 
           <Section title={`History (${quotation.statusHistory?.length || 0})`}>

@@ -466,9 +466,15 @@ function EnquiryCommercials({ enquiryId, canSeePricing, canSeeQuotes }) {
                       {row.number}
                     </Link>
                     <p className="text-xs text-steel-400">
-                      Rev {row.revision ?? 0} · {formatNumber(row.quantity)} pcs ·{' '}
-                      {rupees(row.unitPrice)}
-                      {row.moq ? ` · MOQ ${formatNumber(row.moq)}` : ''}
+                      {/* One price where there is one, a count where there are several. */}
+                      Rev {row.revision ?? 0} ·{' '}
+                      {row.lines?.length === 1
+                        ? `${formatNumber(row.lines[0].quantity)} pcs · ${rupees(row.lines[0].unitPrice)}${
+                            row.lines[0].moq ? ` · MOQ ${formatNumber(row.lines[0].moq)}` : ''
+                          }`
+                        : `${row.lines?.length ?? 0} models · ${rupees(
+                            (row.lines || []).reduce((sum, line) => sum + line.quantity * line.unitPrice, 0)
+                          )}`}
                       {row.validUntil ? ` · valid to ${formatDate(row.validUntil)}` : ''}
                     </p>
                   </div>

@@ -58,17 +58,30 @@ const inDays = (days) => {
  * that let you type a change it would then reject is worse than no form.
  *
  * Two fields behave differently when editing. The customer is fixed, because a quote to
- * somebody else is a different offer rather than an edit of this one. And the price is shown
- * but not editable: it is what Rev 0 recorded, and moving it is what `Revise` is for.
+ * somebody else is a different offer rather than an edit of this one. And prices are shown
+ * but not editable: they are what Rev 0 recorded, and moving one is what `Revise` is for.
+ *
+ * The lines are a list because a quotation is: the plant's own `NP/26-27/1` puts eight models
+ * under one number, one validity and one set of payment terms. Everything below the lines
+ * belongs to the document; everything in a row belongs to that model.
  */
 function QuotationForm({ quotation, onClose, onSaved }) {
   const editing = Boolean(quotation);
   const [customer, setCustomer] = useState(quotation?.customer?._id || quotation?.customer);
+  const [lines, setLines] = useState(
+    quotation?.lines?.length
+      ? quotation.lines.map((line) => ({
+          _id: line._id,
+          product: line.product?._id ?? line.product ?? '',
+          pricing: line.pricing?._id ?? line.pricing ?? '',
+          modelNumber: line.modelNumber ?? '',
+          quantity: line.quantity ?? '',
+          moq: line.moq ?? '',
+          unitPrice: line.unitPrice ?? '',
+        }))
+      : [{ product: '', pricing: '', modelNumber: '', quantity: '', moq: '', unitPrice: '' }]
+  );
   const [values, setValues] = useState(quotation ? {
-    modelNumber: quotation.modelNumber ?? '',
-    quantity: quotation.quantity ?? '',
-    moq: quotation.moq ?? '',
-    unitPrice: quotation.unitPrice ?? '',
     gstPercent: quotation.gstPercent ?? 18,
     isExport: quotation.isExport ?? false,
     paymentTerms: quotation.paymentTerms ?? '',
@@ -78,10 +91,6 @@ function QuotationForm({ quotation, onClose, onSaved }) {
     validUntil: quotation.validUntil ? quotation.validUntil.slice(0, 10) : '',
     remarks: quotation.remarks ?? '',
   } : {
-    modelNumber: '',
-    quantity: '',
-    moq: '',
-    unitPrice: '',
     gstPercent: 18,
     isExport: false,
     paymentTerms: '30 days from invoice',
@@ -97,6 +106,21 @@ function QuotationForm({ quotation, onClose, onSaved }) {
   const set = (key) => (event) =>
     setValues({ ...values, [key]: event.target.type === 'checkbox' ? event.target.checked : event.target.value });
 
+  const setLine = (index, key) => (event) =>
+    setLines(lines.map((line, at) => (at === index ? { ...line, [key]: event.target.value } : line)));
+
+  const addLine = () =>
+    setLines([...lines, { product: '', pricing: '', modelNumber: '', quantity: '', moq: '', unitPrice: '' }]);
+
+  /* Never below one: the server refuses an empty quotation, and it is right to. */
+  const removeLine = (index) =>
+    setLines(lines.length === 1 ? lines : lines.filter((unused, at) => at !== index));
+
+  const netValue = lines.reduce(
+    (sum, line) => sum + (Number(line.quantity) || 0) * (Number(line.unitPrice) || 0),
+    0
+  );
+
   const submit = async (event) => {
     event.preventDefault();
     if (!customer) {
@@ -109,19 +133,23 @@ function QuotationForm({ quotation, onClose, onSaved }) {
     try {
       const payload = {
         ...values,
-        quantity: Number(values.quantity),
-        moq: values.moq === '' ? undefined : Number(values.moq),
         gstPercent: values.isExport ? undefined : Number(values.gstPercent),
         validUntil: values.validUntil || undefined,
+        /*
+         * Sent whole. A line's costing and its id travel with it so the server can keep the
+         * §9 floor attached to the model it belongs to — a revision that dropped `pricing`
+         * would silently detach the costing and stop the floor check applying.
+         */
+        lines: lines.map((line) => ({
+          ...(line._id ? { _id: line._id } : {}),
+          ...(line.product ? { product: line.product } : {}),
+          ...(line.pricing ? { pricing: line.pricing } : {}),
+          modelNumber: line.modelNumber || undefined,
+          quantity: Number(line.quantity),
+          moq: line.moq === '' ? undefined : Number(line.moq),
+          unitPrice: Number(line.unitPrice),
+        })),
       };
-
-      /*
-       * The price is left out of an edit entirely rather than sent unchanged. The server
-       * refuses a *changed* price here — it belongs to a revision — and sending the current
-       * one back would work only until a rounding difference made it look changed.
-       */
-      if (editing) delete payload.unitPrice;
-      else payload.unitPrice = Number(values.unitPrice);
 
       onSaved(
         editing
@@ -148,33 +176,97 @@ function QuotationForm({ quotation, onClose, onSaved }) {
         />
       </Field>
 
+      {/*
+        The lines. Each row is a model the buyer is being offered; the terms below belong to the
+        document. Prices are locked once the quote exists — the whole of §10 is that the old one
+        is kept, so a change goes through Revise.
+      */}
+      <div>
+        <div className="mb-2 flex items-center justify-between">
+          <p className="eyebrow">Models on this quotation</p>
+          <button type="button" className="row-action" onClick={addLine}>
+            + Add a model
+          </button>
+        </div>
+
+        <div className="space-y-3">
+          {lines.map((line, index) => (
+            <div key={line._id || index} className="card px-3 py-3">
+              <div className="grid gap-3 sm:grid-cols-[1.4fr_0.9fr_0.9fr_0.9fr_auto] sm:items-end">
+                <Field label={index === 0 ? 'Model' : ''}>
+                  <input
+                    className="input"
+                    placeholder="NPT-400S"
+                    value={line.modelNumber}
+                    onChange={setLine(index, 'modelNumber')}
+                  />
+                </Field>
+                <Field label={index === 0 ? 'Quantity' : ''}>
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    className="input"
+                    value={line.quantity}
+                    onChange={setLine(index, 'quantity')}
+                  />
+                </Field>
+                <Field
+                  label={index === 0 ? 'Unit price (₹)' : ''}
+                  hint={index === 0 && editing ? 'Changed through Revise [§10]' : undefined}
+                >
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    required={!editing}
+                    disabled={editing}
+                    className="input"
+                    value={line.unitPrice}
+                    onChange={setLine(index, 'unitPrice')}
+                  />
+                </Field>
+                {/* A term of the offer, and per line: a 400mm shirt hanger and a velvet suit
+                    hanger on the same document have different minimums. Blank takes the
+                    model's catalogue standard [§28]. */}
+                <Field label={index === 0 ? 'Minimum' : ''} hint={index === 0 ? "Blank uses the catalogue's" : undefined}>
+                  <input
+                    type="number"
+                    min="0"
+                    className="input"
+                    value={line.moq}
+                    onChange={setLine(index, 'moq')}
+                  />
+                </Field>
+                <button
+                  type="button"
+                  className="row-action pb-2 disabled:opacity-30"
+                  onClick={() => removeLine(index)}
+                  disabled={lines.length === 1}
+                  aria-label={`Remove ${line.modelNumber || 'this line'}`}
+                  title={lines.length === 1 ? 'A quotation needs at least one line' : 'Remove'}
+                >
+                  ×
+                </button>
+              </div>
+              {line.pricing && (
+                <p className="mt-1 text-[0.6875rem] text-steel-500">
+                  Priced off a costing — the floor still applies to this line [§9]
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* The document total, so the number the buyer will see is visible while typing. */}
+        <p className="mt-2 text-right text-xs text-steel-400">
+          Net value <span className="tabular-nums text-steel-100">{rupees(netValue)}</span>
+          {' · '}
+          {lines.length} {lines.length === 1 ? 'model' : 'models'}
+        </p>
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Model">
-          <input className="input" value={values.modelNumber} onChange={set('modelNumber')} />
-        </Field>
-        <Field label="Quantity">
-          <input type="number" min="1" required className="input" value={values.quantity} onChange={set('quantity')} />
-        </Field>
-        <Field
-          label="Unit price (₹)"
-          hint={editing ? 'Changed through Revise, so the old price is kept [§10]' : 'Rev 0 — every later price keeps this one'}
-        >
-          <input
-            type="number"
-            step="0.01"
-            min="0"
-            required={!editing}
-            disabled={editing}
-            className="input"
-            value={values.unitPrice}
-            onChange={set('unitPrice')}
-          />
-        </Field>
-        {/* A term of the offer: the buyer reads it beside the price, and it prints on the
-            document. Blank takes the model's catalogue standard [§28]. */}
-        <Field label="Minimum order quantity" hint="Blank uses the model's catalogue minimum">
-          <input type="number" min="0" className="input" value={values.moq} onChange={set('moq')} />
-        </Field>
         <Field label="Valid until">
           <input type="date" className="input" value={values.validUntil} onChange={set('validUntil')} />
         </Field>
@@ -227,12 +319,24 @@ function QuotationForm({ quotation, onClose, onSaved }) {
   );
 }
 
-/** A new price on the same quote. The old one is already in the list below it. */
+/**
+ * New prices on the same quote. The old ones are already in the list below it.
+ *
+ * Every line is offered, not just one, because a revision on a real quotation is routinely a
+ * discount on two models out of eight — and the whole set is what gets recorded, so the next
+ * round is argued from the document rather than from memory. Lines left alone keep their price.
+ */
 function RevisionForm({ quotation, onClose, onSaved }) {
-  const [unitPrice, setPrice] = useState(quotation.unitPrice);
+  const [prices, setPrices] = useState(
+    Object.fromEntries((quotation.lines || []).map((line) => [line._id, String(line.unitPrice)]))
+  );
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+
+  const moved = (quotation.lines || []).filter(
+    (line) => Number(prices[line._id]) !== line.unitPrice
+  );
 
   const submit = async (event) => {
     event.preventDefault();
@@ -242,7 +346,19 @@ function RevisionForm({ quotation, onClose, onSaved }) {
       onSaved(
         await quotationsApi.revise({
           id: quotation._id,
-          unitPrice: Number(unitPrice),
+          /*
+           * The whole set, with each line's own id and costing carried across — that is what
+           * keeps §9's floor attached to the model it belongs to on the next send.
+           */
+          lines: (quotation.lines || []).map((line) => ({
+            _id: line._id,
+            ...(line.product ? { product: line.product._id ?? line.product } : {}),
+            ...(line.pricing ? { pricing: line.pricing._id ?? line.pricing } : {}),
+            modelNumber: line.modelNumber || undefined,
+            quantity: line.quantity,
+            moq: line.moq,
+            unitPrice: Number(prices[line._id]),
+          })),
           note: note || undefined,
         })
       );
@@ -267,24 +383,57 @@ function RevisionForm({ quotation, onClose, onSaved }) {
                 Rev {rev.revision}
                 {rev.sentAt ? <span className="ml-1.5 text-[0.625rem] text-steel-500">sent</span> : null}
               </span>
-              <span className="tabular-nums text-steel-100">{rupees(rev.unitPrice)}</span>
+              <span className="tabular-nums text-steel-100">
+                {rev.lines?.length === 1
+                  ? rupees(rev.lines[0].unitPrice)
+                  : `${rev.lines?.length ?? 0} models · ${rupees(
+                      (rev.lines || []).reduce((sum, line) => sum + line.quantity * line.unitPrice, 0)
+                    )}`}
+              </span>
             </li>
           ))}
         </ul>
       </div>
 
-      <Field label={`New price — this becomes Rev ${(quotation.revision ?? 0) + 1}`}>
-        <input
-          type="number"
-          step="0.01"
-          min="0"
-          required
-          autoFocus
-          className="input"
-          value={unitPrice}
-          onChange={(event) => setPrice(event.target.value)}
-        />
-      </Field>
+      <div>
+        <p className="eyebrow mb-2">
+          New prices — this becomes Rev {(quotation.revision ?? 0) + 1}
+        </p>
+        <div className="space-y-2">
+          {(quotation.lines || []).map((line, index) => {
+            const changed = Number(prices[line._id]) !== line.unitPrice;
+            return (
+              <div key={line._id} className="flex items-center gap-3">
+                <span className="w-40 shrink-0 truncate text-sm text-steel-200">
+                  {line.modelNumber || `Line ${index + 1}`}
+                </span>
+                <span className="w-20 shrink-0 text-right text-xs tabular-nums text-steel-500">
+                  {rupees(line.unitPrice)}
+                </span>
+                <span className="text-steel-600">→</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  required
+                  autoFocus={index === 0}
+                  className={`input flex-1 ${changed ? 'ring-1 ring-flame-500/40' : ''}`}
+                  value={prices[line._id] ?? ''}
+                  onChange={(event) =>
+                    setPrices({ ...prices, [line._id]: event.target.value })
+                  }
+                />
+              </div>
+            );
+          })}
+        </div>
+        {/* Said before saving: a revision that revises nothing is refused by the server. */}
+        <p className="mt-2 text-[0.6875rem] text-steel-500">
+          {moved.length
+            ? `${moved.length} of ${quotation.lines.length} prices changed.`
+            : 'Nothing has changed yet — a revision has to revise something.'}
+        </p>
+      </div>
 
       <Field label="Why" hint="Recorded against the revision in the history">
         <input className="input" placeholder="Buyer pushed back on the landed cost" value={note} onChange={(event) => setNote(event.target.value)} />
@@ -294,7 +443,7 @@ function RevisionForm({ quotation, onClose, onSaved }) {
 
       <div className="flex justify-end gap-2">
         <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
-        <button type="submit" className="btn-primary" disabled={busy}>
+        <button type="submit" className="btn-primary" disabled={busy || !moved.length}>
           {busy ? 'Saving…' : 'Add the revision'}
         </button>
       </div>
@@ -324,7 +473,11 @@ function ResponseForm({ quotation, onClose, onSaved }) {
   return (
     <div className="space-y-4">
       <p className="text-sm text-steel-300">
-        {quotation.number} rev {quotation.revision} went out at {rupees(quotation.unitPrice)}.
+        {quotation.number} rev {quotation.revision} went out
+        {quotation.lines?.length === 1
+          ? ` at ${rupees(quotation.lines[0].unitPrice)}`
+          : ` — ${quotation.lines?.length ?? 0} models, ${rupees(quotation.netValue)} net`}
+        .
       </p>
 
       <Field label="What did they say" hint="Required when refused — it is what the next quote is priced against">
@@ -481,17 +634,31 @@ export default function Quotations() {
                         </p>
                       </td>
                       <td className="px-3 py-3.5 text-steel-200">{row.customer?.name || '—'}</td>
-                      <td className="px-3 py-3.5 text-steel-300">{row.modelNumber || '—'}</td>
+                      {/*
+                        One model named, or a count. Naming the first of eight and leaving the
+                        rest implied is how a row comes to describe a document it does not
+                        describe — the reader has no way to tell the two apart.
+                      */}
+                      <td className="px-3 py-3.5 text-steel-300">
+                        {row.lines?.length === 1
+                          ? row.lines[0].modelNumber || '—'
+                          : `${row.lines?.length ?? 0} models`}
+                        {row.lines?.length > 1 && (
+                          <p className="truncate text-[0.6875rem] text-steel-500">
+                            {row.lines.map((line) => line.modelNumber).filter(Boolean).join(', ')}
+                          </p>
+                        )}
+                      </td>
                       <td className="whitespace-nowrap px-3 py-3.5 text-right tabular-nums text-steel-200">
-                        {formatNumber(row.quantity)}
-                        {row.moq ? (
+                        {row.lines?.length === 1 ? formatNumber(row.lines[0].quantity) : '—'}
+                        {row.lines?.length === 1 && row.lines[0].moq ? (
                           <p className="text-[0.6875rem] text-steel-500">
-                            min {formatNumber(row.moq)}
+                            min {formatNumber(row.lines[0].moq)}
                           </p>
                         ) : null}
                       </td>
                       <td className="whitespace-nowrap px-3 py-3.5 text-right tabular-nums text-steel-100">
-                        {rupees(row.unitPrice)}
+                        {row.lines?.length === 1 ? rupees(row.lines[0].unitPrice) : '—'}
                       </td>
                       <td className="whitespace-nowrap px-3 py-3.5 text-right tabular-nums text-steel-100">
                         {formatCompactCurrency(row.totalValue)}

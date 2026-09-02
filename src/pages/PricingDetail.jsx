@@ -355,12 +355,33 @@ export default function PricingDetail() {
                         {quote.number}
                       </Link>
                       <p className="text-xs text-steel-400">
-                        Rev {quote.revision ?? 0} · {formatNumber(quote.quantity)} pcs ·{' '}
-                        {rupees(quote.unitPrice)}
-                        {quote.moq ? ` · min ${formatNumber(quote.moq)}` : ''}
+                        {/*
+                          The line off *this* costing, not the document total. A quotation can
+                          carry eight models and only one of them was priced here — showing the
+                          document's value against this sheet would read as a costing that
+                          produced eight times the business it did.
+                        */}
+                        Rev {quote.revision ?? 0} ·{' '}
+                        {(() => {
+                          const line =
+                            (quote.lines || []).find(
+                              (row) => String(row.pricing) === String(pricing._id)
+                            ) || quote.lines?.[0];
+                          if (!line) return '—';
+                          return `${formatNumber(line.quantity)} pcs · ${rupees(line.unitPrice)}${
+                            line.moq ? ` · min ${formatNumber(line.moq)}` : ''
+                          }`;
+                        })()}
+                        {quote.lines?.length > 1 ? ` · with ${quote.lines.length - 1} other model(s)` : ''}
                         {/* Worth surfacing: a quote below the sheet's own approved price is a
                             discount somebody gave, and it is invisible on the quotation. */}
-                        {asking && quote.unitPrice < asking ? ' · under the approved price' : ''}
+                        {asking &&
+                        (quote.lines || []).some(
+                          (row) =>
+                            String(row.pricing) === String(pricing._id) && row.unitPrice < asking
+                        )
+                          ? ' · under the approved price'
+                          : ''}
                       </p>
                     </div>
                     <Badge status={quote.status}>{humanise(quote.status)}</Badge>
