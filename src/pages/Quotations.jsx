@@ -9,7 +9,7 @@ import {
 import StagePipeline from '../components/StagePipeline.jsx';
 import QuotationPdf from '../components/QuotationPdf.jsx';
 import { CustomerSelect } from '../components/pickers.jsx';
-import { formatCompactCurrency, formatDate, formatNumber, humanise } from '../utils/format.js';
+import { formatCompactCurrency, formatCurrency, formatDate, formatNumber, humanise } from '../utils/format.js';
 
 /**
  * Quotations [BLUEPRINT §10].
@@ -260,7 +260,7 @@ function QuotationForm({ quotation, onClose, onSaved }) {
 
         {/* The document total, so the number the buyer will see is visible while typing. */}
         <p className="mt-2 text-right text-xs text-steel-400">
-          Net value <span className="tabular-nums text-steel-100">{rupees(netValue)}</span>
+          Net value <span className="tabular-nums text-steel-100">{formatCurrency(netValue)}</span>
           {' · '}
           {lines.length} {lines.length === 1 ? 'model' : 'models'}
         </p>
@@ -386,7 +386,7 @@ function RevisionForm({ quotation, onClose, onSaved }) {
               <span className="tabular-nums text-steel-100">
                 {rev.lines?.length === 1
                   ? rupees(rev.lines[0].unitPrice)
-                  : `${rev.lines?.length ?? 0} models · ${rupees(
+                  : `${rev.lines?.length ?? 0} models · ${formatCurrency(
                       (rev.lines || []).reduce((sum, line) => sum + line.quantity * line.unitPrice, 0)
                     )}`}
               </span>
@@ -476,7 +476,7 @@ function ResponseForm({ quotation, onClose, onSaved }) {
         {quotation.number} rev {quotation.revision} went out
         {quotation.lines?.length === 1
           ? ` at ${rupees(quotation.lines[0].unitPrice)}`
-          : ` — ${quotation.lines?.length ?? 0} models, ${rupees(quotation.netValue)} net`}
+          : ` — ${quotation.lines?.length ?? 0} models, ${formatCurrency(quotation.netValue)} net`}
         .
       </p>
 

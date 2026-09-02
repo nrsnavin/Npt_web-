@@ -472,7 +472,7 @@ function EnquiryCommercials({ enquiryId, canSeePricing, canSeeQuotes }) {
                         ? `${formatNumber(row.lines[0].quantity)} pcs · ${rupees(row.lines[0].unitPrice)}${
                             row.lines[0].moq ? ` · MOQ ${formatNumber(row.lines[0].moq)}` : ''
                           }`
-                        : `${row.lines?.length ?? 0} models · ${rupees(
+                        : `${row.lines?.length ?? 0} models · ${formatCurrency(
                             (row.lines || []).reduce((sum, line) => sum + line.quantity * line.unitPrice, 0)
                           )}`}
                       {row.validUntil ? ` · valid to ${formatDate(row.validUntil)}` : ''}
