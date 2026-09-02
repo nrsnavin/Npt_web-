@@ -39,6 +39,11 @@ function MouldForm({ mould, onClose, onSaved }) {
       ? {
           ...mould,
           products: (mould.products || []).map((product) => product._id ?? product),
+          jobWorkCost: mould.jobWorkCost ?? '',
+          hookCost: mould.hookCost ?? '',
+          clipsCost: mould.clipsCost ?? '',
+          printingCost: mould.printingCost ?? '',
+          packingCost: mould.packingCost ?? '',
           machineCode: mould.machine?.code ?? '',
           machineTonnage: mould.machine?.tonnage ?? '',
           machineHourRate: mould.machine?.hourRate ?? '',
@@ -48,6 +53,8 @@ function MouldForm({ mould, onClose, onSaved }) {
       : {
           material: 'pp',
           status: 'active',
+          /* A single-cavity tool is the commonest, and the safest thing to assume. */
+          cavities: 1,
           ownedBy: 'company',
           efficiencyPercent: 100,
           regrindRecoveryPercent: 0,
@@ -76,6 +83,12 @@ function MouldForm({ mould, onClose, onSaved }) {
     const efficiency = Number(watched.efficiencyPercent) || 100;
     const recovered = (Number(watched.regrindRecoveryPercent) || 0) / 100;
     const rate = Number(watched.machineHourRate) || 0;
+    const conversion =
+      (Number(watched.jobWorkCost) || 0) +
+      (Number(watched.hookCost) || 0) +
+      (Number(watched.clipsCost) || 0) +
+      (Number(watched.printingCost) || 0) +
+      (Number(watched.packingCost) || 0);
 
     const shot = running ? running * part + runner : 0;
     const runnerShare = running ? runner / running : 0;
@@ -92,6 +105,7 @@ function MouldForm({ mould, onClose, onSaved }) {
       perHour,
       hoursPer1000: perHour ? 1000 / perHour : 0,
       costPerPiece: rate && perHour ? rate / perHour : 0,
+      conversion,
       /* The number the whole register exists to make visible. */
       overPart: part ? ((consumption - part) / part) * 100 : 0,
     };
@@ -111,6 +125,11 @@ function MouldForm({ mould, onClose, onSaved }) {
       regrindRecoveryPercent: number(values.regrindRecoveryPercent),
       cycleTimeSeconds: number(values.cycleTimeSeconds),
       efficiencyPercent: number(values.efficiencyPercent),
+      jobWorkCost: number(values.jobWorkCost),
+      hookCost: number(values.hookCost),
+      clipsCost: number(values.clipsCost),
+      printingCost: number(values.printingCost),
+      packingCost: number(values.packingCost),
       machine: {
         code: values.machineCode || undefined,
         tonnage: number(values.machineTonnage),
@@ -227,6 +246,38 @@ function MouldForm({ mould, onClose, onSaved }) {
             </select>
           </Field>
         </div>
+      </div>
+
+      {/* --------------------- What the part costs to finish --------------------- */}
+
+      <div>
+        <p className="eyebrow mb-2">Cost per piece, beyond the resin</p>
+        <p className="mb-2 text-[0.6875rem] text-steel-500">
+          Facts about this tool and the part it makes, so a costing that names this mould starts
+          from them — and can still change any of them for a particular job.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-5">
+          <Field label="Job work">
+            <input type="number" step="0.01" min="0" className="input" {...register('jobWorkCost')} />
+          </Field>
+          <Field label="Hook">
+            <input type="number" step="0.01" min="0" className="input" {...register('hookCost')} />
+          </Field>
+          <Field label="Clips">
+            <input type="number" step="0.01" min="0" className="input" {...register('clipsCost')} />
+          </Field>
+          <Field label="Print">
+            <input type="number" step="0.01" min="0" className="input" {...register('printingCost')} />
+          </Field>
+          <Field label="Packing">
+            <input type="number" step="0.01" min="0" className="input" {...register('packingCost')} />
+          </Field>
+        </div>
+        <p className="mt-2 text-right text-xs text-steel-400">
+          Conversion{' '}
+          <span className="tabular-nums text-steel-100">{formatCurrency(derived.conversion)}</span>{' '}
+          per piece
+        </p>
       </div>
 
       {/* ----------------------------- What follows ----------------------------- */}

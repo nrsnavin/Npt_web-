@@ -163,6 +163,22 @@ export const MATERIALS = [
   { value: 'acrylic', label: 'Acrylic' },
 ];
 
+/**
+ * The polymer families the plant buys.
+ *
+ * Separate from `MATERIALS` above, which describes a finished hanger — that list carries wood,
+ * metal and velvet, none of which anybody buys by the kilo and runs through a barrel.
+ */
+export const MATERIAL_TYPES = [
+  { value: 'pp', label: 'PP' },
+  { value: 'hips', label: 'HIPS' },
+  { value: 'ld', label: 'LD' },
+  { value: 'abs', label: 'ABS' },
+  { value: 'ps', label: 'PS' },
+  { value: 'recycled_pp', label: 'Recycled PP' },
+  { value: 'other', label: 'Other' },
+];
+
 /** Where a tool is in its life. A retired mould stays on the register; it stops running. */
 export const MOULD_STATUSES = [
   { value: 'development', label: 'In development' },

@@ -63,6 +63,27 @@ export const moulds = {
   get: (id) => api.get(`/moulds/${id}`).then(unwrap),
   create: (payload) => api.post('/moulds', payload).then(unwrap),
   update: ({ id, ...payload }) => api.patch(`/moulds/${id}`, payload).then(unwrap),
+  /** The part photo. Multipart, so it goes as a form rather than JSON. */
+  setPhoto: (id, file) => {
+    const form = new FormData();
+    form.append('photo', file);
+    return api.put(`/moulds/${id}/photo`, form).then(unwrap);
+  },
+};
+
+/**
+ * The material register — what the plant buys, and the grammage basis a costing converts on.
+ *
+ * `pricings` answers the question a rate change raises: which sheets were built on the old
+ * number. A costing deliberately keeps the rate it was built on, so nothing re-prices itself,
+ * which means somebody has to decide what to re-cost.
+ */
+export const materials = {
+  list: (params) => api.get('/materials', { params }).then(listed),
+  get: (id) => api.get(`/materials/${id}`).then(unwrap),
+  create: (payload) => api.post('/materials', payload).then(unwrap),
+  update: ({ id, ...payload }) => api.patch(`/materials/${id}`, payload).then(unwrap),
+  pricings: (id) => api.get(`/materials/${id}/pricings`),
 };
 
 export const customers = {
@@ -362,6 +383,7 @@ export const downloads = {
   enquiries: (params) => save('/enquiries/export', params, 'enquiries.csv'),
   products: (params) => save('/products/export', params, 'products.csv'),
   moulds: (params) => save('/moulds/export', params, 'moulds.csv'),
+  materials: (params) => save('/materials/export', params, 'materials.csv'),
 };
 
 export const auth = {

@@ -1,6 +1,7 @@
-import { useState } from 'react';
-import { pricings as pricingsApi } from '../api/endpoints.js';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { materials as materialsApi, moulds as mouldsApi, pricings as pricingsApi } from '../api/endpoints.js';
 import { Field, Notice } from './ui.jsx';
+import Combobox from './Combobox.jsx';
 
 /**
  * The costing sheet, shared by the list and the costing's own page.
@@ -28,6 +29,8 @@ export default function CostingSheetForm({ pricing, onClose, onSaved }) {
     packingCost: pricing.cost?.packingCost ?? '',
     otherCost: pricing.cost?.otherCost ?? '',
   });
+  const [mould, setMould] = useState(pricing.mould?._id ?? pricing.mould ?? '');
+  const [materialRef, setMaterialRef] = useState(pricing.materialRef?._id ?? pricing.materialRef ?? '');
   const [markupPercent, setMarkup] = useState(pricing.markupPercent ?? 10);
   const [printing, setPrinting] = useState(pricing.printing ?? '');
   const [procurement, setProcurement] = useState(pricing.procurement ?? 'manufacture');
@@ -38,6 +41,69 @@ export default function CostingSheetForm({ pricing, onClose, onSaved }) {
   const [error, setError] = useState(null);
 
   const number = (value) => (value === '' || value === null ? undefined : Number(value));
+
+  /*
+   * Refilling from the two registers, on the same rule the server applies.
+   *
+   * The grammage is the part worth doing here rather than only on save: a cavity is a fixed
+   * volume, so the same tool throws a heavier part in a denser resin, and somebody who picks
+   * HIPS and watches the weight stay at its PP figure will reasonably assume it has been
+   * handled. It has, on save — but the sheet would be showing them a total that is 18% light in
+   * the meantime, which is exactly the number they are about to make a decision on.
+   *
+   * Skipped on the first render, so opening an existing sheet does not quietly overwrite the
+   * figures it was saved with. Only a *change* of tool or resin refills.
+   */
+  const settled = useRef(false);
+  useEffect(() => {
+    if (!settled.current) {
+      settled.current = true;
+      return;
+    }
+    if (!mould && !materialRef) return;
+
+    let live = true;
+    Promise.all([
+      mould ? mouldsApi.get(mould) : null,
+      materialRef ? materialsApi.get(materialRef) : null,
+    ])
+      .then(([tool, resin]) => {
+        if (!live) return;
+        setCost((current) => ({
+          ...current,
+          ...(tool
+            ? {
+                gramWeight:
+                  Math.round(
+                    tool.consumptionPerPieceGrams *
+                      (1 + (resin?.grammageFactorPercent || 0) / 100) *
+                      1000
+                  ) / 1000,
+                jobWorkCost: tool.jobWorkCost ?? current.jobWorkCost,
+                hookCost: tool.hookCost ?? current.hookCost,
+                metalClipsCost: tool.clipsCost ?? current.metalClipsCost,
+                printingCost: tool.printingCost ?? current.printingCost,
+                packingCost: tool.packingCost ?? current.packingCost,
+              }
+            : {}),
+          ...(resin ? { rawMaterialRate: resin.ratePerKg } : {}),
+        }));
+      })
+      .catch(() => {});
+
+    return () => {
+      live = false;
+    };
+  }, [mould, materialRef]);
+
+  const loadMoulds = useCallback(
+    (term) => mouldsApi.list({ search: term || undefined, isActive: true, limit: 20 }),
+    []
+  );
+  const loadMaterials = useCallback(
+    (term) => materialsApi.list({ search: term || undefined, isActive: true, limit: 20 }),
+    []
+  );
 
   // The same arithmetic the server does, so the sheet adds up as it is typed rather than after
   // it is saved. The server's answer is still the one that is stored.
@@ -101,8 +167,46 @@ export default function CostingSheetForm({ pricing, onClose, onSaved }) {
 
   return (
     <form onSubmit={submit} className="space-y-5">
+      {/*
+        The two registers first, because they fill most of the sheet below. Picking a tool sets
+        the grammage to what a piece actually consumes — part plus its share of the runner —
+        and picking a resin converts that onto its own basis and brings its rate. Everything
+        they fill stays editable underneath.
+      */}
       <div className="grid gap-4 sm:grid-cols-2">
-        {line('gramWeight', 'Gram weight', 'Grams in one piece')}
+        <Field label="Mould" hint="Fills the grammage and this tool's cost lines">
+          <Combobox
+            value={mould}
+            onChange={setMould}
+            loadOptions={loadMoulds}
+            loadOne={mouldsApi.get}
+            toOption={(row) => ({ value: row._id, label: `${row.mouldCode} — ${row.name}` })}
+            placeholder="Search the register…"
+            emptyLabel="No mould — type the weight below"
+            noMatchLabel="No tool matches"
+          />
+        </Field>
+        <Field label="Material" hint="Brings its rate, and its grammage over PP">
+          <Combobox
+            value={materialRef}
+            onChange={setMaterialRef}
+            loadOptions={loadMaterials}
+            loadOne={materialsApi.get}
+            toOption={(row) => ({
+              value: row._id,
+              label: `${row.name}${row.colour ? ` · ${row.colour}` : ''} — ₹${row.ratePerKg}/kg${
+                row.grammageFactorPercent ? ` · +${row.grammageFactorPercent}%` : ''
+              }`,
+            })}
+            placeholder="Search the register…"
+            emptyLabel="No material — type the rate below"
+            noMatchLabel="No material matches"
+          />
+        </Field>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        {line('gramWeight', 'Gram weight', 'Grams a piece consumes, in this resin')}
         {line('rawMaterialRate', 'Raw material rate', '₹ per kilo, as the market quotes it')}
       </div>
 
@@ -202,7 +306,16 @@ export default function CostingSheetForm({ pricing, onClose, onSaved }) {
           <p className="stat-value mt-1 text-steel-50">
             {approved && total ? `${(((approved - total) / approved) * 100).toFixed(1)}%` : '—'}
           </p>
-          <p className="mt-0.5 text-[0.6875rem] text-steel-500">What the job earns</p>
+          {/*
+            The rupees beside the percentage. A margin is how a price is judged; the paise per
+            piece is what the plant actually banks, and on a 20,000-piece lot the difference
+            between 9% and 11% is a number somebody wants to see rather than work out.
+          */}
+          <p className="mt-0.5 text-[0.6875rem] text-steel-500">
+            {approved && total
+              ? `${rupees(approved - total)} a piece`
+              : 'What the job earns'}
+          </p>
         </div>
       </div>
 
