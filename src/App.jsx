@@ -22,6 +22,7 @@ const Integrations = lazy(() => import('./pages/Integrations.jsx'));
 const Products = lazy(() => import('./pages/Products.jsx'));
 const Moulds = lazy(() => import('./pages/Moulds.jsx'));
 const Materials = lazy(() => import('./pages/Materials.jsx'));
+const PartsRegister = lazy(() => import('./pages/PartsRegister.jsx'));
 const Customers = lazy(() => import('./pages/Customers.jsx'));
 const CustomerDetail = lazy(() => import('./pages/CustomerDetail.jsx'));
 const Leads = lazy(() => import('./pages/Leads.jsx'));
@@ -248,6 +249,21 @@ export default function App() {
               </RequireModule>
             }
           />
+          {/*
+            Three routes, one component. They are three registers to the plant and one shape to
+            the code, and the `kind` prop is the whole of the difference.
+          */}
+          {['hook', 'clip', 'print'].map((kind) => (
+            <Route
+              key={kind}
+              path={`${kind}s`}
+              element={
+                <RequireModule moduleKey="materials">
+                  <PartsRegister kind={kind} />
+                </RequireModule>
+              }
+            />
+          ))}
 
           <Route
             path="users"

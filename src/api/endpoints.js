@@ -86,6 +86,20 @@ export const materials = {
   pricings: (id) => api.get(`/materials/${id}/pricings`),
 };
 
+/**
+ * The hook, clip and print registers — three registers over one collection.
+ *
+ * `kind` is required on every list, not optional: the server refuses a request without one
+ * rather than returning all three, so a clip picker can never quietly fill with hooks.
+ */
+export const components = {
+  list: (params) => api.get('/components', { params }).then(listed),
+  get: (id) => api.get(`/components/${id}`).then(unwrap),
+  create: (payload) => api.post('/components', payload).then(unwrap),
+  update: ({ id, ...payload }) => api.patch(`/components/${id}`, payload).then(unwrap),
+  pricings: (id) => api.get(`/components/${id}/pricings`),
+};
+
 export const customers = {
   list: (params) => api.get('/customers', { params }).then(listed),
   get: (id) => api.get(`/customers/${id}`).then(unwrap),
@@ -384,6 +398,7 @@ export const downloads = {
   products: (params) => save('/products/export', params, 'products.csv'),
   moulds: (params) => save('/moulds/export', params, 'moulds.csv'),
   materials: (params) => save('/materials/export', params, 'materials.csv'),
+  components: (params) => save('/components/export', params, `${params?.kind || 'parts'}s.csv`),
 };
 
 export const auth = {

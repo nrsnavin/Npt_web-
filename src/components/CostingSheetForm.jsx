@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { materials as materialsApi, moulds as mouldsApi, pricings as pricingsApi } from '../api/endpoints.js';
+import { components as componentsApi, materials as materialsApi, moulds as mouldsApi, pricings as pricingsApi } from '../api/endpoints.js';
 import { Field, Notice } from './ui.jsx';
 import Combobox from './Combobox.jsx';
 
@@ -11,6 +11,19 @@ import Combobox from './Combobox.jsx';
  */
 const rupees = (value) =>
   value === undefined || value === null ? '—' : `₹${Number(value).toFixed(2)}`;
+
+/**
+ * A part, as it reads in a picker.
+ *
+ * The rate is in the label because the choice is usually between two hooks that differ only in
+ * price, and a list of names alone makes somebody open another screen to tell them apart. `/pc`
+ * is spelled out for the same reason it is on the register: the material picker beside this one
+ * quotes per kilo.
+ */
+const partOption = (row) => ({
+  value: row._id,
+  label: `${row.name}${row.colour ? ` · ${row.colour}` : ''} — ₹${row.ratePerPiece}/pc`,
+});
 
 /**
  * The sheet, built.
@@ -31,6 +44,9 @@ export default function CostingSheetForm({ pricing, onClose, onSaved }) {
   });
   const [mould, setMould] = useState(pricing.mould?._id ?? pricing.mould ?? '');
   const [materialRef, setMaterialRef] = useState(pricing.materialRef?._id ?? pricing.materialRef ?? '');
+  const [hookRef, setHookRef] = useState(pricing.hookRef?._id ?? pricing.hookRef ?? '');
+  const [clipRef, setClipRef] = useState(pricing.clipRef?._id ?? pricing.clipRef ?? '');
+  const [printRef, setPrintRef] = useState(pricing.printRef?._id ?? pricing.printRef ?? '');
   const [markupPercent, setMarkup] = useState(pricing.markupPercent ?? 10);
   const [printing, setPrinting] = useState(pricing.printing ?? '');
   const [procurement, setProcurement] = useState(pricing.procurement ?? 'manufacture');
@@ -60,14 +76,17 @@ export default function CostingSheetForm({ pricing, onClose, onSaved }) {
       settled.current = true;
       return;
     }
-    if (!mould && !materialRef) return;
+    if (!mould && !materialRef && !hookRef && !clipRef && !printRef) return;
 
     let live = true;
     Promise.all([
       mould ? mouldsApi.get(mould) : null,
       materialRef ? materialsApi.get(materialRef) : null,
+      hookRef ? componentsApi.get(hookRef) : null,
+      clipRef ? componentsApi.get(clipRef) : null,
+      printRef ? componentsApi.get(printRef) : null,
     ])
-      .then(([tool, resin]) => {
+      .then(([tool, resin, hook, clip, print]) => {
         if (!live) return;
         setCost((current) => ({
           ...current,
@@ -87,6 +106,14 @@ export default function CostingSheetForm({ pricing, onClose, onSaved }) {
               }
             : {}),
           ...(resin ? { rawMaterialRate: resin.ratePerKg } : {}),
+          /*
+           * After the mould, deliberately. The tool says the piece takes a hook — a fact about
+           * the part — and the register says what a hook costs this week. When both have an
+           * opinion the priced one is newer and has a name attached.
+           */
+          ...(hook ? { hookCost: hook.ratePerPiece } : {}),
+          ...(clip ? { metalClipsCost: clip.ratePerPiece } : {}),
+          ...(print ? { printingCost: print.ratePerPiece } : {}),
         }));
       })
       .catch(() => {});
@@ -94,7 +121,7 @@ export default function CostingSheetForm({ pricing, onClose, onSaved }) {
     return () => {
       live = false;
     };
-  }, [mould, materialRef]);
+  }, [mould, materialRef, hookRef, clipRef, printRef]);
 
   const loadMoulds = useCallback(
     (term) => mouldsApi.list({ search: term || undefined, isActive: true, limit: 20 }),
@@ -104,6 +131,9 @@ export default function CostingSheetForm({ pricing, onClose, onSaved }) {
     (term) => materialsApi.list({ search: term || undefined, isActive: true, limit: 20 }),
     []
   );
+  /* One loader per register, because `kind` is which register rather than a filter on one. */
+  const loadParts = (kind) => (term) =>
+    componentsApi.list({ kind, search: term || undefined, isActive: true, limit: 20 });
 
   // The same arithmetic the server does, so the sheet adds up as it is typed rather than after
   // it is saved. The server's answer is still the one that is stored.
@@ -220,6 +250,50 @@ export default function CostingSheetForm({ pricing, onClose, onSaved }) {
         <p className="mt-0.5 text-[0.6875rem] text-steel-500">
           {cost.gramWeight || 0}g × ₹{cost.rawMaterialRate || 0}/kg ÷ 1000
         </p>
+      </div>
+
+      {/*
+        The three parts registers, each above the line it fills. Left blank the line is typed by
+        hand or comes from the mould; picked, the register's rate lands on it and the sheet
+        records which part it was, so the figure can be checked six months from now.
+      */}
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Field label="Hook" hint="Fills the hook line">
+          <Combobox
+            value={hookRef}
+            onChange={setHookRef}
+            loadOptions={loadParts('hook')}
+            loadOne={componentsApi.get}
+            toOption={partOption}
+            placeholder="Search hooks…"
+            emptyLabel="No hook chosen"
+            noMatchLabel="No hook matches"
+          />
+        </Field>
+        <Field label="Clips" hint="Fills the metal clips line">
+          <Combobox
+            value={clipRef}
+            onChange={setClipRef}
+            loadOptions={loadParts('clip')}
+            loadOne={componentsApi.get}
+            toOption={partOption}
+            placeholder="Search clips…"
+            emptyLabel="No clips chosen"
+            noMatchLabel="No clip matches"
+          />
+        </Field>
+        <Field label="Printing" hint="Fills the print line">
+          <Combobox
+            value={printRef}
+            onChange={setPrintRef}
+            loadOptions={loadParts('print')}
+            loadOne={componentsApi.get}
+            toOption={partOption}
+            placeholder="Search print jobs…"
+            emptyLabel="No print chosen"
+            noMatchLabel="No print job matches"
+          />
+        </Field>
       </div>
 
       {/* Named as the sheet names them, and in the sheet's order. */}
