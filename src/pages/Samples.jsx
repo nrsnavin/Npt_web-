@@ -9,6 +9,7 @@ import {
 } from '../components/ui.jsx';
 import { CustomerSelect, EnquirySelect, ProductSelect } from '../components/pickers.jsx';
 import SampleBoard from '../components/boards/SampleBoard.jsx';
+import SampleRequestForm from '../components/SampleRequestForm.jsx';
 import ViewSwitch from '../components/ViewSwitch.jsx';
 import { useViewMode } from '../hooks/useBoard.js';
 import { formatDate, formatNumber } from '../utils/format.js';
@@ -78,176 +79,6 @@ function Bench({ selected, onSelect }) {
  * enquiry, a customer who phones and asks directly, or an internal trial of a new mould that
  * belongs to nobody. The enquiry is therefore optional, and so is the customer.
  */
-function SampleRequestForm({ onClose, onSaved }) {
-  const [enquiry, setEnquiry] = useState(undefined);
-  const [customer, setCustomer] = useState(undefined);
-  const [product, setProduct] = useState(undefined);
-  const [error, setError] = useState(null);
-
-  const {
-    register,
-    handleSubmit,
-    watch,
-    formState: { errors, isSubmitting },
-  } = useForm({ defaultValues: { quantity: 5, purpose: 'existing_model' } });
-
-  const modelNumber = watch('modelNumber');
-  const standalone = !enquiry;
-
-  const submit = async (values) => {
-    setError(null);
-
-    // With an enquiry the requirement comes from it; without one it has to be said here.
-    if (standalone && !product && !modelNumber?.trim()) {
-      setError({ message: 'Pick a model, or describe what to make.' });
-      return;
-    }
-
-    try {
-      onSaved(
-        await samplesApi.create({
-          enquiry,
-          customer,
-          product,
-          modelNumber: text(values.modelNumber),
-          category: text(values.category),
-          material: text(values.material),
-          sizeMm: numeric(values.sizeMm),
-          colour: text(values.colour),
-          printing: text(values.printing),
-          quantity: numeric(values.quantity),
-          purpose: values.purpose,
-          requiredDate: text(values.requiredDate),
-          remarks: text(values.remarks),
-          standaloneReason: standalone ? text(values.standaloneReason) : undefined,
-        })
-      );
-      onClose();
-    } catch (submitError) {
-      setError(submitError);
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit(submit)} className="space-y-5">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field
-          label="Enquiry"
-          className="sm:col-span-2"
-          hint="Leave it standalone if nobody has raised one — it can be attached later"
-        >
-          <EnquirySelect value={enquiry} onChange={setEnquiry} customer={customer} aria-label="Enquiry" />
-        </Field>
-
-        {standalone && (
-          <>
-            <Field
-              label="Customer"
-              className="sm:col-span-2"
-              hint="Not in the list? Add them here. Leave it as an internal trial if there is no buyer."
-            >
-              <CustomerSelect
-                value={customer}
-                onChange={setCustomer}
-                // Named as a decision, not a prompt: no customer is a legitimate answer here,
-                // and "Select a customer…" reads like a field waiting to be filled.
-                emptyLabel="No customer — internal trial"
-                aria-label="Customer"
-              />
-            </Field>
-            <Field label="Why, without an enquiry" className="sm:col-span-2">
-              <input
-                className="input"
-                placeholder="Asked for one at the counter"
-                {...register('standaloneReason')}
-              />
-            </Field>
-          </>
-        )}
-      </div>
-
-      {standalone && (
-        <div className="space-y-5 rounded-lg border border-line/[0.06] p-4">
-          <p className="text-sm text-steel-400">
-            With no enquiry to take it from, the bench needs to be told what to make.
-          </p>
-
-          <Field label="Model" hint="From the catalogue, or describe it below">
-            <ProductSelect value={product} onChange={setProduct} aria-label="Model" />
-          </Field>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Model reference" className="sm:col-span-2">
-              <input className="input" placeholder="Matte 400mm white" {...register('modelNumber')} />
-            </Field>
-            <Field label="Category">
-              <select className="input" {...register('category')}>
-                <option value="">—</option>
-                {HANGER_CATEGORIES.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Material">
-              <select className="input" {...register('material')}>
-                <option value="">—</option>
-                {MATERIALS.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Size (mm)">
-              <input type="number" className="input" {...register('sizeMm')} />
-            </Field>
-            <Field label="Colour">
-              <input className="input" {...register('colour')} />
-            </Field>
-            <Field label="Printing" className="sm:col-span-2">
-              <input className="input" {...register('printing')} />
-            </Field>
-          </div>
-        </div>
-      )}
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Quantity" error={errors.quantity}>
-          <input type="number" className="input" {...register('quantity', { required: 'How many?' })} />
-        </Field>
-        <Field label="Purpose">
-          <select className="input" {...register('purpose')}>
-            {SAMPLE_PURPOSES.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Required by" className="sm:col-span-2" hint="A week from today if left empty">
-          <input type="date" className="input" {...register('requiredDate')} />
-        </Field>
-      </div>
-
-      <Field label="Remarks">
-        <textarea rows={2} className="input" {...register('remarks')} />
-      </Field>
-
-      {error && (
-        <Notice tone="danger">
-          <p>{error.message}</p>
-          {error.details?.map((detail) => (
-            <p key={detail.field} className="text-xs">{detail.field}: {detail.message}</p>
-          ))}
-        </Notice>
-      )}
-
-      <div className="flex justify-end gap-2 border-t border-line/[0.06] pt-4">
-        <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
-        <button type="submit" className="btn-primary" disabled={isSubmitting}>
-          {isSubmitting ? 'Raising…' : 'Raise request'}
-        </button>
-      </div>
-    </form>
-  );
-}
-
 /** What the list hook fetches while the board is showing — see the note on the enquiry list. */
 const idle = async () => ({ data: [], pagination: null });
 
@@ -438,8 +269,18 @@ export default function Samples() {
                           </p>
                         </td>
                         <td className="px-3 py-3.5 text-steel-200">
+                          {/* The lead sits between a customer and nobody: a request raised for
+                              a party who is not a customer yet still has a company behind it,
+                              and "Internal" would be the column stating something untrue. */}
                           {sample.customer?.name || (
-                            <span className="text-xs text-steel-500">Internal</span>
+                            sample.lead ? (
+                              <>
+                                {sample.lead.company}
+                                <span className="ml-1 text-xs text-steel-500">lead</span>
+                              </>
+                            ) : (
+                              <span className="text-xs text-steel-500">Internal</span>
+                            )
                           )}
                         </td>
                         <td className="px-3 py-3.5">

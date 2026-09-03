@@ -788,12 +788,23 @@ export default function SampleDetail() {
       <PageHeader
         title={sample.number}
         subtitle={
-          /* Either side can be absent: a counter request has no enquiry, an internal trial
-             has no customer either. Linking to an id that is not there is worse than not. */
+          /*
+           * Either side can be absent: a counter request has no enquiry, an internal trial has
+           * no customer either. Linking to an id that is not there is worse than not.
+           *
+           * The lead comes before "internal request" and after the customer. A request raised
+           * for a party who is not a customer yet has a company behind it and calling that an
+           * internal trial is simply wrong — and once the lead converts the sample gains the
+           * customer, so the customer is the better answer the moment there is one.
+           */
           <>
             {sample.customer ? (
               <Link to={`/customers/${sample.customer._id}`} className="hover:text-accent">
                 {sample.customer.name}
+              </Link>
+            ) : sample.lead ? (
+              <Link to={`/leads/${sample.lead._id}`} className="hover:text-accent">
+                {sample.lead.company} <span className="text-steel-500">(lead)</span>
               </Link>
             ) : (
               'Internal request'

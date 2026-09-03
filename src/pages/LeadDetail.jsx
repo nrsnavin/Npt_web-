@@ -1,19 +1,20 @@
 import { useCallback, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import { leads as leadsApi } from '../api/endpoints.js';
+import { leads as leadsApi, samples as samplesApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
-import { useRecord } from '../hooks/useRecords.js';
+import { useRecord, useRecordList } from '../hooks/useRecords.js';
 import {
   Badge, ErrorState, Facts, Field, Modal, Notice, PageHeader, Section, Spinner,
 } from '../components/ui.jsx';
 import HistoryPanel from '../components/HistoryPanel.jsx';
 import LeadLog from '../components/LeadLog.jsx';
 import EnquiryFields from '../components/EnquiryFields.jsx';
+import SampleRequestForm from '../components/SampleRequestForm.jsx';
 import { formatCompactCurrency, formatDate, formatNumber } from '../utils/format.js';
 import {
   ACTIVITY_TYPES, CUSTOMER_TYPES, DISQUALIFY_REASONS, SOURCES,
-  buildEnquiryPayload, followUpState, leadStageLabel, optionLabel, text,
+  buildEnquiryPayload, followUpState, leadStageLabel, optionLabel, sampleStageLabel, text,
 } from '../utils/pipeline.js';
 
 const TONE_TEXT = {
@@ -283,6 +284,97 @@ function DisqualifyForm({ lead, onClose, onSaved }) {
   );
 }
 
+/**
+ * What has been made for this lead, and the door to asking for more.
+ *
+ * A buyer asking for a sample is often the *first* thing that happens, well before there is a
+ * customer or an enquiry — so the request has to be visible from the only record that exists at
+ * that point. Without this the sample was raised somewhere else and the lead gave no sign it
+ * had ever been sent, which is how the same one gets promised twice.
+ */
+function LeadSamples({ lead, mayWrite }) {
+  const [asking, setAsking] = useState(false);
+  const { data, loading, error, reload } = useRecordList(samplesApi.list, {
+    lead: lead._id,
+    limit: 20,
+  });
+
+  const open = !['converted', 'disqualified'].includes(lead.status);
+
+  return (
+    <Section
+      title="Samples"
+      actions={
+        /*
+         * Offered only while the lead is still one. A converted lead's work has moved to the
+         * customer and the server says so; a disqualified one is not having anything made.
+         * Drawing the button anyway would be a control whose only outcome is a refusal.
+         */
+        mayWrite && open ? (
+          <button type="button" className="row-action" onClick={() => setAsking(true)}>
+            Request a sample
+          </button>
+        ) : null
+      }
+    >
+      {loading && <Spinner label="Loading samples" />}
+      {error && <ErrorState error={error} onRetry={reload} />}
+
+      {!loading && !error && (data.length === 0 ? (
+        <p className="text-sm text-steel-500">
+          {open
+            ? 'Nothing made for this lead yet.'
+            : 'No samples were made for this lead.'}
+        </p>
+      ) : (
+        <ul className="divide-y divide-line/[0.04]">
+          {data.map((sample) => (
+            <li key={sample._id} className="py-2.5 first:pt-0 last:pb-0">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <Link
+                    to={`/samples/${sample._id}`}
+                    className="text-sm font-semibold text-steel-100 hover:text-accent"
+                  >
+                    {sample.number}
+                  </Link>
+                  <p className="truncate text-xs text-steel-400">
+                    {sample.product?.modelCode || sample.modelNumber || 'New development'}
+                    {sample.colour ? ` · ${sample.colour}` : ''} · {formatNumber(sample.quantity)} pcs
+                  </p>
+                  {/*
+                    * Where it went after the lead converted. Worth saying here rather than only
+                    * on the sample: it is the line that explains why a request raised against a
+                    * lead now names a buyer.
+                    */}
+                  {sample.customer && (
+                    <p className="mt-0.5 text-xs text-steel-500">
+                      Now against{' '}
+                      <Link to={`/customers/${sample.customer._id}`} className="hover:text-accent">
+                        {sample.customer.name}
+                      </Link>
+                    </p>
+                  )}
+                </div>
+                <Badge status={sample.status}>{sampleStageLabel(sample.status)}</Badge>
+              </div>
+            </li>
+          ))}
+        </ul>
+      ))}
+
+      {/*
+        * No description: the form's own first line already names the company and says what
+        * happens on conversion, and the two sat one above the other saying the same sentence
+        * twice. The form carries it because it is true wherever the form is used.
+        */}
+      <Modal open={asking} title="Request a sample" size="lg" onClose={() => setAsking(false)}>
+        <SampleRequestForm lead={lead} onClose={() => setAsking(false)} onSaved={reload} />
+      </Modal>
+    </Section>
+  );
+}
+
 export default function LeadDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -405,6 +497,8 @@ export default function LeadDetail() {
           </Section>
 
           <LeadLog lead={lead} onSaved={setData} />
+
+          <LeadSamples lead={lead} mayWrite={mayWrite} />
 
           {/* The activity log above is what was said; this is what was changed. */}
           <HistoryPanel model="Lead" id={lead._id} />
