@@ -405,8 +405,18 @@ function EnquiryCommercials({ enquiryId, canSeePricing, canSeeQuotes }) {
     };
   }, [enquiryId, canSeePricing, canSeeQuotes]);
 
-  const nothingYet = pricings?.length === 0 && quotes?.length === 0;
-  if (!pricings || !quotes || nothingYet) return null;
+  /*
+   * Drawn even before there is anything in it, which is a change from how this started.
+   *
+   * Hiding an empty panel is right where the thing is unusual — most customers never came from
+   * a lead, so that panel stays away until one did. A costing is the opposite: it is the
+   * expected next step for every enquiry that goes anywhere, so "nothing priced yet" is a fact
+   * about this enquiry rather than an absence of furniture. Hidden, the screen gave a reader
+   * looking for the price no answer at all — not the costing, not the news that there is not
+   * one — and they went to the costings list to search by customer, which is the work having
+   * the relation was supposed to remove.
+   */
+  if (!pricings || !quotes) return null;
 
   const rupees = (value) =>
     value === undefined || value === null ? '—' : `₹${Number(value).toFixed(2)}`;
@@ -414,6 +424,21 @@ function EnquiryCommercials({ enquiryId, canSeePricing, canSeeQuotes }) {
   return (
     <>
       <Section title={`Pricing and quotations (${pricings.length + quotes.length})`}>
+        {/*
+          * Said only to somebody who may actually see costings. To a reader without the grant
+          * the list is empty because it was never fetched, and telling them nothing has been
+          * priced would be the screen stating something it does not know.
+          */}
+        {canSeePricing && pricings.length === 0 && (
+          <div className="mb-4 rounded-lg border border-dashed border-line/10 px-3.5 py-3">
+            <p className="text-sm text-steel-300">Nothing priced yet.</p>
+            <p className="mt-0.5 text-xs text-steel-500">
+              <span className="font-semibold text-steel-400">Ask for a price</span> raises the
+              costing and puts it on the queue — it appears here once it does.
+            </p>
+          </div>
+        )}
+
         {pricings.length > 0 && (
           <>
             <p className="eyebrow mb-2">Costings</p>
