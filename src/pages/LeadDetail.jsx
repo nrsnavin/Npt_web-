@@ -79,11 +79,21 @@ function ActivityForm({ leadId, onSaved }) {
 }
 
 /** Converting writes a customer, its first contact and optionally the first enquiry at once. */
-function ConvertForm({ lead, onClose, onConverted }) {
+function ConvertForm({ lead, onClose, onConverted, startWithEnquiry = true }) {
   const [error, setError] = useState(null);
-  const [withEnquiry, setWithEnquiry] = useState(true);
+  const [withEnquiry, setWithEnquiry] = useState(startWithEnquiry);
   const [product, setProduct] = useState(undefined);
   const [isNewDevelopment, setNewDevelopment] = useState(false);
+  /*
+   * The customer this lead turned out to be, when it is one we already supply.
+   *
+   * Offered by the server on the duplicate refusal rather than picked out of the air: the check
+   * that used to be a dead end now hands back the record it matched, and this is where that
+   * answer lands. Choosing one switches the whole dialog from "make a customer" to "use this
+   * one", because those are two different actions and the server refuses a request asking for
+   * both.
+   */
+  const [attachTo, setAttachTo] = useState(null);
 
   const {
     register,
@@ -113,17 +123,22 @@ function ConvertForm({ lead, onClose, onConverted }) {
     }
 
     const payload = {
-      customer: {
-        name: values.customer.name,
-        customerType: values.customer.customerType,
-        rating: values.customer.rating,
-        city: text(values.customer.city),
-        state: text(values.customer.state),
-        mobile: text(values.customer.mobile),
-        email: text(values.customer.email),
-        gstin: text(values.customer.gstin),
-        paymentTerms: text(values.customer.paymentTerms),
-      },
+      /* One or the other — see `attachTo`. The server refuses a request carrying both. */
+      ...(attachTo
+        ? { existingCustomer: attachTo.id }
+        : {
+            customer: {
+              name: values.customer.name,
+              customerType: values.customer.customerType,
+              rating: values.customer.rating,
+              city: text(values.customer.city),
+              state: text(values.customer.state),
+              mobile: text(values.customer.mobile),
+              email: text(values.customer.email),
+              gstin: text(values.customer.gstin),
+              paymentTerms: text(values.customer.paymentTerms),
+            },
+          }),
       enquiry: withEnquiry
         ? buildEnquiryPayload(values.enquiry, { product, isNewDevelopment })
         : undefined,
@@ -138,12 +153,71 @@ function ConvertForm({ lead, onClose, onConverted }) {
 
   return (
     <form onSubmit={handleSubmit(submit)} className="space-y-6">
-      <Notice tone="info">
-        The customer keeps this lead&rsquo;s owner, so converting never quietly moves a
-        relationship. A customer already matching on GST or phone blocks the conversion —
-        raise the enquiry against that record instead.
-      </Notice>
+      {/*
+        * Where the lead stood when it was converted [R2].
+        *
+        * Said, not refused. A rule with no legitimate escape is one people work around at the
+        * counter — most likely by ticking "qualified" without qualifying anything, which is
+        * worse than no rule and unmeasurable besides. The stage is kept on the record either
+        * way, so how often this is skipped becomes a number rather than an impression.
+        */}
+      {lead.status !== 'qualified' && !attachTo && (
+        <Notice tone="warn">
+          This lead is still {leadStageLabel(lead.status).toLowerCase()} — nobody has marked it
+          qualified. You can convert it anyway; the stage it was at is kept on the record.
+        </Notice>
+      )}
 
+      {attachTo ? (
+        <Notice tone="info">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span>
+              Attaching to <strong>{attachTo.name}</strong> ({attachTo.code}) — no second customer
+              record is made, and the enquiry goes onto theirs.
+            </span>
+            <button
+              type="button"
+              className="row-action shrink-0"
+              onClick={() => setAttachTo(null)}
+            >
+              Make a new customer instead
+            </button>
+          </div>
+        </Notice>
+      ) : (
+        <Notice tone="info">
+          The customer keeps this lead&rsquo;s owner, so converting never quietly moves a
+          relationship. If a customer already matches on GST or phone, you will be offered that
+          record instead of a second one.
+        </Notice>
+      )}
+
+      {/*
+        * The refusal, turned into the action it advises.
+        *
+        * The server hands the matching customer back with the 409, so this is a button rather
+        * than a sentence telling somebody to go and look. It is the whole reason the duplicate
+        * check stopped being a dead end.
+        */}
+      {error?.details?.customer && !attachTo && (
+        <Notice tone="danger">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span>{error.message}</span>
+            <button
+              type="button"
+              className="btn-secondary shrink-0"
+              onClick={() => {
+                setAttachTo(error.details.customer);
+                setError(null);
+              }}
+            >
+              Attach to {error.details.customer.name}
+            </button>
+          </div>
+        </Notice>
+      )}
+
+      {!attachTo && (
       <div>
         <p className="eyebrow mb-3">The customer</p>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -184,6 +258,7 @@ function ConvertForm({ lead, onClose, onConverted }) {
           </Field>
         </div>
       </div>
+      )}
 
       <div className="border-t border-line/[0.06] pt-5">
         <label className="mb-4 flex items-start gap-2.5 text-sm text-steel-200">
@@ -214,19 +289,27 @@ function ConvertForm({ lead, onClose, onConverted }) {
         )}
       </div>
 
-      {error && (
+      {/* Not the duplicate conflict — that has its own block above, with the button. */}
+      {error && !error.details?.customer && (
         <Notice tone="danger">
           <p>{error.message}</p>
-          {error.details?.map((detail) => (
-            <p key={detail.field} className="text-xs">{detail.field}: {detail.message}</p>
-          ))}
+          {Array.isArray(error.details) &&
+            error.details.map((detail) => (
+              <p key={detail.field} className="text-xs">{detail.field}: {detail.message}</p>
+            ))}
         </Notice>
       )}
 
       <div className="flex justify-end gap-2 border-t border-line/[0.06] pt-4">
         <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
         <button type="submit" className="btn-primary" disabled={isSubmitting}>
-          {isSubmitting ? 'Converting…' : 'Convert to customer'}
+          {isSubmitting
+            ? 'Saving…'
+            : attachTo
+              ? `Attach to ${attachTo.code}`
+              : withEnquiry
+                ? 'Create customer and enquiry'
+                : 'Create customer'}
         </button>
       </div>
     </form>
@@ -380,6 +463,8 @@ export default function LeadDetail() {
   const navigate = useNavigate();
   const { canWrite } = useAuth();
   const [converting, setConverting] = useState(false);
+  /* Which door was used, so the dialog opens with the enquiry section already expanded. */
+  const [enquiryFirst, setEnquiryFirst] = useState(true);
   const [disqualifying, setDisqualifying] = useState(false);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState(null);
@@ -433,7 +518,38 @@ export default function LeadDetail() {
                 <button type="button" className="btn-ghost" onClick={() => setDisqualifying(true)}>
                   Disqualify
                 </button>
-                <button type="button" className="btn-primary" onClick={() => setConverting(true)}>
+                {/*
+                  * The same action under the name people look for [R3].
+                  *
+                  * Converting has always raised the first enquiry — it is a tick-box inside the
+                  * dialog, on by default — but the button was named after only one of the two
+                  * things it does, so somebody wanting an enquiry from a lead never opened it.
+                  * One route, two doors: this opens the same form with the enquiry expanded.
+                  *
+                  * Offered on a qualified lead, because that is the rung the funnel says comes
+                  * before work starts. From anywhere else Convert is still there and still
+                  * raises the enquiry, with the warning the dialog now carries.
+                  */}
+                {lead.status === 'qualified' && (
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    onClick={() => {
+                      setEnquiryFirst(true);
+                      setConverting(true);
+                    }}
+                  >
+                    Raise enquiry
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className={lead.status === 'qualified' ? 'btn-secondary' : 'btn-primary'}
+                  onClick={() => {
+                    setEnquiryFirst(true);
+                    setConverting(true);
+                  }}
+                >
                   Convert to customer
                 </button>
               </>
@@ -534,13 +650,14 @@ export default function LeadDetail() {
 
       <Modal
         open={converting}
-        title="Convert to customer"
-        description="Check the details carried over from the lead before creating the record"
+        title={lead.status === 'qualified' ? 'Raise the first enquiry' : 'Convert to customer'}
+        description="The customer, its first contact and the enquiry are created together — check what carried over from the lead"
         size="lg"
         onClose={() => setConverting(false)}
       >
         <ConvertForm
           lead={lead}
+          startWithEnquiry={enquiryFirst}
           onClose={() => setConverting(false)}
           onConverted={(result) => {
             setConverting(false);
