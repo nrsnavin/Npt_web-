@@ -8,7 +8,7 @@ import Documents from '../components/Documents.jsx';
 import HistoryPanel from '../components/HistoryPanel.jsx';
 import { formatCompactCurrency, formatCurrency, formatDate, formatNumber } from '../utils/format.js';
 import {
-  CUSTOMER_TYPES, SAMPLE_PURPOSES, SOURCES, optionLabel, sampleStageLabel, stageLabel,
+  CUSTOMER_TYPES, SAMPLE_PURPOSES, SOURCES, leadStageLabel, optionLabel, sampleStageLabel, stageLabel,
 } from '../utils/pipeline.js';
 import { CustomerForm } from './Customers.jsx';
 
@@ -194,6 +194,50 @@ export default function CustomerDetail() {
               </p>
             )}
           </Section>
+          {/*
+            * Where this customer came from, and what else turned out to be them.
+            *
+            * Drawn only when there is something to show, because most customers were entered
+            * directly and a permanently empty panel teaches people to stop reading the column.
+            * A customer is created from at most one lead but can have any number attached later
+            * — the same buyer arriving again through the website or IndiaMART — so this is a
+            * list rather than a line.
+            */}
+          {timeline.leads?.length > 0 && (
+            <Section title={`Came from ${timeline.leads.length === 1 ? 'a lead' : 'leads'}`}>
+              <ul className="divide-y divide-line/[0.04]">
+                {timeline.leads.map((lead) => (
+                  <li key={lead._id} className="py-2.5 first:pt-0 last:pb-0">
+                    <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                      <Link
+                        to={`/leads/${lead._id}`}
+                        className="text-sm font-semibold text-steel-100 hover:text-accent"
+                      >
+                        {lead.company}
+                      </Link>
+                      <span className="text-xs text-steel-400">
+                        {lead.number}
+                        {lead.convertedAt ? ` · ${formatDate(lead.convertedAt)}` : ''}
+                      </span>
+                    </div>
+                    {/*
+                      * The rung it stood on when it closed. Worth showing rather than hiding:
+                      * a lead converted straight off the rank reads differently from one
+                      * somebody actually qualified, and that difference is the whole reason
+                      * the stage is recorded.
+                      */}
+                    {lead.convertedFromStatus && (
+                      <p className="mt-0.5 text-xs text-steel-500">
+                        Converted from {leadStageLabel(lead.convertedFromStatus).toLowerCase()}
+                        {lead.convertedEnquiry ? ', with an enquiry' : ', with no enquiry raised'}
+                      </p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </Section>
+          )}
+
           {/* §27: the buyer's drawing and their signed approvals belong on the record, not
               in somebody's inbox. */}
           <Documents collection="customers" id={customer._id} canWrite={mayWrite} />
