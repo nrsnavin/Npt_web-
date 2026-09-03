@@ -120,6 +120,25 @@ export default function QuotationDetail() {
       line.pricing.approvedSellingPrice && line.unitPrice < line.pricing.approvedSellingPrice
   );
 
+  /** Lines quoted under their floor [§9]. Marketing gets this flag without the figure. */
+  const belowFloor = costed.filter((line) => line.pricing.belowFloor);
+
+  /*
+   * The lines whose costing came back with figures on it.
+   *
+   * The test is whether the *server* sent a cost, not what this reader's grants say. §8 is
+   * decided once, on the way out, and a screen that re-decides it is a second copy of the rule
+   * that can disagree with the first — always in the direction of showing something it should
+   * not. Render what arrived.
+   */
+  const withMargin = costed.filter((line) => line.pricing.totalCost !== undefined);
+
+  const earned = withMargin.reduce(
+    (sum, line) => sum + (line.unitPrice - line.pricing.totalCost) * line.quantity,
+    0
+  );
+  const takings = withMargin.reduce((sum, line) => sum + line.unitPrice * line.quantity, 0);
+
   return (
     <div className="mx-auto max-w-5xl">
       <PageHeader
@@ -209,6 +228,107 @@ export default function QuotationDetail() {
                 </tbody>
               </table>
             </div>
+
+            {/*
+              * What the plant makes on this document.
+              *
+              * Kept out of the table above on purpose: that one is the quotation as the buyer
+              * receives it, item numbers and all, and putting a margin column in it would make
+              * the screen stop being a picture of what was sent. This is the other question —
+              * "and what do we earn" — asked once, underneath.
+              *
+              * Drawn only when the reply carried costs, which is §8 deciding rather than this
+              * screen. Margin is against the price on the *line*: the costing knows what it
+              * would have earned at the price it sanctioned, and nobody is being charged that.
+              */}
+            {withMargin.length > 0 && (
+              <div className="mt-5 rounded-xl border border-line/[0.06] bg-ink-900/30 p-4">
+                <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+                  <p className="eyebrow">What we earn on it</p>
+                  <p className="text-xs text-steel-500">
+                    Costing figures — not on the document sent to the buyer
+                  </p>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-sm">
+                    <thead className="table-head">
+                      <tr>
+                        <th className="px-3 py-2 text-left">Model</th>
+                        <th className="px-3 py-2 text-right">Quoted</th>
+                        <th className="px-3 py-2 text-right">Cost</th>
+                        <th className="px-3 py-2 text-right">Margin / pc</th>
+                        <th className="px-3 py-2 text-right">Margin</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-line/[0.04]">
+                      {withMargin.map((line) => (
+                        <tr key={line._id}>
+                          <td className="px-3 py-2.5">
+                            <Link
+                              to={`/pricings/${line.pricing._id}`}
+                              className="text-steel-100 hover:text-accent"
+                            >
+                              {line.modelNumber || line.pricing.number}
+                            </Link>
+                            {line.pricing.belowFloor && (
+                              <p className="text-[0.6875rem] text-danger-400">
+                                under its floor of {rupees(line.pricing.minimumSellingPrice)}
+                              </p>
+                            )}
+                          </td>
+                          <td className="px-3 py-2.5 text-right tabular-nums text-steel-100">
+                            {rupees(line.unitPrice)}
+                          </td>
+                          <td className="px-3 py-2.5 text-right tabular-nums text-steel-300">
+                            {rupees(line.pricing.totalCost)}
+                          </td>
+                          <td className="px-3 py-2.5 text-right tabular-nums text-steel-200">
+                            {rupees(line.pricing.marginPerPiece)}
+                          </td>
+                          <td
+                            className={`px-3 py-2.5 text-right tabular-nums font-semibold ${
+                              line.pricing.belowFloor ? 'text-danger-400' : 'text-steel-100'
+                            }`}
+                          >
+                            {line.pricing.marginPercent}%
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    {/*
+                      * Blended, not averaged. A 40,000-piece line at 9% and a 500-piece line at
+                      * 30% do not make 19.5% — the money says 9-point-something, and an average
+                      * of percentages is how a thin quotation gets signed off as a healthy one.
+                      */}
+                    <tfoot>
+                      <tr className="border-t border-line/[0.08]">
+                        <td className="px-3 py-2.5 text-steel-400">
+                          Across {withMargin.length === 1 ? 'the line' : `${withMargin.length} lines`}
+                        </td>
+                        <td className="px-3 py-2.5 text-right tabular-nums text-steel-300">
+                          {formatCurrency(takings)}
+                        </td>
+                        <td className="px-3 py-2.5" />
+                        <td className="px-3 py-2.5 text-right tabular-nums text-steel-200">
+                          {formatCurrency(earned)}
+                        </td>
+                        <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-steel-100">
+                          {takings ? `${Math.round((earned / takings) * 1000) / 10}%` : '—'}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+
+                {withMargin.length < costed.length && (
+                  <p className="mt-3 text-xs text-steel-500">
+                    {costed.length - withMargin.length} more line(s) name a costing that has not
+                    been built yet, so they are not counted above.
+                  </p>
+                )}
+              </div>
+            )}
 
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <div className="card px-4 py-3">
@@ -432,6 +552,19 @@ export default function QuotationDetail() {
                 }
               />
             </dl>
+
+            {/*
+              * Under the floor, said without saying where the floor is — the same "whether, not
+              * where" §8 draws everywhere else. Someone who may see the figures gets them in the
+              * margin table instead, so this is only drawn when they did not.
+              */}
+            {belowFloor.length > 0 && withMargin.length === 0 && (
+              <p className="mt-3 text-xs text-danger-400">
+                {belowFloor.length === 1
+                  ? `${belowFloor[0].modelNumber || 'One line'} is quoted below its minimum and needs approval.`
+                  : `${belowFloor.length} lines are quoted below their minimum and need approval.`}
+              </p>
+            )}
 
             {/* Said once for the document, counting the lines rather than naming one price. */}
             {under.length > 0 && (
