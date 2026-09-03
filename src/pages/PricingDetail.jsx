@@ -6,6 +6,7 @@ import { useRecord } from '../hooks/useRecords.js';
 import { Badge, ErrorState, Modal, Notice, PageHeader, Section, Spinner } from '../components/ui.jsx';
 import CostingSheetForm from '../components/CostingSheetForm.jsx';
 import CostingDetailsForm from '../components/CostingDetailsForm.jsx';
+import QuotationPdf from '../components/QuotationPdf.jsx';
 import { formatCompactCurrency, formatDate, formatNumber, humanise } from '../utils/format.js';
 
 /**
@@ -77,6 +78,13 @@ export default function PricingDetail() {
 
   const pricing = data.data;
   const quotations = data.quotations || [];
+  /*
+   * The document being previewed, if any.
+   *
+   * Kept here rather than one piece of state per row: only one can be open, and a flag on each
+   * row is a set of booleans that can disagree with each other.
+   */
+  const [previewing, setPreviewing] = useState(null);
   const product = pricing.product;
   const cost = pricing.cost || {};
 
@@ -384,12 +392,34 @@ export default function PricingDetail() {
                           : ''}
                       </p>
                     </div>
-                    <Badge status={quote.status}>{humanise(quote.status)}</Badge>
+                    <div className="flex shrink-0 items-center gap-2">
+                      {/*
+                        * The document itself, from the costing that priced it.
+                        *
+                        * Worth the click being here: checking what a buyer was actually sent is
+                        * the reason anybody opens a costing months later, and the alternative
+                        * was opening the quotation to reach the same viewer one step further on.
+                        */}
+                      <button
+                        type="button"
+                        className="row-action"
+                        onClick={() => setPreviewing(quote)}
+                      >
+                        PDF
+                      </button>
+                      <Badge status={quote.status}>{humanise(quote.status)}</Badge>
+                    </div>
                   </li>
                 ))}
               </ul>
             )}
           </Section>
+
+          <QuotationPdf
+            quotation={previewing}
+            open={Boolean(previewing)}
+            onClose={() => setPreviewing(null)}
+          />
         </div>
 
         {/* --------------------------------- The side --------------------------------- */}

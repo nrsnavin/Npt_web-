@@ -75,11 +75,10 @@ function QuotationForm({ quotation, onClose, onSaved }) {
           product: line.product?._id ?? line.product ?? '',
           pricing: line.pricing?._id ?? line.pricing ?? '',
           modelNumber: line.modelNumber ?? '',
-          quantity: line.quantity ?? '',
           moq: line.moq ?? '',
           unitPrice: line.unitPrice ?? '',
         }))
-      : [{ product: '', pricing: '', modelNumber: '', quantity: '', moq: '', unitPrice: '' }]
+      : [{ product: '', pricing: '', modelNumber: '', moq: '', unitPrice: '' }]
   );
   const [values, setValues] = useState(quotation ? {
     gstPercent: quotation.gstPercent ?? 18,
@@ -110,16 +109,20 @@ function QuotationForm({ quotation, onClose, onSaved }) {
     setLines(lines.map((line, at) => (at === index ? { ...line, [key]: event.target.value } : line)));
 
   const addLine = () =>
-    setLines([...lines, { product: '', pricing: '', modelNumber: '', quantity: '', moq: '', unitPrice: '' }]);
+    setLines([...lines, { product: '', pricing: '', modelNumber: '', moq: '', unitPrice: '' }]);
 
   /* Never below one: the server refuses an empty quotation, and it is right to. */
   const removeLine = (index) =>
     setLines(lines.length === 1 ? lines : lines.filter((unused, at) => at !== index));
 
-  const netValue = lines.reduce(
-    (sum, line) => sum + (Number(line.quantity) || 0) * (Number(line.unitPrice) || 0),
-    0
-  );
+  /*
+   * The span of the rates being entered, not a total of them.
+   *
+   * A quotation quotes a rate per model against a minimum; the purchase order settles the
+   * quantity. There is nothing to total — and adding eight rates together would produce a
+   * number that looks like money and means nothing at all.
+   */
+  const rates = lines.map((line) => Number(line.unitPrice)).filter((value) => value > 0);
 
   const submit = async (event) => {
     event.preventDefault();
@@ -201,16 +204,6 @@ function QuotationForm({ quotation, onClose, onSaved }) {
                     onChange={setLine(index, 'modelNumber')}
                   />
                 </Field>
-                <Field label={index === 0 ? 'Quantity' : ''}>
-                  <input
-                    type="number"
-                    min="1"
-                    required
-                    className="input"
-                    value={line.quantity}
-                    onChange={setLine(index, 'quantity')}
-                  />
-                </Field>
                 <Field
                   label={index === 0 ? 'Unit price (₹)' : ''}
                   hint={index === 0 && editing ? 'Changed through Revise [§10]' : undefined}
@@ -260,7 +253,18 @@ function QuotationForm({ quotation, onClose, onSaved }) {
 
         {/* The document total, so the number the buyer will see is visible while typing. */}
         <p className="mt-2 text-right text-xs text-steel-400">
-          Net value <span className="tabular-nums text-steel-100">{formatCurrency(netValue)}</span>
+          {rates.length === 0
+            ? 'Rates per piece'
+            : rates.length === 1 || Math.min(...rates) === Math.max(...rates)
+              ? 'Rate'
+              : 'Rates'}{' '}
+          <span className="tabular-nums text-steel-100">
+            {rates.length === 0
+              ? '—'
+              : Math.min(...rates) === Math.max(...rates)
+                ? rupees(Math.min(...rates))
+                : `${rupees(Math.min(...rates))} – ${rupees(Math.max(...rates))}`}
+          </span>
           {' · '}
           {lines.length} {lines.length === 1 ? 'model' : 'models'}
         </p>
@@ -384,11 +388,16 @@ function RevisionForm({ quotation, onClose, onSaved }) {
                 {rev.sentAt ? <span className="ml-1.5 text-[0.625rem] text-steel-500">sent</span> : null}
               </span>
               <span className="tabular-nums text-steel-100">
-                {rev.lines?.length === 1
-                  ? rupees(rev.lines[0].unitPrice)
-                  : `${rev.lines?.length ?? 0} models · ${formatCurrency(
-                      (rev.lines || []).reduce((sum, line) => sum + line.quantity * line.unitPrice, 0)
-                    )}`}
+                {(() => {
+                  /* The span of rates offered in that revision. Summing rates across models
+                     would produce a figure that looks like money and is not one. */
+                  const offered = (rev.lines || []).map((line) => line.unitPrice);
+                  if (!offered.length) return '—';
+                  const low = Math.min(...offered);
+                  const high = Math.max(...offered);
+                  const span = low === high ? rupees(low) : `${rupees(low)} – ${rupees(high)}`;
+                  return offered.length === 1 ? span : `${offered.length} models · ${span}`;
+                })()}
               </span>
             </li>
           ))}
@@ -476,7 +485,7 @@ function ResponseForm({ quotation, onClose, onSaved }) {
         {quotation.number} rev {quotation.revision} went out
         {quotation.lines?.length === 1
           ? ` at ${rupees(quotation.lines[0].unitPrice)}`
-          : ` — ${quotation.lines?.length ?? 0} models, ${formatCurrency(quotation.netValue)} net`}
+          : ` — ${quotation.lines?.length ?? 0} models`}
         .
       </p>
 
@@ -611,9 +620,8 @@ export default function Quotations() {
                     <th className="px-3 py-3">Quotation</th>
                     <th className="px-3 py-3">Customer</th>
                     <th className="px-3 py-3">Model</th>
-                    <th className="px-3 py-3 text-right">Quantity</th>
-                    <th className="px-3 py-3 text-right">Price</th>
-                    <th className="px-3 py-3 text-right">Value</th>
+                    <th className="px-3 py-3 text-right">Minimum</th>
+                    <th className="px-3 py-3 text-right">Rate per piece</th>
                     <th className="px-3 py-3">Stage</th>
                     <th className="px-3 py-3" />
                   </tr>
@@ -650,18 +658,28 @@ export default function Quotations() {
                         )}
                       </td>
                       <td className="whitespace-nowrap px-3 py-3.5 text-right tabular-nums text-steel-200">
-                        {row.lines?.length === 1 ? formatNumber(row.lines[0].quantity) : '—'}
-                        {row.lines?.length === 1 && row.lines[0].moq ? (
+                        {row.lines?.length === 1 && row.lines[0].moq
+                          ? `${formatNumber(row.lines[0].moq)} pcs`
+                          : '—'}
+                      </td>
+                      {/*
+                        * The rate, or the span of them. A multi-model quotation has no single
+                        * price and no total either — the purchase order settles the quantity, so
+                        * there is nothing to add up.
+                        */}
+                      <td className="whitespace-nowrap px-3 py-3.5 text-right tabular-nums text-steel-100">
+                        {(() => {
+                          const offered = (row.lines || []).map((line) => line.unitPrice);
+                          if (!offered.length) return '—';
+                          const low = Math.min(...offered);
+                          const high = Math.max(...offered);
+                          return low === high ? rupees(low) : `${rupees(low)} – ${rupees(high)}`;
+                        })()}
+                        {row.lines?.length > 1 && (
                           <p className="text-[0.6875rem] text-steel-500">
-                            min {formatNumber(row.lines[0].moq)}
+                            {row.lines.length} models
                           </p>
-                        ) : null}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-3.5 text-right tabular-nums text-steel-100">
-                        {row.lines?.length === 1 ? rupees(row.lines[0].unitPrice) : '—'}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-3.5 text-right tabular-nums text-steel-100">
-                        {formatCompactCurrency(row.totalValue)}
+                        )}
                         {row.isExport && (
                           <p className="text-[0.625rem] uppercase tracking-wide text-aqua-400">Export</p>
                         )}

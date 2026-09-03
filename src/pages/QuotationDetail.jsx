@@ -104,10 +104,23 @@ export default function QuotationDetail() {
   /*
    * What the negotiation has cost so far, which is the number nobody works out by hand. Six
    * weeks of small concessions read as small; the total rarely does.
+   *
+   * Measured across the *rates* rather than the document's value, because a rate quotation has
+   * no value — the purchase order settles the quantity later. Comparing the mean rate then and
+   * the mean rate now answers the same question honestly: how far the prices have moved, in
+   * percent. Models added or dropped between revisions change the mean for a reason that is not
+   * a concession, so the comparison is over the models present in both.
    */
-  /* Off the whole document, since that is what the negotiation is actually about. */
-  const opening = (first?.lines || []).reduce((sum, line) => sum + line.quantity * line.unitPrice, 0);
-  const given = opening && quotation.netValue ? ((quotation.netValue - opening) / opening) * 100 : null;
+  const rateOf = (lines, model) =>
+    (lines || []).find((line) => (line.modelNumber || line._id) === model)?.unitPrice;
+
+  const shared = (first?.lines || [])
+    .map((line) => line.modelNumber || line._id)
+    .filter((model) => rateOf(quotation.lines, model) !== undefined);
+
+  const openingRate = shared.reduce((sum, m) => sum + rateOf(first.lines, m), 0);
+  const currentRate = shared.reduce((sum, m) => sum + rateOf(quotation.lines, m), 0);
+  const given = openingRate ? ((currentRate - openingRate) / openingRate) * 100 : null;
 
   const sole = quotation.lines?.length === 1 ? quotation.lines[0] : null;
 
@@ -133,11 +146,22 @@ export default function QuotationDetail() {
    */
   const withMargin = costed.filter((line) => line.pricing.totalCost !== undefined);
 
-  const earned = withMargin.reduce(
-    (sum, line) => sum + (line.unitPrice - line.pricing.totalCost) * line.quantity,
-    0
-  );
-  const takings = withMargin.reduce((sum, line) => sum + line.unitPrice * line.quantity, 0);
+  /*
+   * The spread of margin across the models, not a blend of them.
+   *
+   * There used to be a quantity-weighted total here, and weighting was the whole reason it was
+   * honest — a 40,000-piece line at 9% beside a 500-piece line at 30% is not 19.5%. A rate
+   * quotation carries no quantities, so there is no weight left to apply, and a plain average
+   * of percentages would be exactly the misleading figure the weighting existed to avoid.
+   *
+   * A range says what can actually be said: the thinnest line and the fattest. Whoever is
+   * signing it off can see the worst case without being handed an average that hides it.
+   */
+  const margins = withMargin
+    .map((line) => line.pricing.marginPercent)
+    .filter((value) => typeof value === 'number');
+  const thinnest = margins.length ? Math.min(...margins) : null;
+  const fattest = margins.length ? Math.max(...margins) : null;
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -194,9 +218,8 @@ export default function QuotationDetail() {
                   <tr>
                     <th className="px-3 py-2 text-left">Item</th>
                     <th className="px-3 py-2 text-left">Model</th>
-                    <th className="px-3 py-2 text-right">Quantity</th>
-                    <th className="px-3 py-2 text-right">Unit price</th>
-                    <th className="px-3 py-2 text-right">Net value</th>
+                    <th className="px-3 py-2 text-right">Minimum</th>
+                    <th className="px-3 py-2 text-right">Rate per piece</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line/[0.04]">
@@ -209,19 +232,14 @@ export default function QuotationDetail() {
                           <p className="text-[0.6875rem] text-steel-500">{line.product.name}</p>
                         )}
                       </td>
+                      {/* The minimum the rate is good for. A dash rather than a zero: a
+                          document saying the minimum is 0 pieces answers a question nobody
+                          asked. */}
                       <td className="px-3 py-2.5 text-right tabular-nums text-steel-200">
-                        {formatNumber(line.quantity)}
-                        {line.moq ? (
-                          <p className="text-[0.6875rem] text-steel-500">
-                            min {formatNumber(line.moq)}
-                          </p>
-                        ) : null}
+                        {line.moq ? `${formatNumber(line.moq)} pcs` : '—'}
                       </td>
-                      <td className="px-3 py-2.5 text-right tabular-nums text-steel-100">
+                      <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-steel-100">
                         {rupees(line.unitPrice)}
-                      </td>
-                      <td className="px-3 py-2.5 text-right tabular-nums text-steel-100">
-                        {formatCurrency(line.quantity * line.unitPrice)}
                       </td>
                     </tr>
                   ))}
@@ -255,7 +273,7 @@ export default function QuotationDetail() {
                     <thead className="table-head">
                       <tr>
                         <th className="px-3 py-2 text-left">Model</th>
-                        <th className="px-3 py-2 text-right">Quoted</th>
+                        <th className="px-3 py-2 text-right">Rate</th>
                         <th className="px-3 py-2 text-right">Cost</th>
                         <th className="px-3 py-2 text-right">Margin / pc</th>
                         <th className="px-3 py-2 text-right">Margin</th>
@@ -301,20 +319,18 @@ export default function QuotationDetail() {
                       * 30% do not make 19.5% — the money says 9-point-something, and an average
                       * of percentages is how a thin quotation gets signed off as a healthy one.
                       */}
+                    {/* The spread, not an average — see the note where it is computed. */}
                     <tfoot>
                       <tr className="border-t border-line/[0.08]">
-                        <td className="px-3 py-2.5 text-steel-400">
-                          Across {withMargin.length === 1 ? 'the line' : `${withMargin.length} lines`}
-                        </td>
-                        <td className="px-3 py-2.5 text-right tabular-nums text-steel-300">
-                          {formatCurrency(takings)}
-                        </td>
-                        <td className="px-3 py-2.5" />
-                        <td className="px-3 py-2.5 text-right tabular-nums text-steel-200">
-                          {formatCurrency(earned)}
+                        <td className="px-3 py-2.5 text-steel-400" colSpan={4}>
+                          Across {withMargin.length === 1 ? 'one model' : `${withMargin.length} models`}
                         </td>
                         <td className="px-3 py-2.5 text-right tabular-nums font-semibold text-steel-100">
-                          {takings ? `${Math.round((earned / takings) * 1000) / 10}%` : '—'}
+                          {thinnest === null
+                            ? '—'
+                            : thinnest === fattest
+                              ? `${thinnest}%`
+                              : `${thinnest}% – ${fattest}%`}
                         </td>
                       </tr>
                     </tfoot>
@@ -330,27 +346,43 @@ export default function QuotationDetail() {
               </div>
             )}
 
+            {/*
+              * No document total, because there is not one to show.
+              *
+              * A rate quotation has no value until a purchase order names a quantity, and the
+              * two tiles that used to sit here multiplied the rate by a quantity nobody had
+              * agreed to. What is left is what a buyer comparing two quotes actually needs: how
+              * many models are on it, what the rates are good until, and the tax basis — which
+              * is a statement about the rate, not a sum over the lines.
+              */}
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <div className="card px-4 py-3">
-                <p className="eyebrow">Net value</p>
-                <p className="stat-value mt-1 text-steel-50">{formatCurrency(quotation.netValue)}</p>
+                <p className="eyebrow">What is on it</p>
+                <p className="stat-value mt-1 text-steel-50">
+                  {quotation.lines?.length ?? 0}
+                  <span className="ml-1.5 text-base font-normal text-steel-400">
+                    {quotation.lines?.length === 1 ? 'model' : 'models'}
+                  </span>
+                </p>
                 <p className="mt-0.5 text-[0.6875rem] text-steel-500">
-                  {quotation.lines?.length ?? 0}{' '}
-                  {quotation.lines?.length === 1 ? 'model' : 'models'} · Rev {quotation.revision ?? 0}
+                  Rev {quotation.revision ?? 0}
+                  {quotation.validUntil ? ` · rates hold to ${formatDate(quotation.validUntil)}` : ''}
                 </p>
               </div>
               <div className="card px-4 py-3">
-                <p className="eyebrow">Order value</p>
+                <p className="eyebrow">Basis</p>
                 <p className="stat-value mt-1 text-steel-50">
-                  {formatCompactCurrency(quotation.totalValue)}
-                </p>
-                <p className="mt-0.5 text-[0.6875rem] text-steel-500">
                   {/* Export is a different basis, not GST at zero — see the model. */}
                   {quotation.isExport
-                    ? 'Export — no GST'
+                    ? 'Export'
                     : quotation.gstPercent
-                      ? `incl. ${quotation.gstPercent}% GST`
-                      : 'GST extra as applicable'}
+                      ? `+${quotation.gstPercent}% GST`
+                      : 'GST extra'}
+                </p>
+                <p className="mt-0.5 text-[0.6875rem] text-steel-500">
+                  {quotation.isExport
+                    ? 'No GST on an export quotation'
+                    : 'Rates are per piece, ex-works'}
                 </p>
               </div>
             </div>
@@ -391,7 +423,8 @@ export default function QuotationDetail() {
                   {given.toFixed(1)}%
                 </span>
                 <span className="text-xs text-steel-400">
-                  {formatCurrency(opening)} → {formatCurrency(quotation.netValue)}
+                  across {shared.length === 1 ? 'the rate' : `${shared.length} rates`} quoted in
+                  both revisions
                 </span>
               </div>
             )}
@@ -414,19 +447,27 @@ export default function QuotationDetail() {
                         <span className="text-sm font-bold text-steel-100">
                           Rev {revision.revision}
                         </span>
+                        {/*
+                          * One rate when there is one model, and the span when there are more.
+                          * Summing the rates across models would be a number with no meaning —
+                          * eight hangers do not cost the sum of their eight rates.
+                          */}
                         <span className="text-base font-bold tabular-nums text-steel-50">
                           {revision.lines?.length === 1
                             ? rupees(revision.lines[0].unitPrice)
-                            : formatCurrency(
-                                (revision.lines || []).reduce(
-                                  (sum, line) => sum + line.quantity * line.unitPrice,
-                                  0
-                                )
-                              )}
+                            : (() => {
+                                const rates = (revision.lines || []).map((line) => line.unitPrice);
+                                if (!rates.length) return '—';
+                                const low = Math.min(...rates);
+                                const high = Math.max(...rates);
+                                return low === high ? rupees(low) : `${rupees(low)} – ${rupees(high)}`;
+                              })()}
                         </span>
                         <span className="text-xs text-steel-400">
                           {revision.lines?.length === 1
-                            ? `${formatNumber(revision.lines[0].quantity)} pcs`
+                            ? revision.lines[0].moq
+                              ? `min ${formatNumber(revision.lines[0].moq)} pcs`
+                              : 'per piece'
                             : `${revision.lines?.length ?? 0} models`}
                         </span>
                         {live && (
