@@ -7,7 +7,7 @@ import { useDebounced, useRecord, useRecordList } from '../hooks/useRecords.js';
 import {
   Badge, EmptyState, ErrorState, Field, Modal, Notice, PageHeader, Pagination, TableSkeleton,
 } from '../components/ui.jsx';
-import { CustomerSelect, EnquirySelect, ProductSelect } from '../components/pickers.jsx';
+import { CustomerSelect, EnquirySelect } from '../components/pickers.jsx';
 import SampleBoard from '../components/boards/SampleBoard.jsx';
 import SampleRequestForm from '../components/SampleRequestForm.jsx';
 import ViewSwitch from '../components/ViewSwitch.jsx';

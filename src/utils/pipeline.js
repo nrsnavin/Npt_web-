@@ -337,11 +337,11 @@ export const text = (value) => (value === '' || value === null ? undefined : val
  * omitted entirely, and the requirement nested. Shared by the enquiry form and by lead
  * conversion, which posts the same shape one level down.
  */
-export function buildEnquiryPayload(values, { product, isNewDevelopment }) {
+export function buildEnquiryPayload(values, { mould, isNewDevelopment }) {
   const requirement = values.requirement || {};
 
   return {
-    product: isNewDevelopment ? undefined : product,
+    mould: isNewDevelopment ? undefined : mould,
     isNewDevelopment,
     requirement: {
       modelNumber: text(requirement.modelNumber),

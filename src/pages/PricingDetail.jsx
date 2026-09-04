@@ -8,6 +8,7 @@ import CostingSheetForm from '../components/CostingSheetForm.jsx';
 import CostingDetailsForm from '../components/CostingDetailsForm.jsx';
 import QuotationPdf from '../components/QuotationPdf.jsx';
 import { formatCompactCurrency, formatDate, formatNumber, humanise } from '../utils/format.js';
+import { HANGER_CATEGORIES, HOOK_TYPES, optionLabel } from '../utils/pipeline.js';
 
 /**
  * One costing sheet, in full [BLUEPRINT §7, §8, §9].
@@ -15,7 +16,7 @@ import { formatCompactCurrency, formatDate, formatNumber, humanise } from '../ut
  * The list answers "which costings exist"; this answers the only question anyone actually
  * brings to a costing — **is this price right?** — and that question is never answerable from
  * the sheet alone. It needs three things beside it: what the buyer asked to pay, what the
- * model's own catalogue standard is, and what has already been quoted off this price. All
+ * model's own standard on the register is, and what has already been quoted off this price. All
  * three arrive with the record, so the page cannot show half a story while the rest loads.
  *
  * §8 governs the whole screen. The server has already removed the cost base, the margin and
@@ -71,6 +72,18 @@ export default function PricingDetail() {
   const fetch = useCallback((pricingId) => pricingsApi.get(pricingId), []);
   const { data, loading, error, reload } = useRecord(fetch, id);
   const [editing, setEditing] = useState(null);
+  /*
+   * The document being previewed, if any.
+   *
+   * Kept here rather than one piece of state per row: only one can be open, and a flag on each
+   * row is a set of booleans that can disagree with each other.
+   *
+   * Declared with the other hooks, above the early returns, because that is the only place a
+   * hook may live. It sat below them until now, which meant the first render — the loading one
+   * — ran two hooks and the second ran three: React counts them, and the page died with
+   * "rendered more hooks than during the previous render" the moment the costing arrived.
+   */
+  const [previewing, setPreviewing] = useState(null);
 
   if (loading) return <Spinner label="Loading the costing" />;
   if (error) return <ErrorState error={error} onRetry={reload} />;
@@ -78,14 +91,6 @@ export default function PricingDetail() {
 
   const pricing = data.data;
   const quotations = data.quotations || [];
-  /*
-   * The document being previewed, if any.
-   *
-   * Kept here rather than one piece of state per row: only one can be open, and a flag on each
-   * row is a set of booleans that can disagree with each other.
-   */
-  const [previewing, setPreviewing] = useState(null);
-  const product = pricing.product;
   const cost = pricing.cost || {};
 
   const total = pricing.totalCost || 0;
@@ -99,10 +104,10 @@ export default function PricingDetail() {
   /*
    * Where the gram weight came from, when it came off a tool.
    *
-   * Worth a line of its own because the figure on the sheet is deliberately *not* the
-   * catalogue's weight: a piece off a four-cavity tool with a 12 g runner weighs 30 g and
-   * consumes 33. Without this, the first person to compare the two assumes the sheet is wrong
-   * and corrects it downwards, which is the error the register exists to prevent.
+   * Worth a line of its own because the figure on the sheet is deliberately *not* the part
+   * weight: a piece off a four-cavity tool with a 12 g runner weighs 30 g and consumes 33.
+   * Without this, the first person to compare the two assumes the sheet is wrong and corrects
+   * it downwards, which is the error the register exists to prevent.
    */
   const mould = pricing.mould;
   const fromTool =
@@ -466,36 +471,30 @@ export default function PricingDetail() {
           </Section>
 
           {/*
-            The catalogue standard, so the sheet can be read against the model rather than in
-            isolation. The MOQ lives here and on the quotation, not on the costing — it is a
-            term of the offer rather than a fact about the cost.
+            What the register says the model is, so the sheet can be read against it rather
+            than in isolation. The minimum is shown here and set on the quotation, never on the
+            costing — it is a term of the offer rather than a fact about the cost.
+
+            Absent for a traded piece, which has no tool. That is not a gap worth an empty
+            panel: the model number on the sheet is the whole of what identifies it.
           */}
-          {product && (
-            <Section title="From the model master">
+          {mould && (
+            <Section title="From the register">
               <dl className="space-y-3 text-sm">
-                <Fact label="Model" value={`${product.modelCode} — ${product.name}`} />
-                <Fact label="Size" value={product.sizeMm && `${product.sizeMm} mm`} />
-                <Fact label="Material" value={product.material && product.material.toUpperCase()} />
+                <Fact label="Mould" value={`${mould.mouldCode} — ${mould.name}`} />
+                <Fact label="Category" value={optionLabel(HANGER_CATEGORIES, mould.category)} />
+                <Fact label="Size" value={mould.sizeMm && `${mould.sizeMm} mm`} />
+                <Fact label="Hook" value={optionLabel(HOOK_TYPES, mould.hookType)} />
+                <Fact label="Resin" value={mould.material && mould.material.toUpperCase()} />
                 <Fact
-                  label="Standard price"
-                  value={product.standardPrice ? rupees(product.standardPrice) : null}
-                />
-                <Fact
-                  label="Catalogue MOQ"
-                  value={product.moq ? `${formatNumber(product.moq)} pcs` : null}
+                  label="Standard minimum"
+                  value={mould.moq ? `${formatNumber(mould.moq)} pcs` : null}
                 />
                 <Fact
                   label="Packing"
-                  value={product.packingQty ? `${formatNumber(product.packingQty)} per carton` : null}
+                  value={mould.packingQty ? `${formatNumber(mould.packingQty)} per carton` : null}
                 />
               </dl>
-              {product.standardPrice && asking && (
-                <p className="mt-3 text-xs text-steel-500">
-                  This costing is{' '}
-                  {asking >= product.standardPrice ? 'at or above' : 'below'} the catalogue
-                  standard of {rupees(product.standardPrice)}.
-                </p>
-              )}
             </Section>
           )}
 

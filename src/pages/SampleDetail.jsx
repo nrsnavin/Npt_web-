@@ -971,8 +971,8 @@ export default function SampleDetail() {
                 { label: 'Purpose', value: optionLabel(SAMPLE_PURPOSES, sample.purpose) },
                 {
                   label: 'Model',
-                  value: sample.product
-                    ? `${sample.product.modelCode} — ${sample.product.name}`
+                  value: sample.mould
+                    ? `${sample.mould.mouldCode} — ${sample.mould.name}`
                     : sample.modelNumber,
                 },
                 { label: 'Category', value: optionLabel(HANGER_CATEGORIES, sample.category) },

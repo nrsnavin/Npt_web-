@@ -203,7 +203,15 @@ function StageForm({ enquiry, onClose, onSaved }) {
   );
 }
 
-/** A new development becomes a catalogue model once it has been developed and approved. */
+/**
+ * A new development goes on the mould register once the tool is cut.
+ *
+ * This used to write a catalogue row — a code, a name, a tick saying a mould existed — which
+ * could be done the afternoon the buyer said yes and long before anything was cut. The register
+ * cannot be filled in on a promise: it asks for the part weight and the cycle time, and those
+ * exist only once there is steel to measure. So a model becomes real at the moment it is real,
+ * which is what a promotion gate is for.
+ */
 function PromoteForm({ enquiry, onClose, onSaved }) {
   const [error, setError] = useState(null);
   const {
@@ -214,9 +222,9 @@ function PromoteForm({ enquiry, onClose, onSaved }) {
     defaultValues: {
       name: enquiry.requirement?.modelNumber || '',
       category: enquiry.requirement?.category || 'shirt',
-      material: enquiry.requirement?.material || 'plastic',
+      material: enquiry.requirement?.material || 'pp',
       sizeMm: enquiry.requirement?.sizeMm || '',
-      mouldAvailable: false,
+      cavities: 1,
     },
   });
 
@@ -224,18 +232,19 @@ function PromoteForm({ enquiry, onClose, onSaved }) {
     setError(null);
     try {
       onSaved(
-        await enquiriesApi.promoteToProduct({
+        await enquiriesApi.promoteToMould({
           id: enquiry._id,
-          modelCode: values.modelCode,
+          mouldCode: values.mouldCode,
           name: values.name,
           category: values.category,
           material: values.material,
           sizeMm: numeric(values.sizeMm),
-          standardPrice: numeric(values.standardPrice),
+          cavities: numeric(values.cavities),
+          partWeightGrams: numeric(values.partWeightGrams),
+          runnerWeightGrams: numeric(values.runnerWeightGrams),
+          cycleTimeSeconds: numeric(values.cycleTimeSeconds),
           moq: numeric(values.moq),
           packingQty: numeric(values.packingQty),
-          mouldAvailable: values.mouldAvailable,
-          mouldNumber: text(values.mouldNumber),
         })
       );
       onClose();
@@ -247,13 +256,13 @@ function PromoteForm({ enquiry, onClose, onSaved }) {
   return (
     <form onSubmit={handleSubmit(submit)} className="space-y-5">
       <Notice tone="info">
-        This keeps speculative models out of the catalogue: promote only once the buyer has
-        approved what sampling produced.
+        This keeps speculative models off the register: promote only once the buyer has approved
+        what sampling produced and there is a tool to measure.
       </Notice>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Model code" error={errors.modelCode} hint="Unique, e.g. NPT-400M">
-          <input className="input uppercase" {...register('modelCode', { required: 'Model code is required' })} />
+        <Field label="Mould number" error={errors.mouldCode} hint="Stamped on the tool, e.g. M-142">
+          <input className="input uppercase" {...register('mouldCode', { required: 'The mould number is required' })} />
         </Field>
         <Field label="Name" error={errors.name}>
           <input className="input" {...register('name', { required: 'Name is required' })} />
@@ -275,8 +284,36 @@ function PromoteForm({ enquiry, onClose, onSaved }) {
         <Field label="Size (mm)">
           <input type="number" className="input" {...register('sizeMm')} />
         </Field>
-        <Field label="Standard price (₹)">
-          <input type="number" step="0.01" className="input" {...register('standardPrice')} />
+        <Field label="Cavities">
+          <input type="number" min="1" className="input" {...register('cavities')} />
+        </Field>
+        {/*
+          The two the register will not take a tool without. Every derived figure comes out of
+          them — consumption per piece, output per hour, the machine cost of a piece — so a
+          record created without them answers none of the questions the register exists for.
+        */}
+        <Field
+          label="Part weight (g)"
+          error={errors.partWeightGrams}
+          hint="One moulded piece, on a PP basis"
+        >
+          <input
+            type="number"
+            step="0.01"
+            className="input"
+            {...register('partWeightGrams', { required: 'A moulded piece has a weight' })}
+          />
+        </Field>
+        <Field label="Cycle (seconds)" error={errors.cycleTimeSeconds} hint="Door close to door close">
+          <input
+            type="number"
+            step="0.1"
+            className="input"
+            {...register('cycleTimeSeconds', { required: 'A cycle takes time' })}
+          />
+        </Field>
+        <Field label="Runner weight (g)" hint="The whole system per shot, not per cavity">
+          <input type="number" step="0.01" className="input" {...register('runnerWeightGrams')} />
         </Field>
         <Field label="Minimum order quantity">
           <input type="number" className="input" {...register('moq')} />
@@ -284,15 +321,7 @@ function PromoteForm({ enquiry, onClose, onSaved }) {
         <Field label="Packing quantity">
           <input type="number" className="input" {...register('packingQty')} />
         </Field>
-        <Field label="Mould number">
-          <input className="input" {...register('mouldNumber')} />
-        </Field>
       </div>
-
-      <label className="flex items-center gap-2 text-sm text-steel-200">
-        <input type="checkbox" className="h-4 w-4 accent-flame-500" {...register('mouldAvailable')} />
-        Mould is cut and available
-      </label>
 
       {error && (
         <Notice tone="danger">
@@ -306,7 +335,7 @@ function PromoteForm({ enquiry, onClose, onSaved }) {
       <div className="flex justify-end gap-2">
         <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
         <button type="submit" className="btn-primary" disabled={isSubmitting}>
-          {isSubmitting ? 'Adding…' : 'Add to catalogue'}
+          {isSubmitting ? 'Adding…' : 'Add to the register'}
         </button>
       </div>
     </form>
@@ -544,7 +573,7 @@ export default function EnquiryDetail() {
   if (!enquiry) return null;
 
   const mayWrite = canWrite('enquiries');
-  const mayWriteProducts = canWrite('products');
+  const mayWriteMoulds = canWrite('moulds');
   const mayReadSamples = canRead('samples');
   const mayReadPricing = canRead('pricing');
   const mayReadQuotes = canRead('quotations');
@@ -568,9 +597,9 @@ export default function EnquiryDetail() {
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <Badge status={enquiry.status}>{stageLabel(enquiry.status)}</Badge>
-            {mayWrite && enquiry.isNewDevelopment && mayWriteProducts && (
+            {mayWrite && enquiry.isNewDevelopment && mayWriteMoulds && (
               <button type="button" className="btn-secondary" onClick={() => setPromoting(true)}>
-                Add to catalogue
+                Add to the register
               </button>
             )}
             {/* A closed enquiry keeps the control, renamed for what it now does: the buyer
@@ -634,17 +663,29 @@ export default function EnquiryDetail() {
           <Section title="Requirement">
             {enquiry.isNewDevelopment && (
               <div className="mb-4">
-                <Badge tone="accent">New development — no catalogue model yet</Badge>
+                <Badge tone="accent">New development — no tool cut yet</Badge>
               </div>
             )}
             <Facts
               items={[
                 {
                   label: 'Model',
-                  value: enquiry.product
-                    ? `${enquiry.product.modelCode} — ${enquiry.product.name}`
-                    : enquiry.requirement?.modelNumber,
+                  value: enquiry.requirement?.modelNumber
+                    || (enquiry.mould && `${enquiry.mould.mouldCode} — ${enquiry.mould.name}`),
                   wide: true,
+                },
+                {
+                  /*
+                   * Named separately from the model, because the two are different answers.
+                   * The model is what the buyer asked for; the mould is what we would run it
+                   * on — and an empty one here means a piece we buy in rather than make.
+                   */
+                  label: 'Mould',
+                  value: enquiry.mould
+                    ? `${enquiry.mould.mouldCode} — ${enquiry.mould.name}`
+                    : enquiry.isNewDevelopment
+                      ? 'Not cut yet'
+                      : 'Bought in — no tool of ours',
                 },
                 { label: 'Category', value: optionLabel(HANGER_CATEGORIES, enquiry.requirement?.category) },
                 { label: 'Material', value: optionLabel(MATERIALS, enquiry.requirement?.material) },
@@ -758,7 +799,7 @@ export default function EnquiryDetail() {
 
       <Modal
         open={promoting}
-        title="Add to the product catalogue"
+        title="Add to the mould register"
         description="Turns this new development into a model marketing can quote against"
         size="lg"
         onClose={() => setPromoting(false)}

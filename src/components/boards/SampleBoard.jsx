@@ -109,7 +109,7 @@ export default function SampleBoard({ filters, canMove, perColumn = 20 }) {
               {card.customer?.name || card.lead?.company || 'Internal trial'}
             </p>
             <p className="truncate text-[11px] text-steel-400">
-              {card.number} · {card.product?.modelCode || card.modelNumber || 'New development'}
+              {card.number} · {card.modelNumber || card.mould?.mouldCode || 'New development'}
             </p>
 
             <div className="mt-1.5 flex flex-wrap items-center gap-x-2 text-[11px] tabular-nums text-steel-300">

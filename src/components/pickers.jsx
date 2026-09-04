@@ -1,15 +1,15 @@
 import { useCallback, useState } from 'react';
-import { customers as customersApi, enquiries as enquiriesApi, products as productsApi } from '../api/endpoints.js';
+import { customers as customersApi, enquiries as enquiriesApi, moulds as mouldsApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import Combobox from './Combobox.jsx';
 import CustomerQuickCreate from './CustomerQuickCreate.jsx';
-import ProductQuickCreate from './ProductQuickCreate.jsx';
+import MouldQuickCreate from './MouldQuickCreate.jsx';
 
 /**
  * Reference-data selects.
  *
  * These used to load the first two hundred records into a `<select>` and filter in the
- * browser, on the reasoning that the catalogue runs to a few dozen models and a marketing
+ * browser, on the reasoning that the register runs to a few dozen tools and a marketing
  * person's customer list is smaller still. That reasoning expires: the two hundred and first
  * customer could not be selected at all, and nothing on screen said why.
  *
@@ -21,14 +21,21 @@ import ProductQuickCreate from './ProductQuickCreate.jsx';
 const PAGE = 20;
 
 /**
- * `allowCreate` adds a model to the catalogue without leaving the form. On by default, for
- * the same reason as the customer picker: a sample is often the first time a model exists.
+ * Picks the model, which is to say the tool that makes it.
  *
- * Offered only to someone who may actually write the master. The grants differ by
- * department — the sample team may add models but not customers — and an invitation that
- * ends in a refusal is worse than no invitation at all.
+ * There is no product catalogue behind this any more. A model *is* a mould — the code, the
+ * size, the category, the hook and the minimum are all facts about the steel — so this reads
+ * the register, and choosing here is what tells a costing which tool's consumption to price
+ * from. Leaving it empty is a real answer, and a common one: a new development has no tool
+ * yet, and a traded piece never will.
+ *
+ * `allowCreate` puts a model on the register without leaving the form. On by default for the
+ * same reason as the customer picker — a sample is often the first time a model exists — but
+ * offered only to someone who may actually write the register, which now means production and
+ * sampling rather than marketing. That is a deliberate narrowing: minting a tool that does not
+ * exist on the floor is exactly what the catalogue's `mouldAvailable` tick used to allow.
  */
-export function ProductSelect({
+export function MouldSelect({
   value,
   onChange,
   disabled,
@@ -38,15 +45,15 @@ export function ProductSelect({
 }) {
   const { canWrite } = useAuth();
   const [creating, setCreating] = useState(null);
-  const mayCreate = allowCreate && !disabled && canWrite('products');
+  const mayCreate = allowCreate && !disabled && canWrite('moulds');
 
   const loadOptions = useCallback(
-    (search) => productsApi.list({ search: search || undefined, isActive: true, limit: PAGE }),
+    (search) => mouldsApi.list({ search: search || undefined, isActive: true, limit: PAGE }),
     []
   );
-  const loadOne = useCallback((id) => productsApi.get(id), []);
+  const loadOne = useCallback((id) => mouldsApi.get(id), []);
   const toOption = useCallback(
-    (product) => ({ value: product._id, label: `${product.modelCode} — ${product.name}` }),
+    (mould) => ({ value: mould._id, label: `${mould.mouldCode} — ${mould.name}` }),
     []
   );
 
@@ -59,7 +66,7 @@ export function ProductSelect({
         loadOptions={loadOptions}
         loadOne={loadOne}
         toOption={toOption}
-        placeholder="Search the catalogue…"
+        placeholder="Search the register…"
         emptyLabel={includeBlank}
         noMatchLabel="No model matches"
         onCreate={mayCreate ? (typed) => setCreating(typed ?? '') : undefined}
@@ -67,12 +74,12 @@ export function ProductSelect({
         {...rest}
       />
 
-      <ProductQuickCreate
+      <MouldQuickCreate
         open={creating !== null}
         initialName={creating || ''}
         onClose={() => setCreating(null)}
         // Selected the moment it exists: adding it was only ever a way of choosing it.
-        onCreated={(product) => onChange(product._id)}
+        onCreated={(mould) => onChange(mould._id)}
       />
     </>
   );

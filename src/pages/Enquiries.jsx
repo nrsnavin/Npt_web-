@@ -39,7 +39,7 @@ const idle = async () => ({ data: [], pagination: null });
 function EnquiryForm({ onClose, onSaved }) {
   const [error, setError] = useState(null);
   const [customer, setCustomer] = useState(undefined);
-  const [product, setProduct] = useState(undefined);
+  const [mould, setMould] = useState(undefined);
   const [isNewDevelopment, setNewDevelopment] = useState(false);
 
   const {
@@ -55,8 +55,11 @@ function EnquiryForm({ onClose, onSaved }) {
       setError({ message: 'Pick the customer this enquiry belongs to.' });
       return;
     }
-    if (!product && !isNewDevelopment) {
-      setError({ message: 'Pick a model from the catalogue, or mark this as a new development.' });
+    if (!mould && !isNewDevelopment && !values.requirement?.modelNumber?.trim()) {
+      setError({
+        message:
+          'Name the mould, or give the model number the buyer asked for, or mark this as a new development.',
+      });
       return;
     }
 
@@ -64,7 +67,7 @@ function EnquiryForm({ onClose, onSaved }) {
       onSaved(
         await enquiriesApi.create({
           customer,
-          ...buildEnquiryPayload(values, { product, isNewDevelopment }),
+          ...buildEnquiryPayload(values, { mould, isNewDevelopment }),
         })
       );
       onClose();
@@ -91,8 +94,8 @@ function EnquiryForm({ onClose, onSaved }) {
       <EnquiryFields
         register={register}
         errors={errors}
-        product={product}
-        onProductChange={setProduct}
+        mould={mould}
+        onMouldChange={setMould}
         newDevelopment={isNewDevelopment}
         onNewDevelopmentChange={setNewDevelopment}
       />
@@ -395,7 +398,7 @@ export default function Enquiries() {
                         </td>
                         <td className="px-3 py-3.5">
                           <p className="text-steel-200">
-                            {enquiry.product?.modelCode || enquiry.requirement?.modelNumber || '—'}
+                            {enquiry.requirement?.modelNumber || enquiry.mould?.mouldCode || '—'}
                           </p>
                           {enquiry.isNewDevelopment && <Badge tone="accent">New development</Badge>}
                         </td>

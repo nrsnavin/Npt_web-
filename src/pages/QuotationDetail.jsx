@@ -228,8 +228,8 @@ export default function QuotationDetail() {
                       <td className="px-3 py-2.5 tabular-nums text-steel-500">{(index + 1) * 10}</td>
                       <td className="px-3 py-2.5">
                         <p className="text-steel-100">{line.modelNumber || '—'}</p>
-                        {line.product?.name && (
-                          <p className="text-[0.6875rem] text-steel-500">{line.product.name}</p>
+                        {line.mould?.name && (
+                          <p className="text-[0.6875rem] text-steel-500">{line.mould.name}</p>
                         )}
                       </td>
                       {/* The minimum the rate is good for. A dash rather than a zero: a

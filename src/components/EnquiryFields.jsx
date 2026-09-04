@@ -1,5 +1,5 @@
 import { Field, Notice } from './ui.jsx';
-import { ProductSelect } from './pickers.jsx';
+import { MouldSelect } from './pickers.jsx';
 import { HANGER_CATEGORIES, MATERIALS } from '../utils/pipeline.js';
 
 /**
@@ -8,7 +8,7 @@ import { HANGER_CATEGORIES, MATERIALS } from '../utils/pipeline.js';
  * `prefix` lets the same fields sit at the root of one form and under `enquiry.` in
  * another, so conversion can post a nested enquiry without a second copy of this markup.
  */
-export default function EnquiryFields({ register, prefix = '', product, onProductChange, newDevelopment, onNewDevelopmentChange, errors = {} }) {
+export default function EnquiryFields({ register, prefix = '', mould, onMouldChange, newDevelopment, onNewDevelopmentChange, errors = {} }) {
   const name = (field) => `${prefix}${field}`;
 
   return (
@@ -17,11 +17,15 @@ export default function EnquiryFields({ register, prefix = '', product, onProduc
         <Field
           label="Model"
           className="sm:col-span-2"
-          hint={newDevelopment ? 'A new development has no catalogue model yet' : 'Pick from the catalogue'}
+          hint={
+            newDevelopment
+              ? 'A new development has no tool yet'
+              : 'The mould that makes it — leave empty for anything bought in'
+          }
         >
-          <ProductSelect
-            value={product}
-            onChange={onProductChange}
+          <MouldSelect
+            value={mould}
+            onChange={onMouldChange}
             disabled={newDevelopment}
             aria-label="Model"
           />
@@ -38,8 +42,8 @@ export default function EnquiryFields({ register, prefix = '', product, onProduc
         <span>
           New development
           <span className="mt-0.5 block text-xs text-steel-500">
-            Nothing in the catalogue matches. Describe it below; it becomes a model once
-            sampling develops it and the buyer approves.
+            Nothing on the register matches and nothing is bought in. Describe it below; it
+            becomes a model on the register once the tool is cut.
           </span>
         </span>
       </label>
@@ -48,7 +52,7 @@ export default function EnquiryFields({ register, prefix = '', product, onProduc
         <Field
           label={newDevelopment ? 'Describe the model' : 'Model reference'}
           className="sm:col-span-2"
-          hint={newDevelopment ? 'What the buyer asked for, in their words' : 'Defaults to the catalogue code'}
+          hint="What the buyer asked for, in their words — the whole of it for anything bought in"
         >
           <input className="input" {...register(name('requirement.modelNumber'))} />
         </Field>
@@ -124,9 +128,10 @@ export default function EnquiryFields({ register, prefix = '', product, onProduc
         </div>
       </div>
 
-      {!product && !newDevelopment && (
+      {!mould && !newDevelopment && (
         <Notice tone="info">
-          Pick a model from the catalogue, or tick new development.
+          Name the mould, or give the model number the buyer asked for — a piece we buy in and
+          resell has no tool of ours. Tick new development if it is neither.
         </Notice>
       )}
     </div>

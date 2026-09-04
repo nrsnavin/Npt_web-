@@ -37,12 +37,12 @@ const RAIL = [
     paths: ['/enquiries', '/leads', '/customers', '/samples', '/pricings', '/quotations'],
   },
   {
-    to: '/products',
+    to: '/moulds',
     label: 'Catalogue',
     icon: 'box',
-    module: 'products',
-    /* The register is the catalogue's other half — what a model is, and what makes it. */
-    paths: ['/products', '/moulds', '/materials', '/hooks', '/clips', '/prints'],
+    module: 'moulds',
+    /* The mould register *is* the model master; the material and parts registers sit beside it. */
+    paths: ['/moulds', '/materials', '/hooks', '/clips', '/prints'],
   },
   { to: '/profile', label: 'Profile', icon: 'user' },
   { to: '/users', label: 'Users', icon: 'users', module: 'users', paths: ['/users', '/integrations'] },
@@ -93,8 +93,7 @@ const SIDEBARS = {
         title: 'Masters',
         items: [
           { to: '/customers', label: 'Customers', module: 'customers' },
-          { to: '/products', label: 'Product master', module: 'products' },
-          { to: '/moulds', label: 'Mould register', module: 'moulds' },
+          { to: '/moulds', label: 'Models & moulds', module: 'moulds' },
           { to: '/materials', label: 'Material register', module: 'materials' },
           { to: '/hooks', label: 'Hook register', module: 'materials' },
           { to: '/clips', label: 'Clip register', module: 'materials' },
@@ -103,14 +102,13 @@ const SIDEBARS = {
       },
     ],
   },
-  '/products': {
+  '/moulds': {
     title: 'Catalogue',
     sections: [
       {
         title: 'Masters',
         items: [
-          { to: '/products', label: 'Product master', module: 'products' },
-          { to: '/moulds', label: 'Mould register', module: 'moulds' },
+          { to: '/moulds', label: 'Models & moulds', module: 'moulds' },
           { to: '/materials', label: 'Material register', module: 'materials' },
           { to: '/hooks', label: 'Hook register', module: 'materials' },
           { to: '/clips', label: 'Clip register', module: 'materials' },
@@ -218,7 +216,6 @@ const MODULE_ROUTES = {
   quotations: '/quotations',
   samples: '/samples',
   customers: '/customers',
-  products: '/products',
   moulds: '/moulds',
   materials: '/materials',
   users: '/users',

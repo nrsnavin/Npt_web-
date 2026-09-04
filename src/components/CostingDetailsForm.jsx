@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { pricings as pricingsApi } from '../api/endpoints.js';
 import { Field, Notice } from './ui.jsx';
-import { ProductSelect } from './pickers.jsx';
+import { MouldSelect } from './pickers.jsx';
 import { formatNumber } from '../utils/format.js';
 
 /**
@@ -19,7 +19,7 @@ import { formatNumber } from '../utils/format.js';
  */
 export default function CostingDetailsForm({ pricing, onClose, onSaved }) {
   const [values, setValues] = useState({
-    product: pricing.product?._id || pricing.product || '',
+    mould: pricing.mould?._id || pricing.mould || '',
     modelNumber: pricing.modelNumber ?? '',
     quantity: pricing.quantity ?? '',
     targetPrice: pricing.targetPrice ?? '',
@@ -42,7 +42,7 @@ export default function CostingDetailsForm({ pricing, onClose, onSaved }) {
       onSaved(
         await pricingsApi.update({
           id: pricing._id,
-          product: values.product || undefined,
+          mould: values.mould || undefined,
           modelNumber: values.modelNumber || undefined,
           quantity: number(values.quantity),
           targetPrice: number(values.targetPrice),
@@ -65,14 +65,14 @@ export default function CostingDetailsForm({ pricing, onClose, onSaved }) {
       </Notice>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Model" hint="From the catalogue — its code and material come with it">
-          <ProductSelect
-            value={values.product}
-            onChange={(product) => setValues({ ...values, product })}
+        <Field label="Model" hint="The tool it runs on — its code and resin come with it">
+          <MouldSelect
+            value={values.mould}
+            onChange={(mould) => setValues({ ...values, mould })}
             aria-label="Model"
           />
         </Field>
-        <Field label="Model number" hint="Only if it is not in the catalogue">
+        <Field label="Model number" hint="What the buyer calls it, or the whole of it if it is traded">
           <input className="input" value={values.modelNumber} onChange={set('modelNumber')} />
         </Field>
       </div>

@@ -19,7 +19,6 @@ import Dashboard from './pages/Dashboard.jsx';
 const Profile = lazy(() => import('./pages/Profile.jsx'));
 const Users = lazy(() => import('./pages/Users.jsx'));
 const Integrations = lazy(() => import('./pages/Integrations.jsx'));
-const Products = lazy(() => import('./pages/Products.jsx'));
 const Moulds = lazy(() => import('./pages/Moulds.jsx'));
 const Materials = lazy(() => import('./pages/Materials.jsx'));
 const PartsRegister = lazy(() => import('./pages/PartsRegister.jsx'));
@@ -222,14 +221,6 @@ export default function App() {
             element={
               <RequireModule moduleKey="customers">
                 <CustomerDetail />
-              </RequireModule>
-            }
-          />
-          <Route
-            path="products"
-            element={
-              <RequireModule moduleKey="products">
-                <Products />
               </RequireModule>
             }
           />

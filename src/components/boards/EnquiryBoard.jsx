@@ -106,7 +106,7 @@ export default function EnquiryBoard({ filters, canMove, perColumn = 20 }) {
               {card.customer?.name || 'No customer'}
             </p>
             <p className="truncate text-[11px] text-steel-400">
-              {card.number} · {card.product?.modelCode || card.requirement?.modelNumber || 'New development'}
+              {card.number} · {card.requirement?.modelNumber || card.mould?.mouldCode || 'New development'}
             </p>
 
             <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] tabular-nums">

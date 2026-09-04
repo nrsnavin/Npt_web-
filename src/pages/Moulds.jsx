@@ -1,24 +1,37 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { downloads, moulds as mouldsApi, products as productsApi } from '../api/endpoints.js';
+import { downloads, moulds as mouldsApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useDebounced, useRecordList } from '../hooks/useRecords.js';
 import {
   Badge, EmptyState, ErrorState, Field, Modal, Notice, PageHeader, Pagination, TableSkeleton,
 } from '../components/ui.jsx';
-import { CustomerSelect, ProductSelect } from '../components/pickers.jsx';
+import { CustomerSelect } from '../components/pickers.jsx';
 import ExportButton from '../components/ExportButton.jsx';
 import { formatCurrency, formatNumber } from '../utils/format.js';
-import { MATERIALS, MOULD_OWNERSHIP, MOULD_STATUSES } from '../utils/pipeline.js';
+import {
+  HANGER_CATEGORIES, HOOK_TYPES, MATERIALS, MOULD_OWNERSHIP, MOULD_STATUSES, optionLabel,
+} from '../utils/pipeline.js';
 
 /**
- * The mould register.
+ * The mould register — and the model master [BLUEPRINT §28].
  *
- * The screen is built around one fact the product master could not hold: a piece weighs one
- * thing and consumes another. Everything to the right of the divider on the form is derived
- * live from the four figures to its left — cavities, part weight, runner weight, cycle — so the
- * person entering them watches the consumption move as they type, and the gap between the part
- * and the resin is visible before the record is saved rather than discovered in a costing.
+ * There used to be a product catalogue beside this: a screen of model codes with a size, a
+ * category, a hook, a minimum, and a hand-ticked `mouldAvailable` box sitting next to the
+ * register that already knew the answer. The two disagreed the first week, and every other
+ * screen had to decide which of them to believe. The steel is the thing that exists, so the
+ * steel is the record, and the catalogue's own fields live on the form below.
+ *
+ * The screen is still built around the one fact a catalogue of model codes could not hold: a
+ * piece weighs one thing and consumes another. Everything to the right of the divider on the
+ * form is derived live from the four figures to its left — cavities, part weight, runner
+ * weight, cycle — so the person entering them watches the consumption move as they type, and
+ * the gap between the part and the resin is visible before the record is saved rather than
+ * discovered in a costing.
+ *
+ * What is *not* here is anything the plant buys in and resells. A traded piece has no tool, so
+ * it has no record: it reaches the system as the model number the buyer asked for, on the
+ * enquiry and the costing that price it.
  */
 
 const grams = (value) =>
@@ -38,7 +51,9 @@ function MouldForm({ mould, onClose, onSaved }) {
     defaultValues: editing
       ? {
           ...mould,
-          products: (mould.products || []).map((product) => product._id ?? product),
+          sizeMm: mould.sizeMm ?? '',
+          moq: mould.moq ?? '',
+          packingQty: mould.packingQty ?? '',
           jobWorkCost: mould.jobWorkCost ?? '',
           hookCost: mould.hookCost ?? '',
           clipsCost: mould.clipsCost ?? '',
@@ -52,6 +67,8 @@ function MouldForm({ mould, onClose, onSaved }) {
         }
       : {
           material: 'pp',
+          category: 'shirt',
+          hookType: 'fixed',
           status: 'active',
           /* A single-cavity tool is the commonest, and the safest thing to assume. */
           cavities: 1,
@@ -59,7 +76,6 @@ function MouldForm({ mould, onClose, onSaved }) {
           efficiencyPercent: 100,
           regrindRecoveryPercent: 0,
           runnerWeightGrams: 0,
-          products: [],
         },
   });
 
@@ -116,8 +132,13 @@ function MouldForm({ mould, onClose, onSaved }) {
 
     const payload = {
       name: values.name,
-      products: values.products?.length ? values.products : undefined,
       material: values.material,
+      /* What the catalogue used to carry. Facts about the piece the steel throws. */
+      category: values.category || undefined,
+      sizeMm: number(values.sizeMm),
+      hookType: values.hookType || undefined,
+      moq: number(values.moq),
+      packingQty: number(values.packingQty),
       cavities: number(values.cavities),
       activeCavities: number(values.activeCavities),
       partWeightGrams: number(values.partWeightGrams),
@@ -161,8 +182,6 @@ function MouldForm({ mould, onClose, onSaved }) {
     }
   };
 
-  const products = watched.products || [];
-
   return (
     <form onSubmit={handleSubmit(submit)} className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-2">
@@ -179,31 +198,43 @@ function MouldForm({ mould, onClose, onSaved }) {
         </Field>
       </div>
 
-      {/*
-        A list, because one tool is one geometry and the catalogue splits by resin: the same
-        steel that makes the virgin-PP hanger makes the recycled one, and they are two model
-        codes. Added one at a time and removed by their chip.
-      */}
-      <Field label="Models off this tool" hint="Add every catalogue code this steel produces">
-        <div className="space-y-2">
-          {products.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {products.map((id) => (
-                <ProductChip
-                  key={id}
-                  id={id}
-                  onRemove={() => setValue('products', products.filter((other) => other !== id))}
-                />
+      {/* ------------------------------- The model ------------------------------- */}
+
+      <div>
+        <p className="eyebrow mb-2">The piece it makes</p>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Field label="Category">
+            <select className="input" {...register('category')}>
+              <option value="">—</option>
+              {HANGER_CATEGORIES.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
               ))}
-            </div>
-          )}
-          <ProductSelect
-            value=""
-            onChange={(id) => id && !products.includes(id) && setValue('products', [...products, id])}
-            includeBlank="Add a model…"
-          />
+            </select>
+          </Field>
+          <Field label="Size (mm)">
+            <input type="number" min="0" className="input" placeholder="400" {...register('sizeMm')} />
+          </Field>
+          <Field label="Hook">
+            <select className="input" {...register('hookType')}>
+              <option value="">—</option>
+              {HOOK_TYPES.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </Field>
+          {/*
+            The two commercial facts the catalogue held that are not about the steel — but they
+            are per model, and the model is this record. A quotation line starts from the
+            minimum here and then owns its own: this buyer may well be offered a different one.
+          */}
+          <Field label="Minimum order" hint="What a rate off this tool is offered at">
+            <input type="number" min="0" className="input" placeholder="5000" {...register('moq')} />
+          </Field>
+          <Field label="Packing quantity" hint="Pieces per carton">
+            <input type="number" min="0" className="input" placeholder="200" {...register('packingQty')} />
+          </Field>
         </div>
-      </Field>
+      </div>
 
       {/* ---------------------------- What is measured ---------------------------- */}
 
@@ -399,48 +430,13 @@ function Derived({ label, value, note, lit }) {
   );
 }
 
-/**
- * A model already on the tool, with the way to take it off again.
- *
- * It resolves its own code, because the form holds ids and a chip reading `68f3a1…` tells
- * nobody which model they are about to remove. On an id that no longer resolves it falls back
- * to the tail of the id rather than rendering nothing: a chip that vanishes leaves a model
- * silently attached to the tool with no way to see it, let alone take it off.
- */
-function ProductChip({ id, onRemove }) {
-  const [code, setCode] = useState(null);
-
-  useEffect(() => {
-    let live = true;
-    productsApi
-      .get(id)
-      .then((product) => live && setCode(product.modelCode))
-      .catch(() => live && setCode(`#${String(id).slice(-6)}`));
-    return () => {
-      live = false;
-    };
-  }, [id]);
-
-  return (
-    <span className="inline-flex items-center gap-2 rounded-md bg-line/[0.06] px-2 py-1 text-xs text-steel-200 ring-1 ring-inset ring-line/10">
-      {code || '…'}
-      <button
-        type="button"
-        className="text-steel-500 hover:text-danger-400"
-        onClick={onRemove}
-        aria-label={`Remove ${code || 'this model'}`}
-      >
-        ×
-      </button>
-    </span>
-  );
-}
-
 export default function Moulds() {
   const { canWrite } = useAuth();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const [material, setMaterial] = useState('');
+  /* The catalogue's own filter. "What 400 mm shirt hangers do we make" is asked here now. */
+  const [category, setCategory] = useState('');
   const [page, setPage] = useState(1);
   const [editing, setEditing] = useState(null);
 
@@ -449,6 +445,7 @@ export default function Moulds() {
     search: term || undefined,
     status: status || undefined,
     material: material || undefined,
+    category: category || undefined,
   };
   const { data, pagination, loading, error, reload } = useRecordList(mouldsApi.list, {
     ...filters,
@@ -466,8 +463,8 @@ export default function Moulds() {
   return (
     <div className="mx-auto max-w-6xl">
       <PageHeader
-        title="Mould register"
-        subtitle="Every tool on the floor, and what a piece off it actually consumes"
+        title="Models & moulds"
+        subtitle="Every tool on the floor — the model it makes, and what a piece off it actually consumes"
         actions={
           <div className="flex items-center gap-2">
             <ExportButton download={downloads.moulds} params={filters} />
@@ -500,9 +497,15 @@ export default function Moulds() {
             <option key={option.value} value={option.value}>{option.label}</option>
           ))}
         </select>
+        <select className="input w-44" value={category} onChange={onFilterChange(setCategory)} aria-label="Category">
+          <option value="">All categories</option>
+          {HANGER_CATEGORIES.map((option) => (
+            <option key={option.value} value={option.value}>{option.label}</option>
+          ))}
+        </select>
       </div>
 
-      {loading && <TableSkeleton columns={7} />}
+      {loading && <TableSkeleton columns={9} />}
       {error && <ErrorState error={error} onRetry={reload} />}
 
       {!loading && !error && (data.length === 0 ? (
@@ -519,6 +522,7 @@ export default function Moulds() {
                   <tr>
                     <th className="px-4 py-3">Mould</th>
                     <th className="px-4 py-3">Makes</th>
+                    <th className="px-4 py-3 text-right">Minimum</th>
                     <th className="px-4 py-3 text-right">Cavities</th>
                     <th className="px-4 py-3 text-right">Part</th>
                     {/* The two columns that are the point of the register, side by side. */}
@@ -539,7 +543,16 @@ export default function Moulds() {
                           <p className="text-xs text-steel-400">{mould.name}</p>
                         </td>
                         <td className="px-4 py-3.5 text-xs text-steel-300">
-                          {(mould.products || []).map((product) => product.modelCode).join(', ') || '—'}
+                          {[
+                            optionLabel(HANGER_CATEGORIES, mould.category),
+                            mould.sizeMm ? `${mould.sizeMm} mm` : null,
+                            optionLabel(HOOK_TYPES, mould.hookType),
+                          ]
+                            .filter(Boolean)
+                            .join(' · ') || '—'}
+                        </td>
+                        <td className="px-4 py-3.5 text-right tabular-nums text-steel-300">
+                          {mould.moq ? formatNumber(mould.moq) : '—'}
                         </td>
                         <td className="px-4 py-3.5 text-right tabular-nums">
                           <span className={short ? 'text-warn-400' : 'text-steel-200'}>

@@ -72,13 +72,13 @@ function QuotationForm({ quotation, onClose, onSaved }) {
     quotation?.lines?.length
       ? quotation.lines.map((line) => ({
           _id: line._id,
-          product: line.product?._id ?? line.product ?? '',
+          mould: line.mould?._id ?? line.mould ?? '',
           pricing: line.pricing?._id ?? line.pricing ?? '',
           modelNumber: line.modelNumber ?? '',
           moq: line.moq ?? '',
           unitPrice: line.unitPrice ?? '',
         }))
-      : [{ product: '', pricing: '', modelNumber: '', moq: '', unitPrice: '' }]
+      : [{ mould: '', pricing: '', modelNumber: '', moq: '', unitPrice: '' }]
   );
   const [values, setValues] = useState(quotation ? {
     gstPercent: quotation.gstPercent ?? 18,
@@ -109,7 +109,7 @@ function QuotationForm({ quotation, onClose, onSaved }) {
     setLines(lines.map((line, at) => (at === index ? { ...line, [key]: event.target.value } : line)));
 
   const addLine = () =>
-    setLines([...lines, { product: '', pricing: '', modelNumber: '', moq: '', unitPrice: '' }]);
+    setLines([...lines, { mould: '', pricing: '', modelNumber: '', moq: '', unitPrice: '' }]);
 
   /* Never below one: the server refuses an empty quotation, and it is right to. */
   const removeLine = (index) =>
@@ -145,7 +145,7 @@ function QuotationForm({ quotation, onClose, onSaved }) {
          */
         lines: lines.map((line) => ({
           ...(line._id ? { _id: line._id } : {}),
-          ...(line.product ? { product: line.product } : {}),
+          ...(line.mould ? { mould: line.mould } : {}),
           ...(line.pricing ? { pricing: line.pricing } : {}),
           modelNumber: line.modelNumber || undefined,
           quantity: Number(line.quantity),
@@ -221,8 +221,8 @@ function QuotationForm({ quotation, onClose, onSaved }) {
                 </Field>
                 {/* A term of the offer, and per line: a 400mm shirt hanger and a velvet suit
                     hanger on the same document have different minimums. Blank takes the
-                    model's catalogue standard [§28]. */}
-                <Field label={index === 0 ? 'Minimum' : ''} hint={index === 0 ? "Blank uses the catalogue's" : undefined}>
+                    model's standard on the register [§28]. */}
+                <Field label={index === 0 ? 'Minimum' : ''} hint={index === 0 ? "Blank uses the register's" : undefined}>
                   <input
                     type="number"
                     min="0"
@@ -356,7 +356,7 @@ function RevisionForm({ quotation, onClose, onSaved }) {
            */
           lines: (quotation.lines || []).map((line) => ({
             _id: line._id,
-            ...(line.product ? { product: line.product._id ?? line.product } : {}),
+            ...(line.mould ? { mould: line.mould._id ?? line.mould } : {}),
             ...(line.pricing ? { pricing: line.pricing._id ?? line.pricing } : {}),
             modelNumber: line.modelNumber || undefined,
             quantity: line.quantity,

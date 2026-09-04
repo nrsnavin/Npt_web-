@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { samples as samplesApi } from '../api/endpoints.js';
 import { Field, Notice } from './ui.jsx';
-import { CustomerSelect, EnquirySelect, ProductSelect } from './pickers.jsx';
+import { CustomerSelect, EnquirySelect, MouldSelect } from './pickers.jsx';
 import { HANGER_CATEGORIES, MATERIALS, SAMPLE_PURPOSES, numeric, text } from '../utils/pipeline.js';
 
 /**
@@ -20,7 +20,7 @@ import { HANGER_CATEGORIES, MATERIALS, SAMPLE_PURPOSES, numeric, text } from '..
 export default function SampleRequestForm({ lead, onClose, onSaved }) {
   const [enquiry, setEnquiry] = useState(undefined);
   const [customer, setCustomer] = useState(undefined);
-  const [product, setProduct] = useState(undefined);
+  const [mould, setMould] = useState(undefined);
   const [error, setError] = useState(null);
 
   const {
@@ -44,8 +44,8 @@ export default function SampleRequestForm({ lead, onClose, onSaved }) {
     setError(null);
 
     // With an enquiry the requirement comes from it; without one it has to be said here.
-    if (standalone && !product && !modelNumber?.trim()) {
-      setError({ message: 'Pick a model, or describe what to make.' });
+    if (standalone && !mould && !modelNumber?.trim()) {
+      setError({ message: 'Pick a mould, or describe what to make.' });
       return;
     }
 
@@ -56,7 +56,7 @@ export default function SampleRequestForm({ lead, onClose, onSaved }) {
           /* A lead is not a customer yet, and the server refuses a request naming both. */
           customer: forLead ? undefined : customer,
           lead: lead?._id,
-          product,
+          mould,
           modelNumber: text(values.modelNumber),
           category: text(values.category),
           material: text(values.material),
@@ -130,8 +130,8 @@ export default function SampleRequestForm({ lead, onClose, onSaved }) {
             With no enquiry to take it from, the bench needs to be told what to make.
           </p>
 
-          <Field label="Model" hint="From the catalogue, or describe it below">
-            <ProductSelect value={product} onChange={setProduct} aria-label="Model" />
+          <Field label="Model" hint="The mould it is made on, or describe it below">
+            <MouldSelect value={mould} onChange={setMould} aria-label="Model" />
           </Field>
 
           <div className="grid gap-4 sm:grid-cols-2">

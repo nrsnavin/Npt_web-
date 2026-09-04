@@ -39,8 +39,8 @@ export const users = {
 };
 
 /**
- * Phase 1: the product master and the pipeline that runs from a lead to a customer to an
- * enquiry. List endpoints return `{ data, pagination }`, so those keep the whole envelope.
+ * Phase 1: the pipeline that runs from a lead to a customer to an enquiry. List endpoints
+ * return `{ data, pagination }`, so those keep the whole envelope.
  */
 const listed = (response) => response.data;
 
@@ -54,15 +54,9 @@ const listed = (response) => response.data;
  */
 const boarded = (response) => ({ columns: response.data.data.columns, sort: response.data.meta?.sort });
 
-export const products = {
-  list: (params) => api.get('/products', { params }).then(listed),
-  get: (id) => api.get(`/products/${id}`).then(unwrap),
-  create: (payload) => api.post('/products', payload).then(unwrap),
-  update: ({ id, ...payload }) => api.patch(`/products/${id}`, payload).then(unwrap),
-};
-
 /**
- * The mould register. Read by everyone with the grant, written by the plant.
+ * The mould register, which is also the model master [§28]. Read by everyone with the grant,
+ * written by the plant.
  *
  * The derived figures — consumption per piece, pieces an hour, shot weight — come back on
  * every row rather than being recomputed here. They are the register's answer, and a second
@@ -169,8 +163,8 @@ export const enquiries = {
    */
   actions: (id) => api.get(`/enquiries/${id}/actions`).then(unwrap),
   act: ({ id, ...payload }) => api.post(`/enquiries/${id}/actions`, payload).then(unwrap),
-  promoteToProduct: ({ id, ...payload }) =>
-    api.post(`/enquiries/${id}/promote-product`, payload).then(unwrap),
+  promoteToMould: ({ id, ...payload }) =>
+    api.post(`/enquiries/${id}/promote-mould`, payload).then(unwrap),
   pipeline: () => api.get('/enquiries/pipeline').then(unwrap),
   /** The funnel as columns you can work in, rather than a strip of counts you can only read. */
   board: (params) => api.get('/enquiries/board', { params }).then(boarded),
@@ -411,7 +405,6 @@ export const downloads = {
   customers: (params) => save('/customers/export', params, 'customers.csv'),
   leads: (params) => save('/leads/export', params, 'leads.csv'),
   enquiries: (params) => save('/enquiries/export', params, 'enquiries.csv'),
-  products: (params) => save('/products/export', params, 'products.csv'),
   moulds: (params) => save('/moulds/export', params, 'moulds.csv'),
   materials: (params) => save('/materials/export', params, 'materials.csv'),
   components: (params) => save('/components/export', params, `${params?.kind || 'parts'}s.csv`),

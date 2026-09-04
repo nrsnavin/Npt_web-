@@ -82,7 +82,7 @@ function ActivityForm({ leadId, onSaved }) {
 function ConvertForm({ lead, onClose, onConverted, startWithEnquiry = true }) {
   const [error, setError] = useState(null);
   const [withEnquiry, setWithEnquiry] = useState(startWithEnquiry);
-  const [product, setProduct] = useState(undefined);
+  const [mould, setMould] = useState(undefined);
   const [isNewDevelopment, setNewDevelopment] = useState(false);
   /*
    * The customer this lead turned out to be, when it is one we already supply.
@@ -117,8 +117,16 @@ function ConvertForm({ lead, onClose, onConverted, startWithEnquiry = true }) {
   const submit = async (values) => {
     setError(null);
 
-    if (withEnquiry && !product && !isNewDevelopment) {
-      setError({ message: 'Pick a model from the catalogue, or mark the enquiry as a new development.' });
+    if (
+      withEnquiry &&
+      !mould &&
+      !isNewDevelopment &&
+      !values.enquiry?.requirement?.modelNumber?.trim()
+    ) {
+      setError({
+        message:
+          'Name the mould, or give the model number the buyer asked for, or mark the enquiry as a new development.',
+      });
       return;
     }
 
@@ -140,7 +148,7 @@ function ConvertForm({ lead, onClose, onConverted, startWithEnquiry = true }) {
             },
           }),
       enquiry: withEnquiry
-        ? buildEnquiryPayload(values.enquiry, { product, isNewDevelopment })
+        ? buildEnquiryPayload(values.enquiry, { mould, isNewDevelopment })
         : undefined,
     };
 
@@ -281,8 +289,8 @@ function ConvertForm({ lead, onClose, onConverted, startWithEnquiry = true }) {
             register={register}
             prefix="enquiry."
             errors={errors.enquiry}
-            product={product}
-            onProductChange={setProduct}
+            mould={mould}
+            onMouldChange={setMould}
             newDevelopment={isNewDevelopment}
             onNewDevelopmentChange={setNewDevelopment}
           />
@@ -422,7 +430,7 @@ function LeadSamples({ lead, mayWrite }) {
                     {sample.number}
                   </Link>
                   <p className="truncate text-xs text-steel-400">
-                    {sample.product?.modelCode || sample.modelNumber || 'New development'}
+                    {sample.modelNumber || sample.mould?.mouldCode || 'New development'}
                     {sample.colour ? ` · ${sample.colour}` : ''} · {formatNumber(sample.quantity)} pcs
                   </p>
                   {/*

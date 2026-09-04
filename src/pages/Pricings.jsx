@@ -9,7 +9,7 @@ import {
 import StagePipeline from '../components/StagePipeline.jsx';
 import CostingSheetForm from '../components/CostingSheetForm.jsx';
 import CostingDetailsForm from '../components/CostingDetailsForm.jsx';
-import { CustomerSelect, ProductSelect } from '../components/pickers.jsx';
+import { CustomerSelect, MouldSelect } from '../components/pickers.jsx';
 import QuotationPdf from '../components/QuotationPdf.jsx';
 import { formatCompactCurrency, formatDate, formatNumber, humanise } from '../utils/format.js';
 import { inDays } from '../utils/pipeline.js';
@@ -109,7 +109,7 @@ function DecisionForm({ pricing, onClose, onSaved }) {
  */
 function NewCostingForm({ onClose, onSaved }) {
   const [customer, setCustomer] = useState('');
-  const [product, setProduct] = useState('');
+  const [mould, setMould] = useState('');
   const [modelNumber, setModel] = useState('');
   const [quantity, setQuantity] = useState('');
   const [targetPrice, setTargetPrice] = useState('');
@@ -126,13 +126,13 @@ function NewCostingForm({ onClose, onSaved }) {
     setError(null);
     try {
       /*
-       * The model number is left out when a product is chosen: the server copies it from the
-       * master [§28]. Sending a blank would overwrite what it knows with nothing.
+       * The model number is left out when a mould is chosen: the server copies it from the
+       * register [§28]. Sending a blank would overwrite what it knows with nothing.
        */
       onSaved(
         await pricingsApi.create({
           customer,
-          product: product || undefined,
+          mould: mould || undefined,
           modelNumber: modelNumber || undefined,
           quantity: Number(quantity),
           targetPrice: targetPrice === '' ? undefined : Number(targetPrice),
@@ -158,8 +158,8 @@ function NewCostingForm({ onClose, onSaved }) {
         <Field label="Customer">
           <CustomerSelect value={customer} onChange={setCustomer} aria-label="Customer" />
         </Field>
-        <Field label="Model" hint="From the catalogue — its code and material come with it">
-          <ProductSelect value={product} onChange={setProduct} aria-label="Model" />
+        <Field label="Model" hint="The tool it runs on — leave empty for a traded piece">
+          <MouldSelect value={mould} onChange={setMould} aria-label="Model" />
         </Field>
       </div>
 
@@ -173,7 +173,7 @@ function NewCostingForm({ onClose, onSaved }) {
             onChange={(event) => setQuantity(event.target.value)}
           />
         </Field>
-        <Field label="Model number" hint="Only if it is not in the catalogue">
+        <Field label="Model number" hint="What the buyer calls it, or all of it if it is traded">
           <input
             className="input"
             value={modelNumber}
@@ -218,7 +218,7 @@ function NewCostingForm({ onClose, onSaved }) {
  *
  * The minimum order quantity is set *here*, not on the costing. It is a term of the offer —
  * something the buyer reads beside the price and then argues about — rather than a fact about
- * what the job costs, so it belongs to the quotation and starts from the model's catalogue
+ * what the job costs, so it belongs to the quotation and starts from the model's registered
  * standard [§28].
  *
  * The quantity then starts at that minimum rather than at the quantity the sheet was costed
@@ -230,7 +230,7 @@ function NewCostingForm({ onClose, onSaved }) {
  * sheet. What is left is the quantity and the terms, which belong to the conversation.
  */
 function QuoteFromCosting({ pricing, onClose, onQuoted }) {
-  const standard = pricing.product?.moq || 0;
+  const standard = pricing.mould?.moq || 0;
   const [moq, setMoq] = useState(standard || '');
   const [quantity, setQuantity] = useState(standard || pricing.quantity || '');
   const [unitPrice, setUnitPrice] = useState(pricing.approvedSellingPrice ?? '');
@@ -296,7 +296,7 @@ function QuoteFromCosting({ pricing, onClose, onQuoted }) {
       <div className="grid gap-4 sm:grid-cols-2">
         <Field
           label="Quantity"
-          hint={standard ? `Starts at the catalogue minimum of ${formatNumber(standard)}` : 'Pieces'}
+          hint={standard ? `Starts at the registered minimum of ${formatNumber(standard)}` : 'Pieces'}
         >
           <input
             type="number"
@@ -323,7 +323,7 @@ function QuoteFromCosting({ pricing, onClose, onQuoted }) {
           label="Minimum order quantity"
           hint={
             standard
-              ? `The catalogue standard is ${formatNumber(standard)}. This buyer may be offered another`
+              ? `The register's standard is ${formatNumber(standard)}. This buyer may be offered another`
               : 'The smallest lot this price is offered at. Printed on the quotation'
           }
         >

@@ -102,7 +102,7 @@ function Entry({ row }) {
 
 /**
  * `model` is the server's own name for the record type — Customer, Lead, Enquiry, Sample,
- * Product — because the history route is one route across all of them.
+ * Mould — because the history route is one route across all of them.
  */
 export default function HistoryPanel({ model, id, title = 'Change history' }) {
   const fetch = useCallback((recordId) => historyApi({ model, id: recordId }), [model]);
