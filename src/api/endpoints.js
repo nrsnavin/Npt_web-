@@ -171,6 +171,39 @@ export const enquiries = {
 };
 
 /**
+ * Phase 4: sales orders [§12-13].
+ *
+ * An order comes back with its value redacted for anyone who may not see what the customer
+ * agreed — production, quality and despatch get the model, the quantity and the date — and
+ * carries `valueHidden` so the screen can say why the money is missing rather than looking
+ * broken.
+ *
+ * `get` keeps the whole envelope rather than unwrapping to `data`, because the §13 checklist
+ * travels beside the order: what the eight checks are, which are ticked and what each means is
+ * the server's list, so adding a ninth needs no second edit here.
+ */
+export const orders = {
+  list: (params) => api.get('/orders', { params }).then(listed),
+  get: (id) => api.get(`/orders/${id}`).then((response) => response.data),
+  create: (payload) => api.post('/orders', payload).then(unwrap),
+  update: ({ id, ...payload }) => api.patch(`/orders/${id}`, payload).then(unwrap),
+  /** Ticking, or un-ticking, one of §13's eight. Keeps the envelope: it carries what is left. */
+  setCheck: ({ id, ...payload }) => api.post(`/orders/${id}/checks`, payload).then((r) => r.data),
+  /** What can be done from here, and doing one — verbs rather than a ladder of fourteen. */
+  actions: (id) => api.get(`/orders/${id}/actions`).then(unwrap),
+  act: ({ id, ...payload }) => api.post(`/orders/${id}/actions`, payload).then(unwrap),
+  /** The customer's own paperwork. Multipart, so it goes as a form rather than JSON. */
+  setPo: (id, file) => {
+    const form = new FormData();
+    form.append('file', file);
+    return api.put(`/orders/${id}/po`, form).then(unwrap);
+  },
+  /** An accepted quotation becoming an order. Nothing is retyped — see the controller. */
+  fromQuotation: ({ id, ...payload }) => api.post(`/quotations/${id}/order`, payload).then(unwrap),
+  board: (params) => api.get('/orders/board', { params }).then(boarded),
+};
+
+/**
  * Phase 3: costings and the quotations priced off them [§7, §9, §10].
  *
  * A costing comes back redacted for anyone without `pricing: write` — the cost base, the
@@ -405,6 +438,7 @@ export const downloads = {
   customers: (params) => save('/customers/export', params, 'customers.csv'),
   leads: (params) => save('/leads/export', params, 'leads.csv'),
   enquiries: (params) => save('/enquiries/export', params, 'enquiries.csv'),
+  orders: (params) => save('/orders/export', params, 'sales-orders.csv'),
   moulds: (params) => save('/moulds/export', params, 'moulds.csv'),
   materials: (params) => save('/materials/export', params, 'materials.csv'),
   components: (params) => save('/components/export', params, `${params?.kind || 'parts'}s.csv`),

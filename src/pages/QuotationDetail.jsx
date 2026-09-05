@@ -1,8 +1,10 @@
 import { useCallback, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { quotations as quotationsApi } from '../api/endpoints.js';
 import { useRecord } from '../hooks/useRecords.js';
-import { Badge, ErrorState, Notice, PageHeader, Section, Spinner } from '../components/ui.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
+import { Badge, ErrorState, Modal, Notice, PageHeader, Section, Spinner } from '../components/ui.jsx';
+import OrderFromQuotation from '../components/OrderFromQuotation.jsx';
 import QuotationPdf from '../components/QuotationPdf.jsx';
 import {
   formatCompactCurrency, formatCurrency, formatDate, formatNumber, humanise,
@@ -90,9 +92,12 @@ function changesBetween(revision, previous) {
 
 export default function QuotationDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const { canWrite } = useAuth();
   const fetch = useCallback((quotationId) => quotationsApi.get(quotationId), []);
   const { data: quotation, loading, error, reload } = useRecord(fetch, id);
   const [showingPdf, setShowingPdf] = useState(false);
+  const [ordering, setOrdering] = useState(false);
 
   if (loading) return <Spinner label="Loading the quotation" />;
   if (error) return <ErrorState error={error} onRetry={reload} />;
@@ -178,6 +183,16 @@ export default function QuotationDetail() {
         }
         actions={
           <div className="flex items-center gap-2">
+            {/*
+              The ordinary route into an order. Offered only on an accepted quote, because that
+              is the only state the server will raise one from — a button that always refuses is
+              worse than no button.
+            */}
+            {quotation.status === 'accepted' && canWrite('orders') && (
+              <button type="button" className="btn-primary" onClick={() => setOrdering(true)}>
+                Book the order
+              </button>
+            )}
             <button type="button" className="btn-secondary" onClick={() => setShowingPdf(true)}>
               View the document
             </button>
@@ -185,6 +200,20 @@ export default function QuotationDetail() {
           </div>
         }
       />
+
+      <Modal
+        open={ordering}
+        title="Book the order"
+        description={`The purchase order against ${quotation.number}`}
+        size="lg"
+        onClose={() => setOrdering(false)}
+      >
+        <OrderFromQuotation
+          quotation={quotation}
+          onClose={() => setOrdering(false)}
+          onOrdered={(order) => navigate(`/orders/${order._id}`)}
+        />
+      </Modal>
 
       {quotation.isExpired && (
         <Notice tone="warn">

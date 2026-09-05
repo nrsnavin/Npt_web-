@@ -17,6 +17,7 @@ const STATUS_TONES = {
   qualified: 'info',
   quoted: 'info',
   quote_submitted: 'info',
+  po_received: 'info',
   request_received: 'info',
   sample_available: 'info',
   delivered: 'info',
@@ -32,6 +33,15 @@ const STATUS_TONES = {
   partially_paid: 'progress',
   on_hold: 'progress',
   requirement_clarification: 'progress',
+  /* An order being checked, or waiting on an answer, is work underway. */
+  order_verification: 'progress',
+  clarification_pending: 'progress',
+  production_planning: 'progress',
+  production_running: 'progress',
+  part_quantity_ready: 'progress',
+  dispatch_planning: 'progress',
+  part_dispatched: 'progress',
+  payment_pending: 'progress',
   sample_required: 'progress',
   pricing_required: 'progress',
   negotiation: 'progress',
@@ -58,6 +68,10 @@ const STATUS_TONES = {
   received: 'success',
   completed: 'success',
   dispatched: 'success',
+  /* Past the §13 gate, and past the plant: both are outcomes worth reading as green. */
+  approved_for_production: 'success',
+  production_completed: 'success',
+  fully_dispatched: 'success',
 
   // Needs attention or ended badly.
   unpaid: 'danger',

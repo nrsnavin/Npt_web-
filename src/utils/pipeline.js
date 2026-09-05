@@ -92,6 +92,36 @@ export const SAMPLE_PURPOSES = [
   { value: 'buyer_approval', label: 'Buyer approval' },
 ];
 
+/**
+ * The sales-order ladder [§12], in the order work moves through it.
+ *
+ * `cancelled` is not in §12's matrix and is needed for the same reason a sample needed one:
+ * §12 describes an order that runs to completion, and an order can also stop being wanted.
+ */
+export const ORDER_STAGES = [
+  { value: 'po_received', label: 'PO received' },
+  { value: 'order_verification', label: 'Verifying' },
+  { value: 'clarification_pending', label: 'Clarification pending' },
+  { value: 'approved_for_production', label: 'Released' },
+  { value: 'production_planning', label: 'Planning' },
+  { value: 'production_running', label: 'Running' },
+  { value: 'part_quantity_ready', label: 'Part ready' },
+  { value: 'production_completed', label: 'Made' },
+  { value: 'dispatch_planning', label: 'Dispatch planning' },
+  { value: 'part_dispatched', label: 'Part dispatched' },
+  { value: 'fully_dispatched', label: 'Dispatched' },
+  { value: 'payment_pending', label: 'Payment pending' },
+  { value: 'closed', label: 'Closed' },
+  { value: 'cancelled', label: 'Cancelled' },
+];
+
+export const CLOSED_ORDER_STAGES = ['closed', 'cancelled'];
+
+/** Before the §13 gate: the only place the checklist is editable, and the queue it makes. */
+export const PRE_RELEASE_STAGES = ['po_received', 'order_verification', 'clarification_pending'];
+
+export const orderStageLabel = (value) => label(ORDER_STAGES, value);
+
 export const LEAD_STAGES = [
   { value: 'new', label: 'New' },
   { value: 'contacted', label: 'Contacted' },

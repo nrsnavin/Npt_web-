@@ -19,6 +19,8 @@ import Dashboard from './pages/Dashboard.jsx';
 const Profile = lazy(() => import('./pages/Profile.jsx'));
 const Users = lazy(() => import('./pages/Users.jsx'));
 const Integrations = lazy(() => import('./pages/Integrations.jsx'));
+const Orders = lazy(() => import('./pages/Orders.jsx'));
+const OrderDetail = lazy(() => import('./pages/OrderDetail.jsx'));
 const Moulds = lazy(() => import('./pages/Moulds.jsx'));
 const Materials = lazy(() => import('./pages/Materials.jsx'));
 const PartsRegister = lazy(() => import('./pages/PartsRegister.jsx'));
@@ -221,6 +223,22 @@ export default function App() {
             element={
               <RequireModule moduleKey="customers">
                 <CustomerDetail />
+              </RequireModule>
+            }
+          />
+          <Route
+            path="orders"
+            element={
+              <RequireModule moduleKey="orders">
+                <Orders />
+              </RequireModule>
+            }
+          />
+          <Route
+            path="orders/:id"
+            element={
+              <RequireModule moduleKey="orders">
+                <OrderDetail />
               </RequireModule>
             }
           />

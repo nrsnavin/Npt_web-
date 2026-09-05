@@ -34,7 +34,7 @@ const RAIL = [
     label: 'Pipeline',
     icon: 'funnel',
     module: 'enquiries',
-    paths: ['/enquiries', '/leads', '/customers', '/samples', '/pricings', '/quotations'],
+    paths: ['/enquiries', '/leads', '/customers', '/samples', '/pricings', '/quotations', '/orders'],
   },
   {
     to: '/moulds',
@@ -83,6 +83,7 @@ const SIDEBARS = {
           { to: '/enquiries', label: 'Enquiries', module: 'enquiries' },
           { to: '/pricings', label: 'Costings', module: 'pricing' },
           { to: '/quotations', label: 'Quotations', module: 'quotations' },
+          { to: '/orders', label: 'Sales orders', module: 'orders' },
           // Exact, or the queue stays lit while the dashboard is open beneath it.
           { to: '/samples', label: 'Sampling', module: 'samples', end: true },
           { to: '/samples/dashboard', label: 'Sampling dashboard', module: 'samples' },
@@ -216,6 +217,7 @@ const MODULE_ROUTES = {
   quotations: '/quotations',
   samples: '/samples',
   customers: '/customers',
+  orders: '/orders',
   moulds: '/moulds',
   materials: '/materials',
   users: '/users',
