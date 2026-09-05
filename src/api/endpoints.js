@@ -204,6 +204,26 @@ export const orders = {
 };
 
 /**
+ * Questions asked against an order, and the answers they are waiting for.
+ *
+ * All on the orders *read* grant, which is the point: marketing holds orders at read and is
+ * who asks. Nothing here changes an order.
+ *
+ * `list` keeps the envelope — the counts of what is open and what is overdue travel with the
+ * rows, and a panel that had to recount them would be a second implementation of the rule.
+ */
+export const orderQueries = {
+  list: (orderId) => api.get(`/orders/${orderId}/queries`).then((response) => response.data),
+  raise: ({ orderId, ...payload }) => api.post(`/orders/${orderId}/queries`, payload).then(unwrap),
+  answer: ({ orderId, queryId, ...payload }) =>
+    api.post(`/orders/${orderId}/queries/${queryId}/answers`, payload).then(unwrap),
+  close: ({ orderId, queryId, ...payload }) =>
+    api.post(`/orders/${orderId}/queries/${queryId}/close`, payload).then(unwrap),
+  /** What my department is being asked, across every order. Defaults to the caller's own. */
+  queue: (params) => api.get('/order-queries', { params }).then(listed),
+};
+
+/**
  * Phase 3: costings and the quotations priced off them [§7, §9, §10].
  *
  * A costing comes back redacted for anyone without `pricing: write` — the cost base, the

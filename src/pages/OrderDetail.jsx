@@ -7,6 +7,7 @@ import {
   Badge, ErrorState, Facts, Field, Modal, Notice, PageHeader, Section, Spinner,
 } from '../components/ui.jsx';
 import HistoryPanel from '../components/HistoryPanel.jsx';
+import OrderQueries from '../components/OrderQueries.jsx';
 import { formatCurrency, formatDate, formatNumber } from '../utils/format.js';
 import { CLOSED_ORDER_STAGES, PRE_RELEASE_STAGES, orderStageLabel } from '../utils/pipeline.js';
 
@@ -445,6 +446,13 @@ export default function OrderDetail() {
           </Section>
 
           <OrderActions order={order} onDone={absorb} />
+
+          {/*
+            The questions, on the order rather than in somebody's phone. Placed in the main
+            column and above the history, because an unanswered question is work outstanding
+            and the history is a record of work already done.
+          */}
+          <OrderQueries order={order} />
 
           <Section title={`History (${order.statusHistory?.length || 0})`}>
             <ol className="space-y-3">
