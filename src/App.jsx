@@ -22,6 +22,8 @@ const Integrations = lazy(() => import('./pages/Integrations.jsx'));
 const Orders = lazy(() => import('./pages/Orders.jsx'));
 const OrderDetail = lazy(() => import('./pages/OrderDetail.jsx'));
 const Production = lazy(() => import('./pages/Production.jsx'));
+const Dispatches = lazy(() => import('./pages/Dispatches.jsx'));
+const DispatchDetail = lazy(() => import('./pages/DispatchDetail.jsx'));
 const Moulds = lazy(() => import('./pages/Moulds.jsx'));
 const Materials = lazy(() => import('./pages/Materials.jsx'));
 const PartsRegister = lazy(() => import('./pages/PartsRegister.jsx'));
@@ -248,6 +250,22 @@ export default function App() {
             element={
               <RequireModule moduleKey="production">
                 <Production />
+              </RequireModule>
+            }
+          />
+          <Route
+            path="dispatches"
+            element={
+              <RequireModule moduleKey="dispatch">
+                <Dispatches />
+              </RequireModule>
+            }
+          />
+          <Route
+            path="dispatches/:id"
+            element={
+              <RequireModule moduleKey="dispatch">
+                <DispatchDetail />
               </RequireModule>
             }
           />

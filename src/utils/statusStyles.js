@@ -58,6 +58,20 @@ const STATUS_TONES = {
   running: 'progress',
   customer_feedback_pending: 'progress',
   modification_required: 'progress',
+  /*
+   * The despatch ladder [§18], up to the moment it leaves. All amber, because every rung of it
+   * is somebody's open job — the consignment is on our floor and we are the holdup.
+   * `vehicle_pending` is deliberately not red: waiting on a transporter is ordinary, and §25
+   * already has an alarm for material that has been sitting a day.
+   */
+  dispatch_request_received: 'info',
+  invoice_preparation: 'progress',
+  packing: 'progress',
+  vehicle_pending: 'progress',
+  ready_to_load: 'progress',
+  loaded: 'progress',
+  /* Gone, and the paperwork catching up. */
+  pod_pending: 'info',
   /* A tool in the tool room is work underway, the same as a job on a press is. */
   maintenance: 'progress',
   development: 'info',

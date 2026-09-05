@@ -242,6 +242,39 @@ export const orderQueries = {
 };
 
 /**
+ * Dispatch [§18-19]: what is on a lorry, and what is still free to put on one.
+ *
+ * `ready` is despatch's own queue rather than a list of consignments — one row per order line
+ * with what is packed, what other consignments are already holding and what is left. It keeps
+ * its envelope because the "why is only 20,000 free when 30,000 are packed" answer travels
+ * with the rows, and a screen that worked it out again would be a second implementation of the
+ * reservation.
+ *
+ * `onOrder` is the tracker panel, and it is on the **orders** grant rather than this one: the
+ * question "where are my customer's goods" belongs to whoever owns the order, and §19 is
+ * written for exactly the people who cannot load a lorry themselves.
+ */
+export const dispatches = {
+  list: (params) => api.get('/dispatches', { params }).then((response) => response.data),
+  get: (id) => api.get(`/dispatches/${id}`).then((response) => response.data),
+  create: (payload) => api.post('/dispatches', payload).then((response) => response.data),
+  update: ({ id, ...payload }) => api.patch(`/dispatches/${id}`, payload).then((r) => r.data),
+  actions: (id) => api.get(`/dispatches/${id}/actions`).then(unwrap),
+  act: ({ id, ...payload }) => api.post(`/dispatches/${id}/actions`, payload).then((r) => r.data),
+  board: (params) => api.get('/dispatches/board', { params }).then(boarded),
+  /** What is free to send today, across every released order. */
+  ready: (params) => api.get('/dispatches/ready', { params }).then((response) => response.data),
+  /** The tracker panel: the consignments on one order, and the stock behind them. */
+  onOrder: (orderId) => api.get(`/orders/${orderId}/dispatches`).then((response) => response.data),
+  /** The signed delivery note coming back. Multipart, so it goes as a form rather than JSON. */
+  setPod: (id, file) => {
+    const form = new FormData();
+    form.append('file', file);
+    return api.put(`/dispatches/${id}/pod`, form).then(unwrap);
+  },
+};
+
+/**
  * Phase 3: costings and the quotations priced off them [§7, §9, §10].
  *
  * A costing comes back redacted for anyone without `pricing: write` — the cost base, the
@@ -478,6 +511,7 @@ export const downloads = {
   enquiries: (params) => save('/enquiries/export', params, 'enquiries.csv'),
   orders: (params) => save('/orders/export', params, 'sales-orders.csv'),
   production: (params) => save('/production/export', params, 'production.csv'),
+  dispatches: (params) => save('/dispatches/export', params, 'dispatches.csv'),
   moulds: (params) => save('/moulds/export', params, 'moulds.csv'),
   materials: (params) => save('/materials/export', params, 'materials.csv'),
   components: (params) => save('/components/export', params, `${params?.kind || 'parts'}s.csv`),

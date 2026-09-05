@@ -8,6 +8,7 @@ import {
 } from '../components/ui.jsx';
 import HistoryPanel from '../components/HistoryPanel.jsx';
 import OrderQueries from '../components/OrderQueries.jsx';
+import DispatchTracker from '../components/DispatchTracker.jsx';
 import { ProductionLineDialog } from '../components/ProductionLine.jsx';
 import { formatCurrency, formatDate, formatNumber } from '../utils/format.js';
 import {
@@ -492,6 +493,13 @@ export default function OrderDetail() {
               </div>
             )}
           </Section>
+
+          {/*
+            Where the goods are [§19]. Only once the order has passed the gate — before it,
+            there is nothing made, nothing packed and nothing to track, and a panel reading
+            "0 packed, 0 gone" would be four zeroes pretending to be information.
+          */}
+          {released && <DispatchTracker order={order} />}
 
           <OrderActions order={order} onDone={absorb} />
 

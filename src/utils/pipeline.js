@@ -147,6 +147,37 @@ export const HELD_PRODUCTION_STAGES = PRODUCTION_STAGES.filter((s) => s.held).ma
 
 export const productionStageLabel = (value) => label(PRODUCTION_STAGES, value);
 
+/**
+ * Where a consignment is [§18].
+ *
+ * `gone` marks the point of no return — the goods have physically left, and everything after
+ * it is about paperwork catching up. Named here so a screen can colour and count them without
+ * repeating the list, the same way `held` works above.
+ */
+export const DISPATCH_STAGES = [
+  { value: 'dispatch_request_received', label: 'Requested' },
+  { value: 'invoice_preparation', label: 'Invoicing' },
+  { value: 'packing', label: 'Packing' },
+  { value: 'vehicle_pending', label: 'Waiting for a vehicle' },
+  { value: 'ready_to_load', label: 'Ready to load' },
+  { value: 'loaded', label: 'Loaded' },
+  { value: 'dispatched', label: 'On the road', gone: true },
+  { value: 'delivered', label: 'Delivered', gone: true },
+  { value: 'pod_pending', label: 'POD pending', gone: true },
+  { value: 'closed', label: 'Closed', gone: true },
+  { value: 'cancelled', label: 'Cancelled' },
+];
+
+export const GONE_DISPATCH_STAGES = DISPATCH_STAGES.filter((s) => s.gone).map((s) => s.value);
+export const CLOSED_DISPATCH_STAGES = ['closed', 'cancelled'];
+
+/** While the load can still be changed. After it, a correction is a cancel and a re-raise. */
+export const PRE_LOAD_DISPATCH_STAGES = [
+  'dispatch_request_received', 'invoice_preparation', 'packing', 'vehicle_pending', 'ready_to_load',
+];
+
+export const dispatchStageLabel = (value) => label(DISPATCH_STAGES, value);
+
 export const LEAD_STAGES = [
   { value: 'new', label: 'New' },
   { value: 'contacted', label: 'Contacted' },

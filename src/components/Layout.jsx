@@ -33,8 +33,20 @@ const RAIL = [
     to: '/enquiries',
     label: 'Pipeline',
     icon: 'funnel',
-    module: 'enquiries',
-    paths: ['/enquiries', '/leads', '/customers', '/samples', '/pricings', '/quotations', '/orders', '/production'],
+    /**
+     * Any one of them, not `enquiries`.
+     *
+     * Gating the whole area on the first module in it hid the entire pipeline sidebar from the
+     * four departments that live at the far end of it — production, quality, despatch and
+     * accounts hold none of `enquiries`, so the area they work in every day was reachable only
+     * through the tab strip along the top. An area exists if you can open anything inside it.
+     *
+     * The landing route follows the same rule: `/enquiries` is where a marketing person should
+     * arrive, and sending a despatch clerk there is sending them to a page they may not read.
+     * See `railTarget` below.
+     */
+    modules: ['enquiries', 'pricing', 'quotations', 'orders', 'production', 'dispatch', 'samples', 'customers'],
+    paths: ['/enquiries', '/leads', '/customers', '/samples', '/pricings', '/quotations', '/orders', '/production', '/dispatches'],
   },
   {
     to: '/moulds',
@@ -85,6 +97,7 @@ const SIDEBARS = {
           { to: '/quotations', label: 'Quotations', module: 'quotations' },
           { to: '/orders', label: 'Sales orders', module: 'orders' },
           { to: '/production', label: 'Production', module: 'production' },
+          { to: '/dispatches', label: 'Dispatch', module: 'dispatch' },
           // Exact, or the queue stays lit while the dashboard is open beneath it.
           { to: '/samples', label: 'Sampling', module: 'samples', end: true },
           { to: '/samples/dashboard', label: 'Sampling dashboard', module: 'samples' },
@@ -220,6 +233,7 @@ const MODULE_ROUTES = {
   customers: '/customers',
   orders: '/orders',
   production: '/production',
+  dispatch: '/dispatches',
   moulds: '/moulds',
   materials: '/materials',
   users: '/users',
@@ -280,7 +294,28 @@ export default function Layout() {
     navigate('/login');
   };
 
-  const railItems = RAIL.filter((item) => !item.module || canRead(item.module));
+  const railItems = RAIL.filter(
+    (item) =>
+      (!item.module || canRead(item.module)) &&
+      (!item.modules || item.modules.some((module) => canRead(module)))
+  );
+
+  /**
+   * Where clicking an area actually lands.
+   *
+   * The area's own `to` when the caller can read it, and otherwise the first screen inside it
+   * that they can — because an area they may open containing a landing page they may not is a
+   * link that leads to a refusal.
+   */
+  const railTarget = (item) => {
+    const inside = SIDEBARS[item.to]?.sections.flatMap((section) => section.items) || [];
+    const reachable = inside.find((entry) => !entry.module || canRead(entry.module));
+    const landing = inside.find((entry) => entry.to === item.to);
+
+    if (landing && (!landing.module || canRead(landing.module))) return item.to;
+    return reachable?.to || item.to;
+  };
+
   const owns = (item) =>
     (item.paths || [item.to]).some((path) => location.pathname.startsWith(path));
   const sidebarKey = railItems.find((item) => item.to !== '/' && owns(item))?.to;
@@ -297,7 +332,7 @@ export default function Layout() {
           {railItems.map((item) => (
             <NavLink
               key={item.to}
-              to={item.to}
+              to={railTarget(item)}
               end={item.end}
               /* An area stays lit across every route it owns, not just its landing page. */
               className={({ isActive }) =>
