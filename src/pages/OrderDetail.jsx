@@ -8,8 +8,11 @@ import {
 } from '../components/ui.jsx';
 import HistoryPanel from '../components/HistoryPanel.jsx';
 import OrderQueries from '../components/OrderQueries.jsx';
+import { ProductionLineDialog } from '../components/ProductionLine.jsx';
 import { formatCurrency, formatDate, formatNumber } from '../utils/format.js';
-import { CLOSED_ORDER_STAGES, PRE_RELEASE_STAGES, orderStageLabel } from '../utils/pipeline.js';
+import {
+  CLOSED_ORDER_STAGES, PRE_RELEASE_STAGES, orderStageLabel, productionStageLabel,
+} from '../utils/pipeline.js';
 
 /**
  * One sales order [BLUEPRINT §12–13].
@@ -354,6 +357,8 @@ export default function OrderDetail() {
 
   const fetch = useCallback((orderId) => ordersApi.get(orderId), []);
   const { data, setData, loading, error, reload } = useRecord(fetch, id);
+  /** Which line the plant is recording against, if any. */
+  const [recording, setRecording] = useState(null);
 
   if (loading) return <Spinner label="Loading the order" />;
   if (error) return <ErrorState error={error} onRetry={reload} />;
@@ -362,6 +367,9 @@ export default function OrderDetail() {
   const order = data.data;
   const checks = data.checks || [];
   const mayWrite = canWrite('orders');
+  const mayRecord = canWrite('production');
+  /* The plant only exists on this screen once the order has passed the §13 gate. */
+  const released = !PRE_RELEASE_STAGES.includes(order.status) && order.status !== 'cancelled';
 
   /** A reply from a check or an action carries the whole order back; keep the checklist too. */
   const absorb = (next) => setData({ ...data, data: next.data ?? next, checks: next.checks ?? checks });
@@ -393,8 +401,12 @@ export default function OrderDetail() {
                     <th className="px-3 py-2.5">Model</th>
                     <th className="px-3 py-2.5">Colour</th>
                     <th className="px-3 py-2.5 text-right">Ordered</th>
+                    {/* The plant's answer sits beside what was asked for, once there is one. */}
+                    {released && <th className="px-3 py-2.5 text-right">Made</th>}
+                    {released && <th className="px-3 py-2.5">Where it is</th>}
                     {!order.valueHidden && <th className="px-3 py-2.5 text-right">Rate</th>}
                     <th className="px-3 py-2.5">Wanted by</th>
+                    {released && mayRecord && <th className="px-3 py-2.5" />}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line/[0.04]">
@@ -404,17 +416,46 @@ export default function OrderDetail() {
                         <p className="font-semibold text-steel-100">
                           {line.modelNumber || line.mould?.mouldCode || '—'}
                         </p>
-                        <p className="text-[0.6875rem] text-steel-500">
-                          {/* No mould is a traded piece, not a gap — say which it is [§28]. */}
-                          {line.mould
-                            ? `${line.mould.mouldCode} · ${line.mould.name}`
-                            : 'Bought in — no tool of ours'}
+                        <p className="text-[0.6875rem] text-steel-500" title={line.mould?.name}>
+                          {/*
+                            The tool's code, not its name. No mould is a traded piece rather than
+                            a gap [§28] — but once production sits in the columns beside this one
+                            the name wraps to five lines, and the code is what identifies it. The
+                            name is a tooltip, and the register is a click away.
+                          */}
+                          {line.mould ? line.mould.mouldCode : 'Bought in'}
                         </p>
                       </td>
                       <td className="px-3 py-3 text-steel-300">{line.colour || '—'}</td>
                       <td className="px-3 py-3 text-right tabular-nums text-steel-200">
                         {formatNumber(line.quantity)}
                       </td>
+                      {released && (
+                        <td className="px-3 py-3 text-right tabular-nums text-steel-200">
+                          {formatNumber(line.production?.producedQty || 0)}
+                          {line.toMakeQty > 0 && (
+                            <p className="text-[0.6875rem] text-steel-500">
+                              {formatNumber(line.toMakeQty)} to go
+                            </p>
+                          )}
+                        </td>
+                      )}
+                      {released && (
+                        <td className="px-3 py-3">
+                          <Badge status={line.production?.status}>
+                            {productionStageLabel(line.production?.status)}
+                          </Badge>
+                          {/* Late means past the agreed date *and* still owing pieces. */}
+                          {line.isOverdue && (
+                            <p className="mt-1 text-[0.6875rem] font-semibold text-danger-400">Late</p>
+                          )}
+                          {line.production?.holdReason && (
+                            <p className="mt-1 max-w-[12rem] truncate text-[0.6875rem] text-danger-400">
+                              {line.production.holdReason}
+                            </p>
+                          )}
+                        </td>
+                      )}
                       {!order.valueHidden && (
                         <td className="px-3 py-3 text-right tabular-nums text-steel-200">
                           {rupees(line.unitPrice)}
@@ -423,6 +464,13 @@ export default function OrderDetail() {
                       <td className="px-3 py-3 text-steel-300">
                         {line.deliveryDate ? formatDate(line.deliveryDate) : '—'}
                       </td>
+                      {released && mayRecord && (
+                        <td className="px-3 py-3">
+                          <button type="button" className="row-action" onClick={() => setRecording(line)}>
+                            Record
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -509,6 +557,17 @@ export default function OrderDetail() {
           <HistoryPanel model="SalesOrder" id={order._id} />
         </div>
       </div>
+
+      <ProductionLineDialog
+        order={order}
+        line={recording}
+        onClose={() => setRecording(null)}
+        onSaved={(next) => {
+          setRecording(null);
+          /* The reply carries the whole order back, roll-up and all. */
+          absorb(next);
+        }}
+      />
     </div>
   );
 }

@@ -122,6 +122,31 @@ export const PRE_RELEASE_STAGES = ['po_received', 'order_verification', 'clarifi
 
 export const orderStageLabel = (value) => label(ORDER_STAGES, value);
 
+/**
+ * What the plant is doing to one order line [§15].
+ *
+ * The five in the middle are all "nothing is moving": material, mould, printing stock, a
+ * production hold, a quality hold. They are separate because the answer to each is a different
+ * person's — and `held` marks them so a screen can colour the lot without listing them again.
+ */
+export const PRODUCTION_STAGES = [
+  { value: 'awaiting_planning', label: 'Awaiting planning' },
+  { value: 'planning', label: 'Planning' },
+  { value: 'material_pending', label: 'Material pending', held: true },
+  { value: 'mould_pending', label: 'Mould pending', held: true },
+  { value: 'printing_material_pending', label: 'Printing stock pending', held: true },
+  { value: 'scheduled', label: 'Scheduled' },
+  { value: 'running', label: 'Running' },
+  { value: 'part_quantity_ready', label: 'Part ready' },
+  { value: 'production_hold', label: 'On hold', held: true },
+  { value: 'quality_hold', label: 'Quality hold', held: true },
+  { value: 'completed', label: 'Made' },
+];
+
+export const HELD_PRODUCTION_STAGES = PRODUCTION_STAGES.filter((s) => s.held).map((s) => s.value);
+
+export const productionStageLabel = (value) => label(PRODUCTION_STAGES, value);
+
 export const LEAD_STAGES = [
   { value: 'new', label: 'New' },
   { value: 'contacted', label: 'Contacted' },

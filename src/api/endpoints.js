@@ -204,6 +204,24 @@ export const orders = {
 };
 
 /**
+ * Production status [§14-17]: how far each order line has got.
+ *
+ * The unit is the line, so `list` returns one row per line across every released order rather
+ * than a list of orders — the filters are about the line, and a screen that fetched orders and
+ * filtered lines in the browser would page by order and show the wrong number of rows.
+ *
+ * `list` keeps the envelope: the counts of what is open, late and held travel with the rows,
+ * and a screen that recounted them would be a second implementation of what "late" means.
+ */
+export const production = {
+  list: (params) => api.get('/production', { params }).then((response) => response.data),
+  statuses: () => api.get('/production/statuses').then(unwrap),
+  /** What the plant did to one line. The figures and the status go through one door. */
+  record: ({ orderId, lineId, ...payload }) =>
+    api.patch(`/orders/${orderId}/lines/${lineId}/production`, payload).then((r) => r.data),
+};
+
+/**
  * Questions asked against an order, and the answers they are waiting for.
  *
  * All on the orders *read* grant, which is the point: marketing holds orders at read and is
@@ -459,6 +477,7 @@ export const downloads = {
   leads: (params) => save('/leads/export', params, 'leads.csv'),
   enquiries: (params) => save('/enquiries/export', params, 'enquiries.csv'),
   orders: (params) => save('/orders/export', params, 'sales-orders.csv'),
+  production: (params) => save('/production/export', params, 'production.csv'),
   moulds: (params) => save('/moulds/export', params, 'moulds.csv'),
   materials: (params) => save('/materials/export', params, 'materials.csv'),
   components: (params) => save('/components/export', params, `${params?.kind || 'parts'}s.csv`),

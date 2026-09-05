@@ -51,6 +51,11 @@ const STATUS_TONES = {
   checking_stock: 'progress',
   production_required: 'progress',
   printing_required: 'progress',
+  /* The plant's own ladder [§15]: not started, then moving. The holds are red, below. */
+  awaiting_planning: 'neutral',
+  planning: 'progress',
+  scheduled: 'progress',
+  running: 'progress',
   customer_feedback_pending: 'progress',
   modification_required: 'progress',
   /* A tool in the tool room is work underway, the same as a job on a press is. */
@@ -80,6 +85,16 @@ const STATUS_TONES = {
   lost: 'danger',
   cancelled: 'danger',
   expired: 'danger',
+  /*
+   * A held line is a delay, and §36 colours a delay red. Amber would put it alongside "work
+   * underway", which is the one thing a held job is not — and the whole reason the plant's
+   * screen separates them is so a production head can see what has stopped.
+   */
+  material_pending: 'danger',
+  mould_pending: 'danger',
+  printing_material_pending: 'danger',
+  production_hold: 'danger',
+  quality_hold: 'danger',
 };
 
 const TONE_CLASSES = {
