@@ -125,24 +125,30 @@ export default function EnquiryFields({
         <textarea rows={2} className="input" {...register(name('remarks'))} />
       </Field>
 
+      {/*
+        Offered, not demanded.
+        §3 wants an open enquiry to carry a next step, and this used to refuse to save without
+        one. That enforced the rule against the one moment nobody may know yet — a walk-in at
+        the counter, a message pasted in at seven in the evening — and what it produced was not
+        diligence but "follow up" and a date three days out, typed to get past the form. So the
+        fields stay, the prompt stays, and the record is accepted either way; the discipline
+        lands when the enquiry is *moved*, where every action fills a next step in for you.
+      */}
       <div className="rounded-lg border border-line/[0.06] p-4">
         <p className="mb-3 text-sm text-steel-400">
-          An open enquiry always carries a next step, so it can never go quiet.
+          An enquiry with a next step never goes quiet. Leave it blank if it is too early to
+          say &mdash; it will show as one to come back to, and the first stage move sets one.
         </p>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Next action" error={errors?.nextAction}>
+          <Field label="Next action" error={errors?.nextAction} hint="Optional">
             <input
               className="input"
               placeholder="Send the quote"
-              {...register(name('nextAction'), { required: 'A next action is required' })}
+              {...register(name('nextAction'))}
             />
           </Field>
-          <Field label="Follow up on" error={errors?.nextFollowUpDate}>
-            <input
-              type="date"
-              className="input"
-              {...register(name('nextFollowUpDate'), { required: 'A follow-up date is required' })}
-            />
+          <Field label="Follow up on" error={errors?.nextFollowUpDate} hint="Optional">
+            <input type="date" className="input" {...register(name('nextFollowUpDate'))} />
           </Field>
         </div>
       </div>

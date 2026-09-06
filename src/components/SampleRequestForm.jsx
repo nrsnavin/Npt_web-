@@ -194,7 +194,7 @@ export default function SampleRequestForm({ lead, onClose, onSaved }) {
             ))}
           </select>
         </Field>
-        <Field label="Required by" className="sm:col-span-2" hint="A week from today if left empty">
+        <Field label="Required by" className="sm:col-span-2" hint="Today if left empty — re-date it if the bench needs longer">
           <input type="date" className="input" {...register('requiredDate')} />
         </Field>
       </div>

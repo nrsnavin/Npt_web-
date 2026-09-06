@@ -347,6 +347,14 @@ export const quotations = {
 /** Phase 2: sample requests, from the enquiry that raised one to the customer's answer. */
 export const samples = {
   list: (params) => api.get('/samples', { params }).then(listed),
+  /**
+   * The bench's day: what has just come in, what is late, and what each open one needs next.
+   *
+   * A different question from `/samples/dashboard`, which answers how the team is doing over a
+   * month. This answers what to pick up in the next hour, so it keeps its envelope — the counts
+   * travel with the rows rather than being recounted on screen.
+   */
+  day: () => api.get('/samples/day').then((response) => response.data),
   get: (id) => api.get(`/samples/${id}`).then(unwrap),
   create: (payload) => api.post('/samples', payload).then(unwrap),
   update: ({ id, ...payload }) => api.patch(`/samples/${id}`, payload).then(unwrap),

@@ -757,7 +757,19 @@ export default function EnquiryDetail() {
           <Section title="Next step">
             {open ? (
               <>
-                <p className="text-sm text-steel-100">{enquiry.nextAction || 'No next action set'}</p>
+                {enquiry.nextAction ? (
+                  <p className="text-sm text-steel-100">{enquiry.nextAction}</p>
+                ) : (
+                  /*
+                    A real state now that capture no longer demands one, so it reads as
+                    something to do rather than as a field somebody forgot. It is also counted
+                    as an exception on the marketing dashboard, which is where it gets chased.
+                  */
+                  <p className="text-sm text-warn-400">
+                    Nothing set yet &mdash; the next stage move will set one, or say now what
+                    happens next.
+                  </p>
+                )}
                 {due && <p className={`mt-1 text-xs font-semibold ${TONE_TEXT[due.tone]}`}>{due.text}</p>}
                 {enquiry.nextFollowUpDate && (
                   <p className="mt-0.5 text-xs text-steel-500">{formatDate(enquiry.nextFollowUpDate)}</p>

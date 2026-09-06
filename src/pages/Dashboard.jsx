@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useWorkspace } from '../components/dock/WorkspaceContext.jsx';
 import { Badge, PageHeader, Spinner } from '../components/ui.jsx';
+import SampleDay from '../components/SampleDay.jsx';
 import { formatDate, humanise } from '../utils/format.js';
 
 /**
@@ -114,7 +115,7 @@ function UpcomingDashboards({ modules }) {
 }
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user, canRead } = useAuth();
   const { loading, reminders, todos, announcements, announcementMeta, saveTodo } = useWorkspace();
 
   const greeting = useMemo(() => {
@@ -174,6 +175,17 @@ export default function Dashboard() {
           }`}
         />
       </div>
+
+      {/*
+        The bench, above the task list rather than below it. For the sample team this *is* the
+        day — their work arrives as sample requests, not as to-dos — and for marketing it is
+        the requests they are waiting on, scoped to their own by the same rule the queue uses.
+      */}
+      {canRead('samples') && (
+        <div className="mt-4">
+          <SampleDay />
+        </div>
+      )}
 
       <div className="mt-4 grid gap-4 lg:grid-cols-3">
         <Panel
