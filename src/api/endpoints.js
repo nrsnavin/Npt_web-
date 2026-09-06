@@ -207,6 +207,13 @@ export const orders = {
     form.append('file', file);
     return api.put(`/orders/${id}/po`, form).then(unwrap);
   },
+  /**
+   * What marketing is asking the plant to pull forward, and why [§29].
+   *
+   * Its own door rather than part of `update`, because an order can only be edited before it is
+   * released and this matters most after — when the job is on a press and the buyer has rung.
+   */
+  setPriority: ({ id, ...payload }) => api.post(`/orders/${id}/priority`, payload).then(unwrap),
   /** An accepted quotation becoming an order. Nothing is retyped — see the controller. */
   fromQuotation: ({ id, ...payload }) => api.post(`/quotations/${id}/order`, payload).then(unwrap),
   board: (params) => api.get('/orders/board', { params }).then(boarded),
@@ -224,6 +231,11 @@ export const orders = {
  */
 export const production = {
   list: (params) => api.get('/production', { params }).then((response) => response.data),
+  /**
+   * The plant's front page: what to run next, with the reason on each row, and the questions
+   * marketing is waiting on. Both in one reply so the screen cannot render half of itself.
+   */
+  day: () => api.get('/production/day').then((response) => response.data),
   statuses: () => api.get('/production/statuses').then(unwrap),
   /** What the plant did to one line. The figures and the status go through one door. */
   record: ({ orderId, lineId, ...payload }) =>

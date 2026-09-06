@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import Dashboard from './Dashboard.jsx';
 
 const SampleHome = lazy(() => import('./SampleHome.jsx'));
+const ProductionHome = lazy(() => import('./ProductionHome.jsx'));
 
 /**
  * What somebody sees when they open the app.
@@ -23,13 +24,19 @@ const SampleHome = lazy(() => import('./SampleHome.jsx'));
  * about turnaround, in front of somebody who had opened the app to find out which hanger to
  * make next. A screen answers one question or it answers none.
  *
- * Only sampling for now, deliberately. Production, despatch and accounts each have the same
- * argument waiting to be made and a different screen to make it with, and inventing a mapping
- * before those screens exist would be a table of guesses. Department by department, as each
- * one's own view is built.
+ * Production's is the same argument with a different answer. A press supervisor is not chased
+ * by follow-up dates either; they are chased by what will miss its date, and by the marketing
+ * person who asked a question this morning and has a buyer waiting on it. So that screen leads
+ * with those two and nothing else — the full line register is a click away, and is a different
+ * tool, for looking something up rather than deciding what to do now.
+ *
+ * Despatch and accounts still fall through to My day, deliberately. Each has the same argument
+ * waiting to be made and a different screen to make it with, and inventing a mapping before
+ * those screens exist would be a table of guesses. Department by department, as each is built.
  */
 const HOME_BY_DEPARTMENT = {
   sampling: () => <SampleHome />,
+  production: () => <ProductionHome />,
 };
 
 export default function Home() {

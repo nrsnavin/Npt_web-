@@ -8,6 +8,7 @@ import {
 } from '../components/ui.jsx';
 import HistoryPanel from '../components/HistoryPanel.jsx';
 import OrderQueries from '../components/OrderQueries.jsx';
+import OrderPriority from '../components/OrderPriority.jsx';
 import DispatchTracker from '../components/DispatchTracker.jsx';
 import { ProductionLineDialog } from '../components/ProductionLine.jsx';
 import { formatCurrency, formatDate, formatNumber } from '../utils/format.js';
@@ -354,7 +355,7 @@ function PurchaseOrder({ order, onSaved, mayWrite }) {
 
 export default function OrderDetail() {
   const { id } = useParams();
-  const { canWrite } = useAuth();
+  const { canWrite, user } = useAuth();
 
   const fetch = useCallback((orderId) => ordersApi.get(orderId), []);
   const { data, setData, loading, error, reload } = useRecord(fetch, id);
@@ -369,6 +370,16 @@ export default function OrderDetail() {
   const checks = data.checks || [];
   const mayWrite = canWrite('orders');
   const mayRecord = canWrite('production');
+  /*
+   * Who may ask the plant to move this job: the marketing person who owns it, or management.
+   * Not everybody who can read the order — the plant can read every order, and a flag the plant
+   * can set is a flag that stops meaning "the customer asked". The server enforces the same
+   * rule; this only decides whether to draw a control that would be refused.
+   */
+  const mayRaise =
+    String(order.assignedTo?._id) === String(user?.id) ||
+    user?.role === 'admin' ||
+    user?.department === 'management';
   /* The plant only exists on this screen once the order has passed the §13 gate. */
   const released = !PRE_RELEASE_STAGES.includes(order.status) && order.status !== 'cancelled';
   /* The parts column earns its width only where something is actually fitted [§28]. */
@@ -558,6 +569,12 @@ export default function OrderDetail() {
 
         <div className="space-y-5">
           <Checklist order={order} checks={checks} onChanged={absorb} mayWrite={mayWrite} />
+
+          <OrderPriority
+            order={order}
+            mayRaise={mayRaise}
+            onSaved={(next) => absorb({ data: next })}
+          />
 
           <PurchaseOrder order={order} onSaved={(next) => absorb({ data: next })} mayWrite={mayWrite} />
 
