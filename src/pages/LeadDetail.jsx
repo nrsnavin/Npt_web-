@@ -83,6 +83,8 @@ function ConvertForm({ lead, onClose, onConverted, startWithEnquiry = true }) {
   const [error, setError] = useState(null);
   const [withEnquiry, setWithEnquiry] = useState(startWithEnquiry);
   const [mould, setMould] = useState(undefined);
+  /* The register picks, held here like the mould: they are controlled selects, not inputs. */
+  const [spec, setSpec] = useState({});
   const [isNewDevelopment, setNewDevelopment] = useState(false);
   /*
    * The customer this lead turned out to be, when it is one we already supply.
@@ -148,7 +150,7 @@ function ConvertForm({ lead, onClose, onConverted, startWithEnquiry = true }) {
             },
           }),
       enquiry: withEnquiry
-        ? buildEnquiryPayload(values.enquiry, { mould, isNewDevelopment })
+        ? buildEnquiryPayload(values.enquiry, { mould, isNewDevelopment, spec })
         : undefined,
     };
 
@@ -291,6 +293,8 @@ function ConvertForm({ lead, onClose, onConverted, startWithEnquiry = true }) {
             errors={errors.enquiry}
             mould={mould}
             onMouldChange={setMould}
+            spec={spec}
+            onSpecChange={setSpec}
             newDevelopment={isNewDevelopment}
             onNewDevelopmentChange={setNewDevelopment}
           />
@@ -612,7 +616,6 @@ export default function LeadDetail() {
                 { label: 'Mobile', value: lead.mobile },
                 { label: 'Email', value: lead.email },
                 { label: 'Location', value: [lead.city, lead.state].filter(Boolean).join(', ') },
-                { label: 'Estimated quantity', value: lead.estimatedQuantity && `${formatNumber(lead.estimatedQuantity)} pcs` },
                 { label: 'Estimated value', value: lead.estimatedValue && formatCompactCurrency(lead.estimatedValue) },
                 { label: 'What they are after', value: lead.productInterest, wide: true },
                 { label: 'Notes', value: lead.notes, wide: true },

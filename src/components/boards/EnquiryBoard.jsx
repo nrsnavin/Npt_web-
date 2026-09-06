@@ -110,8 +110,10 @@ export default function EnquiryBoard({ filters, canMove, perColumn = 20 }) {
             </p>
 
             <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] tabular-nums">
-              {card.requirement?.quantity ? (
-                <span className="text-steel-300">{formatNumber(card.requirement.quantity)} pcs</span>
+              {/* The colour, not a quantity: an enquiry no longer carries one, and what
+                  distinguishes two cards for the same model is usually the shade. */}
+              {card.requirement?.colour ? (
+                <span className="text-steel-300">{card.requirement.colour}</span>
               ) : null}
               {card.estimatedValue ? (
                 <span className="font-semibold text-steel-100">

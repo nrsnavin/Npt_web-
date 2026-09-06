@@ -688,12 +688,21 @@ export default function EnquiryDetail() {
                       : 'Bought in — no tool of ours',
                 },
                 { label: 'Category', value: optionLabel(HANGER_CATEGORIES, enquiry.requirement?.category) },
-                { label: 'Material', value: optionLabel(MATERIALS, enquiry.requirement?.material) },
+                {
+                  label: 'Material',
+                  value:
+                    enquiry.requirement?.materialRef?.name ||
+                    optionLabel(MATERIALS, enquiry.requirement?.material),
+                },
                 { label: 'Size', value: enquiry.requirement?.sizeMm && `${enquiry.requirement.sizeMm} mm` },
                 { label: 'Colour', value: enquiry.requirement?.colour },
-                { label: 'Quantity', value: `${formatNumber(enquiry.requirement?.quantity)} pcs` },
+                { label: 'Hook', value: enquiry.requirement?.hookRef?.name },
+                { label: 'Clip', value: enquiry.requirement?.clipRef?.name },
                 { label: 'Target price', value: enquiry.targetPrice && formatCurrency(enquiry.targetPrice) },
-                { label: 'Printing', value: enquiry.requirement?.printing },
+                {
+                  label: 'Printing',
+                  value: enquiry.requirement?.printRef?.name || enquiry.requirement?.printing,
+                },
                 { label: 'Packing', value: enquiry.requirement?.packing },
                 { label: 'Required by', value: enquiry.requiredDeliveryDate && formatDate(enquiry.requiredDeliveryDate) },
                 { label: 'Estimated value', value: enquiry.estimatedValue && formatCurrency(enquiry.estimatedValue) },

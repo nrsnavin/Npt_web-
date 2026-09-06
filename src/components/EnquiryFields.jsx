@@ -1,15 +1,40 @@
 import { Field, Notice } from './ui.jsx';
-import { MouldSelect } from './pickers.jsx';
-import { HANGER_CATEGORIES, MATERIALS } from '../utils/pipeline.js';
+import { ColourInput, MaterialSelect, MouldSelect, PartSelect } from './pickers.jsx';
+import { HANGER_CATEGORIES } from '../utils/pipeline.js';
 
 /**
  * The requirement half of an enquiry, shared by the enquiry form and by lead conversion.
  *
  * `prefix` lets the same fields sit at the root of one form and under `enquiry.` in
  * another, so conversion can post a nested enquiry without a second copy of this markup.
+ *
+ * **Everything that names a thing is a register pick** [§28] — the tool, the resin, the hook,
+ * the clip, the print — so an enquiry describes the same job in the same words as the sample the
+ * buyer approves and the order booked against it. That is what makes §13's "correct colour" a
+ * comparison rather than two boxes of similar text.
+ *
+ * **And there is no quantity.** An enquiry used to require one, and it was the wrong question at
+ * the wrong moment: nobody knows how many at this stage, so the polite figure a buyer gives on
+ * the phone travelled the whole chain as though it were a commitment. What can honestly be said
+ * about size is the estimated value below, which says on its face that it is an estimate.
+ *
+ * The five picks are held by the caller and passed in, exactly as the mould already is: they are
+ * controlled selects rather than registered inputs, and threading them through react-hook-form
+ * would be a `Controller` each for no gain.
  */
-export default function EnquiryFields({ register, prefix = '', mould, onMouldChange, newDevelopment, onNewDevelopmentChange, errors = {} }) {
+export default function EnquiryFields({
+  register,
+  prefix = '',
+  mould,
+  onMouldChange,
+  spec = {},
+  onSpecChange = () => {},
+  newDevelopment,
+  onNewDevelopmentChange,
+  errors = {},
+}) {
   const name = (field) => `${prefix}${field}`;
+  const set = (key) => (value) => onSpecChange({ ...spec, [key]: value });
 
   return (
     <div className="space-y-5">
@@ -64,32 +89,26 @@ export default function EnquiryFields({ register, prefix = '', mould, onMouldCha
             ))}
           </select>
         </Field>
-        <Field label="Material">
-          <select className="input" {...register(name('requirement.material'))}>
-            <option value="">—</option>
-            {MATERIALS.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-          </select>
-        </Field>
         <Field label="Size (mm)">
           <input type="number" className="input" {...register(name('requirement.sizeMm'))} />
         </Field>
-        <Field label="Colour">
-          <input className="input" {...register(name('requirement.colour'))} />
+        <Field label="Material" hint="From the register — brings its colour">
+          <MaterialSelect value={spec.materialRef} onChange={set('materialRef')} aria-label="Material" />
         </Field>
-        <Field label="Quantity" error={errors?.requirement?.quantity}>
-          <input
-            type="number"
-            className="input"
-            {...register(name('requirement.quantity'), { required: 'Quantity is required' })}
-          />
+        <Field label="Colour" hint="The resin's, unless the buyer named a shade">
+          <ColourInput value={spec.colour} onChange={set('colour')} aria-label="Colour" />
+        </Field>
+        <Field label="Hook">
+          <PartSelect kind="hook" value={spec.hookRef} onChange={set('hookRef')} aria-label="Hook" />
+        </Field>
+        <Field label="Clip">
+          <PartSelect kind="clip" value={spec.clipRef} onChange={set('clipRef')} aria-label="Clip" />
+        </Field>
+        <Field label="Printing">
+          <PartSelect kind="print" value={spec.printRef} onChange={set('printRef')} aria-label="Printing" />
         </Field>
         <Field label="Target price (₹)">
           <input type="number" step="0.01" className="input" {...register(name('targetPrice'))} />
-        </Field>
-        <Field label="Printing">
-          <input className="input" placeholder="Buyer logo, single colour" {...register(name('requirement.printing'))} />
         </Field>
         <Field label="Packing">
           <input className="input" placeholder="200 pcs per carton" {...register(name('requirement.packing'))} />

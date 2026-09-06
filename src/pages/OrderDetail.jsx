@@ -371,6 +371,8 @@ export default function OrderDetail() {
   const mayRecord = canWrite('production');
   /* The plant only exists on this screen once the order has passed the §13 gate. */
   const released = !PRE_RELEASE_STAGES.includes(order.status) && order.status !== 'cancelled';
+  /* The parts column earns its width only where something is actually fitted [§28]. */
+  const hasParts = order.lines.some((line) => line.hookRef || line.clipRef || line.printRef);
 
   /** A reply from a check or an action carries the whole order back; keep the checklist too. */
   const absorb = (next) => setData({ ...data, data: next.data ?? next, checks: next.checks ?? checks });
@@ -401,6 +403,8 @@ export default function OrderDetail() {
                   <tr>
                     <th className="px-3 py-2.5">Model</th>
                     <th className="px-3 py-2.5">Colour</th>
+                    {/* Only when something on this order actually carries one. */}
+                    {hasParts && <th className="px-3 py-2.5">Made with</th>}
                     <th className="px-3 py-2.5 text-right">Ordered</th>
                     {/* The plant's answer sits beside what was asked for, once there is one. */}
                     {released && <th className="px-3 py-2.5 text-right">Made</th>}
@@ -427,7 +431,30 @@ export default function OrderDetail() {
                           {line.mould ? line.mould.mouldCode : 'Bought in'}
                         </p>
                       </td>
-                      <td className="px-3 py-3 text-steel-300">{line.colour || '—'}</td>
+                      <td className="px-3 py-3">
+                        <p className="text-steel-300">{line.colour || '—'}</p>
+                        {/*
+                          The resin under the colour, because that is where the colour came
+                          from [§28]. A line that says "White" and nothing else cannot be
+                          checked against anything, which is what §13's colour tick is for.
+                        */}
+                        {line.materialRef && (
+                          <p className="text-[0.6875rem] text-steel-500" title={line.materialRef.code}>
+                            {line.materialRef.name}
+                          </p>
+                        )}
+                      </td>
+                      {hasParts && (
+                        <td className="px-3 py-3 text-[0.6875rem] text-steel-400">
+                          {[line.hookRef, line.clipRef, line.printRef].filter(Boolean).length === 0
+                            ? <span className="text-steel-600">—</span>
+                            : [line.hookRef, line.clipRef, line.printRef]
+                                .filter(Boolean)
+                                .map((part) => (
+                                  <p key={part._id} title={part.code}>{part.name}</p>
+                                ))}
+                        </td>
+                      )}
                       <td className="px-3 py-3 text-right tabular-nums text-steel-200">
                         {formatNumber(line.quantity)}
                       </td>

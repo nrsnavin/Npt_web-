@@ -92,7 +92,7 @@ export default function CustomerDetail() {
                     <tr>
                       <th className="px-3 py-2.5">Enquiry</th>
                       <th className="px-3 py-2.5">Model</th>
-                      <th className="px-3 py-2.5 text-right">Quantity</th>
+                      <th className="px-3 py-2.5">Colour</th>
                       <th className="px-3 py-2.5 text-right">Value</th>
                       <th className="px-3 py-2.5">Stage</th>
                     </tr>
@@ -107,8 +107,8 @@ export default function CustomerDetail() {
                           <p className="text-xs text-steel-400">{formatDate(enquiry.enquiryDate)}</p>
                         </td>
                         <td className="px-3 py-3 text-steel-200">{enquiry.requirement?.modelNumber || '—'}</td>
-                        <td className="px-3 py-3 text-right tabular-nums text-steel-200">
-                          {formatNumber(enquiry.requirement?.quantity)}
+                        <td className="px-3 py-3 text-steel-300">
+                          {enquiry.requirement?.colour || '—'}
                         </td>
                         <td className="px-3 py-3 text-right tabular-nums text-steel-200">
                           {enquiry.estimatedValue ? formatCurrency(enquiry.estimatedValue) : '—'}

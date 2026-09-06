@@ -1,5 +1,11 @@
-import { useCallback, useState } from 'react';
-import { customers as customersApi, enquiries as enquiriesApi, moulds as mouldsApi } from '../api/endpoints.js';
+import { useCallback, useEffect, useState } from 'react';
+import {
+  components as componentsApi,
+  customers as customersApi,
+  enquiries as enquiriesApi,
+  materials as materialsApi,
+  moulds as mouldsApi,
+} from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import Combobox from './Combobox.jsx';
 import CustomerQuickCreate from './CustomerQuickCreate.jsx';
@@ -148,6 +154,140 @@ export function CustomerSelect({
         // Selected the moment it exists: adding it was only ever a way of choosing it.
         onCreated={(customer) => onChange(customer._id)}
       />
+    </>
+  );
+}
+
+/**
+ * Picks the resin, from the material register.
+ *
+ * Active grades only, and that is a rule rather than tidiness: the register marks a material
+ * inactive when the plant has stopped buying it, and booking an order against one commits a
+ * delivery date to a resin nobody can get. The server refuses it too — this simply stops the
+ * refusal being how somebody finds out.
+ *
+ * The option carries the colour, because that is the field it fills in beside it: choosing
+ * "HIPS White" and then being asked for the colour is being asked a question that has just
+ * been answered.
+ */
+export function MaterialSelect({ value, onChange, emptyLabel = 'No resin chosen', ...rest }) {
+  const loadOptions = useCallback(
+    (search) => materialsApi.list({ search: search || undefined, isActive: 'true', limit: PAGE }),
+    []
+  );
+  const loadOne = useCallback((id) => materialsApi.get(id), []);
+  const toOption = useCallback(
+    (material) => ({
+      value: material._id,
+      label: material.name,
+      hint: [material.code, material.colour].filter(Boolean).join(' · '),
+    }),
+    []
+  );
+
+  return (
+    <Combobox
+      value={value}
+      onChange={onChange}
+      loadOptions={loadOptions}
+      loadOne={loadOne}
+      toOption={toOption}
+      placeholder="Search the material register…"
+      emptyLabel={emptyLabel}
+      noMatchLabel="No material matches"
+      {...rest}
+    />
+  );
+}
+
+/**
+ * Picks a hook, a clip or a print job — one picker over three registers.
+ *
+ * `kind` is required and is passed to the server, never filtered in the browser. The three
+ * registers share a collection, so a picker that fetched everything and narrowed locally would
+ * offer clips in the hook box on any page where the clips happened to sort first — and the
+ * server refuses a mismatched pick, so the mistake would surface as a save that failed for a
+ * reason the screen had caused.
+ */
+const PART_LABELS = {
+  hook: { search: 'Search hooks…', empty: 'No hook', none: 'No hook matches' },
+  clip: { search: 'Search clips…', empty: 'No clip', none: 'No clip matches' },
+  print: { search: 'Search print jobs…', empty: 'No printing', none: 'No print job matches' },
+};
+
+export function PartSelect({ kind, value, onChange, emptyLabel, ...rest }) {
+  const words = PART_LABELS[kind];
+
+  const loadOptions = useCallback(
+    (search) => componentsApi.list({ kind, search: search || undefined, isActive: 'true', limit: PAGE }),
+    [kind]
+  );
+  const loadOne = useCallback((id) => componentsApi.get(id), []);
+  const toOption = useCallback(
+    (part) => ({
+      value: part._id,
+      label: part.name,
+      hint: [part.code, part.colour].filter(Boolean).join(' · '),
+    }),
+    []
+  );
+
+  return (
+    <Combobox
+      value={value}
+      onChange={onChange}
+      loadOptions={loadOptions}
+      loadOne={loadOne}
+      toOption={toOption}
+      placeholder={words.search}
+      emptyLabel={emptyLabel ?? words.empty}
+      noMatchLabel={words.none}
+      {...rest}
+    />
+  );
+}
+
+/**
+ * The colour, offered from the register and still typed where it has to be.
+ *
+ * **Not a select, and there is no colour master behind it.** A colour register would be a list
+ * of strings with no rate and no supplier — a master in name only. But an order line typed free
+ * gives you "White", "white" and "Wht" inside a month, and then nothing can be counted by
+ * colour again. So the suggestions come from the colours the material register already holds,
+ * and a shade a buyer names that we have to match is still typeable, because that is ordinary.
+ *
+ * A `datalist` rather than a combobox for exactly that reason: it suggests without refusing.
+ */
+export function ColourInput({ value, onChange, list = 'register-colours', ...rest }) {
+  const [colours, setColours] = useState([]);
+
+  useEffect(() => {
+    let live = true;
+    materialsApi
+      .colours()
+      /* A suggestion list that will not load is a plain text box, which is the fallback anyway. */
+      .then((next) => live && setColours(next || []))
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  return (
+    <>
+      <input
+        className="input"
+        list={list}
+        value={value || ''}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder="White"
+        {...rest}
+      />
+      <datalist id={list}>
+        {colours.map((colour) => (
+          <option key={colour} value={colour} />
+        ))}
+      </datalist>
     </>
   );
 }

@@ -41,6 +41,8 @@ function EnquiryForm({ onClose, onSaved }) {
   const [customer, setCustomer] = useState(undefined);
   const [mould, setMould] = useState(undefined);
   const [isNewDevelopment, setNewDevelopment] = useState(false);
+  /* The register picks, held here like the mould: they are controlled selects, not inputs. */
+  const [spec, setSpec] = useState({});
 
   const {
     register,
@@ -67,7 +69,7 @@ function EnquiryForm({ onClose, onSaved }) {
       onSaved(
         await enquiriesApi.create({
           customer,
-          ...buildEnquiryPayload(values, { mould, isNewDevelopment }),
+          ...buildEnquiryPayload(values, { mould, isNewDevelopment, spec }),
         })
       );
       onClose();
@@ -96,6 +98,8 @@ function EnquiryForm({ onClose, onSaved }) {
         errors={errors}
         mould={mould}
         onMouldChange={setMould}
+        spec={spec}
+        onSpecChange={setSpec}
         newDevelopment={isNewDevelopment}
         onNewDevelopmentChange={setNewDevelopment}
       />
@@ -364,7 +368,7 @@ export default function Enquiries() {
                     <th className="px-3 py-3">Enquiry</th>
                     <th className="px-3 py-3">Customer</th>
                     <th className="px-3 py-3">Model</th>
-                    <th className="px-3 py-3 text-right">Quantity</th>
+                    <th className="px-3 py-3">Colour</th>
                     <th className="px-3 py-3 text-right">Value</th>
                     <th className="px-3 py-3">Next action</th>
                     <th className="px-3 py-3">Owner</th>
@@ -402,8 +406,8 @@ export default function Enquiries() {
                           </p>
                           {enquiry.isNewDevelopment && <Badge tone="accent">New development</Badge>}
                         </td>
-                        <td className="whitespace-nowrap px-3 py-3.5 text-right tabular-nums text-steel-200">
-                          {formatNumber(enquiry.requirement?.quantity)}
+                        <td className="whitespace-nowrap px-3 py-3.5 text-steel-300">
+                          {enquiry.requirement?.colour || '—'}
                         </td>
                         <td className="whitespace-nowrap px-3 py-3.5 text-right tabular-nums text-steel-100">
                           {enquiry.estimatedValue ? formatCompactCurrency(enquiry.estimatedValue) : '—'}

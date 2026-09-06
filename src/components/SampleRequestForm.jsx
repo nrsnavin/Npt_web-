@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { samples as samplesApi } from '../api/endpoints.js';
 import { Field, Notice } from './ui.jsx';
-import { CustomerSelect, EnquirySelect, MouldSelect } from './pickers.jsx';
-import { HANGER_CATEGORIES, MATERIALS, SAMPLE_PURPOSES, numeric, text } from '../utils/pipeline.js';
+import {
+  ColourInput, CustomerSelect, EnquirySelect, MaterialSelect, MouldSelect, PartSelect,
+} from './pickers.jsx';
+import { HANGER_CATEGORIES, SAMPLE_PURPOSES, numeric, text } from '../utils/pipeline.js';
 
 /**
  * Raising a sample request, from wherever it is being asked for.
@@ -21,6 +23,14 @@ export default function SampleRequestForm({ lead, onClose, onSaved }) {
   const [enquiry, setEnquiry] = useState(undefined);
   const [customer, setCustomer] = useState(undefined);
   const [mould, setMould] = useState(undefined);
+  /*
+   * The register picks [§28], held here like the mould rather than registered with the form:
+   * they are controlled selects. A sample carries the same four references an order line does,
+   * and that is what makes "approved sample" a comparison later — the sample the buyer signed
+   * off and the order booked against it point at the same register rows.
+   */
+  const [spec, setSpec] = useState({});
+  const setPick = (key) => (value) => setSpec((current) => ({ ...current, [key]: value }));
   const [error, setError] = useState(null);
 
   const {
@@ -59,10 +69,15 @@ export default function SampleRequestForm({ lead, onClose, onSaved }) {
           mould,
           modelNumber: text(values.modelNumber),
           category: text(values.category),
-          material: text(values.material),
           sizeMm: numeric(values.sizeMm),
-          colour: text(values.colour),
-          printing: text(values.printing),
+          materialRef: spec.materialRef || undefined,
+          hookRef: spec.hookRef || undefined,
+          clipRef: spec.clipRef || undefined,
+          printRef: spec.printRef || undefined,
+          /* Left blank, the server fills it from the resin's own colour. */
+          colour: text(spec.colour),
+          /* How many pieces to put in the courier bag — a figure the requester actually knows,
+             unlike the order quantity an enquiry used to be asked for. */
           quantity: numeric(values.quantity),
           purpose: values.purpose,
           requiredDate: text(values.requiredDate),
@@ -146,29 +161,30 @@ export default function SampleRequestForm({ lead, onClose, onSaved }) {
                 ))}
               </select>
             </Field>
-            <Field label="Material">
-              <select className="input" {...register('material')}>
-                <option value="">—</option>
-                {MATERIALS.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-              </select>
-            </Field>
             <Field label="Size (mm)">
               <input type="number" className="input" {...register('sizeMm')} />
             </Field>
-            <Field label="Colour">
-              <input className="input" {...register('colour')} />
+            <Field label="Material" hint="From the register — brings its colour">
+              <MaterialSelect value={spec.materialRef} onChange={setPick('materialRef')} aria-label="Material" />
+            </Field>
+            <Field label="Colour" hint="The resin's, unless the buyer named a shade">
+              <ColourInput value={spec.colour} onChange={setPick('colour')} aria-label="Colour" />
+            </Field>
+            <Field label="Hook">
+              <PartSelect kind="hook" value={spec.hookRef} onChange={setPick('hookRef')} aria-label="Hook" />
+            </Field>
+            <Field label="Clip">
+              <PartSelect kind="clip" value={spec.clipRef} onChange={setPick('clipRef')} aria-label="Clip" />
             </Field>
             <Field label="Printing" className="sm:col-span-2">
-              <input className="input" {...register('printing')} />
+              <PartSelect kind="print" value={spec.printRef} onChange={setPick('printRef')} aria-label="Printing" />
             </Field>
           </div>
         </div>
       )}
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Quantity" error={errors.quantity}>
+        <Field label="Pieces to make" error={errors.quantity} hint="What goes in the courier bag">
           <input type="number" className="input" {...register('quantity', { required: 'How many?' })} />
         </Field>
         <Field label="Purpose">

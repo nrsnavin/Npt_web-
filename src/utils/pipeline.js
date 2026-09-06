@@ -423,7 +423,7 @@ export const text = (value) => (value === '' || value === null ? undefined : val
  * omitted entirely, and the requirement nested. Shared by the enquiry form and by lead
  * conversion, which posts the same shape one level down.
  */
-export function buildEnquiryPayload(values, { mould, isNewDevelopment }) {
+export function buildEnquiryPayload(values, { mould, isNewDevelopment, spec = {} }) {
   const requirement = values.requirement || {};
 
   return {
@@ -432,11 +432,17 @@ export function buildEnquiryPayload(values, { mould, isNewDevelopment }) {
     requirement: {
       modelNumber: text(requirement.modelNumber),
       category: text(requirement.category),
-      material: text(requirement.material),
       sizeMm: numeric(requirement.sizeMm),
-      colour: text(requirement.colour),
-      quantity: numeric(requirement.quantity),
-      printing: text(requirement.printing),
+      /*
+       * The registers [§28], and no quantity. The resin fills the family and the colour on the
+       * server, so neither is asked for twice — and nothing before the purchase order knows how
+       * many, so the enquiry stopped pretending to.
+       */
+      materialRef: spec.materialRef || undefined,
+      hookRef: spec.hookRef || undefined,
+      clipRef: spec.clipRef || undefined,
+      printRef: spec.printRef || undefined,
+      colour: text(spec.colour),
       packing: text(requirement.packing),
     },
     targetPrice: numeric(values.targetPrice),

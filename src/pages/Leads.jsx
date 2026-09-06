@@ -48,7 +48,6 @@ function LeadForm({ onClose, onSaved }) {
         await leadsApi.create({
           ...values,
           email: values.email || undefined,
-          estimatedQuantity: numeric(values.estimatedQuantity),
           estimatedValue: numeric(values.estimatedValue),
           nextFollowUpDate: values.nextFollowUpDate || undefined,
         })
@@ -105,9 +104,6 @@ function LeadForm({ onClose, onSaved }) {
               <option key={option.value} value={option.value}>{option.label}</option>
             ))}
           </select>
-        </Field>
-        <Field label="Estimated quantity">
-          <input type="number" className="input" {...register('estimatedQuantity')} />
         </Field>
         <Field label="Estimated value (₹)">
           <input type="number" className="input" {...register('estimatedValue')} />
@@ -402,10 +398,9 @@ export default function Leads() {
                           {lead.mobile && <p className="text-xs text-steel-400">{lead.mobile}</p>}
                         </td>
                         <td className="max-w-xs px-4 py-3.5 text-steel-300">
+                          {/* What they are interested in. No quantity: a lead has not said
+                              what they want yet, so a figure here was a guess about a guess. */}
                           <p className="truncate">{lead.productInterest || '—'}</p>
-                          {lead.estimatedQuantity ? (
-                            <p className="text-xs text-steel-500">{formatNumber(lead.estimatedQuantity)} pcs</p>
-                          ) : null}
                         </td>
                         <td className="px-4 py-3.5 text-right tabular-nums text-steel-100">
                           {lead.estimatedValue ? formatCompactCurrency(lead.estimatedValue) : '—'}

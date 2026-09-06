@@ -141,9 +141,10 @@ export default function PricingDetail() {
         title={pricing.number}
         subtitle={
           <>
+            {/* No lot size: the sheet prices one piece, and how many is the purchase order's
+                answer. What identifies a costing is the buyer and the model. */}
             {pricing.customer?.name}
-            {pricing.modelNumber ? ` · ${pricing.modelNumber}` : ''} ·{' '}
-            {formatNumber(pricing.quantity)} pcs
+            {pricing.modelNumber ? ` · ${pricing.modelNumber}` : ''}
           </>
         }
         actions={
@@ -280,12 +281,19 @@ export default function PricingDetail() {
                     </p>
                   </div>
                   <div className="card px-4 py-3">
-                    <p className="eyebrow">Value of the costed lot</p>
+                    <p className="eyebrow">Margin per piece</p>
                     <p className="stat-value mt-1 text-steel-50">
-                      {formatCompactCurrency((asking || 0) * (pricing.quantity || 0))}
+                      {pricing.totalCost === undefined || asking === undefined
+                        ? '—'
+                        : rupees(Math.round((asking - pricing.totalCost) * 100) / 100)}
                     </p>
+                    {/*
+                      Per piece, because that is the only figure this sheet has ever computed.
+                      The tile here used to multiply by a lot size taken off the enquiry — a
+                      number nobody had agreed to — and print it as the value of the job.
+                    */}
                     <p className="mt-0.5 text-[0.6875rem] text-steel-500">
-                      {formatNumber(pricing.quantity)} pcs at {rupees(asking)}
+                      {rupees(asking)} less {rupees(pricing.totalCost)} to make
                     </p>
                   </div>
                 </div>
@@ -298,9 +306,9 @@ export default function PricingDetail() {
                     <p className="stat-value mt-1 text-steel-50">{rupees(asking)}</p>
                   </div>
                   <div className="card px-4 py-3">
-                    <p className="eyebrow">Value of the costed lot</p>
+                    <p className="eyebrow">What the buyer wanted to pay</p>
                     <p className="stat-value mt-1 text-steel-50">
-                      {formatCompactCurrency((asking || 0) * (pricing.quantity || 0))}
+                      {pricing.targetPrice ? rupees(pricing.targetPrice) : '—'}
                     </p>
                   </div>
                 </div>
@@ -448,8 +456,9 @@ export default function PricingDetail() {
                   )
                 }
               />
-              <Fact label="Quantity costed" value={`${formatNumber(pricing.quantity)} pcs`} />
-              <Fact label="Material" value={pricing.material?.toUpperCase()} />
+              <Fact label="Material" value={pricing.materialRef?.name || pricing.material?.toUpperCase()} />
+              <Fact label="Hook" value={pricing.hookRef?.name} />
+              <Fact label="Clip" value={pricing.clipRef?.name} />
               <Fact
                 label="Trade or manufacture"
                 value={pricing.procurement && humanise(pricing.procurement)}

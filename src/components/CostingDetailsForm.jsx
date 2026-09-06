@@ -2,26 +2,29 @@ import { useState } from 'react';
 import { pricings as pricingsApi } from '../api/endpoints.js';
 import { Field, Notice } from './ui.jsx';
 import { MouldSelect } from './pickers.jsx';
-import { formatNumber } from '../utils/format.js';
 
 /**
  * What the costing is *of* — not what it costs.
  *
  * A separate form from the sheet, matching the two doors the server keeps. These fields
- * describe the job: the quantity, the model, what the buyer said they wanted to pay. Changing
- * them does not re-run §9, because no price has moved. Prices go through the sheet, where the
- * floor is checked.
+ * describe the job: the model, what the buyer said they wanted to pay. Changing them does not
+ * re-run §9, because no price has moved. Prices go through the sheet, where the floor is
+ * checked.
  *
- * The quantity is the field this exists for. The automation copies it off the enquiry, which
- * is exactly where it is most often wrong, and until now a costing raised for the wrong
- * quantity could only be abandoned — leaving two sheets for one job and no way to tell which
- * price was live.
+ * **There is no quantity here, and the sheet does not carry one.** A costing on this sheet has
+ * only ever been a per-piece cost — grams of resin per piece at a rate per kilo, plus a hook, a
+ * clip and a print each priced per piece — so nothing in the build-up varies with the lot size.
+ * The figure that used to sit here came off the enquiry, where nobody knows how many, and then
+ * travelled onto quotations looking like something a buyer had agreed to. What the offer is
+ * conditional on is the **minimum**, and that lives on the quotation where a buyer reads it.
+ *
+ * The registers the sheet is costed against — the resin, the hook, the clip, the print — are on
+ * the costing sheet rather than here, because each of them is an *input* to the price.
  */
 export default function CostingDetailsForm({ pricing, onClose, onSaved }) {
   const [values, setValues] = useState({
     mould: pricing.mould?._id || pricing.mould || '',
     modelNumber: pricing.modelNumber ?? '',
-    quantity: pricing.quantity ?? '',
     targetPrice: pricing.targetPrice ?? '',
     remarks: pricing.remarks ?? '',
   });
@@ -30,9 +33,6 @@ export default function CostingDetailsForm({ pricing, onClose, onSaved }) {
 
   const set = (key) => (event) => setValues({ ...values, [key]: event.target.value });
   const number = (value) => (value === '' || value === null ? undefined : Number(value));
-
-  const settled = ['approved', 'rejected'].includes(pricing.status);
-  const quantityMoved = Number(values.quantity) !== Number(pricing.quantity);
 
   const submit = async (event) => {
     event.preventDefault();
@@ -44,7 +44,6 @@ export default function CostingDetailsForm({ pricing, onClose, onSaved }) {
           id: pricing._id,
           mould: values.mould || undefined,
           modelNumber: values.modelNumber || undefined,
-          quantity: number(values.quantity),
           targetPrice: number(values.targetPrice),
           remarks: values.remarks || undefined,
         })
@@ -60,8 +59,10 @@ export default function CostingDetailsForm({ pricing, onClose, onSaved }) {
   return (
     <form onSubmit={submit} className="space-y-4">
       <Notice tone="info">
-        This is what the costing is for. The cost lines and the prices are on the sheet itself,
-        so correcting a quantity here cannot re-open an approved price.
+        This is what the costing is for. The cost lines, the prices and the registers it is
+        costed against are on the sheet itself, so correcting a description here cannot re-open
+        an approved price. The sheet prices one piece; how many is settled by the purchase
+        order.
       </Notice>
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -78,15 +79,6 @@ export default function CostingDetailsForm({ pricing, onClose, onSaved }) {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Quantity to cost">
-          <input
-            type="number"
-            min="1"
-            className="input"
-            value={values.quantity}
-            onChange={set('quantity')}
-          />
-        </Field>
         <Field label="Target price" hint="What the buyer wants to pay, if they said">
           <input
             type="number"
@@ -102,19 +94,6 @@ export default function CostingDetailsForm({ pricing, onClose, onSaved }) {
       <Field label="Remarks">
         <textarea rows={2} className="input" value={values.remarks} onChange={set('remarks')} />
       </Field>
-
-      {/*
-        Said before saving rather than discovered afterwards. The approved price was arrived at
-        for a lot size; moving the lot size does not move the price, and whoever changes it
-        should know that rather than assume the sheet re-priced itself.
-      */}
-      {settled && quantityMoved && (
-        <Notice tone="warn">
-          This price was settled for {formatNumber(pricing.quantity)} pieces. Changing the
-          quantity does not re-price it — re-cost the sheet if the new lot changes what it
-          should sell for.
-        </Notice>
-      )}
 
       {error && <Notice tone="danger">{error}</Notice>}
 

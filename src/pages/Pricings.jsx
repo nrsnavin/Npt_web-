@@ -221,18 +221,18 @@ function NewCostingForm({ onClose, onSaved }) {
  * what the job costs, so it belongs to the quotation and starts from the model's registered
  * standard [§28].
  *
- * The quantity then starts at that minimum rather than at the quantity the sheet was costed
- * for. Offering the costed quantity would be the safer-looking default and the wrong one: it
- * hides the smallest lot the buyer could actually order at this rate, which is usually the
- * first thing they ask.
+ * **And there is no quantity beside it**, which is the whole shape of §10. A quotation from this
+ * plant offers a *rate against a minimum*, not a lot: the buyer is told ₹4.90 a piece with a
+ * 5,000 minimum, and the purchase order decides how many, months later. The quantity that used
+ * to sit here came off the enquiry by way of the costing — a figure nobody had agreed to — and
+ * then printed on a document as though somebody had.
  *
  * Nothing here is retyped — the customer, the enquiry, the model and the price come off the
- * sheet. What is left is the quantity and the terms, which belong to the conversation.
+ * sheet. What is left is the minimum and the terms, which belong to the conversation.
  */
 function QuoteFromCosting({ pricing, onClose, onQuoted }) {
   const standard = pricing.mould?.moq || 0;
   const [moq, setMoq] = useState(standard || '');
-  const [quantity, setQuantity] = useState(standard || pricing.quantity || '');
   const [unitPrice, setUnitPrice] = useState(pricing.approvedSellingPrice ?? '');
   const [gstPercent, setGst] = useState(18);
   const [isExport, setExport] = useState(false);
@@ -247,9 +247,6 @@ function QuoteFromCosting({ pricing, onClose, onQuoted }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
-  const belowMoq = Number(moq) > 0 && Number(quantity) < Number(moq);
-  const value = Number(quantity) * Number(unitPrice) || 0;
-
   const submit = async (event) => {
     event.preventDefault();
     setBusy(true);
@@ -257,7 +254,6 @@ function QuoteFromCosting({ pricing, onClose, onQuoted }) {
     try {
       const quote = await pricingsApi.quote({
         id: pricing._id,
-        quantity: Number(quantity),
         moq: moq === '' ? undefined : Number(moq),
         unitPrice: unitPrice === '' ? undefined : Number(unitPrice),
         gstPercent: isExport ? undefined : Number(gstPercent),
@@ -277,35 +273,22 @@ function QuoteFromCosting({ pricing, onClose, onQuoted }) {
 
   return (
     <form onSubmit={submit} className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2">
         <div className="card px-4 py-3">
           <p className="eyebrow">Approved price</p>
           <p className="stat-value mt-1 text-steel-50">{rupees(pricing.approvedSellingPrice)}</p>
+          <p className="mt-0.5 text-[0.6875rem] text-steel-500">Per piece, which is what a quote states</p>
         </div>
         <div className="card px-4 py-3">
-          <p className="eyebrow">Costed for</p>
-          <p className="stat-value mt-1 text-steel-50">{formatNumber(pricing.quantity)}</p>
-          <p className="mt-0.5 text-[0.6875rem] text-steel-500">What the sheet was built on</p>
-        </div>
-        <div className="card px-4 py-3">
-          <p className="eyebrow">Order value</p>
-          <p className="stat-value mt-1 text-steel-50">{formatCompactCurrency(value)}</p>
+          <p className="eyebrow">Minimum being offered</p>
+          <p className="stat-value mt-1 text-steel-50">
+            {moq ? formatNumber(Number(moq)) : '—'}
+          </p>
+          <p className="mt-0.5 text-[0.6875rem] text-steel-500">The smallest lot this rate holds for</p>
         </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field
-          label="Quantity"
-          hint={standard ? `Starts at the registered minimum of ${formatNumber(standard)}` : 'Pieces'}
-        >
-          <input
-            type="number"
-            min="1"
-            className="input"
-            value={quantity}
-            onChange={(event) => setQuantity(event.target.value)}
-          />
-        </Field>
         <Field label="Unit price" hint="From the costing. Change it and §9 is re-checked">
           <input
             type="number"
@@ -336,14 +319,6 @@ function QuoteFromCosting({ pricing, onClose, onQuoted }) {
           />
         </Field>
       </div>
-
-      {/* Said before saving, not discovered as a refusal after. */}
-      {belowMoq && (
-        <Notice tone="warn">
-          The quantity is under the minimum of {formatNumber(Number(moq))} this quote states.
-          Raise the quantity, or lower the minimum being offered.
-        </Notice>
-      )}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Payment terms">
@@ -401,7 +376,7 @@ function QuoteFromCosting({ pricing, onClose, onQuoted }) {
 
       <div className="flex justify-end gap-2">
         <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
-        <button type="submit" className="btn-primary" disabled={busy || belowMoq}>
+        <button type="submit" className="btn-primary" disabled={busy}>
           {busy ? 'Raising…' : 'Raise the quotation'}
         </button>
       </div>

@@ -175,8 +175,9 @@ export default function QuotationDetail() {
         subtitle={
           <>
             {quotation.customer?.name} ·{' '}
+            {/* A rate against a minimum [§10] — a quotation carries no quantity at all. */}
             {sole
-              ? `${sole.modelNumber || 'one model'} · ${formatNumber(sole.quantity)} pcs`
+              ? `${sole.modelNumber || 'one model'}${sole.moq ? ` · min ${formatNumber(sole.moq)} pcs` : ''}`
               : `${quotation.lines?.length ?? 0} models`}{' '}
             · Rev {quotation.revision ?? 0}
           </>

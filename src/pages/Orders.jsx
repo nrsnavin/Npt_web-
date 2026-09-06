@@ -7,7 +7,7 @@ import {
   Badge, EmptyState, ErrorState, Field, Modal, Notice, PageHeader, Pagination, TableSkeleton,
 } from '../components/ui.jsx';
 import ExportButton from '../components/ExportButton.jsx';
-import { CustomerSelect, MouldSelect } from '../components/pickers.jsx';
+import { ColourInput, CustomerSelect, MaterialSelect, MouldSelect, PartSelect } from '../components/pickers.jsx';
 import { formatCurrency, formatDate, formatNumber } from '../utils/format.js';
 import { ORDER_STAGES, orderStageLabel, numeric, text } from '../utils/pipeline.js';
 
@@ -27,9 +27,18 @@ import { ORDER_STAGES, orderStageLabel, numeric, text } from '../utils/pipeline.
 
 const rupees = (value) => (value === undefined || value === null ? '—' : formatCurrency(value));
 
-/** A blank line, so the form starts with one row rather than an empty table. */
+/**
+ * A blank line, so the form starts with one row rather than an empty table.
+ *
+ * Every field that names a *thing* is a register pick rather than a box [§28]: the tool, the
+ * resin, the hook, the clip and the print. What is typed is what belongs to this order and
+ * nowhere else — how many, at what rate, by when, and the buyer's own model number.
+ */
 const blankLine = () => ({
-  mould: '', modelNumber: '', colour: '', quantity: '', unitPrice: '', deliveryDate: '',
+  mould: '', modelNumber: '',
+  materialRef: '', colour: '',
+  hookRef: '', clipRef: '', printRef: '',
+  quantity: '', unitPrice: '', deliveryDate: '',
 });
 
 function OrderForm({ onClose, onSaved }) {
@@ -67,6 +76,11 @@ function OrderForm({ onClose, onSaved }) {
           lines: lines.map((line) => ({
             mould: line.mould || undefined,
             modelNumber: text(line.modelNumber),
+            materialRef: line.materialRef || undefined,
+            hookRef: line.hookRef || undefined,
+            clipRef: line.clipRef || undefined,
+            printRef: line.printRef || undefined,
+            /* Left blank, the server fills it from the resin's own colour — see the model. */
             colour: text(line.colour),
             quantity: Number(line.quantity),
             unitPrice: Number(line.unitPrice),
@@ -130,14 +144,57 @@ function OrderForm({ onClose, onSaved }) {
                 </Field>
               </div>
 
-              <div className="mt-3 grid gap-3 sm:grid-cols-4">
-                <Field label={index === 0 ? 'Colour' : ''}>
-                  <input
-                    className="input"
-                    value={line.colour}
-                    onChange={(event) => setLine(index, 'colour')(event.target.value)}
+              {/*
+                What it is made of, from the registers [§28]. Left empty they are simply not
+                specified — a traded hanger has no resin of ours behind it, most models carry no
+                clip, and plenty carry no print. The resin fills the colour beside it, so
+                choosing "HIPS White" answers both questions at once.
+              */}
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <Field label={index === 0 ? 'Material' : ''} hint={index === 0 ? 'From the register — brings its colour' : undefined}>
+                  <MaterialSelect
+                    value={line.materialRef}
+                    onChange={setLine(index, 'materialRef')}
+                    aria-label={`Material on line ${index + 1}`}
                   />
                 </Field>
+                <Field label={index === 0 ? 'Colour' : ''} hint={index === 0 ? "The resin's, unless the buyer named a shade" : undefined}>
+                  <ColourInput
+                    value={line.colour}
+                    onChange={setLine(index, 'colour')}
+                    aria-label={`Colour on line ${index + 1}`}
+                  />
+                </Field>
+              </div>
+
+              <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                <Field label={index === 0 ? 'Hook' : ''}>
+                  <PartSelect
+                    kind="hook"
+                    value={line.hookRef}
+                    onChange={setLine(index, 'hookRef')}
+                    aria-label={`Hook on line ${index + 1}`}
+                  />
+                </Field>
+                <Field label={index === 0 ? 'Clip' : ''}>
+                  <PartSelect
+                    kind="clip"
+                    value={line.clipRef}
+                    onChange={setLine(index, 'clipRef')}
+                    aria-label={`Clip on line ${index + 1}`}
+                  />
+                </Field>
+                <Field label={index === 0 ? 'Printing' : ''}>
+                  <PartSelect
+                    kind="print"
+                    value={line.printRef}
+                    onChange={setLine(index, 'printRef')}
+                    aria-label={`Print on line ${index + 1}`}
+                  />
+                </Field>
+              </div>
+
+              <div className="mt-3 grid gap-3 sm:grid-cols-3">
                 <Field label={index === 0 ? 'Quantity' : ''}>
                   <input
                     type="number"

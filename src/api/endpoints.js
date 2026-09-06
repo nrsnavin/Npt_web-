@@ -88,6 +88,15 @@ export const materials = {
   create: (payload) => api.post('/materials', payload).then(unwrap),
   update: ({ id, ...payload }) => api.patch(`/materials/${id}`, payload).then(unwrap),
   pricings: (id) => api.get(`/materials/${id}/pricings`),
+  /**
+   * The colours the register actually holds.
+   *
+   * Not a colour master — there is deliberately none. The colour of a moulded hanger is the
+   * colour of the resin it is moulded in, so the list is derived from the material register and
+   * offered as a suggestion rather than enforced as an enum. What it prevents is "White",
+   * "white" and "Wht" becoming three colours nothing can be counted by.
+   */
+  colours: () => api.get('/materials/colours').then(unwrap),
 };
 
 /**
