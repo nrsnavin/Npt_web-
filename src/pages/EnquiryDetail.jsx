@@ -695,7 +695,27 @@ export default function EnquiryDetail() {
                     optionLabel(MATERIALS, enquiry.requirement?.material),
                 },
                 { label: 'Size', value: enquiry.requirement?.sizeMm && `${enquiry.requirement.sizeMm} mm` },
-                { label: 'Colour', value: enquiry.requirement?.colour },
+                {
+                  /* With the licence to substitute it, in the same words the sample shows — this
+                     is where the answer is recorded, and the sample it raises inherits it. */
+                  label: 'Colour',
+                  value: enquiry.requirement?.colour && (
+                    <>
+                      {enquiry.requirement.colour}
+                      <span
+                        className={`mt-0.5 block text-xs ${
+                          enquiry.requirement.colourMandatory
+                            ? 'font-bold text-danger-400'
+                            : 'text-steel-400'
+                        }`}
+                      >
+                        {enquiry.requirement.colourMandatory
+                          ? 'Must be this colour — do not send another shade'
+                          : 'Preferred — any available colour will do'}
+                      </span>
+                    </>
+                  ),
+                },
                 { label: 'Hook', value: enquiry.requirement?.hookRef?.name },
                 { label: 'Clip', value: enquiry.requirement?.clipRef?.name },
                 { label: 'Target price', value: enquiry.targetPrice && formatCurrency(enquiry.targetPrice) },

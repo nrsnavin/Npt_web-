@@ -443,6 +443,9 @@ export function buildEnquiryPayload(values, { mould, isNewDevelopment, spec = {}
       clipRef: spec.clipRef || undefined,
       printRef: spec.printRef || undefined,
       colour: text(spec.colour),
+      /* Whether that colour binds the bench or merely guides it. Always sent, because false is
+         the answer "any colour will do" and dropping it would leave the bench guessing again. */
+      colourMandatory: Boolean(spec.colourMandatory),
       packing: text(requirement.packing),
     },
     targetPrice: numeric(values.targetPrice),

@@ -76,6 +76,13 @@ export default function SampleRequestForm({ lead, onClose, onSaved }) {
           printRef: spec.printRef || undefined,
           /* Left blank, the server fills it from the resin's own colour. */
           colour: text(spec.colour),
+          /*
+           * Only when this form actually asked. Where the request has an enquiry behind it the
+           * tick box is not drawn — the specification is the enquiry's — and sending `false` for
+           * a box nobody was shown would silently overrule a buyer who *had* insisted on the
+           * shade. Undefined lets what the enquiry recorded stand; `false` here is a real answer.
+           */
+          colourMandatory: standalone || forLead ? Boolean(spec.colourMandatory) : undefined,
           /* How many pieces to put in the courier bag — a figure the requester actually knows,
              unlike the order quantity an enquiry used to be asked for. */
           quantity: numeric(values.quantity),
@@ -170,6 +177,28 @@ export default function SampleRequestForm({ lead, onClose, onSaved }) {
             <Field label="Colour" hint="The resin's, unless the buyer named a shade">
               <ColourInput value={spec.colour} onChange={setPick('colour')} aria-label="Colour" />
             </Field>
+            {/*
+              Beside the colour, because it is a fact about that colour. Unticked is the ordinary
+              case — a buyer wanting a white hanger to look at is answered by the nearest white on
+              the rack, and waiting three weeks for an exact shade answers a question nobody
+              asked. Ticked withdraws that licence, for the buyer matching a garment.
+            */}
+            <label className="flex items-start gap-2.5 text-sm text-steel-200 sm:col-span-2">
+              <input
+                type="checkbox"
+                className="mt-0.5 h-4 w-4 accent-flame-500"
+                checked={Boolean(spec.colourMandatory)}
+                onChange={(event) => setPick('colourMandatory')(event.target.checked)}
+                aria-label="Colour and model must match exactly"
+              />
+              <span>
+                This colour and model exactly — no substitute
+                <span className="mt-0.5 block text-xs text-steel-500">
+                  Leave unticked and the bench may send the nearest colour it has, preferring the
+                  one above. Tick it and the sample is only sent in this colour, on this model.
+                </span>
+              </span>
+            </label>
             <Field label="Hook">
               <PartSelect kind="hook" value={spec.hookRef} onChange={setPick('hookRef')} aria-label="Hook" />
             </Field>

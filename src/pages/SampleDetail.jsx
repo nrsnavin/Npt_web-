@@ -1051,11 +1051,43 @@ export default function SampleDetail() {
                     : sample.modelNumber,
                 },
                 { label: 'Category', value: optionLabel(HANGER_CATEGORIES, sample.category) },
-                { label: 'Material', value: optionLabel(MATERIALS, sample.material) },
+                {
+                  /* The register row's own name when there is one, because "HIPS" does not say
+                     which resin and the bench has to pick a drum. The family is the fallback for
+                     a request raised before the registers were filled. */
+                  label: 'Material',
+                  value: sample.materialRef?.name || optionLabel(MATERIALS, sample.material),
+                },
                 { label: 'Size', value: sample.sizeMm && `${sample.sizeMm} mm` },
-                { label: 'Colour', value: sample.colour },
+                {
+                  /*
+                    The colour and the licence to substitute it, together — because they are one
+                    fact and reading either alone gets it wrong. A bench told only "White" waits
+                    for the exact white it does not have, when the buyer would have taken ivory
+                    on Tuesday; a bench that assumes it may substitute sends the wrong shade to
+                    somebody matching a garment. Spelled out rather than shown as a chip: the
+                    reader is choosing a drum of resin, not decoding a convention.
+                  */
+                  label: 'Colour',
+                  value: sample.colour && (
+                    <>
+                      {sample.colour}
+                      <span
+                        className={`mt-0.5 block text-xs ${
+                          sample.colourMandatory ? 'font-bold text-danger-400' : 'text-steel-400'
+                        }`}
+                      >
+                        {sample.colourMandatory
+                          ? 'Must be this colour — do not send another shade'
+                          : 'Preferred — any available colour will do'}
+                      </span>
+                    </>
+                  ),
+                },
+                { label: 'Hook', value: sample.hookRef?.name },
+                { label: 'Clip', value: sample.clipRef?.name },
                 { label: 'Quantity', value: `${formatNumber(sample.quantity)} pc` },
-                { label: 'Printing', value: sample.printing },
+                { label: 'Printing', value: sample.printRef?.name || sample.printing },
                 { label: 'Remarks', value: sample.remarks, wide: true },
               ]}
             />

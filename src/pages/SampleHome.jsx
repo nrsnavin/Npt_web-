@@ -82,6 +82,18 @@ function Job({ sample, urgent }) {
           {sample.customerOwner ? ` · ${sample.customerOwner}` : ''}
         </p>
 
+        {/*
+          Only when the colour is a condition. The bench's costliest wrong turn is reaching for a
+          near-enough drum on a request that could not take one, and by the time the buyer says so
+          the fortnight is gone. The permissive case needs no line — the colour is printed beside
+          the model above, and "you may substitute" is what the absence of this already means.
+        */}
+        {sample.colourMandatory && sample.colour && (
+          <p className="mt-2 text-sm font-bold text-danger-400">
+            Must be {sample.colour} — no substitute
+          </p>
+        )}
+
         {/* The whole point of the card. A sentence, not a status word to be decoded. */}
         {sample.nextStep && (
           <p className="mt-3 text-base font-bold text-accent">→ {sample.nextStep}</p>

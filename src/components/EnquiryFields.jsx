@@ -98,6 +98,29 @@ export default function EnquiryFields({
         <Field label="Colour" hint="The resin's, unless the buyer named a shade">
           <ColourInput value={spec.colour} onChange={set('colour')} aria-label="Colour" />
         </Field>
+        {/*
+          Beside the colour, because it is a fact about that colour and about nothing else.
+          Unticked is the ordinary case: most buyers asking for white want a white-ish hanger to
+          look at, and a bench that waits three weeks for the exact shade has answered a question
+          nobody asked. Ticked is the exception — a garment being matched, a shade already
+          approved — and it is the sample team's licence to substitute that it withdraws.
+        */}
+        <label className="flex items-start gap-2.5 self-end pb-2 text-sm text-steel-200 sm:col-span-2">
+          <input
+            type="checkbox"
+            className="mt-0.5 h-4 w-4 accent-flame-500"
+            checked={Boolean(spec.colourMandatory)}
+            onChange={(event) => set('colourMandatory')(event.target.checked)}
+            aria-label="Colour and model must match exactly"
+          />
+          <span>
+            This colour and model exactly — no substitute
+            <span className="mt-0.5 block text-xs text-steel-500">
+              Leave unticked and the bench may send the nearest colour it has, preferring the one
+              above. Tick it and the sample is only sent in this colour, on this model.
+            </span>
+          </span>
+        </label>
         <Field label="Hook">
           <PartSelect kind="hook" value={spec.hookRef} onChange={set('hookRef')} aria-label="Hook" />
         </Field>
