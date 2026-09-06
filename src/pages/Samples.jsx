@@ -252,8 +252,18 @@ export default function Samples() {
                   {data.map((sample) => {
                     const due = followUpState(sample.requiredDate);
                     const idle = stalled.get(sample._id);
+                    /*
+                     * Late rows are tinted, because they are now a *run* at the top rather than
+                     * scattered through the list. Ordering alone does not explain itself: a
+                     * reader who cannot see where the late group ends reads the whole register as
+                     * arbitrarily sorted. The red line against the date still carries the meaning
+                     * on its own, so the tint adds emphasis and never carries it.
+                     */
                     return (
-                      <tr key={sample._id} className="row-hover">
+                      <tr
+                        key={sample._id}
+                        className={`row-hover ${sample.isOverdue ? 'bg-danger-500/[0.05]' : ''}`}
+                      >
                         <td className="whitespace-nowrap px-3 py-3.5">
                           <Link to={`/samples/${sample._id}`} className="font-semibold text-steel-100 hover:text-accent">
                             {sample.number}
