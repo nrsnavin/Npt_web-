@@ -282,6 +282,17 @@ export default function Samples() {
                               <span className="text-xs text-steel-500">Internal</span>
                             )
                           )}
+                          {/*
+                            Who owns the customer [§29], which is not the same person as who
+                            raised the request. A request is often raised by whoever took the
+                            call; the customer belongs to one marketing person, and they are who
+                            has to be told when a sample slips and who the buyer will ring.
+                          */}
+                          {sample.customer?.assignedTo?.name && (
+                            <p className="text-xs text-steel-500">
+                              {sample.customer.assignedTo.name}
+                            </p>
+                          )}
                         </td>
                         <td className="px-3 py-3.5">
                           <p className="text-steel-200">{sample.modelNumber || '—'}</p>

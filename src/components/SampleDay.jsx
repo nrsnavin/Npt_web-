@@ -40,8 +40,16 @@ function Row({ sample, showNextStep }) {
         <p className="truncate text-xs text-steel-500">
           {sample.number}
           {sample.customer ? ` · ${sample.customer}` : ''}
-          {/* Who is waiting for it, which is who will ring if it slips. */}
-          {sample.requestedBy ? ` · for ${sample.requestedBy}` : ''}
+          {/*
+            The customer's owner [§29], not the person who raised it. A request is often raised
+            by whoever took the call; the buyer belongs to one marketing person, and they are
+            who will ring when it slips.
+          */}
+          {sample.customerOwner
+            ? ` · ${sample.customerOwner}`
+            : sample.requestedBy
+              ? ` · for ${sample.requestedBy}`
+              : ''}
         </p>
         {showNextStep && sample.nextStep && (
           <p className="mt-0.5 text-xs font-semibold text-flame-400">{sample.nextStep}</p>

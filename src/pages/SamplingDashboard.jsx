@@ -1,8 +1,10 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { samples as samplesApi } from '../api/endpoints.js';
+import { useAuth } from '../context/AuthContext.jsx';
 import { useRecord } from '../hooks/useRecords.js';
 import { Badge, ErrorState, PageHeader, Section, Spinner } from '../components/ui.jsx';
+import SampleDay from '../components/SampleDay.jsx';
 import { formatNumber } from '../utils/format.js';
 import { SAMPLE_PURPOSES, optionLabel, sampleStageLabel } from '../utils/pipeline.js';
 
@@ -14,6 +16,12 @@ import { SAMPLE_PURPOSES, optionLabel, sampleStageLabel } from '../utils/pipelin
  * row. And **rework rate is this team's quality signal** — a high approval rate next to a
  * high modification rate means samples are going out before they are right, which neither
  * number shows on its own.
+ *
+ * `asHome` is the same screen serving as the sample team's front page. Two things change and
+ * nothing else does: it greets them rather than announcing itself, and the bench's own queue
+ * goes above the measurements. That order is the point of the flag — somebody opening the app
+ * at eight in the morning needs to know what to pick up, and a month's rework rate is the
+ * second question. At `/samples/dashboard` it stays exactly the analytics screen §22 asks for.
  */
 
 function Tile({ label, value, hint, tone = 'neutral', to }) {
@@ -114,9 +122,17 @@ function AgeTable({ rows, empty, ageLabel = 'Waiting' }) {
   );
 }
 
-export default function SamplingDashboard() {
+export default function SamplingDashboard({ asHome = false }) {
+  const { user } = useAuth();
   const fetch = useCallback(() => samplesApi.dashboard(), []);
   const { data, loading, error, reload } = useRecord(fetch, 'sampling');
+
+  const greeting = useMemo(() => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
+  }, []);
 
   if (loading) return <Spinner label="Loading the sampling dashboard" />;
   if (error) return <ErrorState error={error} onRetry={reload} />;
@@ -132,10 +148,29 @@ export default function SamplingDashboard() {
 
   return (
     <div className="mx-auto max-w-6xl">
-      <PageHeader
-        title="Sampling dashboard"
-        subtitle="Where the bench is, what is late, and whether samples are going out right"
-      />
+      {asHome ? (
+        <PageHeader
+          title={`${greeting}, ${user?.name?.split(' ')[0] || ''}`}
+          subtitle={new Date().toLocaleDateString('en-IN', {
+            weekday: 'long',
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+          })}
+        />
+      ) : (
+        <PageHeader
+          title="Sampling dashboard"
+          subtitle="Where the bench is, what is late, and whether samples are going out right"
+        />
+      )}
+
+      {/* The queue before the measurements — see the note on `asHome` above. */}
+      {asHome && (
+        <div className="mb-5">
+          <SampleDay />
+        </div>
+      )}
 
       <div className="mb-5 grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
         <Tile label="Open" value={tiles.openTotal} to="/samples" />

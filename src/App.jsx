@@ -14,7 +14,7 @@ import { useAuth } from './context/AuthContext.jsx';
  * rest arrive when the route is actually visited.
  */
 import Login from './pages/Login.jsx';
-import Dashboard from './pages/Dashboard.jsx';
+import Home from './pages/Home.jsx';
 
 const Profile = lazy(() => import('./pages/Profile.jsx'));
 const Users = lazy(() => import('./pages/Users.jsx'));
@@ -92,8 +92,9 @@ export default function App() {
             </RequireAuth>
           }
         >
-          <Route index element={<Dashboard />} />
-          <Route path="dashboard" element={<Dashboard />} />
+          {/* Home is chosen by department — see pages/Home.jsx for why it is not one screen. */}
+          <Route index element={<Home />} />
+          <Route path="dashboard" element={<Home />} />
           <Route path="profile" element={<Profile />} />
 
           {/* Phase 1: the pipeline that runs from a lead to a customer to an enquiry. */}
