@@ -52,7 +52,7 @@ function Tally({ label, value, hint, tone = 'text-steel-50' }) {
     <div className="card px-4 py-3">
       <p className="eyebrow">{label}</p>
       <p className={`stat-value mt-1 ${tone}`}>{formatNumber(value || 0)}</p>
-      {hint && <p className="mt-0.5 text-[0.6875rem] text-steel-500">{hint}</p>}
+      {hint && <p className="mt-0.5 text-xs text-steel-500">{hint}</p>}
     </div>
   );
 }

@@ -70,7 +70,7 @@ function DecisionForm({ pricing, onClose, onSaved }) {
         <div className="card px-4 py-3">
           <p className="eyebrow">Asking</p>
           <p className="stat-value mt-1 text-warn-400">{rupees(pricing.approvedSellingPrice)}</p>
-          <p className="mt-0.5 text-[0.6875rem] text-steel-500">
+          <p className="mt-0.5 text-xs text-steel-500">
             {pricing.grossMarginPercent}% margin
           </p>
         </div>
@@ -277,19 +277,19 @@ function QuoteFromCosting({ pricing, onClose, onQuoted }) {
         <div className="card px-4 py-3">
           <p className="eyebrow">Approved price</p>
           <p className="stat-value mt-1 text-steel-50">{rupees(pricing.approvedSellingPrice)}</p>
-          <p className="mt-0.5 text-[0.6875rem] text-steel-500">Per piece, which is what a quote states</p>
+          <p className="mt-0.5 text-xs text-steel-500">Per piece, which is what a quote states</p>
         </div>
         <div className="card px-4 py-3">
           <p className="eyebrow">Minimum being offered</p>
           <p className="stat-value mt-1 text-steel-50">
             {moq ? formatNumber(Number(moq)) : '—'}
           </p>
-          <p className="mt-0.5 text-[0.6875rem] text-steel-500">The smallest lot this rate holds for</p>
+          <p className="mt-0.5 text-xs text-steel-500">The smallest lot this rate holds for</p>
         </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Unit price" hint="From the costing. Change it and §9 is re-checked">
+        <Field label="Unit price" hint="From the costing. Change it and the floor is re-checked">
           <input
             type="number"
             step="0.01"
@@ -444,7 +444,7 @@ export default function Pricings() {
         subtitle={
           mayCost
             ? 'What a job costs to make, and the price marketing may quote against it'
-            : 'The price you may quote. The cost behind it is management’s [§8]'
+            : 'The price you may quote. What it costs to make is management’s to see'
         }
         actions={
           mayCost && (
@@ -531,7 +531,7 @@ export default function Pricings() {
                             Not `belowMinimum` — a sheet MD has signed off is still under the
                             floor, and this hint beside an Approved badge reads as a block. */}
                         {row.needsApproval && (
-                          <p className="text-[0.6875rem] font-semibold text-warn-400">Needs approval</p>
+                          <p className="text-xs font-semibold text-warn-400">Needs approval</p>
                         )}
                       </td>
                       {mayCost && (

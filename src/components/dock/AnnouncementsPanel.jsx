@@ -37,7 +37,7 @@ function Composer({ onClose }) {
   return (
     <form onSubmit={submit} className="border-b border-line/[0.06] px-4 py-3">
       <input
-        className="input py-1.5 text-[0.8125rem]"
+        className="input py-1.5 text-xs"
         placeholder="Announcement title"
         value={form.title}
         onChange={(event) => setForm({ ...form, title: event.target.value })}
@@ -45,7 +45,7 @@ function Composer({ onClose }) {
       />
       <textarea
         rows={3}
-        className="input mt-2 resize-none py-1.5 text-[0.8125rem]"
+        className="input mt-2 resize-none py-1.5 text-xs"
         placeholder="What does the plant need to know?"
         value={form.body}
         onChange={(event) => setForm({ ...form, body: event.target.value })}
@@ -137,7 +137,7 @@ export default function AnnouncementsPanel() {
                     />
                     <div className="min-w-0 flex-1">
                       <p
-                        className={`text-[0.8125rem] leading-snug ${
+                        className={`text-xs leading-snug ${
                           item.read ? 'font-medium text-steel-200' : 'font-bold text-steel-50'
                         }`}
                       >
@@ -145,8 +145,8 @@ export default function AnnouncementsPanel() {
                       </p>
                       <div className="mt-1 flex flex-wrap items-center gap-2">
                         <Badge tone={CATEGORY_TONE[item.category]}>{humanise(item.category)}</Badge>
-                        {item.pinned && <span className="text-[0.6875rem] text-flame-400">Pinned</span>}
-                        <span className="text-[0.6875rem] text-steel-500">
+                        {item.pinned && <span className="text-xs text-flame-400">Pinned</span>}
+                        <span className="text-xs text-steel-500">
                           {formatDate(item.publishedAt)}
                         </span>
                       </div>
@@ -156,15 +156,15 @@ export default function AnnouncementsPanel() {
 
                 {expanded === item.id && (
                   <div className="mt-2.5 pl-3.5">
-                    <p className="text-[0.8125rem] leading-relaxed text-steel-300">{item.body}</p>
+                    <p className="text-xs leading-relaxed text-steel-300">{item.body}</p>
                     <div className="mt-2 flex items-center gap-3">
                       {item.author && (
-                        <span className="text-[0.6875rem] text-steel-500">
+                        <span className="text-xs text-steel-500">
                           Posted by {item.author.name}
                         </span>
                       )}
                       {item.departments?.length > 0 && (
-                        <span className="text-[0.6875rem] text-steel-500">
+                        <span className="text-xs text-steel-500">
                           For {item.departments.map(humanise).join(', ')}
                         </span>
                       )}
@@ -185,7 +185,7 @@ export default function AnnouncementsPanel() {
             ))}
           </ul>
         ) : (
-          <p className="py-10 text-center text-[0.8125rem] text-steel-500">
+          <p className="py-10 text-center text-xs text-steel-500">
             No announcements right now.
           </p>
         )}

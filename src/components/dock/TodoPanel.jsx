@@ -55,7 +55,7 @@ export function TodoRow({ todo, onToggle, onDelete }) {
 
       <div className="min-w-0 flex-1">
         <p
-          className={`text-[0.8125rem] leading-snug ${
+          className={`text-xs leading-snug ${
             todo.completed ? 'text-steel-500 line-through' : 'font-medium text-steel-100'
           }`}
         >
@@ -69,7 +69,7 @@ export function TodoRow({ todo, onToggle, onDelete }) {
             todo.title
           )}
         </p>
-        <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[0.6875rem]">
+        <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs">
           {due && !todo.completed && <span className={due.tone}>{due.text}</span>}
           {todo.priority !== 'normal' && !todo.completed && (
             <span className={PRIORITY_TONE[todo.priority]}>
@@ -131,7 +131,7 @@ export default function TodoPanel() {
     <div className="flex h-full flex-col">
       <form onSubmit={submit} className="border-b border-line/[0.06] px-4 py-3">
         <input
-          className="input py-1.5 text-[0.8125rem]"
+          className="input py-1.5 text-xs"
           placeholder="Add a task…"
           value={title}
           onChange={(event) => setTitle(event.target.value)}
@@ -199,7 +199,7 @@ export default function TodoPanel() {
             ))}
           </ul>
         ) : (
-          <p className="py-10 text-center text-[0.8125rem] text-steel-500">
+          <p className="py-10 text-center text-xs text-steel-500">
             {showDone ? 'Nothing completed yet.' : 'No open tasks. Nice.'}
           </p>
         )}

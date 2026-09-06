@@ -142,11 +142,11 @@ export default function StagePipeline({
             } ${DECIDED.includes(row.value) ? 'lg:mt-0' : ''}`}
           >
             <div className="flex items-baseline justify-between gap-2">
-              <p className="text-[0.6875rem] font-bold uppercase tracking-[0.08em] text-steel-500">
+              <p className="text-xs font-bold uppercase tracking-[0.08em] text-steel-500">
                 {row.label}
               </p>
               {chosen && (
-                <span className={`text-[0.625rem] font-bold uppercase tracking-wide ${row.tone.text}`}>
+                <span className={`text-[0.75rem] font-bold uppercase tracking-wide ${row.tone.text}`}>
                   Filtering
                 </span>
               )}
@@ -162,12 +162,12 @@ export default function StagePipeline({
               </span>
               {/* The share is context beside the count, never instead of it. */}
               {Boolean(row.leads) && (
-                <span className="text-[0.6875rem] tabular-nums text-steel-500">{share}%</span>
+                <span className="text-xs tabular-nums text-steel-500">{share}%</span>
               )}
             </div>
 
             {/* An estimate, and labelled as one — never a total that could read as revenue. */}
-            <p className="mt-1 h-4 text-[0.6875rem] tabular-nums text-steel-500">
+            <p className="mt-1 h-4 text-xs tabular-nums text-steel-500">
               {row.amount ? `~${formatCompactCurrency(row.amount)} estimated` : ''}
             </p>
 

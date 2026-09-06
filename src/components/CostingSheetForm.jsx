@@ -243,11 +243,11 @@ export default function CostingSheetForm({ pricing, onClose, onSaved }) {
       {/* The derived line, in the middle of the sheet where it is checked rather than at the
           end where it is taken on trust. */}
       <div className="rounded-lg border border-line/[0.08] bg-line/[0.02] px-4 py-3">
-        <p className="text-[0.6875rem] font-bold uppercase tracking-[0.08em] text-steel-500">
+        <p className="text-xs font-bold uppercase tracking-[0.08em] text-steel-500">
           Material cost per piece
         </p>
         <p className="mt-0.5 text-lg font-bold tabular-nums text-steel-50">{rupees(material)}</p>
-        <p className="mt-0.5 text-[0.6875rem] text-steel-500">
+        <p className="mt-0.5 text-xs text-steel-500">
           {cost.gramWeight || 0}g × ₹{cost.rawMaterialRate || 0}/kg ÷ 1000
         </p>
       </div>
@@ -373,7 +373,7 @@ export default function CostingSheetForm({ pricing, onClose, onSaved }) {
           <p className="stat-value mt-1 text-steel-50">
             {approved && total ? `${(((approved - total) / total) * 100).toFixed(1)}%` : '—'}
           </p>
-          <p className="mt-0.5 text-[0.6875rem] text-steel-500">What is being added to cost</p>
+          <p className="mt-0.5 text-xs text-steel-500">What is being added to cost</p>
         </div>
         <div className="card px-4 py-3">
           <p className="eyebrow">Margin on the approved price</p>
@@ -385,7 +385,7 @@ export default function CostingSheetForm({ pricing, onClose, onSaved }) {
             piece is what the plant actually banks, and on a 20,000-piece lot the difference
             between 9% and 11% is a number somebody wants to see rather than work out.
           */}
-          <p className="mt-0.5 text-[0.6875rem] text-steel-500">
+          <p className="mt-0.5 text-xs text-steel-500">
             {approved && total
               ? `${rupees(approved - total)} a piece`
               : 'What the job earns'}

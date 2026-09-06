@@ -160,7 +160,7 @@ function Tooltip({ at, title, subtitle, tone, lines }) {
       style={{ left: `${left * 100}%`, top: `calc(${(y / HEIGHT) * 100}% ${below ? '+' : '-'} 1.6rem)` }}
     >
       <p className="text-sm font-semibold leading-tight text-steel-50">{title}</p>
-      {subtitle && <p className={`mt-0.5 text-[0.6875rem] leading-snug ${tone || 'text-steel-500'}`}>{subtitle}</p>}
+      {subtitle && <p className={`mt-0.5 text-xs leading-snug ${tone || 'text-steel-500'}`}>{subtitle}</p>}
       {lines}
     </div>
   );
@@ -276,7 +276,7 @@ export default function LeadMap({ geography, selected, onSelect }) {
   return (
     <div className="grid gap-6 lg:grid-cols-5">
       <div className="lg:col-span-3">
-        <p className="mb-3 text-[0.8125rem] leading-relaxed text-steel-400">{headline()}</p>
+        <p className="mb-3 text-xs leading-relaxed text-steel-400">{headline()}</p>
 
       {/*
         * Two boxes rather than one, and the reason is the tooltip.
@@ -443,7 +443,7 @@ export default function LeadMap({ geography, selected, onSelect }) {
                   <p className="mt-1.5 text-sm tabular-nums text-steel-100">
                     {formatNumber(active.total)} {active.total === 1 ? 'lead' : 'leads'}
                   </p>
-                  <p className="text-[0.6875rem] tabular-nums text-steel-400">
+                  <p className="text-xs tabular-nums text-steel-400">
                     {active.open} open · {active.converted} converted
                     {active.quiet ? <span className="text-danger-400"> · {active.quiet} gone quiet</span> : null}
                   </p>
@@ -462,7 +462,7 @@ export default function LeadMap({ geography, selected, onSelect }) {
                   <p className="mt-1.5 text-sm tabular-nums text-steel-100">
                     {formatNumber(activeState.total)} {activeState.total === 1 ? 'lead' : 'leads'}
                   </p>
-                  <p className="text-[0.6875rem] tabular-nums text-steel-400">
+                  <p className="text-xs tabular-nums text-steel-400">
                     {activeState.converted} converted
                     {activeState.quiet ? <span className="text-danger-400"> · {activeState.quiet} gone quiet</span> : null}
                   </p>
@@ -509,7 +509,7 @@ export default function LeadMap({ geography, selected, onSelect }) {
           */}
         {Boolean(unplaced.length) && (
           <div className="mt-3 shrink-0 border-t border-line/[0.06] pt-3">
-            <p className="text-[0.625rem] font-bold uppercase tracking-[0.08em] text-steel-500">
+            <p className="text-[0.75rem] font-bold uppercase tracking-[0.08em] text-steel-500">
               Not on the map ({geography.unplacedTotal})
             </p>
             <p className="mt-1 text-xs leading-relaxed text-steel-400">
@@ -545,7 +545,7 @@ function Legend({ largest, largestState }) {
   return (
     <div className="mt-4 flex flex-wrap items-end gap-x-7 gap-y-4 border-t border-line/[0.06] pt-4">
       <div>
-        <p className="mb-2 text-[0.625rem] font-bold uppercase tracking-[0.08em] text-steel-500">
+        <p className="mb-2 text-[0.75rem] font-bold uppercase tracking-[0.08em] text-steel-500">
           Leads in a town
         </p>
         <div className="flex items-end gap-3">
@@ -558,7 +558,7 @@ function Legend({ largest, largestState }) {
                   className="rounded-full border border-flame-400 bg-flame-500/45"
                   style={{ width: `${size}px`, height: `${size}px` }}
                 />
-                <span className="text-[0.625rem] tabular-nums text-steel-500">{value}</span>
+                <span className="text-[0.75rem] tabular-nums text-steel-500">{value}</span>
               </div>
             );
           })}
@@ -566,19 +566,19 @@ function Legend({ largest, largestState }) {
       </div>
 
       <div>
-        <p className="mb-2 text-[0.625rem] font-bold uppercase tracking-[0.08em] text-steel-500">
+        <p className="mb-2 text-[0.75rem] font-bold uppercase tracking-[0.08em] text-steel-500">
           How it is going
         </p>
         <div className="space-y-1">
-          <span className="flex items-center gap-1.5 text-[0.6875rem] text-steel-400">
+          <span className="flex items-center gap-1.5 text-xs text-steel-400">
             <span className="h-2.5 w-2.5 rounded-full border border-flame-400 bg-flame-500/45" />
             Being worked
           </span>
-          <span className="flex items-center gap-1.5 text-[0.6875rem] text-steel-400">
+          <span className="flex items-center gap-1.5 text-xs text-steel-400">
             <span className="h-2.5 w-2.5 rounded-full border border-danger-400 bg-danger-500/50" />
             Something here has gone quiet
           </span>
-          <span className="flex items-center gap-1.5 text-[0.6875rem] text-steel-400">
+          <span className="flex items-center gap-1.5 text-xs text-steel-400">
             <span className="h-2.5 w-2.5 rounded-full border border-dashed border-steel-400" />
             Town not recognised — placed in its state
           </span>
@@ -586,7 +586,7 @@ function Legend({ largest, largestState }) {
       </div>
 
       <div>
-        <p className="mb-2 text-[0.625rem] font-bold uppercase tracking-[0.08em] text-steel-500">
+        <p className="mb-2 text-[0.75rem] font-bold uppercase tracking-[0.08em] text-steel-500">
           Leads in a state
         </p>
         <div className="flex items-center gap-0.5">
@@ -599,7 +599,7 @@ function Legend({ largest, largestState }) {
             />
           ))}
         </div>
-        <div className="mt-1 flex justify-between text-[0.625rem] tabular-nums text-steel-500">
+        <div className="mt-1 flex justify-between text-[0.75rem] tabular-nums text-steel-500">
           <span>1</span>
           <span>{largestState}</span>
         </div>
@@ -634,10 +634,10 @@ function StateList({ byState, onPlace, onState, onHover, isSelected, isSelectedS
               isSelectedState(name) ? 'bg-aqua-500/10' : 'hover:bg-line/[0.05]'
             }`}
           >
-            <span className="truncate text-[0.8125rem] font-semibold text-steel-100">{name}</span>
-            <span className="shrink-0 text-[0.8125rem] tabular-nums text-steel-200">
+            <span className="truncate text-xs font-semibold text-steel-100">{name}</span>
+            <span className="shrink-0 text-xs tabular-nums text-steel-200">
               {row.total}
-              {row.quiet ? <span className="ml-1.5 text-[0.6875rem] text-danger-400">{row.quiet} quiet</span> : null}
+              {row.quiet ? <span className="ml-1.5 text-xs text-danger-400">{row.quiet} quiet</span> : null}
             </span>
           </button>
 
@@ -653,11 +653,11 @@ function StateList({ byState, onPlace, onState, onHover, isSelected, isSelectedS
                     isSelected(place) ? 'bg-flame-500/10' : 'hover:bg-line/[0.05]'
                   }`}
                 >
-                  <span className="truncate text-[0.8125rem] text-steel-300">
+                  <span className="truncate text-xs text-steel-300">
                     {place.precision === 'state' ? (
                       <span className="text-steel-400">
                         Elsewhere in {place.label}
-                        <span className="ml-1.5 text-[0.625rem] uppercase tracking-wide text-warn-400">
+                        <span className="ml-1.5 text-[0.75rem] uppercase tracking-wide text-warn-400">
                           town unknown
                         </span>
                       </span>
@@ -665,10 +665,10 @@ function StateList({ byState, onPlace, onState, onHover, isSelected, isSelectedS
                       place.label
                     )}
                   </span>
-                  <span className="shrink-0 text-[0.8125rem] tabular-nums text-steel-300">
+                  <span className="shrink-0 text-xs tabular-nums text-steel-300">
                     {place.total}
                     {place.quiet ? (
-                      <span className="ml-1.5 text-[0.6875rem] text-danger-400">{place.quiet}</span>
+                      <span className="ml-1.5 text-xs text-danger-400">{place.quiet}</span>
                     ) : null}
                   </span>
                 </button>

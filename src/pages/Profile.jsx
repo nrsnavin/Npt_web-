@@ -48,7 +48,7 @@ export function ModuleRow({ module }) {
         >
           {module.label}
           {!module.available && (
-            <span className="ml-2 align-middle text-[0.6875rem] font-bold uppercase tracking-wide text-steel-500">
+            <span className="ml-2 align-middle text-xs font-bold uppercase tracking-wide text-steel-500">
               Coming soon
             </span>
           )}

@@ -155,7 +155,7 @@ export default function WorkspaceRail() {
             <header className="flex shrink-0 items-center justify-between gap-2 border-b border-line/[0.06] px-4 py-2.5">
               <div className="flex items-center gap-2 text-steel-100">
                 <DockIcon name={active.icon} className="h-4 w-4 text-flame-500" />
-                <h2 className="text-[0.8125rem] font-bold tracking-tight">{active.label}</h2>
+                <h2 className="text-xs font-bold tracking-tight">{active.label}</h2>
               </div>
               <button
                 type="button"
@@ -193,7 +193,7 @@ export default function WorkspaceRail() {
                 aria-label={item.label}
                 aria-expanded={current}
                 onClick={() => toggle(item.key)}
-                className={`relative flex w-[3.4rem] flex-col items-center gap-1 rounded-lg px-1 py-2 text-[0.625rem] font-semibold transition-colors ${
+                className={`relative flex w-[3.4rem] flex-col items-center gap-1 rounded-lg px-1 py-2 text-[0.75rem] font-semibold transition-colors ${
                   current
                     ? 'bg-line/[0.08] text-flame-500'
                     : 'text-steel-400 hover:bg-line/[0.05] hover:text-steel-100'
@@ -203,7 +203,7 @@ export default function WorkspaceRail() {
                 {item.short}
                 {item.badge > 0 && (
                   <span
-                    className={`absolute right-1 top-1 min-w-[1rem] rounded-full px-1 text-[0.5625rem] font-bold leading-4 tabular-nums text-white ${
+                    className={`absolute right-1 top-1 min-w-[1rem] rounded-full px-1 text-[0.75rem] font-bold leading-4 tabular-nums text-white ${
                       item.urgent ? 'bg-danger-500' : 'bg-steel-500'
                     }`}
                   >
@@ -227,13 +227,13 @@ export default function WorkspaceRail() {
               className="mt-auto flex flex-col items-center gap-0.5 rounded-lg px-1 py-2 text-steel-400 transition-colors hover:bg-line/[0.05] hover:text-steel-100"
             >
               <span
-                className={`min-w-[1.4rem] rounded-full px-1.5 py-0.5 text-[0.6875rem] font-bold leading-4 tabular-nums text-white ${
+                className={`min-w-[1.4rem] rounded-full px-1.5 py-0.5 text-xs font-bold leading-4 tabular-nums text-white ${
                   anyUrgent ? 'bg-danger-500' : 'bg-flame-500'
                 }`}
               >
                 {waiting > 99 ? '99+' : waiting}
               </span>
-              <span className="text-[0.5625rem] font-semibold">waiting</span>
+              <span className="text-[0.75rem] font-semibold">waiting</span>
             </button>
           )}
         </nav>

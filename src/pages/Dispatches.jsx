@@ -256,7 +256,7 @@ function Consignments() {
         <input
           type="search"
           className="input max-w-xs"
-          placeholder="Search consignment, invoice, LR or vehicle…"
+          placeholder="Search consignment, invoice, lorry receipt or vehicle…"
           value={search}
           onChange={narrow(setSearch)}
         />
@@ -347,7 +347,7 @@ function Consignments() {
                       <td className="px-4 py-3.5">
                         <Badge status={row.status}>{dispatchStageLabel(row.status)}</Badge>
                         {row.dispatchDate && (
-                          <p className="mt-1 text-[0.6875rem] text-steel-500">
+                          <p className="mt-1 text-xs text-steel-500">
                             Left {formatDate(row.dispatchDate)}
                           </p>
                         )}

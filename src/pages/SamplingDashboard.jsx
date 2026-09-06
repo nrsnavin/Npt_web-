@@ -1,10 +1,8 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { samples as samplesApi } from '../api/endpoints.js';
-import { useAuth } from '../context/AuthContext.jsx';
 import { useRecord } from '../hooks/useRecords.js';
 import { Badge, ErrorState, PageHeader, Section, Spinner } from '../components/ui.jsx';
-import SampleDay from '../components/SampleDay.jsx';
 import { formatNumber } from '../utils/format.js';
 import { SAMPLE_PURPOSES, optionLabel, sampleStageLabel } from '../utils/pipeline.js';
 
@@ -17,11 +15,11 @@ import { SAMPLE_PURPOSES, optionLabel, sampleStageLabel } from '../utils/pipelin
  * high modification rate means samples are going out before they are right, which neither
  * number shows on its own.
  *
- * `asHome` is the same screen serving as the sample team's front page. Two things change and
- * nothing else does: it greets them rather than announcing itself, and the bench's own queue
- * goes above the measurements. That order is the point of the flag — somebody opening the app
- * at eight in the morning needs to know what to pick up, and a month's rework rate is the
- * second question. At `/samples/dashboard` it stays exactly the analytics screen §22 asks for.
+ * This is the *measuring* screen, and only that. It was briefly also the sample team's front
+ * page, and putting it there was a mistake worth recording: seven tiles, four tables and two
+ * paragraphs about turnaround, in front of somebody who had opened the app to find out which
+ * hanger to mould next. Everything on it is true and almost none of it is what they came for.
+ * The bench's front page is `SampleHome`, which asks one question; this answers a manager's.
  */
 
 function Tile({ label, value, hint, tone = 'neutral', to }) {
@@ -56,7 +54,7 @@ function Breakdown({ rows, labelOf = (row) => row.label }) {
     <ul className="space-y-2.5">
       {rows.map((row) => (
         <li key={row.label}>
-          <div className="flex items-baseline justify-between gap-3 text-[0.8125rem]">
+          <div className="flex items-baseline justify-between gap-3 text-xs">
             <span className="truncate text-steel-200">{labelOf(row)}</span>
             <span className="tabular-nums font-semibold text-steel-100">{row.count}</span>
           </div>
@@ -122,17 +120,9 @@ function AgeTable({ rows, empty, ageLabel = 'Waiting' }) {
   );
 }
 
-export default function SamplingDashboard({ asHome = false }) {
-  const { user } = useAuth();
+export default function SamplingDashboard() {
   const fetch = useCallback(() => samplesApi.dashboard(), []);
   const { data, loading, error, reload } = useRecord(fetch, 'sampling');
-
-  const greeting = useMemo(() => {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 17) return 'Good afternoon';
-    return 'Good evening';
-  }, []);
 
   if (loading) return <Spinner label="Loading the sampling dashboard" />;
   if (error) return <ErrorState error={error} onRetry={reload} />;
@@ -148,29 +138,10 @@ export default function SamplingDashboard({ asHome = false }) {
 
   return (
     <div className="mx-auto max-w-6xl">
-      {asHome ? (
-        <PageHeader
-          title={`${greeting}, ${user?.name?.split(' ')[0] || ''}`}
-          subtitle={new Date().toLocaleDateString('en-IN', {
-            weekday: 'long',
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric',
-          })}
-        />
-      ) : (
-        <PageHeader
-          title="Sampling dashboard"
-          subtitle="Where the bench is, what is late, and whether samples are going out right"
-        />
-      )}
-
-      {/* The queue before the measurements — see the note on `asHome` above. */}
-      {asHome && (
-        <div className="mb-5">
-          <SampleDay />
-        </div>
-      )}
+      <PageHeader
+        title="Sampling dashboard"
+        subtitle="Where the bench is, what is late, and whether samples are going out right"
+      />
 
       <div className="mb-5 grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
         <Tile label="Open" value={tiles.openTotal} to="/samples" />
@@ -196,7 +167,7 @@ export default function SamplingDashboard({ asHome = false }) {
         <Tile
           label="Escalated"
           value={tiles.escalated}
-          hint="§25 has been raised"
+          hint="A manager has been told"
           tone={tiles.escalated ? 'danger' : 'neutral'}
         />
         <Tile label="Unassigned" value={tiles.unassigned} hint="Nobody has picked these up" />
@@ -271,13 +242,13 @@ export default function SamplingDashboard({ asHome = false }) {
           <Section title="Turnaround">
             <dl className="space-y-4">
               <div>
-                <dt className="text-[0.6875rem] font-bold uppercase tracking-[0.08em] text-steel-500">
+                <dt className="text-xs font-bold uppercase tracking-[0.08em] text-steel-500">
                   Request to ready
                 </dt>
                 <dd className="stat-value mt-1">{days(turnaround.requestToReadyDays)}</dd>
               </div>
               <div>
-                <dt className="text-[0.6875rem] font-bold uppercase tracking-[0.08em] text-steel-500">
+                <dt className="text-xs font-bold uppercase tracking-[0.08em] text-steel-500">
                   Ready to dispatched
                 </dt>
                 <dd className="stat-value mt-1">{days(turnaround.readyToDispatchDays)}</dd>
@@ -294,7 +265,7 @@ export default function SamplingDashboard({ asHome = false }) {
               <p className={`stat-value ${quality.reworkRatePercent >= 30 ? '!text-danger-400' : ''}`}>
                 {quality.reworkRatePercent === null ? '—' : `${quality.reworkRatePercent}%`}
               </p>
-              <p className="text-[0.8125rem] text-steel-400">needed another attempt</p>
+              <p className="text-xs text-steel-400">needed another attempt</p>
             </div>
             <p className="mt-1 text-xs text-steel-500">
               {formatNumber(quality.answered)} answered · {quality.approved} approved ·{' '}

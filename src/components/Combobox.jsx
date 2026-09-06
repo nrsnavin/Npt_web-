@@ -207,7 +207,7 @@ export default function Combobox({
                 type="button"
                 role="option"
                 aria-selected={option.value === (value || '')}
-                className={`flex w-full items-baseline gap-2 px-3 py-2 text-left text-[0.8125rem] ${
+                className={`flex w-full items-baseline gap-2 px-3 py-2 text-left text-xs ${
                   index === active ? 'bg-line/[0.06] text-steel-50' : 'text-steel-200'
                 }`}
                 onMouseEnter={() => setActive(index)}
@@ -230,7 +230,7 @@ export default function Combobox({
 
           {/* Said out loud rather than left to be discovered by an answer going missing. */}
           {hidden > 0 && (
-            <li className="border-t border-line/[0.06] px-3 py-2 text-[0.6875rem] text-steel-500">
+            <li className="border-t border-line/[0.06] px-3 py-2 text-xs text-steel-500">
               {hidden} more match. Type to narrow the list.
             </li>
           )}
@@ -239,7 +239,7 @@ export default function Combobox({
             <li className="border-t border-line/[0.06]">
               <button
                 type="button"
-                className="flex w-full items-baseline gap-1.5 px-3 py-2 text-left text-[0.8125rem] font-semibold text-flame-500 hover:bg-line/[0.06]"
+                className="flex w-full items-baseline gap-1.5 px-3 py-2 text-left text-xs font-semibold text-flame-500 hover:bg-line/[0.06]"
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => {
                   setOpen(false);

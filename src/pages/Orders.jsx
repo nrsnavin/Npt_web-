@@ -311,7 +311,7 @@ export default function Orders() {
     <div className="mx-auto max-w-6xl">
       <PageHeader
         title="Sales orders"
-        subtitle="What has been committed to, and what §13 still wants before the plant starts"
+        subtitle="What has been committed to, and what is still to be checked before the plant starts"
         actions={
           <div className="flex items-center gap-2">
             <ExportButton download={downloads.orders} params={filters} />
@@ -409,7 +409,7 @@ export default function Orders() {
                             actually holding it.
                           */}
                           {short > 0 && order.isOpen && (
-                            <p className="mt-1 text-[0.6875rem] text-warn-400">
+                            <p className="mt-1 text-xs text-warn-400">
                               {short} check{short === 1 ? '' : 's'} short
                             </p>
                           )}

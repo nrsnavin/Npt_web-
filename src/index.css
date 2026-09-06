@@ -125,11 +125,11 @@
   /* Actions inside table rows. Neutral at rest so a row of them does not compete
      with the page's primary button; the hue only appears on hover. */
   .row-action {
-    @apply rounded text-[0.8125rem] font-semibold text-steel-300 transition-colors hover:text-accent;
+    @apply rounded text-sm font-semibold text-steel-300 transition-colors hover:text-accent;
   }
 
   .row-action-danger {
-    @apply rounded text-[0.8125rem] font-semibold text-steel-300 transition-colors hover:text-danger-400;
+    @apply rounded text-sm font-semibold text-steel-300 transition-colors hover:text-danger-400;
   }
 
   /* ---------- Forms ---------- */
@@ -154,8 +154,8 @@
   }
 
   .tab {
-    @apply rounded-md px-3 py-2 text-[0.8125rem] font-semibold tracking-tight text-steel-400
-      transition-all duration-150 hover:text-steel-200;
+    @apply rounded-md px-3 py-2 text-sm font-semibold tracking-tight text-steel-300
+      transition-all duration-150 hover:text-steel-100;
   }
 
   /* Tabs report aria-selected; radio segments report aria-checked. Both mean "current". */
@@ -180,15 +180,19 @@
     @apply bg-ink-600;
   }
 
+  /* A field's own name. `text-sm` now, and a step darker — a form label that is harder to
+     read than what has been typed into it has the emphasis exactly backwards. */
   .label {
-    @apply mb-1.5 block text-[0.8125rem] font-semibold tracking-tight text-steel-300;
+    @apply mb-1.5 block text-sm font-semibold tracking-tight text-steel-200;
   }
 
   /* ---------- Data ---------- */
 
+  /* Column headings at 12px rather than 11, and a step darker: they are the labels somebody
+     reads to work out what a column *is*, which is the one thing they cannot infer. */
   .table-head {
-    @apply border-b border-line/[0.06] bg-ink-800/70 text-left text-[0.6875rem] font-bold
-      uppercase tracking-[0.08em] text-steel-400;
+    @apply border-b border-line/[0.06] bg-ink-800/70 text-left text-[0.75rem] font-bold
+      uppercase tracking-[0.07em] text-steel-300;
   }
 
   .row-hover {
@@ -200,8 +204,10 @@
     @apply text-[1.75rem] font-extrabold leading-none tracking-tighter text-steel-50;
   }
 
+  /* Same argument as the table heading: an eyebrow names the number under it, and at 11px
+     in the faintest grey it was the least readable text on a screen full of numbers. */
   .eyebrow {
-    @apply text-[0.6875rem] font-bold uppercase tracking-[0.1em] text-steel-400;
+    @apply text-[0.75rem] font-bold uppercase tracking-[0.07em] text-steel-300;
   }
 
   /* Loading placeholder that keeps layout stable while data arrives. */

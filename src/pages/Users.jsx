@@ -48,7 +48,7 @@ function AccessPicker({ modules, value, onChange, disabled }) {
                     <p className="truncate text-sm font-semibold text-steel-100">
                       {module.label}
                       {!module.available && (
-                        <span className="ml-2 text-[0.6875rem] font-bold uppercase tracking-wide text-steel-500">
+                        <span className="ml-2 text-xs font-bold uppercase tracking-wide text-steel-500">
                           Soon
                         </span>
                       )}

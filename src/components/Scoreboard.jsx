@@ -32,7 +32,7 @@ const flame = (days) => {
 function Figure({ label, value, hint, big = false, muted = false }) {
   return (
     <div className="min-w-0">
-      <p className="text-[0.625rem] font-bold uppercase tracking-[0.08em] text-steel-500">{label}</p>
+      <p className="text-[0.75rem] font-bold uppercase tracking-[0.08em] text-steel-500">{label}</p>
       <p
         className={`mt-0.5 font-bold tabular-nums ${big ? 'text-2xl' : 'text-lg'} ${
           muted ? 'text-steel-400' : 'text-steel-100'
@@ -40,7 +40,7 @@ function Figure({ label, value, hint, big = false, muted = false }) {
       >
         {value}
       </p>
-      {hint && <p className="text-[0.6875rem] leading-tight text-steel-500">{hint}</p>}
+      {hint && <p className="text-xs leading-tight text-steel-500">{hint}</p>}
     </div>
   );
 }

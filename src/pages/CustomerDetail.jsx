@@ -249,13 +249,13 @@ export default function CustomerDetail() {
           <Section title="Business">
             <dl className="space-y-4">
               <div>
-                <dt className="text-[0.6875rem] font-bold uppercase tracking-[0.08em] text-steel-500">
+                <dt className="text-xs font-bold uppercase tracking-[0.08em] text-steel-500">
                   Total business
                 </dt>
                 <dd className="stat-value mt-1">{formatCompactCurrency(customer.totalBusinessValue)}</dd>
               </div>
               <div>
-                <dt className="text-[0.6875rem] font-bold uppercase tracking-[0.08em] text-steel-500">
+                <dt className="text-xs font-bold uppercase tracking-[0.08em] text-steel-500">
                   Outstanding
                 </dt>
                 <dd className={`stat-value mt-1 ${customer.outstandingAmount > 0 ? '!text-warn-400' : ''}`}>
@@ -263,7 +263,7 @@ export default function CustomerDetail() {
                 </dd>
               </div>
               <div>
-                <dt className="text-[0.6875rem] font-bold uppercase tracking-[0.08em] text-steel-500">
+                <dt className="text-xs font-bold uppercase tracking-[0.08em] text-steel-500">
                   Last order
                 </dt>
                 <dd className="mt-1 text-sm text-steel-200">

@@ -157,7 +157,7 @@ export default function PlaceInput({
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => choose(option)}
                 onMouseEnter={() => setActive(index)}
-                className={`flex w-full items-baseline justify-between gap-3 rounded px-2.5 py-1.5 text-left text-[0.8125rem] ${
+                className={`flex w-full items-baseline justify-between gap-3 rounded px-2.5 py-1.5 text-left text-xs ${
                   index === active ? 'bg-line/[0.08] text-steel-50' : 'text-steel-200'
                 }`}
               >
@@ -165,7 +165,7 @@ export default function PlaceInput({
                 {/* The state, so the reader can tell two same-named towns apart before
                     choosing rather than after. */}
                 {kind === 'city' && option.state && !state && (
-                  <span className="shrink-0 text-[0.6875rem] text-steel-500">{option.state}</span>
+                  <span className="shrink-0 text-xs text-steel-500">{option.state}</span>
                 )}
               </button>
             </li>

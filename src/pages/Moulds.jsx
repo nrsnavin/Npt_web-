@@ -283,7 +283,7 @@ function MouldForm({ mould, onClose, onSaved }) {
 
       <div>
         <p className="eyebrow mb-2">Cost per piece, beyond the resin</p>
-        <p className="mb-2 text-[0.6875rem] text-steel-500">
+        <p className="mb-2 text-xs text-steel-500">
           Facts about this tool and the part it makes, so a costing that names this mould starts
           from them — and can still change any of them for a particular job.
         </p>
@@ -425,7 +425,7 @@ function Derived({ label, value, note, lit }) {
     <div className={`card px-4 py-3 ${lit ? 'ring-1 ring-flame-500/40' : ''}`}>
       <p className="eyebrow">{label}</p>
       <p className={`stat-value mt-1 ${lit ? 'text-flame-400' : 'text-steel-50'}`}>{value}</p>
-      {note && <p className="mt-0.5 text-[0.6875rem] text-steel-500">{note}</p>}
+      {note && <p className="mt-0.5 text-xs text-steel-500">{note}</p>}
     </div>
   );
 }

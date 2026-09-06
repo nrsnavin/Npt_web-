@@ -46,9 +46,19 @@
   --steel-100: 233 240 244;
   --steel-200: 201 214 222;
   --steel-300: 163 179 189;
-  --steel-400: 120 133 141;
-  --steel-500: 92 105 112;
-  --steel-600: 74 82 87;
+  /*
+   * The three faint steps, raised until they are actually readable.
+   *
+   * They were set by eye and looked right to somebody who already knew what every screen
+   * said. Measured against the card they sit on, `steel-500` came in at 3.0:1 in dark and
+   * 3.2:1 in light — under the 4.5:1 that ordinary text needs — and it is the step carrying
+   * the secondary line on nearly three hundred rows: the customer under the model number,
+   * the date under the status, the hint under the field. Somebody reading their own screen
+   * should not have to lean in.
+   */
+  --steel-400: 142 156 164;
+  --steel-500: 124 138 146;
+  --steel-600: 100 112 120;
 
   --success-400: 61 220 151;
   --success-500: 34 192 122;
@@ -120,9 +130,10 @@
   --steel-100: 23 38 47;
   --steel-200: 44 72 85;
   --steel-300: 74 90 100;
-  --steel-400: 105 119 128;
-  --steel-500: 132 146 155;
-  --steel-600: 157 170 178;
+  /* The same correction on white — see the note in the dark block above. */
+  --steel-400: 90 104 113;
+  --steel-500: 107 121 130;
+  --steel-600: 130 144 153;
 
   /* Tints stay at 500; the 400s darken so badge text clears AA on a pale fill. */
   --success-400: 15 122 78;
@@ -183,9 +194,9 @@
     --steel-100: 23 38 47;
     --steel-200: 44 72 85;
     --steel-300: 74 90 100;
-    --steel-400: 105 119 128;
-    --steel-500: 132 146 155;
-    --steel-600: 157 170 178;
+    --steel-400: 90 104 113;
+    --steel-500: 107 121 130;
+    --steel-600: 130 144 153;
 
     --success-400: 15 122 78;
     --success-600: 12 100 63;

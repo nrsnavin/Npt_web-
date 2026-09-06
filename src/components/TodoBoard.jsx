@@ -115,7 +115,7 @@ export default function TodoBoard() {
         * whether they are behind, which "nine tasks" does not tell them.
         */}
       {!showDone && (
-        <p className="mb-3 text-[0.8125rem] leading-relaxed text-steel-400">
+        <p className="mb-3 text-xs leading-relaxed text-steel-400">
           {open.length === 0
             ? 'Nothing on your list. Anything the plant hands you will land here.'
             : late
@@ -132,7 +132,7 @@ export default function TodoBoard() {
       {/* Quick capture, in the place the list is read. */}
       <form onSubmit={submit} className="mb-4 flex flex-wrap gap-2">
         <input
-          className="input min-w-[12rem] flex-1 py-1.5 text-[0.8125rem]"
+          className="input min-w-[12rem] flex-1 py-1.5 text-xs"
           placeholder="Add a task…"
           value={title}
           onChange={(event) => setTitle(event.target.value)}
@@ -175,7 +175,7 @@ export default function TodoBoard() {
         <div className="space-y-4">
           {GROUPS.filter((group) => buckets[group.key].length).map((group) => (
             <div key={group.key}>
-              <p className={`text-[0.625rem] font-bold uppercase tracking-[0.08em] ${group.tone}`}>
+              <p className={`text-[0.75rem] font-bold uppercase tracking-[0.08em] ${group.tone}`}>
                 {group.title} ({buckets[group.key].length})
               </p>
               <ul className="divide-y divide-line/[0.04]">

@@ -214,7 +214,7 @@ function OrderActions({ order, onDone }) {
                 <p className="mt-1.5 text-xs font-semibold text-warn-400">{action.blockedBy}</p>
               )}
               {!action.blockedBy && action.raises && (
-                <p className="mt-1.5 text-[0.6875rem] font-semibold uppercase tracking-wide text-aqua-300">
+                <p className="mt-1.5 text-xs font-semibold uppercase tracking-wide text-aqua-300">
                   → {action.raises}
                 </p>
               )}
@@ -421,7 +421,7 @@ export default function OrderDetail() {
                         <p className="font-semibold text-steel-100">
                           {line.modelNumber || line.mould?.mouldCode || '—'}
                         </p>
-                        <p className="text-[0.6875rem] text-steel-500" title={line.mould?.name}>
+                        <p className="text-xs text-steel-500" title={line.mould?.name}>
                           {/*
                             The tool's code, not its name. No mould is a traded piece rather than
                             a gap [§28] — but once production sits in the columns beside this one
@@ -439,13 +439,13 @@ export default function OrderDetail() {
                           checked against anything, which is what §13's colour tick is for.
                         */}
                         {line.materialRef && (
-                          <p className="text-[0.6875rem] text-steel-500" title={line.materialRef.code}>
+                          <p className="text-xs text-steel-500" title={line.materialRef.code}>
                             {line.materialRef.name}
                           </p>
                         )}
                       </td>
                       {hasParts && (
-                        <td className="px-3 py-3 text-[0.6875rem] text-steel-400">
+                        <td className="px-3 py-3 text-xs text-steel-400">
                           {[line.hookRef, line.clipRef, line.printRef].filter(Boolean).length === 0
                             ? <span className="text-steel-600">—</span>
                             : [line.hookRef, line.clipRef, line.printRef]
@@ -462,7 +462,7 @@ export default function OrderDetail() {
                         <td className="px-3 py-3 text-right tabular-nums text-steel-200">
                           {formatNumber(line.production?.producedQty || 0)}
                           {line.toMakeQty > 0 && (
-                            <p className="text-[0.6875rem] text-steel-500">
+                            <p className="text-xs text-steel-500">
                               {formatNumber(line.toMakeQty)} to go
                             </p>
                           )}
@@ -475,10 +475,10 @@ export default function OrderDetail() {
                           </Badge>
                           {/* Late means past the agreed date *and* still owing pieces. */}
                           {line.isOverdue && (
-                            <p className="mt-1 text-[0.6875rem] font-semibold text-danger-400">Late</p>
+                            <p className="mt-1 text-xs font-semibold text-danger-400">Late</p>
                           )}
                           {line.production?.holdReason && (
-                            <p className="mt-1 max-w-[12rem] truncate text-[0.6875rem] text-danger-400">
+                            <p className="mt-1 max-w-[12rem] truncate text-xs text-danger-400">
                               {line.production.holdReason}
                             </p>
                           )}

@@ -31,7 +31,7 @@ function Row({ sample, showNextStep }) {
   return (
     <li className="flex items-start justify-between gap-3 py-2">
       <div className="min-w-0">
-        <p className="truncate text-[0.8125rem] font-semibold text-steel-100">
+        <p className="truncate text-xs font-semibold text-steel-100">
           <Link to={sample.link} className="hover:text-accent">
             {sample.model}
           </Link>
@@ -41,7 +41,7 @@ function Row({ sample, showNextStep }) {
           {sample.number}
           {sample.customer ? ` · ${sample.customer}` : ''}
           {/*
-            The customer's owner [§29], not the person who raised it. A request is often raised
+            The customer's owner, not the person who raised it. A request is often raised
             by whoever took the call; the buyer belongs to one marketing person, and they are
             who will ring when it slips.
           */}
@@ -66,7 +66,7 @@ function Row({ sample, showNextStep }) {
             {sample.requiredDate ? formatDate(sample.requiredDate) : 'No date'}
           </p>
         )}
-        <p className="mt-0.5 text-[0.6875rem] text-steel-500">
+        <p className="mt-0.5 text-xs text-steel-500">
           {/* Unclaimed is the state worth naming: it is nobody's until somebody takes it. */}
           {sample.assignedTo ? (sample.mine ? 'Yours' : sample.assignedTo) : 'Unclaimed'}
         </p>

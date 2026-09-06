@@ -86,7 +86,7 @@ function StageForm({ sample, onClose, onSaved }) {
             <Field label="Courier">
               <input className="input" value={courier} onChange={(event) => setCourier(event.target.value)} />
             </Field>
-            <Field label="AWB number">
+            <Field label="Tracking number" hint="The courier's AWB">
               <input className="input" value={awbNumber} onChange={(event) => setAwbNumber(event.target.value)} />
             </Field>
             <Field label="Quantity sent">
@@ -379,7 +379,7 @@ function DispatchDetailsForm({ sample, onClose, onSaved }) {
             onChange={(event) => setCourier(event.target.value)}
           />
         </Field>
-        <Field label="Tracking / AWB number">
+        <Field label="Tracking number" hint="What the courier gave you">
           <input
             className="input"
             value={awbNumber}
@@ -734,6 +734,79 @@ function LinkEnquiryForm({ sample, onClose, onSaved }) {
   );
 }
 
+/**
+ * Where this request is, and what has to happen to it — the top of the screen, in words.
+ *
+ * The stage used to be a small chip in the header actions, sharing a row with five buttons.
+ * That is the one fact somebody opens this page for, and it was the smallest thing on it.
+ *
+ * Three parts, in the order a person asks them: where it is now, what to do about it, and how
+ * far along the run that is. No bar of its own — the stage pipeline sits directly beneath and
+ * draws a segment per stage, which says more than one fill could, and two bars stacked would
+ * read as two different measurements.
+ */
+function StageBanner({ sample }) {
+  const index = SAMPLE_STAGES.findIndex((stage) => stage.value === sample.status);
+  const total = SAMPLE_STAGES.findIndex((stage) => stage.value === 'approved');
+  const done = CLOSED_SAMPLE_STAGES.includes(sample.status);
+
+  return (
+    <div
+      className={`mb-5 rounded-xl border p-5 ${
+        sample.isOverdue ? 'border-danger-500/40 bg-danger-500/[0.05]' : 'border-line/10 bg-line/[0.02]'
+      }`}
+    >
+      <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+        <div>
+          <p className="text-sm font-semibold text-steel-400">Where it is now</p>
+          <p className="mt-1 text-2xl font-extrabold tracking-tight text-steel-50">
+            {sampleStageLabel(sample.status)}
+          </p>
+        </div>
+
+        {/* The instruction, as large as the stage it follows from. This is what the page is for. */}
+        {sample.nextStep ? (
+          <div>
+            <p className="text-sm font-semibold text-steel-400">What happens next</p>
+            <p className="mt-1 text-2xl font-extrabold tracking-tight text-accent">
+              {sample.nextStep}
+            </p>
+          </div>
+        ) : (
+          <div>
+            <p className="text-sm font-semibold text-steel-400">What happens next</p>
+            {/*
+              The record carries a sentence for every status the *bench* owns. The three that
+              are left are each a different answer, and "waiting on the customer" for all of
+              them would be wrong twice: a finished request waits on nobody, and a brand-new
+              one is waiting on us.
+            */}
+            <p className="mt-1 text-lg font-bold text-steel-300">
+              {done
+                ? 'Nothing — this request is finished'
+                : WITH_CUSTOMER_STAGES.includes(sample.status)
+                  ? 'Waiting on the customer to come back'
+                  : 'Nobody has started this yet — pick it up'}
+            </p>
+          </div>
+        )}
+      </div>
+
+      {sample.isOverdue && (
+        <p className="mt-3 text-base font-bold text-danger-400">
+          This is past the day it was wanted.
+        </p>
+      )}
+
+      {/* No bar of its own: the stage pipeline sits directly beneath this and draws one
+          segment per stage, which says more than a single fill could. */}
+      <p className="mt-3 text-sm text-steel-400">
+        Step {Math.min(index + 1, total)} of {total} &mdash; raised {formatDate(sample.requestedAt)}
+      </p>
+    </div>
+  );
+}
+
 export default function SampleDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -900,6 +973,8 @@ export default function SampleDetail() {
         }
       />
 
+      <StageBanner sample={sample} />
+
       {actionError && (
         <div className="mb-5">
           <Notice tone="danger">{actionError}</Notice>
@@ -1034,7 +1109,7 @@ export default function SampleDetail() {
                         <span className="font-semibold">{sampleStageLabel(entry.to)}</span>
                       </p>
                       <p className="text-xs text-steel-500">{formatDate(entry.at)}</p>
-                      {entry.note && <p className="mt-1 text-[0.8125rem] text-steel-400">{entry.note}</p>}
+                      {entry.note && <p className="mt-1 text-xs text-steel-400">{entry.note}</p>}
                     </div>
                   </li>
                 ))}

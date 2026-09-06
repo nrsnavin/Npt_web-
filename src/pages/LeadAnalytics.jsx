@@ -51,11 +51,11 @@ function Bars({ rows, total, emptyLabel = 'Nothing yet' }) {
         return (
           <li key={row.label}>
             <div className="flex items-baseline justify-between gap-3">
-              <span className="truncate text-[0.8125rem] text-steel-200">{humanise(row.label)}</span>
+              <span className="truncate text-xs text-steel-200">{humanise(row.label)}</span>
               {/* The count is the figure; the share is context beside it, never instead. */}
-              <span className="shrink-0 text-[0.8125rem] tabular-nums text-steel-100">
+              <span className="shrink-0 text-xs tabular-nums text-steel-100">
                 {row.value}
-                {share !== null && <span className="ml-1.5 text-[0.6875rem] text-steel-500">{share}%</span>}
+                {share !== null && <span className="ml-1.5 text-xs text-steel-500">{share}%</span>}
               </span>
             </div>
             <div
@@ -103,11 +103,11 @@ function Funnel({ rows, total }) {
     return (
       <li key={row.label}>
         <div className="flex items-baseline justify-between gap-3">
-          <span className="text-[0.8125rem] text-steel-200">{humanise(row.label)}</span>
-          <span className="text-[0.8125rem] tabular-nums text-steel-100">
+          <span className="text-xs text-steel-200">{humanise(row.label)}</span>
+          <span className="text-xs tabular-nums text-steel-100">
             {row.value}
             {total ? (
-              <span className="ml-1.5 text-[0.6875rem] text-steel-500">
+              <span className="ml-1.5 text-xs text-steel-500">
                 {Math.round((row.value / total) * 100)}%
               </span>
             ) : null}
@@ -127,7 +127,7 @@ function Funnel({ rows, total }) {
     <div className="space-y-3">
       <ul className="space-y-2.5">{open.map(bar)}</ul>
       <div className="border-t border-line/[0.06] pt-3">
-        <p className="mb-2 text-[0.625rem] font-bold uppercase tracking-[0.08em] text-steel-500">Decided</p>
+        <p className="mb-2 text-[0.75rem] font-bold uppercase tracking-[0.08em] text-steel-500">Decided</p>
         <ul className="space-y-2.5">{closed.map(bar)}</ul>
       </div>
     </div>

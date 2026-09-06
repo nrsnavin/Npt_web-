@@ -2,7 +2,7 @@ import { lazy } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
 import Dashboard from './Dashboard.jsx';
 
-const SamplingDashboard = lazy(() => import('./SamplingDashboard.jsx'));
+const SampleHome = lazy(() => import('./SampleHome.jsx'));
 
 /**
  * What somebody sees when they open the app.
@@ -15,8 +15,13 @@ const SamplingDashboard = lazy(() => import('./SamplingDashboard.jsx'));
  * every morning, which teaches somebody that the home screen is not worth opening.
  *
  * So home is chosen by department rather than being one screen for everyone. Chosen here, at
- * the route, rather than with a redirect: sending them to `/samples/dashboard` would leave the
- * Home rail unlit on their own home page and hand them a back button that goes nowhere useful.
+ * the route, rather than with a redirect: a redirect would leave the Home rail unlit on their
+ * own home page and hand them a back button that goes nowhere useful.
+ *
+ * The sampling home is deliberately *not* the sampling dashboard. That was the first attempt
+ * and it was worse than My day, not better: seven stat tiles, four tables and two paragraphs
+ * about turnaround, in front of somebody who had opened the app to find out which hanger to
+ * make next. A screen answers one question or it answers none.
  *
  * Only sampling for now, deliberately. Production, despatch and accounts each have the same
  * argument waiting to be made and a different screen to make it with, and inventing a mapping
@@ -24,7 +29,7 @@ const SamplingDashboard = lazy(() => import('./SamplingDashboard.jsx'));
  * one's own view is built.
  */
 const HOME_BY_DEPARTMENT = {
-  sampling: () => <SamplingDashboard asHome />,
+  sampling: () => <SampleHome />,
 };
 
 export default function Home() {

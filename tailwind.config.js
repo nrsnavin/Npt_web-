@@ -51,6 +51,23 @@ export default {
       fontFamily: {
         sans: ['Manrope', 'system-ui', '-apple-system', 'Segoe UI', 'sans-serif'],
       },
+      /**
+       * The small end of the type scale, raised.
+       *
+       * Tailwind's defaults are `xs: 12px` and `sm: 14px`, and a console built on them ends up
+       * saying most of what it knows at twelve pixels — the customer under the model number,
+       * the date under the status, the hint under every field. That is a readable size for
+       * somebody who designed the screen and already knows what it says. It is not a readable
+       * size on a shop-floor monitor at arm's length, which is where this is actually used.
+       *
+       * So 13 and 15, and the rest of the scale left alone: the headings were never the
+       * problem. Raised here rather than at three hundred call sites, which is also what stops
+       * the next screen from being built at twelve again.
+       */
+      fontSize: {
+        xs: ['0.8125rem', { lineHeight: '1.15rem' }],
+        sm: ['0.9375rem', { lineHeight: '1.375rem' }],
+      },
       letterSpacing: {
         tighter: '-0.03em',
         tight: '-0.018em',

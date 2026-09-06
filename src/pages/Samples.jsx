@@ -54,7 +54,7 @@ function Bench({ selected, onSelect }) {
             onClick={() => onSelect(active ? '' : row.status)}
             className={`card-interactive px-3.5 py-3 text-left ${active ? '!border-flame-500/40' : ''}`}
           >
-            <p className="text-[0.6875rem] font-bold uppercase tracking-[0.08em] text-steel-500">
+            <p className="text-xs font-bold uppercase tracking-[0.08em] text-steel-500">
               {sampleStageLabel(row.status)}
             </p>
             <p className="mt-1 text-lg font-extrabold tabular-nums leading-none tracking-tight text-steel-50">
@@ -235,12 +235,17 @@ export default function Samples() {
                   <tr>
                     <th className="px-3 py-3">Request</th>
                     <th className="px-3 py-3">Customer</th>
+                    {/*
+                      Purpose folded under the model rather than kept as a column of its own.
+                      Eight columns on a laptop squeezed the model to four wrapped lines and
+                      clipped the stage badge off the right edge — and the stage is the column
+                      somebody is actually reading. Fewer columns, wider ones.
+                    */}
                     <th className="px-3 py-3">Model</th>
-                    <th className="px-3 py-3">Purpose</th>
                     <th className="px-3 py-3 text-right">Qty</th>
                     <th className="px-3 py-3">Required by</th>
                     <th className="px-3 py-3">With</th>
-                    <th className="px-3 py-3">Stage</th>
+                    <th className="w-[15rem] px-3 py-3">Stage</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line/[0.04]">
@@ -259,7 +264,7 @@ export default function Samples() {
                           {idle && (
                             <span
                               title={idle.reason}
-                              className="ml-1.5 rounded bg-danger-500/15 px-1.5 py-0.5 text-[0.625rem] font-bold uppercase tracking-wide text-danger-400"
+                              className="ml-1.5 rounded bg-danger-500/15 px-1.5 py-0.5 text-[0.75rem] font-bold uppercase tracking-wide text-danger-400"
                             >
                               Idle {idle.idleDays}d
                             </span>
@@ -294,12 +299,13 @@ export default function Samples() {
                             </p>
                           )}
                         </td>
-                        <td className="px-3 py-3.5">
-                          <p className="text-steel-200">{sample.modelNumber || '—'}</p>
-                          {sample.colour && <p className="text-xs text-steel-500">{sample.colour}</p>}
-                        </td>
-                        <td className="px-3 py-3.5 text-steel-300">
-                          {optionLabel(SAMPLE_PURPOSES, sample.purpose)}
+                        <td className="min-w-[11rem] px-3 py-3.5">
+                          <p className="font-semibold text-steel-100">{sample.modelNumber || '—'}</p>
+                          <p className="text-sm text-steel-400">
+                            {[sample.colour, optionLabel(SAMPLE_PURPOSES, sample.purpose)]
+                              .filter(Boolean)
+                              .join(' · ')}
+                          </p>
                         </td>
                         <td className="whitespace-nowrap px-3 py-3.5 text-right tabular-nums text-steel-200">
                           {formatNumber(sample.quantity)}
@@ -315,8 +321,20 @@ export default function Samples() {
                             <span className="text-xs text-steel-500">Unassigned</span>
                           )}
                         </td>
-                        <td className="whitespace-nowrap px-3 py-3.5">
+                        <td className="px-3 py-3.5">
+                          {/*
+                            The stage, and what it *means* underneath it. A badge reading
+                            "Sample available" needs somebody to already know what that word
+                            implies at this plant; "Pack it and hand it to despatch" does not,
+                            and it is the same fact said in a way anybody can act on. The
+                            sentence comes off the record, so a screen cannot drift from it.
+                          */}
                           <Badge status={sample.status}>{sampleStageLabel(sample.status)}</Badge>
+                          {sample.nextStep && (
+                            <p className="mt-1.5 text-sm font-semibold text-accent">
+                              {sample.nextStep}
+                            </p>
+                          )}
                         </td>
                       </tr>
                     );

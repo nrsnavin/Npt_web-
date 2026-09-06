@@ -42,8 +42,8 @@ function Rows({ rows, total }) {
           to={row.link}
           className="block rounded-lg border border-line/[0.06] px-2.5 py-1.5 transition-colors hover:bg-line/[0.05]"
         >
-          <p className="truncate text-[0.8125rem] font-semibold text-steel-100">{row.title}</p>
-          <p className="truncate text-[0.6875rem] text-steel-400">
+          <p className="truncate text-xs font-semibold text-steel-100">{row.title}</p>
+          <p className="truncate text-xs text-steel-400">
             {row.subtitle}
             {row.meta && <span className="text-steel-500"> · {row.meta}</span>}
           </p>
@@ -51,7 +51,7 @@ function Rows({ rows, total }) {
       ))}
       {/* A list that stops at eight without saying so is the panel disagreeing with the books. */}
       {total > rows.length && (
-        <p className="px-1 pt-0.5 text-[0.6875rem] text-steel-500">
+        <p className="px-1 pt-0.5 text-xs text-steel-500">
           Showing {rows.length} of {total}.
         </p>
       )}
@@ -106,7 +106,7 @@ export default function JarvisPanel() {
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3">
         {!turns.length && (
           <div>
-            <p className="text-[0.8125rem] leading-relaxed text-steel-300">
+            <p className="text-xs leading-relaxed text-steel-300">
               Ask me about samples, enquiries, leads or customers
               {user?.name ? `, ${user.name.split(' ')[0]}` : ''}. Every figure comes straight
               from the records, with the rows behind it.
@@ -117,7 +117,7 @@ export default function JarvisPanel() {
                   key={opener.question}
                   type="button"
                   onClick={() => send(opener.question)}
-                  className="rounded-full border border-line/[0.08] px-2.5 py-1 text-[0.6875rem] font-semibold text-steel-300 transition-colors hover:border-flame-500/40 hover:text-steel-100"
+                  className="rounded-full border border-line/[0.08] px-2.5 py-1 text-xs font-semibold text-steel-300 transition-colors hover:border-flame-500/40 hover:text-steel-100"
                 >
                   {opener.label}
                 </button>
@@ -129,13 +129,13 @@ export default function JarvisPanel() {
         {turns.map((turn, index) => (
           <div key={index} className={turn.role === 'you' ? 'flex justify-end' : ''}>
             {turn.role === 'you' ? (
-              <p className="max-w-[85%] rounded-xl rounded-br-sm bg-flame-500/15 px-3 py-1.5 text-[0.8125rem] text-steel-100">
+              <p className="max-w-[85%] rounded-xl rounded-br-sm bg-flame-500/15 px-3 py-1.5 text-xs text-steel-100">
                 {turn.text}
               </p>
             ) : (
               <div className="max-w-full">
                 <p
-                  className={`text-[0.8125rem] leading-relaxed ${
+                  className={`text-xs leading-relaxed ${
                     turn.failed ? 'text-danger-400' : 'text-steel-200'
                   }`}
                 >
@@ -147,7 +147,7 @@ export default function JarvisPanel() {
           </div>
         ))}
 
-        {busy && <p className="text-[0.8125rem] text-steel-500">Looking…</p>}
+        {busy && <p className="text-xs text-steel-500">Looking…</p>}
         <div ref={endRef} />
       </div>
 
@@ -160,7 +160,7 @@ export default function JarvisPanel() {
       >
         <input
           ref={inputRef}
-          className="input flex-1 !py-1.5 text-[0.8125rem]"
+          className="input flex-1 !py-1.5 text-xs"
           placeholder="What is overdue?"
           value={question}
           onChange={(event) => setQuestion(event.target.value)}

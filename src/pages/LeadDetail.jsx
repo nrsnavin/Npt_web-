@@ -649,7 +649,7 @@ export default function LeadDetail() {
           {/* Guidance while there is still something to do; nothing once the lead has closed. */}
           {open && (
             <Section title="How conversion works">
-              <ol className="space-y-2.5 text-[0.8125rem] leading-relaxed text-steel-400">
+              <ol className="space-y-2.5 text-xs leading-relaxed text-steel-400">
                 <li>1. Log what happened — the lead moves off &ldquo;new&rdquo; on its own.</li>
                 <li>2. Mark it qualified once the volume and the buyer are real.</li>
                 <li>3. Convert: the customer, its first contact and the first enquiry are all created at once, so nothing is re-keyed.</li>

@@ -197,10 +197,10 @@ export default function EnquiryActions({ enquiry, onSaved, canWrite }) {
                 TONE[action.action] || ''
               }`}
             >
-              <p className="text-[0.8125rem] font-semibold text-steel-100">{action.label}</p>
-              <p className="mt-0.5 text-[0.6875rem] leading-snug text-steel-500">{action.hint}</p>
+              <p className="text-xs font-semibold text-steel-100">{action.label}</p>
+              <p className="mt-0.5 text-xs leading-snug text-steel-500">{action.hint}</p>
               {action.raises && (
-                <p className="mt-1.5 text-[0.625rem] font-bold uppercase tracking-[0.06em] text-aqua-400">
+                <p className="mt-1.5 text-[0.75rem] font-bold uppercase tracking-[0.06em] text-aqua-400">
                   → {action.raises}
                 </p>
               )}

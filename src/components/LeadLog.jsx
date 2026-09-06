@@ -58,9 +58,9 @@ function Stat({ label, value, hint, tone = 'neutral' }) {
 
   return (
     <div className="min-w-0 rounded-lg border border-line/[0.06] px-3 py-2.5">
-      <p className="text-[0.625rem] font-bold uppercase tracking-[0.08em] text-steel-500">{label}</p>
+      <p className="text-[0.75rem] font-bold uppercase tracking-[0.08em] text-steel-500">{label}</p>
       <p className={`mt-0.5 text-lg font-bold tabular-nums ${tones[tone]}`}>{value}</p>
-      {hint && <p className="text-[0.6875rem] leading-tight text-steel-500">{hint}</p>}
+      {hint && <p className="text-xs leading-tight text-steel-500">{hint}</p>}
     </div>
   );
 }
@@ -107,7 +107,7 @@ function Analytics({ stats }) {
 
       {channels.length > 0 && (
         <div className="rounded-lg border border-line/[0.06] px-3 py-2.5 sm:col-span-2 lg:col-span-4">
-          <p className="mb-2 text-[0.625rem] font-bold uppercase tracking-[0.08em] text-steel-500">
+          <p className="mb-2 text-[0.75rem] font-bold uppercase tracking-[0.08em] text-steel-500">
             How they have been reached
           </p>
           <div className="flex h-2 overflow-hidden rounded-full">
@@ -122,7 +122,7 @@ function Analytics({ stats }) {
           </div>
           <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
             {channels.map(([type, count]) => (
-              <span key={type} className="text-[0.6875rem] text-steel-400">
+              <span key={type} className="text-xs text-steel-400">
                 <span className={`mr-1 inline-block h-1.5 w-1.5 rounded-full align-middle ${CHANNELS[type]?.dot || 'bg-steel-500'}`} />
                 {CHANNELS[type]?.label || humanise(type)} {count}
               </span>
@@ -141,7 +141,7 @@ function Gap({ days }) {
   return (
     <li className="flex items-center gap-3 py-1 pl-[0.3125rem]">
       <span className="h-6 w-px bg-line/[0.12]" />
-      <span className={`text-[0.6875rem] ${days > 21 ? 'text-danger-400' : 'text-steel-500'}`}>
+      <span className={`text-xs ${days > 21 ? 'text-danger-400' : 'text-steel-500'}`}>
         {days} days of silence
       </span>
     </li>
@@ -177,10 +177,10 @@ function Timeline({ activities }) {
               <span className={`mt-2 h-2.5 w-2.5 shrink-0 rounded-full ${channel.dot}`} />
               <div className="min-w-0 flex-1 pb-1">
                 <div className="flex flex-wrap items-baseline gap-x-2">
-                  <span className={`text-[0.6875rem] font-bold uppercase tracking-wide ${channel.tint}`}>
+                  <span className={`text-xs font-bold uppercase tracking-wide ${channel.tint}`}>
                     {channel.label}
                   </span>
-                  <span className="text-[0.6875rem] text-steel-500">{formatDate(activity.occurredAt)}</span>
+                  <span className="text-xs text-steel-500">{formatDate(activity.occurredAt)}</span>
                 </div>
                 <p className="mt-0.5 text-sm leading-relaxed text-steel-100">{activity.summary}</p>
               </div>
@@ -257,7 +257,7 @@ function LogForm({ leadId, lead, onSaved, onLogged }) {
               key={key}
               type="button"
               onClick={() => setType(key)}
-              className={`rounded-full px-2.5 py-1 text-[0.6875rem] font-semibold transition-colors ${
+              className={`rounded-full px-2.5 py-1 text-xs font-semibold transition-colors ${
                 type === key
                   ? 'bg-flame-500/20 text-flame-400'
                   : 'border border-line/[0.08] text-steel-400 hover:text-steel-100'
@@ -277,12 +277,12 @@ function LogForm({ leadId, lead, onSaved, onLogged }) {
       />
 
       <div className="mt-3 border-t border-line/[0.06] pt-3">
-        <p className="mb-2 text-[0.625rem] font-bold uppercase tracking-[0.08em] text-steel-500">
+        <p className="mb-2 text-[0.75rem] font-bold uppercase tracking-[0.08em] text-steel-500">
           And what happens next
         </p>
         <div className="grid gap-2 sm:grid-cols-[10rem,1fr,9rem]">
           <select
-            className="input !py-1.5 text-[0.8125rem]"
+            className="input !py-1.5 text-xs"
             value={nextActionType}
             onChange={(event) => setNextActionType(event.target.value)}
             aria-label="Next action"
@@ -292,7 +292,7 @@ function LogForm({ leadId, lead, onSaved, onLogged }) {
             ))}
           </select>
           <input
-            className="input !py-1.5 text-[0.8125rem]"
+            className="input !py-1.5 text-xs"
             placeholder="About what?"
             value={nextAction}
             onChange={(event) => setNextAction(event.target.value)}
@@ -300,7 +300,7 @@ function LogForm({ leadId, lead, onSaved, onLogged }) {
           />
           <input
             type="date"
-            className="input !py-1.5 text-[0.8125rem]"
+            className="input !py-1.5 text-xs"
             value={when}
             onChange={(event) => setWhen(event.target.value)}
             aria-label="Follow up on"
@@ -315,10 +315,10 @@ function LogForm({ leadId, lead, onSaved, onLogged }) {
       )}
 
       <div className="mt-3 flex items-center justify-between gap-3">
-        <p className="text-[0.6875rem] text-steel-500">
+        <p className="text-xs text-steel-500">
           A reminder goes into your list for the date above.
         </p>
-        <button type="submit" className="btn-primary px-3 py-1.5 text-[0.8125rem]" disabled={!summary.trim() || busy}>
+        <button type="submit" className="btn-primary px-3 py-1.5 text-xs" disabled={!summary.trim() || busy}>
           {busy ? 'Saving…' : 'Log it'}
         </button>
       </div>
@@ -382,10 +382,10 @@ function Coach({ leadId, onUse }) {
       {suggestion && (
         <div className="space-y-3">
           <div className="flex items-baseline gap-2">
-            <span className={`text-[0.6875rem] font-bold uppercase tracking-wide ${readiness.tone}`}>
+            <span className={`text-xs font-bold uppercase tracking-wide ${readiness.tone}`}>
               {readiness.label}
             </span>
-            <span className="text-[0.6875rem] text-steel-500">
+            <span className="text-xs text-steel-500">
               {suggestion.readBy === 'model' ? 'read by Jarvis' : 'from the figures alone'}
             </span>
           </div>
@@ -394,12 +394,12 @@ function Coach({ leadId, onUse }) {
 
           {Boolean(suggestion.blockers?.length) && (
             <div>
-              <p className="text-[0.625rem] font-bold uppercase tracking-[0.08em] text-steel-500">
+              <p className="text-[0.75rem] font-bold uppercase tracking-[0.08em] text-steel-500">
                 What is in the way
               </p>
               <ul className="mt-1 space-y-0.5">
                 {suggestion.blockers.map((blocker) => (
-                  <li key={blocker} className="text-[0.8125rem] text-warn-400">— {blocker}</li>
+                  <li key={blocker} className="text-xs text-warn-400">— {blocker}</li>
                 ))}
               </ul>
             </div>
@@ -407,29 +407,29 @@ function Coach({ leadId, onUse }) {
 
           {Boolean(suggestion.suggestions?.length) && (
             <div>
-              <p className="text-[0.625rem] font-bold uppercase tracking-[0.08em] text-steel-500">
+              <p className="text-[0.75rem] font-bold uppercase tracking-[0.08em] text-steel-500">
                 Worth trying
               </p>
               <ul className="mt-1 space-y-0.5">
                 {suggestion.suggestions.map((idea) => (
-                  <li key={idea} className="text-[0.8125rem] leading-relaxed text-steel-300">— {idea}</li>
+                  <li key={idea} className="text-xs leading-relaxed text-steel-300">— {idea}</li>
                 ))}
               </ul>
             </div>
           )}
 
           <div className="rounded-lg border border-flame-500/25 bg-flame-500/[0.06] px-3 py-2.5">
-            <p className="text-[0.625rem] font-bold uppercase tracking-[0.08em] text-steel-500">
+            <p className="text-[0.75rem] font-bold uppercase tracking-[0.08em] text-steel-500">
               Suggested next step
             </p>
             <p className="mt-0.5 text-sm text-steel-100">{suggestion.nextAction}</p>
             <div className="mt-2 flex items-center justify-between gap-3">
-              <span className="text-[0.6875rem] text-steel-500">
+              <span className="text-xs text-steel-500">
                 {suggestion.followUpInDays === 0 ? 'Today' : `In ${suggestion.followUpInDays} days`}
               </span>
               <button
                 type="button"
-                className="btn-secondary px-2.5 py-1 text-[0.6875rem]"
+                className="btn-secondary px-2.5 py-1 text-xs"
                 onClick={() => onUse(suggestion)}
               >
                 Use this

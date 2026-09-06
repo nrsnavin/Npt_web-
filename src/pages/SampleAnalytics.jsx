@@ -79,7 +79,7 @@ function SegmentTable({ rows, labelOf = (row) => row.label, empty }) {
                 {row.fulfilled}
                 {/* Said plainly rather than hidden, so a thin row is judged as thin. */}
                 {!row.reliable && (
-                  <span className="ml-1 text-[0.625rem] uppercase text-steel-500" title="Too few to read into">
+                  <span className="ml-1 text-[0.75rem] uppercase text-steel-500" title="Too few to read into">
                     thin
                   </span>
                 )}
@@ -115,7 +115,7 @@ function StageList({ rows, muted = false }) {
   return (
     <ul className="space-y-2.5">
       {rows.map((row) => (
-        <li key={row.label} className="flex items-baseline justify-between gap-3 text-[0.8125rem]">
+        <li key={row.label} className="flex items-baseline justify-between gap-3 text-xs">
           <span className={`truncate ${muted ? 'text-steel-400' : 'text-steel-200'}`}>
             {sampleStageLabel(row.label)}
           </span>
@@ -152,10 +152,10 @@ function Trend({ months }) {
               title={`${month.fulfilled} fulfilled`}
             />
           </div>
-          <p className="text-[0.625rem] tabular-nums text-steel-500">{month.month.slice(2)}</p>
+          <p className="text-[0.75rem] tabular-nums text-steel-500">{month.month.slice(2)}</p>
           {/* A month with nothing fulfilled has no average, and a column of dashes reads as
               data. Left blank so the eye goes to the months that have one. */}
-          <p className="h-4 text-[0.6875rem] tabular-nums font-semibold text-steel-300">
+          <p className="h-4 text-xs tabular-nums font-semibold text-steel-300">
             {month.averageDays == null ? '' : days(month.averageDays)}
           </p>
         </div>
@@ -253,7 +253,7 @@ export default function SampleAnalytics() {
                   ready, and these days belong to the courier and the customer. */}
               {timeInStage.some((row) => !row.beforeReady) && (
                 <>
-                  <p className="mb-2 mt-4 border-t border-line/[0.06] pt-3 text-[0.6875rem] uppercase tracking-[0.08em] text-steel-500">
+                  <p className="mb-2 mt-4 border-t border-line/[0.06] pt-3 text-xs uppercase tracking-[0.08em] text-steel-500">
                     After it was ready
                   </p>
                   <StageList rows={timeInStage.filter((row) => !row.beforeReady)} muted />

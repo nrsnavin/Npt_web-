@@ -37,9 +37,9 @@ function CostLine({ label, hint, note, value, share, strong }) {
     <div className="flex items-baseline justify-between gap-4 py-2">
       <div className="min-w-0">
         <p className={`text-sm ${strong ? 'font-bold text-steel-50' : 'text-steel-200'}`}>{label}</p>
-        {hint && <p className="text-[0.6875rem] text-steel-500">{hint}</p>}
+        {hint && <p className="text-xs text-steel-500">{hint}</p>}
         {/* Where a figure came from, when it came from somewhere rather than from a keyboard. */}
-        {note && <p className="text-[0.6875rem] text-flame-400/80">{note}</p>}
+        {note && <p className="text-xs text-flame-400/80">{note}</p>}
       </div>
       <div className="flex shrink-0 items-baseline gap-3">
         {/*
@@ -48,7 +48,7 @@ function CostLine({ label, hint, note, value, share, strong }) {
           is invisible when the lines are only rupees.
         */}
         {share !== null && share !== undefined && (
-          <span className="w-10 text-right text-[0.6875rem] tabular-nums text-steel-500">
+          <span className="w-10 text-right text-xs tabular-nums text-steel-500">
             {share > 0 ? `${share.toFixed(0)}%` : ''}
           </span>
         )}
@@ -250,7 +250,7 @@ export default function PricingDetail() {
                   <div className="card px-4 py-3">
                     <p className="eyebrow">Approved</p>
                     <p className="stat-value mt-1 text-steel-50">{rupees(asking)}</p>
-                    <p className="mt-0.5 text-[0.6875rem] text-steel-500">
+                    <p className="mt-0.5 text-xs text-steel-500">
                       {pricing.effectiveMarkupPercent === null ||
                       pricing.effectiveMarkupPercent === undefined
                         ? 'What marketing may quote'
@@ -258,11 +258,11 @@ export default function PricingDetail() {
                     </p>
                   </div>
                   <div className="card px-4 py-3">
-                    <p className="eyebrow">Floor [§9]</p>
+                    <p className="eyebrow">Lowest we may sell at</p>
                     <p className="stat-value mt-1 text-steel-50">
                       {rupees(pricing.minimumSellingPrice)}
                     </p>
-                    <p className="mt-0.5 text-[0.6875rem] text-steel-500">
+                    <p className="mt-0.5 text-xs text-steel-500">
                       {pricing.minimumOverride == null
                         ? 'The 10% tier, by standing policy'
                         : 'Set for this job'}
@@ -292,7 +292,7 @@ export default function PricingDetail() {
                       The tile here used to multiply by a lot size taken off the enquiry — a
                       number nobody had agreed to — and print it as the value of the job.
                     */}
-                    <p className="mt-0.5 text-[0.6875rem] text-steel-500">
+                    <p className="mt-0.5 text-xs text-steel-500">
                       {rupees(asking)} less {rupees(pricing.totalCost)} to make
                     </p>
                   </div>
@@ -343,7 +343,7 @@ export default function PricingDetail() {
                   >
                     {gap === null ? '—' : `${gap > 0 ? '+' : ''}${gap.toFixed(1)}%`}
                   </p>
-                  <p className="mt-0.5 text-[0.6875rem] text-steel-500">
+                  <p className="mt-0.5 text-xs text-steel-500">
                     {gap === null
                       ? 'No target on record'
                       : gap > 0

@@ -54,8 +54,8 @@ function SearchTrigger({ onOpen }) {
       className="flex shrink-0 items-center gap-2 rounded-lg border border-line/[0.08] bg-ink-800/60 px-2.5 py-1.5 text-left transition-colors hover:border-line/15 sm:min-w-0 sm:flex-1 sm:shrink sm:max-w-xs"
     >
       {icon}
-      <span className="hidden truncate text-[0.8125rem] text-steel-500 sm:block">Search…</span>
-      <kbd className="ml-auto hidden shrink-0 rounded border border-line/[0.08] px-1.5 py-0.5 font-sans text-[0.6875rem] font-semibold text-steel-500 sm:block">
+      <span className="hidden truncate text-xs text-steel-500 sm:block">Search…</span>
+      <kbd className="ml-auto hidden shrink-0 rounded border border-line/[0.08] px-1.5 py-0.5 font-sans text-xs font-semibold text-steel-500 sm:block">
         {isMac ? '⌘' : 'Ctrl '}K
       </kbd>
     </button>
@@ -209,7 +209,7 @@ export default function GlobalSearch() {
                 type="button"
                 onClick={close}
                 aria-label="Close search"
-                className="shrink-0 rounded border border-line/[0.08] px-1.5 py-0.5 text-[0.6875rem] font-semibold text-steel-500 hover:text-steel-200"
+                className="shrink-0 rounded border border-line/[0.08] px-1.5 py-0.5 text-xs font-semibold text-steel-500 hover:text-steel-200"
               >
                 Esc
               </button>
@@ -238,7 +238,7 @@ export default function GlobalSearch() {
 
               {data?.groups.map((group) => (
                 <div key={group.key}>
-                  <p className="px-4 pb-1 pt-2.5 text-[0.625rem] font-bold uppercase tracking-[0.1em] text-steel-500">
+                  <p className="px-4 pb-1 pt-2.5 text-[0.75rem] font-bold uppercase tracking-[0.1em] text-steel-500">
                     {group.label}
                     {/* Said out loud: a list quietly showing the first six of forty is a lie. */}
                     {group.total > group.results.length && (
@@ -262,7 +262,7 @@ export default function GlobalSearch() {
                         onMouseDown={(event) => event.preventDefault()}
                         onClick={() => go(result)}
                       >
-                        <span className="block truncate text-[0.8125rem] font-medium text-steel-100">
+                        <span className="block truncate text-xs font-medium text-steel-100">
                           {result.title}
                         </span>
                         {result.subtitle && (
@@ -278,7 +278,7 @@ export default function GlobalSearch() {
             </div>
 
             {flat.length > 0 && (
-              <div className="flex shrink-0 items-center gap-3 border-t border-line/[0.06] px-4 py-2 text-[0.6875rem] text-steel-500">
+              <div className="flex shrink-0 items-center gap-3 border-t border-line/[0.06] px-4 py-2 text-xs text-steel-500">
                 <span>↑↓ to move</span>
                 <span>↵ to open</span>
                 <span className="ml-auto">{data.total} in all</span>

@@ -189,7 +189,7 @@ export function Wordmark({ compact = false }) {
           <span className="block text-[0.95rem] font-extrabold tracking-tight text-steel-50">
             Navin Hangers
           </span>
-          <span className="mt-0.5 block text-[0.6875rem] font-semibold tracking-[0.12em] text-steel-500">
+          <span className="mt-0.5 block text-xs font-semibold tracking-[0.12em] text-steel-500">
             CRM · ERP
           </span>
         </span>
@@ -244,7 +244,7 @@ function TopTabs() {
   const { user } = useAuth();
   const modules = (user?.modules || []).filter((module) => module.canRead);
 
-  const classes = 'whitespace-nowrap rounded-md px-2.5 py-1 text-[0.8125rem] font-semibold transition-colors';
+  const classes = 'whitespace-nowrap rounded-md px-2.5 py-1 text-xs font-semibold transition-colors';
 
   return (
     <div className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto">
@@ -273,7 +273,7 @@ function TopTabs() {
             className={`${classes} ${module.available ? 'text-steel-200' : 'cursor-default text-steel-500'}`}
           >
             {module.label}
-            {!module.available && <span className="ml-1 text-[0.625rem] align-super">soon</span>}
+            {!module.available && <span className="ml-1 text-[0.75rem] align-super">soon</span>}
           </span>
         );
       })}
@@ -336,7 +336,7 @@ export default function Layout() {
               end={item.end}
               /* An area stays lit across every route it owns, not just its landing page. */
               className={({ isActive }) =>
-                `flex w-[3.4rem] flex-col items-center gap-1 rounded-lg px-1 py-2 text-[0.625rem] font-semibold transition-colors ${
+                `flex w-[3.4rem] flex-col items-center gap-1 rounded-lg px-1 py-2 text-[0.75rem] font-semibold transition-colors ${
                   /*
                    * `owns` is consulted for every area now, not only the ones without `end`.
                    * Home is exact-matched on `/` so that My day does not light it from every
@@ -355,7 +355,7 @@ export default function Layout() {
           ))}
 
           <div className="mt-auto flex flex-col items-center gap-1">
-            <span className="rounded bg-flame-500/15 px-1.5 py-0.5 text-[0.5625rem] font-bold uppercase tracking-wide text-flame-400">
+            <span className="rounded bg-flame-500/15 px-1.5 py-0.5 text-[0.75rem] font-bold uppercase tracking-wide text-flame-400">
               Trial
             </span>
           </div>
@@ -372,7 +372,7 @@ export default function Layout() {
           </div>
 
           <div className="px-4 py-3">
-            <p className="text-[0.8125rem] font-bold tracking-tight text-steel-100">
+            <p className="text-xs font-bold tracking-tight text-steel-100">
               {sidebar.title}
             </p>
           </div>
@@ -400,7 +400,7 @@ export default function Layout() {
                         to={item.to}
                         end={item.end}
                         className={({ isActive }) =>
-                          `relative flex items-center gap-2 rounded-lg px-3 py-2 text-[0.8125rem] font-semibold tracking-tight transition-colors ${
+                          `relative flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold tracking-tight transition-colors ${
                             isActive
                               ? 'bg-line/[0.07] text-steel-50'
                               : 'text-steel-400 hover:bg-line/[0.04] hover:text-steel-100'
@@ -426,7 +426,7 @@ export default function Layout() {
           </nav>
 
           <div className="border-t border-line/[0.06] px-4 py-3">
-            <p className="text-[0.6875rem] text-steel-500">A hanger expert you can hang onto</p>
+            <p className="text-xs text-steel-500">A hanger expert you can hang onto</p>
           </div>
         </aside>
 
@@ -464,14 +464,14 @@ export default function Layout() {
             <div className="flex shrink-0 items-center gap-2">
               <ThemeToggle />
               <div className="hidden text-right sm:block">
-                <p className="text-[0.8125rem] font-semibold leading-tight text-steel-100">
+                <p className="text-xs font-semibold leading-tight text-steel-100">
                   {user?.name}
                 </p>
-                <p className="text-[0.6875rem] font-medium text-steel-500">
+                <p className="text-xs font-medium text-steel-500">
                   {humanise(user?.department) || humanise(user?.role)}
                 </p>
               </div>
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-flame-500/15 text-[0.8125rem] font-bold text-flame-400 ring-1 ring-inset ring-flame-500/25">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-flame-500/15 text-xs font-bold text-flame-400 ring-1 ring-inset ring-flame-500/25">
                 {user?.name?.charAt(0).toUpperCase()}
               </div>
               <button type="button" className="btn-secondary px-3 py-1.5" onClick={handleLogout}>
@@ -495,7 +495,7 @@ export default function Layout() {
 
       {/* Bottom bar: who is signed in, and nothing else — the tools moved to the right. */}
       <footer className="flex shrink-0 items-center gap-3 border-t border-line/[0.06] bg-ink-850 px-3 py-1">
-        <span className="hidden text-[0.6875rem] text-steel-500 sm:block">
+        <span className="hidden text-xs text-steel-500 sm:block">
           {user?.name} · {humanise(user?.department)}
         </span>
       </footer>

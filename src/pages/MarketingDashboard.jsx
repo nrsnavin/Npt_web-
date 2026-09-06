@@ -57,7 +57,7 @@ function Ranked({ title, blurb, rows, count, empty, render }) {
         <p className="py-5 text-center text-sm text-steel-500">{empty}</p>
       )}
       {count > (rows?.length || 0) && (
-        <p className="mt-2 text-center text-[0.6875rem] text-steel-500">
+        <p className="mt-2 text-center text-xs text-steel-500">
           Showing the {rows.length} worst of {count}.
         </p>
       )}
@@ -75,7 +75,7 @@ function Breakdown({ rows, labelOf = (row) => row.label, empty }) {
     <ul className="space-y-2.5">
       {rows.map((row) => (
         <li key={row.label}>
-          <div className="flex items-baseline justify-between gap-3 text-[0.8125rem]">
+          <div className="flex items-baseline justify-between gap-3 text-xs">
             <span className="truncate text-steel-200">{labelOf(row)}</span>
             <span className="tabular-nums font-semibold text-steel-100">{row.count}</span>
           </div>

@@ -133,7 +133,7 @@ function MaterialForm({ material, onClose, onSaved }) {
         <p className="stat-value mt-1 text-steel-50">
           {(30 * (1 + factor / 100)).toFixed(2)} g
         </p>
-        <p className="mt-0.5 text-[0.6875rem] text-steel-500">
+        <p className="mt-0.5 text-xs text-steel-500">
           {factor === 0
             ? 'The same, because a mould records its grammage on this basis'
             : `${factor > 0 ? '+' : ''}${factor}% out of the same cavity`}

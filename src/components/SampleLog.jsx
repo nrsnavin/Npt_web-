@@ -26,7 +26,7 @@ const initials = (name = '') =>
 
 function Avatar({ name }) {
   return (
-    <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-flame-500/15 text-[0.625rem] font-bold text-flame-400 ring-1 ring-inset ring-flame-500/25">
+    <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-flame-500/15 text-[0.75rem] font-bold text-flame-400 ring-1 ring-inset ring-flame-500/25">
       {initials(name)}
     </span>
   );
@@ -51,7 +51,7 @@ function CommentForm({ onSubmit }) {
   return (
     <form onSubmit={submit} className="mt-2 flex gap-2">
       <input
-        className="input py-1.5 text-[0.8125rem]"
+        className="input py-1.5 text-xs"
         placeholder="Add a comment…"
         value={body}
         onChange={(event) => setBody(event.target.value)}
@@ -75,7 +75,7 @@ function Entry({ entry, currentUserId, isAdmin, onComment, onRemove, onRemoveCom
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <p className="text-sm font-semibold text-steel-100">
               {entry.author?.name}
-              <span className="ml-2 text-[0.6875rem] font-medium uppercase tracking-wide text-steel-500">
+              <span className="ml-2 text-xs font-medium uppercase tracking-wide text-steel-500">
                 {entry.author?.department}
               </span>
             </p>
@@ -83,7 +83,7 @@ function Entry({ entry, currentUserId, isAdmin, onComment, onRemove, onRemoveCom
           </div>
 
           {entry.body && (
-            <p className="mt-1 whitespace-pre-wrap text-[0.8125rem] leading-relaxed text-steel-200">
+            <p className="mt-1 whitespace-pre-wrap text-xs leading-relaxed text-steel-200">
               {entry.body}
             </p>
           )}
@@ -112,11 +112,11 @@ function Entry({ entry, currentUserId, isAdmin, onComment, onRemove, onRemoveCom
                   <li key={comment._id} className="group flex items-start gap-2">
                     <Avatar name={comment.author?.name} />
                     <div className="min-w-0 flex-1">
-                      <p className="text-[0.8125rem] leading-snug text-steel-200">
+                      <p className="text-xs leading-snug text-steel-200">
                         <span className="font-semibold text-steel-100">{comment.author?.name}</span>{' '}
                         {comment.body}
                       </p>
-                      <span className="text-[0.6875rem] text-steel-500">
+                      <span className="text-xs text-steel-500">
                         {formatDate(comment.createdAt)}
                       </span>
                     </div>
@@ -124,7 +124,7 @@ function Entry({ entry, currentUserId, isAdmin, onComment, onRemove, onRemoveCom
                       <button
                         type="button"
                         onClick={() => onRemoveComment(comment._id)}
-                        className="rounded px-1 text-[0.6875rem] text-steel-500 opacity-0 transition-opacity hover:text-danger-400 focus-visible:opacity-100 group-hover:opacity-100"
+                        className="rounded px-1 text-xs text-steel-500 opacity-0 transition-opacity hover:text-danger-400 focus-visible:opacity-100 group-hover:opacity-100"
                       >
                         Remove
                       </button>
@@ -223,7 +223,7 @@ export default function SampleLog({ sampleId }) {
       <form onSubmit={submit} className="mb-4 space-y-2">
         <textarea
           rows={2}
-          className="input text-[0.8125rem]"
+          className="input text-xs"
           placeholder="What happened? Attach a photo of the shot if you have one."
           value={body}
           onChange={(event) => setBody(event.target.value)}
@@ -305,7 +305,7 @@ export default function SampleLog({ sampleId }) {
           >
             {loadingMore ? 'Loading…' : 'Show earlier entries'}
           </button>
-          <p className="text-[0.6875rem] text-steel-500">
+          <p className="text-xs text-steel-500">
             {entries.length} of {total}
           </p>
         </div>

@@ -53,7 +53,7 @@ export default function NotesPanel() {
       <form onSubmit={submit} className="border-b border-line/[0.06] px-4 py-3">
         <textarea
           rows={2}
-          className="input resize-none py-1.5 text-[0.8125rem]"
+          className="input resize-none py-1.5 text-xs"
           placeholder="Jot something down…"
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
@@ -101,7 +101,7 @@ export default function NotesPanel() {
                   <textarea
                     autoFocus
                     rows={3}
-                    className="input resize-none py-1 text-[0.8125rem]"
+                    className="input resize-none py-1 text-xs"
                     value={editingText}
                     onChange={(event) => setEditingText(event.target.value)}
                     onBlur={() => commitEdit(note)}
@@ -117,7 +117,7 @@ export default function NotesPanel() {
                       setEditingId(note._id);
                       setEditingText(note.content);
                     }}
-                    className="block w-full text-left text-[0.8125rem] leading-relaxed text-steel-100"
+                    className="block w-full text-left text-xs leading-relaxed text-steel-100"
                   >
                     {note.content}
                   </button>
@@ -147,7 +147,7 @@ export default function NotesPanel() {
             ))}
           </div>
         ) : (
-          <p className="py-10 text-center text-[0.8125rem] text-steel-500">
+          <p className="py-10 text-center text-xs text-steel-500">
             No notes yet. Anything you jot here stays private to you.
           </p>
         )}

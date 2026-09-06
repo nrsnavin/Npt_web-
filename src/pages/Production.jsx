@@ -130,7 +130,7 @@ export default function Production() {
       {rows?.length === 0 && !error && (
         <EmptyState
           title="Nothing on the floor"
-          description="Lines appear here once an order has passed its §13 checks and been released."
+          description="Lines appear here once an order has been checked and released to the plant."
         />
       )}
 
@@ -189,7 +189,7 @@ export default function Production() {
                           </span>
                         </div>
                         {row.toMakeQty > 0 && (
-                          <p className="mt-0.5 text-[0.6875rem] text-steel-500">
+                          <p className="mt-0.5 text-xs text-steel-500">
                             {formatNumber(row.toMakeQty)} to go
                           </p>
                         )}
@@ -206,7 +206,7 @@ export default function Production() {
                               : '—'}
                         </span>
                         {row.isOverdue && (
-                          <p className="text-[0.6875rem] font-semibold text-danger-400">Late</p>
+                          <p className="text-xs font-semibold text-danger-400">Late</p>
                         )}
                       </td>
                       <td className="px-4 py-3.5">
@@ -215,7 +215,7 @@ export default function Production() {
                         </Badge>
                         {/* A hold with a reason on the row, so nobody has to open it to ask. */}
                         {row.production?.holdReason && (
-                          <p className="mt-1 max-w-[14rem] truncate text-[0.6875rem] text-danger-400">
+                          <p className="mt-1 max-w-[14rem] truncate text-xs text-danger-400">
                             {row.production.holdReason}
                           </p>
                         )}

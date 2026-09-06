@@ -143,7 +143,11 @@ function Paperwork({ dispatch, outstanding, onSaved, mayWrite }) {
           )}
           <Field
             label="LR number"
-            hint={dispatch.ownVehicle ? 'Not needed — this goes on our own vehicle' : undefined}
+            hint={
+              dispatch.ownVehicle
+                ? 'Not needed — this goes on our own vehicle'
+                : 'The lorry receipt the transporter issues'
+            }
           >
             <input
               className="input"
@@ -280,7 +284,7 @@ function DispatchActions({ dispatch, onDone }) {
                 <p className="mt-1.5 text-xs font-semibold text-warn-400">{action.blockedBy}</p>
               )}
               {!action.blockedBy && action.raises && (
-                <p className="mt-1.5 text-[0.6875rem] font-semibold uppercase tracking-wide text-aqua-300">
+                <p className="mt-1.5 text-xs font-semibold uppercase tracking-wide text-aqua-300">
                   → {action.raises}
                 </p>
               )}
@@ -474,7 +478,7 @@ export default function DispatchDetail() {
                     <tr key={line._id}>
                       <td className="px-3 py-3">
                         <p className="font-semibold text-steel-100">{line.modelNumber || '—'}</p>
-                        <p className="text-[0.6875rem] text-steel-500" title={line.mould?.name}>
+                        <p className="text-xs text-steel-500" title={line.mould?.name}>
                           {line.mould?.mouldCode || 'Bought in'}
                         </p>
                       </td>

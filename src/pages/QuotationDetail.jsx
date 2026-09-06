@@ -259,7 +259,7 @@ export default function QuotationDetail() {
                       <td className="px-3 py-2.5">
                         <p className="text-steel-100">{line.modelNumber || '—'}</p>
                         {line.mould?.name && (
-                          <p className="text-[0.6875rem] text-steel-500">{line.mould.name}</p>
+                          <p className="text-xs text-steel-500">{line.mould.name}</p>
                         )}
                       </td>
                       {/* The minimum the rate is good for. A dash rather than a zero: a
@@ -320,7 +320,7 @@ export default function QuotationDetail() {
                               {line.modelNumber || line.pricing.number}
                             </Link>
                             {line.pricing.belowFloor && (
-                              <p className="text-[0.6875rem] text-danger-400">
+                              <p className="text-xs text-danger-400">
                                 under its floor of {rupees(line.pricing.minimumSellingPrice)}
                               </p>
                             )}
@@ -394,7 +394,7 @@ export default function QuotationDetail() {
                     {quotation.lines?.length === 1 ? 'model' : 'models'}
                   </span>
                 </p>
-                <p className="mt-0.5 text-[0.6875rem] text-steel-500">
+                <p className="mt-0.5 text-xs text-steel-500">
                   Rev {quotation.revision ?? 0}
                   {quotation.validUntil ? ` · rates hold to ${formatDate(quotation.validUntil)}` : ''}
                 </p>
@@ -409,7 +409,7 @@ export default function QuotationDetail() {
                       ? `+${quotation.gstPercent}% GST`
                       : 'GST extra'}
                 </p>
-                <p className="mt-0.5 text-[0.6875rem] text-steel-500">
+                <p className="mt-0.5 text-xs text-steel-500">
                   {quotation.isExport
                     ? 'No GST on an export quotation'
                     : 'Rates are per piece, ex-works'}
@@ -501,7 +501,7 @@ export default function QuotationDetail() {
                             : `${revision.lines?.length ?? 0} models`}
                         </span>
                         {live && (
-                          <span className="text-[0.625rem] font-bold uppercase tracking-wide text-flame-400">
+                          <span className="text-[0.75rem] font-bold uppercase tracking-wide text-flame-400">
                             Live
                           </span>
                         )}

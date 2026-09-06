@@ -206,7 +206,7 @@ function QuotationForm({ quotation, onClose, onSaved }) {
                 </Field>
                 <Field
                   label={index === 0 ? 'Unit price (₹)' : ''}
-                  hint={index === 0 && editing ? 'Changed through Revise [§10]' : undefined}
+                  hint={index === 0 && editing ? 'Changed by raising a revision' : undefined}
                 >
                   <input
                     type="number"
@@ -243,7 +243,7 @@ function QuotationForm({ quotation, onClose, onSaved }) {
                 </button>
               </div>
               {line.pricing && (
-                <p className="mt-1 text-[0.6875rem] text-steel-500">
+                <p className="mt-1 text-xs text-steel-500">
                   Priced off a costing — the floor still applies to this line [§9]
                 </p>
               )}
@@ -377,15 +377,15 @@ function RevisionForm({ quotation, onClose, onSaved }) {
   return (
     <form onSubmit={submit} className="space-y-4">
       <div className="rounded-lg border border-line/[0.08] bg-line/[0.02] px-4 py-3">
-        <p className="text-[0.6875rem] font-bold uppercase tracking-[0.08em] text-steel-500">
+        <p className="text-xs font-bold uppercase tracking-[0.08em] text-steel-500">
           What has been offered
         </p>
         <ul className="mt-1.5 space-y-1">
           {quotation.revisions?.map((rev) => (
-            <li key={rev.revision} className="flex items-baseline justify-between gap-3 text-[0.8125rem]">
+            <li key={rev.revision} className="flex items-baseline justify-between gap-3 text-xs">
               <span className="text-steel-300">
                 Rev {rev.revision}
-                {rev.sentAt ? <span className="ml-1.5 text-[0.625rem] text-steel-500">sent</span> : null}
+                {rev.sentAt ? <span className="ml-1.5 text-[0.75rem] text-steel-500">sent</span> : null}
               </span>
               <span className="tabular-nums text-steel-100">
                 {(() => {
@@ -437,7 +437,7 @@ function RevisionForm({ quotation, onClose, onSaved }) {
           })}
         </div>
         {/* Said before saving: a revision that revises nothing is refused by the server. */}
-        <p className="mt-2 text-[0.6875rem] text-steel-500">
+        <p className="mt-2 text-xs text-steel-500">
           {moved.length
             ? `${moved.length} of ${quotation.lines.length} prices changed.`
             : 'Nothing has changed yet — a revision has to revise something.'}
@@ -652,7 +652,7 @@ export default function Quotations() {
                           ? row.lines[0].modelNumber || '—'
                           : `${row.lines?.length ?? 0} models`}
                         {row.lines?.length > 1 && (
-                          <p className="truncate text-[0.6875rem] text-steel-500">
+                          <p className="truncate text-xs text-steel-500">
                             {row.lines.map((line) => line.modelNumber).filter(Boolean).join(', ')}
                           </p>
                         )}
@@ -676,18 +676,18 @@ export default function Quotations() {
                           return low === high ? rupees(low) : `${rupees(low)} – ${rupees(high)}`;
                         })()}
                         {row.lines?.length > 1 && (
-                          <p className="text-[0.6875rem] text-steel-500">
+                          <p className="text-xs text-steel-500">
                             {row.lines.length} models
                           </p>
                         )}
                         {row.isExport && (
-                          <p className="text-[0.625rem] uppercase tracking-wide text-aqua-400">Export</p>
+                          <p className="text-[0.75rem] uppercase tracking-wide text-aqua-400">Export</p>
                         )}
                       </td>
                       <td className="whitespace-nowrap px-3 py-3.5">
                         <Badge status={row.status}>{humanise(row.status)}</Badge>
                         {row.isExpired && (
-                          <p className="text-[0.6875rem] text-danger-400">Validity passed</p>
+                          <p className="text-xs text-danger-400">Validity passed</p>
                         )}
                       </td>
                       <td className="whitespace-nowrap px-3 py-3.5 text-right">

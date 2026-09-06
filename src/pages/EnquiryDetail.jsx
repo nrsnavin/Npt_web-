@@ -734,7 +734,7 @@ export default function EnquiryDetail() {
                         <span className="font-semibold">{stageLabel(entry.to)}</span>
                       </p>
                       <p className="text-xs text-steel-500">{formatDate(entry.at)}</p>
-                      {entry.note && <p className="mt-1 text-[0.8125rem] text-steel-400">{entry.note}</p>}
+                      {entry.note && <p className="mt-1 text-xs text-steel-400">{entry.note}</p>}
                     </div>
                   </li>
                 ))}

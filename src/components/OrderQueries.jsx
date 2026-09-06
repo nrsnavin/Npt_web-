@@ -85,7 +85,7 @@ function Thread({ query, orderId, onChanged, me }) {
         <p className="text-sm font-semibold text-steel-100">
           {query.question}
         </p>
-        <span className={`text-[0.6875rem] font-semibold uppercase tracking-wide ${TONE[query.status]}`}>
+        <span className={`text-xs font-semibold uppercase tracking-wide ${TONE[query.status]}`}>
           {query.status === 'answered' ? 'Answered — yours to close' : humanise(query.status)}
         </span>
       </div>
@@ -109,7 +109,7 @@ function Thread({ query, orderId, onChanged, me }) {
           {query.answers.map((entry) => (
             <li key={entry._id}>
               <p className="text-sm text-steel-200">{entry.body}</p>
-              <p className="text-[0.6875rem] text-steel-500">
+              <p className="text-xs text-steel-500">
                 {entry.by?.name || 'Somebody'}
                 {entry.by?.department ? ` · ${humanise(entry.by.department)}` : ''}
                 {' · '}
@@ -146,7 +146,7 @@ function Thread({ query, orderId, onChanged, me }) {
       )}
 
       {settled && query.closedBy && (
-        <p className="mt-2 text-[0.6875rem] text-steel-500">
+        <p className="mt-2 text-xs text-steel-500">
           Closed by {query.closedBy.name} on {formatDate(query.closedAt)}
         </p>
       )}

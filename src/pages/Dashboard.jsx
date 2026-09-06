@@ -69,7 +69,7 @@ function ReminderGroup({ title, tone, items, onComplete }) {
               className="mt-0.5 grid h-[1.05rem] w-[1.05rem] shrink-0 place-items-center rounded-[5px] border border-line/25 transition-colors hover:border-flame-500"
             />
             <div className="min-w-0">
-              <p className="text-[0.8125rem] leading-snug text-steel-100">{todo.title}</p>
+              <p className="text-xs leading-snug text-steel-100">{todo.title}</p>
               {todo.notes && (
                 <p className="mt-0.5 truncate text-xs text-steel-500">{todo.notes}</p>
               )}
@@ -99,12 +99,12 @@ function UpcomingDashboards({ modules }) {
         {pending.map((module) => (
           <li key={module.key} className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-[0.8125rem] font-semibold text-steel-200">{module.label}</p>
+              <p className="text-xs font-semibold text-steel-200">{module.label}</p>
               <p className="mt-0.5 text-xs leading-relaxed text-steel-500">
                 {module.description}
               </p>
             </div>
-            <span className="shrink-0 text-[0.6875rem] font-semibold text-steel-500">
+            <span className="shrink-0 text-xs font-semibold text-steel-500">
               {module.stage ? `Stage ${module.stage}` : '—'}
             </span>
           </li>
@@ -244,13 +244,13 @@ export default function Dashboard() {
                   />
                   <div className="min-w-0">
                     <p
-                      className={`text-[0.8125rem] leading-snug ${
+                      className={`text-xs leading-snug ${
                         item.read ? 'text-steel-300' : 'font-semibold text-steel-100'
                       }`}
                     >
                       {item.title}
                     </p>
-                    <p className="mt-0.5 text-[0.6875rem] text-steel-500">
+                    <p className="mt-0.5 text-xs text-steel-500">
                       {humanise(item.category)} · {formatDate(item.publishedAt)}
                     </p>
                   </div>

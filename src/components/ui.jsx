@@ -3,11 +3,19 @@ import { createPortal } from 'react-dom';
 import { statusClass, toneClass } from '../utils/statusStyles.js';
 import { humanise } from '../utils/format.js';
 
+/**
+ * A status, as a chip.
+ *
+ * Roomier than it was and no longer shouting in capitals. Upper case costs about ten per cent
+ * of reading speed because it flattens the word shapes a reader recognises without spelling
+ * out — which is a poor trade on the one element whose whole job is to be recognised at a
+ * glance, and a worse one on a screen used by somebody who reads English second.
+ */
 export function Badge({ status, tone, children }) {
   return (
     <span
-      className={`inline-flex items-center whitespace-nowrap rounded-md px-2 py-0.5 text-[0.6875rem]
-        font-bold uppercase tracking-wide ring-1 ring-inset ${
+      className={`inline-flex items-center whitespace-nowrap rounded-md px-2.5 py-1 text-xs
+        font-bold tracking-tight ring-1 ring-inset ${
           tone ? toneClass(tone) : statusClass(status)
         }`}
     >
@@ -236,7 +244,7 @@ export function Facts({ items, columns = 2 }) {
     <dl className={`grid gap-x-6 gap-y-4 ${columns === 1 ? '' : 'sm:grid-cols-2'}`}>
       {visible.map((item) => (
         <div key={item.label} className={item.wide ? 'sm:col-span-2' : ''}>
-          <dt className="text-[0.6875rem] font-bold uppercase tracking-[0.08em] text-steel-500">
+          <dt className="text-xs font-bold uppercase tracking-[0.08em] text-steel-500">
             {item.label}
           </dt>
           <dd className="mt-1 text-sm text-steel-100">{item.value}</dd>
@@ -255,7 +263,7 @@ export function Pagination({ pagination, onChange }) {
   const last = Math.min(page * limit, total);
 
   return (
-    <div className="mt-4 flex items-center justify-between gap-3 text-[0.8125rem] text-steel-400">
+    <div className="mt-4 flex items-center justify-between gap-3 text-xs text-steel-400">
       <span className="tabular-nums">
         {first}–{last} of {total}
       </span>
