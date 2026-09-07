@@ -4,6 +4,7 @@ import Dashboard from './Dashboard.jsx';
 
 const SampleHome = lazy(() => import('./SampleHome.jsx'));
 const ProductionHome = lazy(() => import('./ProductionHome.jsx'));
+const DispatchHome = lazy(() => import('./DispatchHome.jsx'));
 
 /**
  * What somebody sees when they open the app.
@@ -30,13 +31,19 @@ const ProductionHome = lazy(() => import('./ProductionHome.jsx'));
  * with those two and nothing else — the full line register is a click away, and is a different
  * tool, for looking something up rather than deciding what to do now.
  *
- * Despatch and accounts still fall through to My day, deliberately. Each has the same argument
- * waiting to be made and a different screen to make it with, and inventing a mapping before
- * those screens exist would be a table of guesses. Department by department, as each is built.
+ * Despatch's is the same argument again with a third answer, and the grouping is the whole of
+ * it: a press queue can be ranked by how bad each line is, because everything on it is the same
+ * work. A yard cannot — chasing a transporter, chasing an invoice and loading a lorry are three
+ * unrelated jobs, so its screen groups by what to *do* rather than by severity.
+ *
+ * Accounts still falls through to My day, deliberately. It has the same argument waiting and a
+ * different screen to make it with, and inventing a mapping before that screen exists would be
+ * a guess. Department by department, as each one's own view is built.
  */
 const HOME_BY_DEPARTMENT = {
   sampling: () => <SampleHome />,
   production: () => <ProductionHome />,
+  despatch: () => <DispatchHome />,
 };
 
 export default function Home() {

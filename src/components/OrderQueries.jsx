@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { orderQueries as queriesApi } from '../api/endpoints.js';
+import { dispatches as dispatchApi, orderQueries as queriesApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { Field, Modal, Notice, Section } from './ui.jsx';
 import { formatDate, humanise } from '../utils/format.js';
@@ -162,11 +162,34 @@ function AskForm({ order, onClose, onAsked, departments }) {
     question: '',
     urgency: 'normal',
     line: '',
+    dispatch: '',
   });
+  const [consignments, setConsignments] = useState([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
   const set = (key) => (event) => setValues({ ...values, [key]: event.target.value });
+
+  /*
+   * The consignments on this order, fetched only when the question is going to despatch.
+   *
+   * Asking despatch is the only case where naming a lorry means anything, and most questions do
+   * not go to despatch — so the request is made on the choice rather than on opening the form.
+   * Failure is silent by design: not knowing the consignments costs the asker a dropdown, and
+   * refusing to let them ask at all because a secondary list would not load is a worse trade.
+   */
+  useEffect(() => {
+    if (values.askedOf !== 'despatch') return;
+
+    let live = true;
+    dispatchApi
+      .onOrder(order._id)
+      .then((response) => live && setConsignments(response.data || []))
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [values.askedOf, order._id]);
 
   const submit = async (event) => {
     event.preventDefault();
@@ -180,6 +203,7 @@ function AskForm({ order, onClose, onAsked, departments }) {
           question: values.question,
           urgency: values.urgency,
           line: values.line || undefined,
+          dispatch: values.dispatch || undefined,
         })
       );
       onClose();
@@ -211,6 +235,27 @@ function AskForm({ order, onClose, onAsked, departments }) {
             {order.lines.map((line) => (
               <option key={line._id} value={line._id}>
                 {line.modelNumber || line.mould?.mouldCode || 'Unnamed model'}
+              </option>
+            ))}
+          </select>
+        </Field>
+      )}
+
+      {/*
+        Which lorry, when the question is going to despatch and there is more than one to mean.
+        "Where is the vehicle" on an order already sent in three loads is unanswerable without
+        it — and despatch answering about whichever load they assume is worse than not answering,
+        because a confident answer gets relayed to the buyer.
+      */}
+      {values.askedOf === 'despatch' && consignments.length > 0 && (
+        <Field label="Which consignment" hint="One lorry, or the order as a whole">
+          <select className="input" value={values.dispatch} onChange={set('dispatch')}>
+            <option value="">The whole order</option>
+            {consignments.map((consignment) => (
+              <option key={consignment._id} value={consignment._id}>
+                {consignment.number}
+                {consignment.lrNumber ? ` · LR ${consignment.lrNumber}` : ''}
+                {consignment.transporter ? ` · ${consignment.transporter}` : ''}
               </option>
             ))}
           </select>

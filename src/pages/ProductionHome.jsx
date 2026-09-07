@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { orderQueries, production as productionApi } from '../api/endpoints.js';
+import { production as productionApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { ErrorState, PageHeader, Spinner } from '../components/ui.jsx';
+import QueryAnswer from '../components/QueryAnswer.jsx';
 import { formatNumber } from '../utils/format.js';
 
 /**
@@ -137,78 +138,6 @@ function Job({ row }) {
   );
 }
 
-/**
- * One question, answerable where it is read.
- *
- * Answering in place rather than on the order's own screen, deliberately. The plant knows the
- * answer at the moment it reads the question — "Friday, 20,000 of it" — and a screen that sends
- * them somewhere else to type it is a screen where the question waits another day.
- */
-function Question({ query, onAnswered }) {
-  const [body, setBody] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
-
-  const send = async (event) => {
-    event.preventDefault();
-    if (!body.trim()) return;
-
-    setSaving(true);
-    setError(null);
-    try {
-      await orderQueries.answer({ orderId: query.order._id, queryId: query._id, body });
-      setBody('');
-      onAnswered();
-    } catch (answerError) {
-      setError(answerError);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <li className={`rounded-xl border p-4 ${query.isOverdue ? 'border-danger-500/40 bg-danger-500/[0.04]' : 'border-line/10'}`}>
-      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <p className="text-base font-bold text-steel-50">{query.raisedBy?.name} asks</p>
-        {query.isOverdue && (
-          <p className="text-sm font-bold text-danger-400">
-            Waiting {query.waitingHours} hours — past its promise
-          </p>
-        )}
-      </div>
-
-      <p className="mt-1 text-sm text-steel-300">
-        About{' '}
-        <Link to={`/orders/${query.order?._id}`} className="font-semibold text-accent hover:underline">
-          {query.order?.number}
-        </Link>
-        {query.order?.customer?.name ? ` · ${query.order.customer.name}` : ''}
-      </p>
-
-      <p className="mt-3 text-base text-steel-100">{query.question}</p>
-
-      <form onSubmit={send} className="mt-3 flex flex-wrap gap-2">
-        <input
-          className="input min-w-0 flex-1"
-          placeholder="Answer it — a sentence is enough"
-          value={body}
-          onChange={(event) => setBody(event.target.value)}
-          aria-label={`Answer ${query.number}`}
-        />
-        <button type="submit" className="btn-primary" disabled={saving || !body.trim()}>
-          {saving ? 'Sending…' : 'Send answer'}
-        </button>
-      </form>
-      {/* Said out loud, because the plant will otherwise assume nobody was told. */}
-      <p className="mt-1.5 text-xs text-steel-400">
-        {query.raisedBy?.name?.split(' ')[0] || 'They'} gets told as soon as you send it.
-      </p>
-
-      {error && <p className="mt-2 text-sm text-danger-400">{error.message}</p>}
-    </li>
-  );
-}
-
 function Group({ title, hint, children, count }) {
   if (!count) return null;
 
@@ -310,7 +239,7 @@ export default function ProductionHome() {
           {day.queries
             .filter((query) => query.isOverdue)
             .map((query) => (
-              <Question key={query._id} query={query} onAnswered={load} />
+              <QueryAnswer key={query._id} query={query} onAnswered={load} />
             ))}
         </Group>
       )}
@@ -333,7 +262,7 @@ export default function ProductionHome() {
         {day.queries
           .filter((query) => !query.isOverdue)
           .map((query) => (
-            <Question key={query._id} query={query} onAnswered={load} />
+            <QueryAnswer key={query._id} query={query} onAnswered={load} />
           ))}
       </Group>
 

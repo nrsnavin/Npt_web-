@@ -285,6 +285,11 @@ export const dispatches = {
   board: (params) => api.get('/dispatches/board', { params }).then(boarded),
   /** What is free to send today, across every released order. */
   ready: (params) => api.get('/dispatches/ready', { params }).then((response) => response.data),
+  /**
+   * Despatch's front page: what to move today, what is packed with nothing claiming it, and the
+   * questions marketing is waiting on. One reply, so the screen cannot render half of itself.
+   */
+  day: () => api.get('/dispatches/day').then((response) => response.data),
   /** The tracker panel: the consignments on one order, and the stock behind them. */
   onOrder: (orderId) => api.get(`/orders/${orderId}/dispatches`).then((response) => response.data),
   /** The signed delivery note coming back. Multipart, so it goes as a form rather than JSON. */
