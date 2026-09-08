@@ -630,7 +630,7 @@ export default function OrderDetail() {
             </dl>
           </Section>
 
-          <HistoryPanel model="SalesOrder" id={order._id} />
+          <HistoryPanel model="SalesOrder" id={order._id} refreshKey={order.updatedAt} />
         </div>
       </div>
 

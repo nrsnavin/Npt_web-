@@ -628,7 +628,7 @@ export default function LeadDetail() {
           <LeadSamples lead={lead} mayWrite={mayWrite} />
 
           {/* The activity log above is what was said; this is what was changed. */}
-          <HistoryPanel model="Lead" id={lead._id} />
+          <HistoryPanel model="Lead" id={lead._id} refreshKey={lead.updatedAt} />
         </div>
 
         <div className="space-y-5">

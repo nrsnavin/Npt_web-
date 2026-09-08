@@ -1153,7 +1153,7 @@ export default function SampleDetail() {
 
           {/* The stage history says how it moved; this says who changed the quantity, the
               specification or the promised date. */}
-          <HistoryPanel model="Sample" id={sample._id} />
+          <HistoryPanel model="Sample" id={sample._id} refreshKey={sample.updatedAt} />
         </div>
 
         <div className="space-y-5">

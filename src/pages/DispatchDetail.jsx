@@ -427,7 +427,7 @@ export default function DispatchDetail() {
 
           <ProofOfDelivery dispatch={dispatch} onSaved={(next) => absorb({ data: next })} mayWrite={mayWrite} />
 
-          <HistoryPanel model="Dispatch" id={dispatch._id} />
+          <HistoryPanel model="Dispatch" id={dispatch._id} refreshKey={dispatch.updatedAt} />
         </div>
       </div>
     </div>

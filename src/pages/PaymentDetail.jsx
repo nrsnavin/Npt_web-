@@ -475,7 +475,7 @@ export default function PaymentDetail() {
             />
           </Section>
 
-          <HistoryPanel model="Receivable" id={receivable._id} />
+          <HistoryPanel model="Receivable" id={receivable._id} refreshKey={receivable.updatedAt} />
         </div>
       </div>
 

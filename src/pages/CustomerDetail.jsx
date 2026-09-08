@@ -242,7 +242,7 @@ export default function CustomerDetail() {
               in somebody's inbox. */}
           <Documents collection="customers" id={customer._id} canWrite={mayWrite} />
 
-          <HistoryPanel model="Customer" id={customer._id} />
+          <HistoryPanel model="Customer" id={customer._id} refreshKey={customer.updatedAt} />
         </div>
 
         <div className="space-y-5">

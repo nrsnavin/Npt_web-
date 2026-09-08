@@ -770,7 +770,7 @@ export default function EnquiryDetail() {
 
           {/* The stage history above says how it moved; this says who changed the quantity,
               the target price or the date the buyer is holding us to. */}
-          <HistoryPanel model="Enquiry" id={enquiry._id} />
+          <HistoryPanel model="Enquiry" id={enquiry._id} refreshKey={enquiry.updatedAt} />
         </div>
 
         <div className="space-y-5">

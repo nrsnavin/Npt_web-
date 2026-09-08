@@ -104,8 +104,28 @@ function Entry({ row }) {
  * `model` is the server's own name for the record type — Customer, Lead, Enquiry, Sample,
  * Mould — because the history route is one route across all of them.
  */
-export default function HistoryPanel({ model, id, title = 'Change history' }) {
-  const fetch = useCallback((recordId) => historyApi({ model, id: recordId }), [model]);
+/**
+ * `refreshKey` is how a screen says "that record just changed" — pass its `updatedAt`.
+ *
+ * The panel keyed only on the record's id, which never changes while somebody is looking at it
+ * — so recording a receipt, ticking a check or moving a consignment left the history saying
+ * "nothing has been changed since this was created" directly under the change that had just
+ * been made. Not merely stale: a confident false statement about the record on screen, on the
+ * one panel whose whole job is to say who did what.
+ *
+ * A timestamp rather than a counter the screen has to remember to increment. Every write on
+ * these screens saves the document and every document is timestamped, so `updatedAt` changes
+ * exactly when the history does — and a screen that gains a new action later gets the refresh
+ * without anybody remembering to wire it.
+ */
+export default function HistoryPanel({ model, id, title = 'Change history', refreshKey = 0 }) {
+  const fetch = useCallback(
+    (recordId) => historyApi({ model, id: recordId }),
+    /* `refreshKey` earns its place in these deps: a new `fetch` is what makes `useRecord` load
+       again, and it is the only signal this component gets that anything happened. */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [model, refreshKey]
+  );
   const { data, loading, error } = useRecord(fetch, id);
 
   /*
