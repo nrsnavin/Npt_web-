@@ -4,12 +4,13 @@ import { dispatches as dispatchApi, downloads } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useDebounced } from '../hooks/useRecords.js';
 import {
-  Badge, EmptyState, ErrorState, PageHeader, Pagination, TableSkeleton,
+  EmptyState, ErrorState, PageHeader, Pagination, TableSkeleton,
 } from '../components/ui.jsx';
 import ExportButton from '../components/ExportButton.jsx';
+import { DispatchStatusPicker } from '../components/DispatchStatus.jsx';
 import { DispatchDialog } from '../components/DispatchForm.jsx';
 import { formatDate, formatNumber } from '../utils/format.js';
-import { DISPATCH_STAGES, dispatchStageLabel } from '../utils/pipeline.js';
+import { DISPATCH_STAGES } from '../utils/pipeline.js';
 
 /**
  * Despatch's screen [BLUEPRINT §18–19], which answers two different questions and so has two
@@ -193,7 +194,7 @@ function ReadyQueue({ mayWrite }) {
 
 /* ------------------------------ What is moving ------------------------------ */
 
-function Consignments() {
+function Consignments({ mayWrite }) {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const [only, setOnly] = useState('open');
@@ -345,7 +346,13 @@ function Consignments() {
                         )}
                       </td>
                       <td className="px-4 py-3.5">
-                        <Badge status={row.status}>{dispatchStageLabel(row.status)}</Badge>
+                        {/* The badge is the control: it offers what the server says can be
+                            done from here, and nothing it cannot. */}
+                        <DispatchStatusPicker
+                          dispatch={row}
+                          canAct={mayWrite}
+                          onDone={load}
+                        />
                         {row.dispatchDate && (
                           <p className="mt-1 text-xs text-steel-500">
                             Left {formatDate(row.dispatchDate)}
@@ -395,7 +402,9 @@ export default function Dispatches() {
         ))}
       </div>
 
-      {tab === 'ready' ? <ReadyQueue mayWrite={canWrite('dispatch')} /> : <Consignments />}
+      {tab === 'ready'
+        ? <ReadyQueue mayWrite={canWrite('dispatch')} />
+        : <Consignments mayWrite={canWrite('dispatch')} />}
     </div>
   );
 }

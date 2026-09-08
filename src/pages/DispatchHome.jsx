@@ -4,6 +4,7 @@ import { dispatches as dispatchApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { ErrorState, PageHeader, Spinner } from '../components/ui.jsx';
 import QueryAnswer from '../components/QueryAnswer.jsx';
+import { DispatchStatusPicker } from '../components/DispatchStatus.jsx';
 import { formatDate, formatNumber } from '../utils/format.js';
 
 /**
@@ -84,39 +85,49 @@ function Count({ label, value, hint, tone }) {
 }
 
 /** One consignment, as a card: what it is, and the sentence saying what to do with it. */
-function Consignment({ row, tone }) {
+function Consignment({ row, tone, mayAct, onDone }) {
   return (
-    <li>
-      <Link
-        to={row.link}
-        className={`block rounded-xl border p-4 transition-colors hover:border-accent/50 hover:bg-line/[0.03] ${EDGE[tone]}`}
-      >
-        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-          <p className="text-base font-bold text-steel-50">
-            {row.customer?.name || 'Customer not named'}
-          </p>
-          <p className="text-sm font-semibold text-steel-300">{row.number}</p>
-        </div>
-
-        <p className="mt-1 text-sm text-steel-300">
-          {formatNumber(row.dispatchQty)} pcs
-          {row.lineCount > 1 ? ` · ${row.lineCount} models` : ''}
-          {row.order?.number ? ` · ${row.order.number}` : ''}
+    <li className={`rounded-xl border p-4 ${EDGE[tone]}`}>
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <p className="text-base font-bold text-steel-50">
+          {row.customer?.name || 'Customer not named'}
         </p>
-
-        {/* The whole point of the card: what to do, in a sentence. */}
-        {row.urgency.why.map((line) => (
-          <p key={line} className={`mt-2 text-base font-bold ${TEXT[tone]}`}>
-            {line}
-          </p>
-        ))}
-
-        <p className="mt-3 border-t border-line/[0.06] pt-2 text-sm text-steel-400">
-          {row.lrNumber ? `LR ${row.lrNumber}` : 'No LR yet'}
-          {row.vehicleNumber ? ` · ${row.vehicleNumber}` : ''}
-          {row.expectedDeliveryDate ? ` · due ${formatDate(row.expectedDeliveryDate)}` : ''}
+        <p className="text-sm font-semibold text-steel-300">
+          <Link to={row.link} className="transition-colors hover:text-accent">{row.number}</Link>
         </p>
-      </Link>
+      </div>
+
+      <p className="mt-1 text-sm text-steel-300">
+        {formatNumber(row.dispatchQty)} pcs
+        {row.lineCount > 1 ? ` · ${row.lineCount} models` : ''}
+        {row.order?.number ? ` · ${row.order.number}` : ''}
+      </p>
+
+      {/* The whole point of the card: what to do, in a sentence. */}
+      {row.urgency.why.map((line) => (
+        <p key={line} className={`mt-2 text-base font-bold ${TEXT[tone]}`}>
+          {line}
+        </p>
+      ))}
+
+      <p className="mt-3 border-t border-line/[0.06] pt-2 text-sm text-steel-400">
+        {row.lrNumber ? `LR ${row.lrNumber}` : 'No LR yet'}
+        {row.vehicleNumber ? ` · ${row.vehicleNumber}` : ''}
+        {row.expectedDeliveryDate ? ` · due ${formatDate(row.expectedDeliveryDate)}` : ''}
+      </p>
+
+      {/*
+        Where it is, and what moves it.
+
+        The stage was the one thing this card never said — "Move these today" reads the same
+        whether a load is waiting on a lorry or waiting on an invoice, and those are different
+        jobs for different people. The picker offers only what the server allows from here, so
+        §19's gate is on the card rather than one screen further in.
+      */}
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-line/[0.06] pt-3">
+        <DispatchStatusPicker dispatch={row} canAct={mayAct} onDone={onDone} />
+        <Link to={row.link} className="btn-secondary">Open it</Link>
+      </div>
     </li>
   );
 }
@@ -165,7 +176,10 @@ function Group({ title, hint, children, count }) {
 }
 
 export default function DispatchHome() {
-  const { user } = useAuth();
+  const { user, canWrite } = useAuth();
+  /* Marketing reads this screen through the same component and gets the stage without the
+     menu, which is the §19 split: they see where the goods are, the yard moves them. */
+  const mayAct = canWrite('dispatch');
   const [day, setDay] = useState(null);
   const [meta, setMeta] = useState({});
   const [error, setError] = useState(null);
@@ -271,7 +285,16 @@ export default function DispatchHome() {
           count={day[group.key]?.length || 0}
         >
           {(day[group.key] || []).map((row) => (
-            <Consignment key={row._id} row={row} tone={group.tone} />
+            <Consignment
+              key={row._id}
+              row={row}
+              tone={group.tone}
+              mayAct={mayAct}
+              /* Reloaded rather than patched: a moved consignment changes which group it
+                 belongs to and the counts above it, and a card sitting in the old band with
+                 the new stage on it would be lying about both. */
+              onDone={load}
+            />
           ))}
         </Group>
       ))}
