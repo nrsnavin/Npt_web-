@@ -207,6 +207,14 @@ function DispatchActions({ dispatch, onDone }) {
   const [values, setValues] = useState({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  /*
+   * Quality's soft gate [§15]. The server answers a first attempt to dispatch an unchecked or
+   * failed consignment with 409 and the concern — not a refusal, a request for a second,
+   * deliberate press with a reason attached. Held here so the dialog can say what is wrong and
+   * ask the one question, rather than showing a red error the person has no way to answer.
+   */
+  const [override, setOverride] = useState(null);
+  const [overrideReason, setOverrideReason] = useState('');
 
   /* Re-loaded whenever the status moves: what can be done from `packing` is not what can be
      done from `dispatched`, and a stale list offers an action the server will refuse. */
@@ -231,6 +239,32 @@ function DispatchActions({ dispatch, onDone }) {
     setError(null);
     try {
       onDone(await dispatchApi.act({ id: dispatch._id, action: action.action }));
+    } catch (actError) {
+      /* The quality concern, which is answerable — everything else is an error to read. */
+      if (actError.status === 409 && actError.details?.needs === 'qualityOverrideReason') {
+        setOverride({ action: action.action, label: action.label, concern: actError.details.concern });
+        setOverrideReason('');
+      } else {
+        setError(actError);
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const sendOverride = async (event) => {
+    event.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      onDone(
+        await dispatchApi.act({
+          id: dispatch._id,
+          action: override.action,
+          qualityOverrideReason: overrideReason,
+        })
+      );
+      setOverride(null);
     } catch (actError) {
       setError(actError);
     } finally {
@@ -294,6 +328,50 @@ function DispatchActions({ dispatch, onDone }) {
       )}
 
       {error && <Notice tone="danger"><p>{error.message}</p></Notice>}
+
+      {/*
+        The override. A separate dialog from the ordinary action form because it asks a different
+        kind of question: not "what is the lorry number" but "you are overruling quality, on the
+        record". The wording says where the answer ends up, because a person who knows their
+        reason will be read writes a different sentence from one who thinks it vanishes.
+      */}
+      <Modal
+        open={Boolean(override)}
+        title="Quality has not cleared this"
+        description={override?.concern}
+        onClose={() => setOverride(null)}
+      >
+        <form onSubmit={sendOverride} className="space-y-4">
+          <Notice tone="warn">
+            <p>
+              It can still go. The reason below is kept against this consignment with your name on
+              it, and appears in the monthly list of consignments sent despite a quality warning.
+            </p>
+          </Notice>
+
+          <Field label="Why is it going anyway?" hint="A sentence — enough for somebody reading it next month">
+            <textarea
+              rows={3}
+              className="input"
+              autoFocus
+              placeholder="Buyer inspected at our gate and accepted the lot themselves"
+              value={overrideReason}
+              onChange={(event) => setOverrideReason(event.target.value)}
+            />
+          </Field>
+
+          {error && <Notice tone="danger"><p>{error.message}</p></Notice>}
+
+          <div className="flex justify-end gap-2 border-t border-line/[0.06] pt-4">
+            <button type="button" className="btn-secondary" onClick={() => setOverride(null)}>
+              Do not send it
+            </button>
+            <button type="submit" className="btn-primary" disabled={busy || overrideReason.trim().length < 10}>
+              {busy ? 'Saving…' : `${override?.label} anyway`}
+            </button>
+          </div>
+        </form>
+      </Modal>
 
       <Modal
         open={Boolean(chosen)}

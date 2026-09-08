@@ -9,6 +9,7 @@ import {
 import HistoryPanel from '../components/HistoryPanel.jsx';
 import OrderQueries from '../components/OrderQueries.jsx';
 import OrderPriority from '../components/OrderPriority.jsx';
+import OrderQuality from '../components/OrderQuality.jsx';
 import DispatchTracker from '../components/DispatchTracker.jsx';
 import { ProductionLineDialog } from '../components/ProductionLine.jsx';
 import { formatCurrency, formatDate, formatNumber } from '../utils/format.js';
@@ -546,6 +547,10 @@ export default function OrderDetail() {
             column and above the history, because an unanswered question is work outstanding
             and the history is a record of work already done.
           */}
+          {/* Only once the plant has it: an order still being verified has nothing made to
+              inspect, and the server refuses an inspection against one. */}
+          {released && <OrderQuality order={order} />}
+
           <OrderQueries order={order} />
 
           <Section title={`History (${order.statusHistory?.length || 0})`}>

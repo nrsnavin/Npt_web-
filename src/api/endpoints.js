@@ -229,6 +229,27 @@ export const orders = {
  * `list` keeps the envelope: the counts of what is open, late and held travel with the rows,
  * and a screen that recounted them would be a second implementation of what "late" means.
  */
+/**
+ * Quality [§15]: what was inspected, what was found, and what it cost.
+ *
+ * `onOrder` keeps the whole envelope rather than unwrapping to `data`, because the reply carries
+ * two different things the order screen needs together — the history of what happened, and the
+ * standing verdict per line, which is what is true *now*. A screen that fetched them separately
+ * could show a verdict that disagrees with the inspection printed under it.
+ */
+export const quality = {
+  /** The defect list, stages and verdicts — so a form cannot invent a defect the reports lack. */
+  options: () => api.get('/quality/options').then(unwrap),
+  list: (params) => api.get('/quality', { params }).then(listed),
+  onOrder: (orderId) => api.get(`/orders/${orderId}/inspections`).then((response) => response.data),
+  record: ({ orderId, ...payload }) =>
+    api.post(`/orders/${orderId}/inspections`, payload).then((response) => response.data),
+  /** Which tool, which defect, which resin, and what the scrap cost. */
+  report: (params) => api.get('/quality/report', { params }).then((response) => response.data),
+  /** Consignments sent despite the warning. The report that makes a soft gate honest. */
+  overrides: (params) => api.get('/quality/overrides', { params }).then((response) => response.data),
+};
+
 export const production = {
   list: (params) => api.get('/production', { params }).then((response) => response.data),
   /**
