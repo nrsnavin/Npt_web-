@@ -250,6 +250,42 @@ export const quality = {
   overrides: (params) => api.get('/quality/overrides', { params }).then((response) => response.data),
 };
 
+/**
+ * Payments [§20, §25] — a chase, not a ledger.
+ *
+ * Two departments work these and the split is deliberate. **Reading and following up** are on
+ * the payments read grant, which the follow-up team and marketing both hold: the buyer knows
+ * their marketing person and takes their call, so a chase only accounts could write is a chase
+ * where marketing rings anyway and nobody records it.
+ *
+ * **A receipt needs write**, and that is not a status distinction — it is a claim about a bank
+ * account, and the person who can check the bank account should be the one making it. Marketing
+ * hearing "we paid Tuesday" logs a follow-up, which is what it is: something they were told.
+ *
+ * `get` keeps the envelope because the reply carries two things the screen needs together: this
+ * one invoice, and the *order's* whole position with advances netted off. The number a buyer
+ * quotes back on the phone is what they owe on the order, not on one document.
+ */
+export const payments = {
+  list: (params) => api.get('/payments', { params }).then((response) => response.data),
+  /**
+   * The chase as a day's work, grouped by which conversation it is: a broken promise, an
+   * overdue nobody has rung, the cheap call before it is late, and what is promised and still
+   * ahead. One reply, so the screen cannot render half of itself.
+   */
+  day: () => api.get('/payments/day').then((response) => response.data),
+  get: (id) => api.get(`/payments/${id}`).then((response) => response.data),
+  /** What they said, and what they promised. Either department may log one. */
+  followUp: ({ id, ...payload }) => api.post(`/payments/${id}/follow-ups`, payload).then(unwrap),
+  /** Money in — accounts only. */
+  receipt: ({ id, ...payload }) => api.post(`/payments/${id}/receipts`, payload).then(unwrap),
+  /** Disputed or on hold, and clearing it again. Both stop the escalation ladder. */
+  judgement: ({ id, ...payload }) => api.post(`/payments/${id}/judgement`, payload).then(unwrap),
+  /** The advance a buyer owes before anything is made, against the order it belongs to. */
+  raiseAdvance: ({ orderId, ...payload }) =>
+    api.post(`/orders/${orderId}/advance`, payload).then(unwrap),
+};
+
 export const production = {
   list: (params) => api.get('/production', { params }).then((response) => response.data),
   /**

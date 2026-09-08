@@ -5,6 +5,7 @@ import Dashboard from './Dashboard.jsx';
 const SampleHome = lazy(() => import('./SampleHome.jsx'));
 const ProductionHome = lazy(() => import('./ProductionHome.jsx'));
 const DispatchHome = lazy(() => import('./DispatchHome.jsx'));
+const PaymentsHome = lazy(() => import('./PaymentsHome.jsx'));
 
 /**
  * What somebody sees when they open the app.
@@ -44,6 +45,10 @@ const HOME_BY_DEPARTMENT = {
   sampling: () => <SampleHome />,
   production: () => <ProductionHome />,
   despatch: () => <DispatchHome />,
+  /* The follow-up team's whole job is the chase, so it is their front page rather than a
+     screen they navigate to. Marketing keeps the general dashboard and reaches payments from
+     the nav — chasing is part of their day, not the whole of it. */
+  accounts: () => <PaymentsHome />,
 };
 
 export default function Home() {

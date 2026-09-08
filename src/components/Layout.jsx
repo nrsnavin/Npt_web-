@@ -45,8 +45,8 @@ const RAIL = [
      * arrive, and sending a despatch clerk there is sending them to a page they may not read.
      * See `railTarget` below.
      */
-    modules: ['enquiries', 'pricing', 'quotations', 'orders', 'production', 'dispatch', 'samples', 'customers'],
-    paths: ['/enquiries', '/leads', '/customers', '/samples', '/pricings', '/quotations', '/orders', '/production', '/dispatches'],
+    modules: ['enquiries', 'pricing', 'quotations', 'orders', 'production', 'dispatch', 'payments', 'samples', 'customers'],
+    paths: ['/enquiries', '/leads', '/customers', '/samples', '/pricings', '/quotations', '/orders', '/production', '/dispatches', '/payments'],
   },
   {
     to: '/moulds',
@@ -98,6 +98,7 @@ const SIDEBARS = {
           { to: '/orders', label: 'Sales orders', module: 'orders' },
           { to: '/production', label: 'Production', module: 'production' },
           { to: '/dispatches', label: 'Dispatch', module: 'dispatch' },
+          { to: '/payments', label: 'Payments', module: 'payments' },
           // Exact, or the queue stays lit while the dashboard is open beneath it.
           { to: '/samples', label: 'Sampling', module: 'samples', end: true },
           { to: '/samples/dashboard', label: 'Sampling dashboard', module: 'samples' },
@@ -234,6 +235,7 @@ const MODULE_ROUTES = {
   orders: '/orders',
   production: '/production',
   dispatch: '/dispatches',
+  payments: '/payments',
   moulds: '/moulds',
   materials: '/materials',
   users: '/users',

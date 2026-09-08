@@ -24,6 +24,8 @@ const OrderDetail = lazy(() => import('./pages/OrderDetail.jsx'));
 const Production = lazy(() => import('./pages/Production.jsx'));
 const Dispatches = lazy(() => import('./pages/Dispatches.jsx'));
 const DispatchDetail = lazy(() => import('./pages/DispatchDetail.jsx'));
+const Payments = lazy(() => import('./pages/Payments.jsx'));
+const PaymentDetail = lazy(() => import('./pages/PaymentDetail.jsx'));
 const Moulds = lazy(() => import('./pages/Moulds.jsx'));
 const Materials = lazy(() => import('./pages/Materials.jsx'));
 const PartsRegister = lazy(() => import('./pages/PartsRegister.jsx'));
@@ -267,6 +269,28 @@ export default function App() {
             element={
               <RequireModule moduleKey="dispatch">
                 <DispatchDetail />
+              </RequireModule>
+            }
+          />
+          {/*
+            Payments [§20]. On the read grant, which the follow-up team and marketing both hold:
+            the buyer knows their marketing person and takes their call, so a chase only accounts
+            could open is a chase where marketing rings anyway and nobody records it. What needs
+            write — a receipt, a dispute — is gated inside the screen.
+          */}
+          <Route
+            path="payments"
+            element={
+              <RequireModule moduleKey="payments">
+                <Payments />
+              </RequireModule>
+            }
+          />
+          <Route
+            path="payments/:id"
+            element={
+              <RequireModule moduleKey="payments">
+                <PaymentDetail />
               </RequireModule>
             }
           />
