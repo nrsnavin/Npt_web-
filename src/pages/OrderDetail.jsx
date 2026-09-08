@@ -131,7 +131,17 @@ function Checklist({ order, checks, onChanged, mayWrite }) {
 
 /* -------------------------------- The actions -------------------------------- */
 
-function OrderActions({ order, onDone }) {
+/**
+ * What the order can do next.
+ *
+ * **Only for somebody who can actually do it.** The list is on the read grant — production and
+ * marketing both hold orders at read and both open this screen — but every action behind it is
+ * on write, so a plant supervisor was being offered "Cancel the order" and getting a refusal
+ * from the server when they pressed it. An action panel you cannot act in is worse than no
+ * panel: it teaches people that the buttons on this screen are unreliable, and the one they
+ * needed on the same screen is the stage picker three inches above it.
+ */
+function OrderActions({ order, onDone, mayWrite }) {
   const [actions, setActions] = useState(null);
   const [chosen, setChosen] = useState(null);
   const [values, setValues] = useState({});
@@ -186,6 +196,8 @@ function OrderActions({ order, onDone }) {
     }
   };
 
+  /* Nothing to offer somebody who cannot take it — see the note on this component. */
+  if (!mayWrite) return null;
   if (CLOSED_ORDER_STAGES.includes(order.status)) return null;
 
   return (
@@ -547,7 +559,7 @@ export default function OrderDetail() {
           */}
           {released && <DispatchTracker order={order} />}
 
-          <OrderActions order={order} onDone={absorb} />
+          <OrderActions order={order} onDone={absorb} mayWrite={mayWrite} />
 
           {/*
             The questions, on the order rather than in somebody's phone. Placed in the main
