@@ -306,6 +306,36 @@ export const SOURCES = [
   { value: 'whatsapp', label: 'WhatsApp' },
 ];
 
+/**
+ * Quality's three words [§15].
+ *
+ * Lifted out of the order screen's panel when three more screens needed them. A vocabulary
+ * written twice is a vocabulary that eventually disagrees with itself, and the reader who finds
+ * "Rejected" on one screen and "Failed" on another has to work out whether they mean the same
+ * thing — which they do, and which is exactly the doubt a shared list removes.
+ *
+ * The labels say what the verdict *means for the goods* rather than restating the key.
+ * "Passed with deviation" is jargon; "passed — rejects pulled" is what happened on the bench.
+ */
+export const INSPECTION_STAGES = [
+  { value: 'in_process', label: 'On the press' },
+  { value: 'final', label: 'Final inspection' },
+  { value: 'pre_dispatch', label: 'Before it ships' },
+];
+
+export const VERDICTS = [
+  { value: 'passed', label: 'Passed', tone: 'success' },
+  { value: 'passed_with_deviation', label: 'Passed — rejects pulled', tone: 'warn' },
+  { value: 'rejected', label: 'Rejected', tone: 'danger', holds: true },
+];
+
+/** The verdicts that stop a line. Named here so a screen need not repeat the rule. */
+export const HOLDING_VERDICTS = VERDICTS.filter((v) => v.holds).map((v) => v.value);
+
+export const inspectionStageLabel = (value) => label(INSPECTION_STAGES, value);
+export const verdictLabel = (value) => label(VERDICTS, value);
+export const verdictTone = (value) => VERDICTS.find((v) => v.value === value)?.tone || 'neutral';
+
 const label = (options, value) =>
   options.find((option) => option.value === value)?.label || value || '—';
 

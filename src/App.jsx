@@ -24,6 +24,8 @@ const OrderDetail = lazy(() => import('./pages/OrderDetail.jsx'));
 const Production = lazy(() => import('./pages/Production.jsx'));
 const Dispatches = lazy(() => import('./pages/Dispatches.jsx'));
 const DispatchDetail = lazy(() => import('./pages/DispatchDetail.jsx'));
+const Quality = lazy(() => import('./pages/Quality.jsx'));
+const QualityReport = lazy(() => import('./pages/QualityReport.jsx'));
 const Payments = lazy(() => import('./pages/Payments.jsx'));
 const PaymentDetail = lazy(() => import('./pages/PaymentDetail.jsx'));
 const Moulds = lazy(() => import('./pages/Moulds.jsx'));
@@ -269,6 +271,30 @@ export default function App() {
             element={
               <RequireModule moduleKey="dispatch">
                 <DispatchDetail />
+              </RequireModule>
+            }
+          />
+          {/*
+            Quality [§15]. On the read grant, which production, despatch and marketing all hold:
+            an inspection is a fact about goods that four departments have to act on, and a
+            verdict only the quality team can see is a verdict that stops nothing. Recording one
+            needs write, and that gate is on the order screen where it is recorded.
+
+            The report sits above the register so its literal path is matched first.
+          */}
+          <Route
+            path="quality/report"
+            element={
+              <RequireModule moduleKey="quality">
+                <QualityReport />
+              </RequireModule>
+            }
+          />
+          <Route
+            path="quality"
+            element={
+              <RequireModule moduleKey="quality">
+                <Quality />
               </RequireModule>
             }
           />

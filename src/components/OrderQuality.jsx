@@ -3,6 +3,7 @@ import { quality as qualityApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { Field, Modal, Notice, Section } from './ui.jsx';
 import { formatDate, formatNumber } from '../utils/format.js';
+import { inspectionStageLabel, verdictLabel, verdictTone } from '../utils/pipeline.js';
 
 /**
  * What quality found on this order [§15].
@@ -17,22 +18,12 @@ import { formatDate, formatNumber } from '../utils/format.js';
  * bad model beside a good one.
  */
 
+/* The words themselves live in pipeline.js, where every other stage vocabulary does — three
+   more screens needed them and a list written twice eventually disagrees with itself. */
 const VERDICT_TONE = {
-  passed: 'text-success-400',
-  passed_with_deviation: 'text-warn-400',
-  rejected: 'text-danger-400',
-};
-
-const VERDICT_LABEL = {
-  passed: 'Passed',
-  passed_with_deviation: 'Passed — rejects pulled',
-  rejected: 'Rejected',
-};
-
-const STAGE_LABEL = {
-  in_process: 'On the press',
-  final: 'Final inspection',
-  pre_dispatch: 'Before it ships',
+  success: 'text-success-400',
+  warn: 'text-warn-400',
+  danger: 'text-danger-400',
 };
 
 /** One line's standing verdict — the "can we ship this" answer, per model. */
@@ -46,8 +37,8 @@ function LineState({ row }) {
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         <p className="font-semibold text-steel-100">{row.modelNumber || 'Unnamed model'}</p>
         {row.latestVerdict ? (
-          <p className={`text-sm font-bold ${VERDICT_TONE[row.latestVerdict] || 'text-steel-300'}`}>
-            {VERDICT_LABEL[row.latestVerdict] || row.latestVerdict}
+          <p className={`text-sm font-bold ${VERDICT_TONE[verdictTone(row.latestVerdict)] || 'text-steel-300'}`}>
+            {verdictLabel(row.latestVerdict)}
           </p>
         ) : (
           <p className="text-sm text-steel-400">Not inspected</p>
@@ -76,11 +67,11 @@ function InspectionRow({ inspection }) {
         <p className="font-semibold text-steel-100">
           {inspection.modelNumber || 'Unnamed model'}
           <span className="ml-2 text-xs font-normal text-steel-400">
-            {STAGE_LABEL[inspection.stage] || inspection.stage}
+            {inspectionStageLabel(inspection.stage)}
           </span>
         </p>
-        <p className={`text-sm font-bold ${VERDICT_TONE[inspection.verdict] || 'text-steel-300'}`}>
-          {VERDICT_LABEL[inspection.verdict] || inspection.verdict}
+        <p className={`text-sm font-bold ${VERDICT_TONE[verdictTone(inspection.verdict)] || 'text-steel-300'}`}>
+          {verdictLabel(inspection.verdict)}
         </p>
       </div>
 

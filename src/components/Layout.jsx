@@ -45,8 +45,8 @@ const RAIL = [
      * arrive, and sending a despatch clerk there is sending them to a page they may not read.
      * See `railTarget` below.
      */
-    modules: ['enquiries', 'pricing', 'quotations', 'orders', 'production', 'dispatch', 'payments', 'samples', 'customers'],
-    paths: ['/enquiries', '/leads', '/customers', '/samples', '/pricings', '/quotations', '/orders', '/production', '/dispatches', '/payments'],
+    modules: ['enquiries', 'pricing', 'quotations', 'orders', 'production', 'quality', 'dispatch', 'payments', 'samples', 'customers'],
+    paths: ['/enquiries', '/leads', '/customers', '/samples', '/pricings', '/quotations', '/orders', '/production', '/quality', '/dispatches', '/payments'],
   },
   {
     to: '/moulds',
@@ -97,6 +97,9 @@ const SIDEBARS = {
           { to: '/quotations', label: 'Quotations', module: 'quotations' },
           { to: '/orders', label: 'Sales orders', module: 'orders' },
           { to: '/production', label: 'Production', module: 'production' },
+          // Exact, or the register stays lit while the report is open beneath it.
+          { to: '/quality', label: 'Quality', module: 'quality', end: true },
+          { to: '/quality/report', label: 'Quality report', module: 'quality' },
           { to: '/dispatches', label: 'Dispatch', module: 'dispatch' },
           { to: '/payments', label: 'Payments', module: 'payments' },
           // Exact, or the queue stays lit while the dashboard is open beneath it.
@@ -234,6 +237,7 @@ const MODULE_ROUTES = {
   customers: '/customers',
   orders: '/orders',
   production: '/production',
+  quality: '/quality',
   dispatch: '/dispatches',
   payments: '/payments',
   moulds: '/moulds',
