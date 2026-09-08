@@ -2,11 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { production as productionApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
-import { Badge, ErrorState, PageHeader, Spinner } from '../components/ui.jsx';
+import { ErrorState, PageHeader, Spinner } from '../components/ui.jsx';
 import QueryAnswer from '../components/QueryAnswer.jsx';
-import { ProductionLineDialog } from '../components/ProductionLine.jsx';
+import { ProductionLineDialog, ProductionStatusPicker } from '../components/ProductionLine.jsx';
 import { formatNumber } from '../utils/format.js';
-import { productionStageLabel } from '../utils/pipeline.js';
 
 /**
  * The plant's front page.
@@ -71,7 +70,7 @@ function Count({ label, value, hint, tone }) {
  * A card rather than a table row for the same reason the bench's screen uses one: a table asks
  * the reader to match a cell to a heading several rows above it, and this is read standing up.
  */
-function Job({ row, onRecord }) {
+function Job({ row, onRecord, onSaved }) {
   const raised = row.order.priority !== 'normal';
 
   /*
@@ -153,9 +152,21 @@ function Job({ row, onRecord }) {
       */}
       <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-line/[0.06] pt-3">
         <div className="min-w-0">
-          <Badge status={row.production?.status}>
-            {productionStageLabel(row.production?.status)}
-          </Badge>
+          {/* The badge is the control: one tap moves the line, and the stages that also need a
+              count or a reason open the same form the Record button opens. */}
+          <ProductionStatusPicker
+            order={{ _id: row.order._id, number: row.order.number }}
+            line={{
+              _id: row.lineId,
+              modelNumber: row.modelNumber,
+              mould: row.mould,
+              colour: row.colour,
+              quantity: row.quantity,
+              production: row.production,
+            }}
+            canRecord={Boolean(onRecord)}
+            onSaved={onSaved}
+          />
           {row.production?.holdReason && (
             <p className="mt-1.5 text-sm text-danger-400">{row.production.holdReason}</p>
           )}
@@ -289,7 +300,12 @@ export default function ProductionHome() {
         count={day.pressing.length}
       >
         {day.pressing.map((row) => (
-          <Job key={row.lineId} row={row} onRecord={mayRecord ? setRecording : undefined} />
+          <Job
+            key={row.lineId}
+            row={row}
+            onRecord={mayRecord ? setRecording : undefined}
+            onSaved={load}
+          />
         ))}
       </Group>
 
@@ -311,7 +327,12 @@ export default function ProductionHome() {
         count={day.next.length}
       >
         {day.next.map((row) => (
-          <Job key={row.lineId} row={row} onRecord={mayRecord ? setRecording : undefined} />
+          <Job
+            key={row.lineId}
+            row={row}
+            onRecord={mayRecord ? setRecording : undefined}
+            onSaved={load}
+          />
         ))}
       </Group>
 

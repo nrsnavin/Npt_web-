@@ -11,10 +11,10 @@ import OrderQueries from '../components/OrderQueries.jsx';
 import OrderPriority from '../components/OrderPriority.jsx';
 import OrderQuality from '../components/OrderQuality.jsx';
 import DispatchTracker from '../components/DispatchTracker.jsx';
-import { ProductionLineDialog } from '../components/ProductionLine.jsx';
+import { ProductionLineDialog, ProductionStatusPicker } from '../components/ProductionLine.jsx';
 import { formatCurrency, formatDate, formatNumber } from '../utils/format.js';
 import {
-  CLOSED_ORDER_STAGES, PRE_RELEASE_STAGES, orderStageLabel, productionStageLabel,
+  CLOSED_ORDER_STAGES, PRE_RELEASE_STAGES, orderStageLabel,
 } from '../utils/pipeline.js';
 
 /**
@@ -482,9 +482,16 @@ export default function OrderDetail() {
                       )}
                       {released && (
                         <td className="px-3 py-3">
-                          <Badge status={line.production?.status}>
-                            {productionStageLabel(line.production?.status)}
-                          </Badge>
+                          {/* The badge is the control: one tap moves the line, and the stages
+                              that also need a count or a reason open the form on themselves. */}
+                          <ProductionStatusPicker
+                            order={order}
+                            line={line}
+                            canRecord={mayRecord}
+                            /* The reply carries the whole order back, roll-up and all — so the
+                               order's own status follows on the same screen, without a refetch. */
+                            onSaved={absorb}
+                          />
                           {/* Late means past the agreed date *and* still owing pieces. */}
                           {line.isOverdue && (
                             <p className="mt-1 text-xs font-semibold text-danger-400">Late</p>

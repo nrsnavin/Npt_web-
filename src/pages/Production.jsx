@@ -4,12 +4,12 @@ import { downloads, production as productionApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useDebounced } from '../hooks/useRecords.js';
 import {
-  Badge, EmptyState, ErrorState, PageHeader, Pagination, TableSkeleton,
+  EmptyState, ErrorState, PageHeader, Pagination, TableSkeleton,
 } from '../components/ui.jsx';
 import ExportButton from '../components/ExportButton.jsx';
-import { ProductionLineDialog } from '../components/ProductionLine.jsx';
+import { ProductionLineDialog, ProductionStatusPicker } from '../components/ProductionLine.jsx';
 import { formatDate, formatNumber } from '../utils/format.js';
-import { PRODUCTION_STAGES, productionStageLabel } from '../utils/pipeline.js';
+import { PRODUCTION_STAGES } from '../utils/pipeline.js';
 
 /**
  * The plant's queue [BLUEPRINT §14–17].
@@ -210,9 +210,20 @@ export default function Production() {
                         )}
                       </td>
                       <td className="px-4 py-3.5">
-                        <Badge status={row.production?.status}>
-                          {productionStageLabel(row.production?.status)}
-                        </Badge>
+                        {/* The badge is the control: one tap moves the line. */}
+                        <ProductionStatusPicker
+                          order={{ _id: row.order._id, number: row.order.number }}
+                          line={{
+                            _id: row.lineId,
+                            modelNumber: row.modelNumber,
+                            mould: row.mould,
+                            colour: row.colour,
+                            quantity: row.quantity,
+                            production: row.production,
+                          }}
+                          canRecord={mayWrite}
+                          onSaved={load}
+                        />
                         {/* A hold with a reason on the row, so nobody has to open it to ask. */}
                         {row.production?.holdReason && (
                           <p className="mt-1 max-w-[14rem] truncate text-xs text-danger-400">
