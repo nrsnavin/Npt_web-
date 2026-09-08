@@ -2,9 +2,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { production as productionApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
-import { ErrorState, PageHeader, Spinner } from '../components/ui.jsx';
+import { Badge, ErrorState, PageHeader, Spinner } from '../components/ui.jsx';
 import QueryAnswer from '../components/QueryAnswer.jsx';
+import { ProductionLineDialog } from '../components/ProductionLine.jsx';
 import { formatNumber } from '../utils/format.js';
+import { productionStageLabel } from '../utils/pipeline.js';
 
 /**
  * The plant's front page.
@@ -28,6 +30,12 @@ import { formatNumber } from '../utils/format.js';
  * **A raised priority shows who raised it and why.** The plant is being asked to reorder its
  * day on somebody's say-so and is entitled to know whose. It is also the only thing that keeps
  * the flag honest: if one person's orders are all critical, everybody can see it.
+ *
+ * **Every row can be answered where it is read.** A screen that tells a supervisor what to run
+ * and then makes them navigate to an order to say they have run it is a screen that gets read
+ * in the morning and updated on Friday, and a status nobody moves until Friday is worse than no
+ * status at all. So each job carries where it is and the button that moves it, and the count
+ * above it changes the moment it is pressed.
  */
 
 /** The bands, in the words a supervisor would use rather than the keys the server sends. */
@@ -63,7 +71,7 @@ function Count({ label, value, hint, tone }) {
  * A card rather than a table row for the same reason the bench's screen uses one: a table asks
  * the reader to match a cell to a heading several rows above it, and this is read standing up.
  */
-function Job({ row }) {
+function Job({ row, onRecord }) {
   const raised = row.order.priority !== 'normal';
 
   /*
@@ -83,57 +91,84 @@ function Job({ row }) {
     : BANDS[row.urgency.band] || BANDS.normal;
 
   return (
-    <li>
-      <Link
-        to={row.link}
-        className={`block rounded-xl border p-4 transition-colors hover:border-accent/50 hover:bg-line/[0.03] ${
-          row.urgency.band === 'late'
-            ? 'border-danger-500/40 bg-danger-500/[0.04]'
-            : row.urgency.band === 'at_risk'
-              ? 'border-warn-500/40 bg-warn-500/[0.04]'
-              : 'border-line/10'
-        }`}
-      >
-        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-          <p className="text-base font-bold text-steel-50">
-            {row.modelNumber || row.mould?.mouldCode || 'Unnamed model'}
-            {row.colour ? <span className="font-semibold text-steel-300"> · {row.colour}</span> : null}
-          </p>
-          {/* The word as well as the colour: a red edge means nothing to somebody who has not
-              been told the convention, and nothing at all to those who cannot see it. */}
-          {band.label && (
-            <p className={`text-sm font-bold ${TONE[band.tone]}`}>{band.label}</p>
+    <li
+      className={`rounded-xl border p-4 ${
+        row.urgency.band === 'late'
+          ? 'border-danger-500/40 bg-danger-500/[0.04]'
+          : row.urgency.band === 'at_risk'
+            ? 'border-warn-500/40 bg-warn-500/[0.04]'
+            : 'border-line/10'
+      }`}
+    >
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <p className="text-base font-bold text-steel-50">
+          {row.modelNumber || row.mould?.mouldCode || 'Unnamed model'}
+          {row.colour ? <span className="font-semibold text-steel-300"> · {row.colour}</span> : null}
+        </p>
+        {/* The word as well as the colour: a red edge means nothing to somebody who has not
+            been told the convention, and nothing at all to those who cannot see it. */}
+        {band.label && (
+          <p className={`text-sm font-bold ${TONE[band.tone]}`}>{band.label}</p>
+        )}
+      </div>
+
+      <p className="mt-1 text-sm text-steel-300">
+        <Link to={row.link} className="transition-colors hover:text-accent">
+          {row.order.customer?.name || 'Customer not named'} · {row.order.number}
+        </Link>
+      </p>
+
+      {/* The whole point of the card: the two numbers that put it here, in a sentence. */}
+      {row.urgency.why.map((line) => (
+        <p key={line} className="mt-2 text-base font-bold text-accent">
+          {line}
+        </p>
+      ))}
+
+      {/*
+        Who asked, and why. Shown on the row rather than behind a hover, because a supervisor
+        moving a job deserves to see the argument for moving it — and because a flag whose
+        author is visible is a flag people set carefully.
+      */}
+      {raised && row.order.priorityReason && (
+        <p className="mt-2 rounded-lg border border-line/[0.08] bg-line/[0.03] px-3 py-2 text-sm text-steel-200">
+          <span className="font-bold text-steel-100">{row.order.priorityBy || 'Marketing'}:</span>{' '}
+          {row.order.priorityReason}
+        </p>
+      )}
+
+      <p className="mt-3 border-t border-line/[0.06] pt-2 text-sm text-steel-400">
+        {formatNumber(row.toMakeQty)} of {formatNumber(row.quantity)} still to make
+        {row.madePercent ? ` · ${row.madePercent}% done` : ''}
+      </p>
+
+      {/*
+        Where the line is, and the button that moves it.
+
+        The stage was the one thing this card never said, which made it a list of jobs a
+        supervisor could not tell apart: "run these first" reads the same whether the line is
+        waiting on material or already half made. And a hold with no reason on the face of it is
+        the phone call §14 exists to remove — so the reason sits beside the badge, not one
+        screen further in.
+      */}
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-line/[0.06] pt-3">
+        <div className="min-w-0">
+          <Badge status={row.production?.status}>
+            {productionStageLabel(row.production?.status)}
+          </Badge>
+          {row.production?.holdReason && (
+            <p className="mt-1.5 text-sm text-danger-400">{row.production.holdReason}</p>
           )}
         </div>
 
-        <p className="mt-1 text-sm text-steel-300">
-          {row.order.customer?.name || 'Customer not named'} · {row.order.number}
-        </p>
-
-        {/* The whole point of the card: the two numbers that put it here, in a sentence. */}
-        {row.urgency.why.map((line) => (
-          <p key={line} className="mt-2 text-base font-bold text-accent">
-            {line}
-          </p>
-        ))}
-
-        {/*
-          Who asked, and why. Shown on the row rather than behind a hover, because a supervisor
-          moving a job deserves to see the argument for moving it — and because a flag whose
-          author is visible is a flag people set carefully.
-        */}
-        {raised && row.order.priorityReason && (
-          <p className="mt-2 rounded-lg border border-line/[0.08] bg-line/[0.03] px-3 py-2 text-sm text-steel-200">
-            <span className="font-bold text-steel-100">{row.order.priorityBy || 'Marketing'}:</span>{' '}
-            {row.order.priorityReason}
-          </p>
+        {/* Only for the plant. Marketing reads this screen through the same component and gets
+            the stage without the button, which is exactly the §14 split. */}
+        {onRecord && (
+          <button type="button" className="btn-secondary" onClick={() => onRecord(row)}>
+            Record
+          </button>
         )}
-
-        <p className="mt-3 border-t border-line/[0.06] pt-2 text-sm text-steel-400">
-          {formatNumber(row.toMakeQty)} of {formatNumber(row.quantity)} still to make
-          {row.madePercent ? ` · ${row.madePercent}% done` : ''}
-        </p>
-      </Link>
+      </div>
     </li>
   );
 }
@@ -153,10 +188,14 @@ function Group({ title, hint, children, count }) {
 }
 
 export default function ProductionHome() {
-  const { user } = useAuth();
+  const { user, canWrite } = useAuth();
   const [day, setDay] = useState(null);
   const [meta, setMeta] = useState({});
   const [error, setError] = useState(null);
+  /** The row whose dialog is open, or null. One at a time, so the page holds one thing. */
+  const [recording, setRecording] = useState(null);
+
+  const mayRecord = canWrite('production');
 
   const load = useCallback(async () => {
     setError(null);
@@ -250,7 +289,7 @@ export default function ProductionHome() {
         count={day.pressing.length}
       >
         {day.pressing.map((row) => (
-          <Job key={row.lineId} row={row} />
+          <Job key={row.lineId} row={row} onRecord={mayRecord ? setRecording : undefined} />
         ))}
       </Group>
 
@@ -272,7 +311,7 @@ export default function ProductionHome() {
         count={day.next.length}
       >
         {day.next.map((row) => (
-          <Job key={row.lineId} row={row} />
+          <Job key={row.lineId} row={row} onRecord={mayRecord ? setRecording : undefined} />
         ))}
       </Group>
 
@@ -284,6 +323,36 @@ export default function ProductionHome() {
           </p>
         </div>
       )}
+
+      {/*
+        The same dialog the register and the order screen open, given the same shape of line.
+        One form for one act: a supervisor who learns to record a count here has learned it
+        everywhere, and there is one place for the rules about what may be typed to live.
+
+        Reloaded rather than patched in place on save, because a recorded count moves the row
+        between groups and changes the three counts at the top — and a screen that showed the
+        new number in the old band would be lying about both.
+      */}
+      <ProductionLineDialog
+        order={recording ? { _id: recording.order._id, number: recording.order.number } : null}
+        line={
+          recording
+            ? {
+                _id: recording.lineId,
+                modelNumber: recording.modelNumber,
+                mould: recording.mould,
+                colour: recording.colour,
+                quantity: recording.quantity,
+                production: recording.production,
+              }
+            : null
+        }
+        onClose={() => setRecording(null)}
+        onSaved={() => {
+          setRecording(null);
+          load();
+        }}
+      />
     </div>
   );
 }
