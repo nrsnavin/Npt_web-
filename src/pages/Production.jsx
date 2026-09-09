@@ -212,7 +212,7 @@ export default function Production() {
                       <td className="px-4 py-3.5">
                         {/* The badge is the control: one tap moves the line. */}
                         <ProductionStatusPicker
-                          order={{ _id: row.order._id, number: row.order.number }}
+                          order={{ _id: row.order._id, number: row.order.number, updatedAt: row.order.updatedAt }}
                           line={{
                             _id: row.lineId,
                             modelNumber: row.modelNumber,
@@ -253,7 +253,7 @@ export default function Production() {
       )}
 
       <ProductionLineDialog
-        order={editing ? { _id: editing.order._id, number: editing.order.number } : null}
+        order={editing ? { _id: editing.order._id, number: editing.order.number, updatedAt: editing.order.updatedAt } : null}
         line={
           editing
             ? {

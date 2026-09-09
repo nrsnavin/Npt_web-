@@ -63,6 +63,10 @@ export default function ProductionLineForm({ order, line, onClose, onSaved, init
         await productionApi.record({
           orderId: order._id,
           lineId: line._id,
+          /* The order's version, echoed back. Without it the server's guard is opt-in and
+             opted out of, and two supervisors recording the same line silently overwrite each
+             other's count — see `expectVersion` on the server. */
+          expectedUpdatedAt: order.updatedAt,
           status: values.status,
           plannedQty: numeric(values.plannedQty),
           producedQty: numeric(values.producedQty),
@@ -317,13 +321,23 @@ export function ProductionStatusPicker({ order, line, onSaved, canRecord = true 
     setBusy(status);
     setError(null);
     try {
-      const saved = await productionApi.record({ orderId: order._id, lineId: line._id, status });
+      const saved = await productionApi.record({
+        orderId: order._id,
+        lineId: line._id,
+        expectedUpdatedAt: order.updatedAt,
+        status,
+      });
       setOpen(false);
       onSaved?.(saved);
     } catch (saveError) {
       /* Kept open with the refusal on it. Closing would leave somebody looking at the old stage
-         with no idea why it had not moved. */
-      setError(saveError.message || 'That did not save');
+         with no idea why it had not moved. A stale-version conflict says what to do about it —
+         the server's wording is about editing a form, and this was one tap. */
+      setError(
+        saveError.status === 409
+          ? 'Somebody else moved this line while you were looking at it. Refresh to see where it is now.'
+          : saveError.message || 'That did not save'
+      );
     } finally {
       setBusy(null);
     }

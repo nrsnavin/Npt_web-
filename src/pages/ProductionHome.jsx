@@ -155,7 +155,7 @@ function Job({ row, onRecord, onSaved }) {
           {/* The badge is the control: one tap moves the line, and the stages that also need a
               count or a reason open the same form the Record button opens. */}
           <ProductionStatusPicker
-            order={{ _id: row.order._id, number: row.order.number }}
+            order={{ _id: row.order._id, number: row.order.number, updatedAt: row.order.updatedAt }}
             line={{
               _id: row.lineId,
               modelNumber: row.modelNumber,
@@ -355,7 +355,7 @@ export default function ProductionHome() {
         new number in the old band would be lying about both.
       */}
       <ProductionLineDialog
-        order={recording ? { _id: recording.order._id, number: recording.order.number } : null}
+        order={recording ? { _id: recording.order._id, number: recording.order.number, updatedAt: recording.order.updatedAt } : null}
         line={
           recording
             ? {
