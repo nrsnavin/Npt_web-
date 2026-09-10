@@ -39,10 +39,19 @@ function StageForm({ sample, onClose, onSaved }) {
   const [courier, setCourier] = useState(sample.courier || '');
   const [awbNumber, setAwbNumber] = useState(sample.awbNumber || '');
   const [dispatchedQuantity, setDispatchedQuantity] = useState(sample.quantity ?? '');
+  /* Prefilled with the shade asked for, because "it went out as requested" is the ordinary
+     case and a box somebody must retype to say the obvious gets whatever clears it. */
+  const [dispatchedColour, setDispatchedColour] = useState(
+    sample.dispatchedColour || sample.colour || ''
+  );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
   const dispatching = status === 'dispatched';
+  const substituting =
+    Boolean(sample.colour) &&
+    Boolean(dispatchedColour.trim()) &&
+    dispatchedColour.trim().toLowerCase() !== sample.colour.trim().toLowerCase();
 
   const submit = async (event) => {
     event.preventDefault();
@@ -57,6 +66,7 @@ function StageForm({ sample, onClose, onSaved }) {
           courier: dispatching ? courier : undefined,
           awbNumber: dispatching ? awbNumber : undefined,
           dispatchedQuantity: dispatching ? numeric(dispatchedQuantity) : undefined,
+          dispatchedColour: dispatching ? text(dispatchedColour) : undefined,
         })
       );
       onClose();
@@ -97,7 +107,55 @@ function StageForm({ sample, onClose, onSaved }) {
                 onChange={(event) => setDispatchedQuantity(event.target.value)}
               />
             </Field>
+
+            {/*
+              What actually went in the bag, which the register had no field for until now. The
+              colour on the request is what was *asked for*; without this the two were the same
+              box, so a substitution left no trace and a rejection three weeks later had no
+              explanation in it.
+            */}
+            {sample.colour && (
+              <Field
+                label="Colour it was sent in"
+                hint={sample.colourRule || undefined}
+                className={sample.colourMandatory ? '' : 'sm:col-span-2'}
+              >
+                <input
+                  className="input"
+                  value={dispatchedColour}
+                  onChange={(event) => setDispatchedColour(event.target.value)}
+                />
+              </Field>
+            )}
           </div>
+
+          {/*
+            Said before the save, not after the refusal. The strict case is a wall the bench
+            cannot climb — deliberately, since an override the maker grants themselves is the
+            same as no rule — so the screen must not let somebody type an AWB, press the button
+            and only then find out.
+          */}
+          {substituting && (
+            <div className="mt-3">
+              <Notice tone={sample.colourMandatory ? 'danger' : 'warn'}>
+                {sample.colourMandatory ? (
+                  <p>
+                    <span className="font-bold">{sample.colour} exactly</span> was a condition of
+                    this request, so it cannot go out in {dispatchedColour.trim()}. Send it in{' '}
+                    {sample.colour}, or ask {sample.requestedBy?.name || 'whoever raised it'} to
+                    drop the exact-colour condition first.
+                  </p>
+                ) : (
+                  <p>
+                    Going out in {dispatchedColour.trim()} rather than the {sample.colour} asked
+                    for. That is allowed — the colour was a preference —{' '}
+                    {sample.requestedBy?.name || 'whoever raised it'} gets a note to mention it
+                    before the buyer opens the bag.
+                  </p>
+                )}
+              </Notice>
+            </div>
+          )}
         </div>
       )}
 
@@ -116,7 +174,14 @@ function StageForm({ sample, onClose, onSaved }) {
 
       <div className="flex justify-end gap-2">
         <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
-        <button type="submit" className="btn-primary" disabled={busy || !status}>
+        {/* Held shut while the strict colour rule is broken. The server refuses it anyway, but
+            a button that submits only to come back with a refusal teaches people to press
+            buttons and read afterwards. */}
+        <button
+          type="submit"
+          className="btn-primary"
+          disabled={busy || !status || (dispatching && substituting && sample.colourMandatory)}
+        >
           {busy ? 'Saving…' : `Move to ${sampleStageLabel(status)}`}
         </button>
       </div>
@@ -341,6 +406,7 @@ function DispatchDetailsForm({ sample, onClose, onSaved }) {
   const [dispatchedAt, setDispatchedAt] = useState(
     sample.dispatchedAt ? sample.dispatchedAt.slice(0, 10) : ''
   );
+  const [dispatchedColour, setDispatchedColour] = useState(sample.dispatchedColour || '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
@@ -358,6 +424,7 @@ function DispatchDetailsForm({ sample, onClose, onSaved }) {
           awbNumber: text(awbNumber) ?? null,
           dispatchedQuantity: numeric(dispatchedQuantity) ?? null,
           dispatchedAt: text(dispatchedAt) ?? null,
+          dispatchedColour: text(dispatchedColour) ?? null,
         })
       );
       onClose();
@@ -402,6 +469,20 @@ function DispatchDetailsForm({ sample, onClose, onSaved }) {
             onChange={(event) => setDispatchedAt(event.target.value)}
           />
         </Field>
+        {sample.colour && (
+          <Field
+            label="Colour it was sent in"
+            className="sm:col-span-2"
+            hint={sample.colourRule || undefined}
+          >
+            <input
+              className="input"
+              placeholder={sample.colour}
+              value={dispatchedColour}
+              onChange={(event) => setDispatchedColour(event.target.value)}
+            />
+          </Field>
+        )}
       </div>
 
       <Notice tone="info">
@@ -1081,6 +1162,16 @@ export default function SampleDetail() {
                           ? 'Must be this colour — do not send another shade'
                           : 'Preferred — any available colour will do'}
                       </span>
+                      {/* And what actually went, when it was not that. The register kept only
+                          what was asked for until now, so a substitution left no trace and the
+                          rejection three weeks later had no explanation in it. */}
+                      {sample.dispatchedColour &&
+                        sample.dispatchedColour.trim().toLowerCase() !==
+                          sample.colour.trim().toLowerCase() && (
+                          <span className="mt-1 block text-xs font-bold text-warn-400">
+                            Sent in {sample.dispatchedColour}
+                          </span>
+                        )}
                     </>
                   ),
                 },
@@ -1115,6 +1206,7 @@ export default function SampleDetail() {
                     { label: 'Tracking number', value: sample.awbNumber },
                     { label: 'Sent on', value: sample.dispatchedAt && formatDate(sample.dispatchedAt) },
                     { label: 'Quantity sent', value: sample.dispatchedQuantity && formatNumber(sample.dispatchedQuantity) },
+                    { label: 'Colour sent', value: sample.dispatchedColour },
                     { label: 'Delivered on', value: sample.deliveredAt && formatDate(sample.deliveredAt) },
                   ]}
                 />
