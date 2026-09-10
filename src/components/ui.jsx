@@ -254,6 +254,43 @@ export function Facts({ items, columns = 2 }) {
   );
 }
 
+/**
+ * How far along something is, as a bar.
+ *
+ * "36,000 of 60,000 still to make · 40% done" is accurate and takes a moment to turn into a
+ * feeling. A bar takes none — and a supervisor scanning fifteen cards for the one barely
+ * started is doing exactly the comparison a bar is good at and arithmetic is bad at.
+ *
+ * The number stays. The bar is the second reading of the same fact, not a replacement for it:
+ * a bar alone cannot be read aloud, cannot be checked, and is nothing at all to somebody who
+ * cannot see it — which is why the element carries the value and its meaning for a reader who
+ * is being told rather than shown.
+ */
+export function Meter({ percent, label, tone = 'accent', className = '' }) {
+  const value = Math.max(0, Math.min(100, Math.round(Number(percent) || 0)));
+
+  const fill = {
+    accent: 'bg-flame-500',
+    good: 'bg-success-500',
+    warn: 'bg-warn-500',
+    danger: 'bg-danger-500',
+  }[tone];
+
+  return (
+    <div
+      role="meter"
+      aria-valuenow={value}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-label={label}
+      className={`h-1.5 overflow-hidden rounded-full bg-line/[0.08] ${className}`}
+    >
+      {/* A hair of width at 0 so the bar reads as an empty track rather than as missing. */}
+      <div className={`h-full rounded-full transition-[width] ${fill}`} style={{ width: `${value}%` }} />
+    </div>
+  );
+}
+
 /** Page-level paging control. Hidden entirely when everything fits on one page. */
 export function Pagination({ pagination, onChange }) {
   if (!pagination || pagination.pages <= 1) return null;

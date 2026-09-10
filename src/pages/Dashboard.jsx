@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { useWorkspace } from '../components/dock/WorkspaceContext.jsx';
 import { Badge, PageHeader, Spinner } from '../components/ui.jsx';
 import SampleDay from '../components/SampleDay.jsx';
-import { formatDate, humanise } from '../utils/format.js';
+import { formatDate, humanise, plural } from '../utils/format.js';
 
 /**
  * A headline figure. `tone` carries the blueprint's colour code: red is delayed or
@@ -170,9 +170,7 @@ export default function Dashboard() {
         <StatTile
           label="Open tasks"
           value={openTasks}
-          sublabel={`${announcementMeta.unread} unread announcement${
-            announcementMeta.unread === 1 ? '' : 's'
-          }`}
+          sublabel={plural(announcementMeta.unread, 'unread announcement')}
         />
       </div>
 
@@ -192,7 +190,7 @@ export default function Dashboard() {
           title="Action required today"
           subtitle={
             counts.actionable
-              ? `${counts.actionable} task${counts.actionable === 1 ? '' : 's'} need you`
+              ? plural(counts.actionable, 'task needs you', 'tasks need you')
               : 'Your day is clear'
           }
           className="lg:col-span-2"

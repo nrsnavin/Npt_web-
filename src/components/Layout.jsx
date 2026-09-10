@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useTheme } from '../context/ThemeContext.jsx';
@@ -250,10 +250,67 @@ function TopTabs() {
   const { user } = useAuth();
   const modules = (user?.modules || []).filter((module) => module.canRead);
 
+  /*
+   * The strip has always scrolled when the tabs outrun it. What it never did was say so: the
+   * last tab was cut off mid-word against a hard edge, which reads as a rendering fault rather
+   * than as "there is more this way" — and somebody with eight modules never learned there was
+   * a ninth. So the cut edge is faded, and only on the side that is actually cut.
+   */
+  const strip = useRef(null);
+  const [cut, setCut] = useState({ start: false, end: false });
+
+  useEffect(() => {
+    const node = strip.current;
+    if (!node) return undefined;
+
+    const measure = () => {
+      const slack = node.scrollWidth - node.clientWidth;
+      setCut({
+        start: node.scrollLeft > 4,
+        /* A pixel or two of slack is sub-pixel layout, not a hidden tab. */
+        end: slack > 4 && node.scrollLeft < slack - 4,
+      });
+    };
+
+    measure();
+    node.addEventListener('scroll', measure, { passive: true });
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    return () => {
+      node.removeEventListener('scroll', measure);
+      observer.disconnect();
+    };
+  }, [modules.length]);
+
   const classes = 'whitespace-nowrap rounded-md px-2.5 py-1 text-xs font-semibold transition-colors';
 
+  const mask =
+    cut.start && cut.end
+      ? '[mask-image:linear-gradient(to_right,transparent,#000_1.25rem,#000_calc(100%-1.25rem),transparent)]'
+      : cut.end
+        ? '[mask-image:linear-gradient(to_right,#000_calc(100%-1.25rem),transparent)]'
+        : cut.start
+          ? '[mask-image:linear-gradient(to_right,transparent,#000_1.25rem)]'
+          : '';
+
   return (
-    <div className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto">
+    <div
+      ref={strip}
+      /*
+       * A wheel over the strip moves it sideways. Without this the fade is an honest signal
+       * about tabs a mouse cannot reach: the strip is a few hundred pixels wide next to the
+       * search box, five of eight modules sit outside it, and shift-scrolling a bar with no
+       * visible scrollbar is not something anybody discovers. Only when there is something to
+       * move, and only for a vertical wheel — a trackpad swiping sideways already works.
+       */
+      onWheel={(event) => {
+        const node = strip.current;
+        if (!node || node.scrollWidth <= node.clientWidth) return;
+        if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+        node.scrollLeft += event.deltaY;
+      }}
+      className={`flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto scrollbar-none ${mask}`}
+    >
       {modules.map((module) => {
         const route = module.available ? MODULE_ROUTES[module.key] : null;
 

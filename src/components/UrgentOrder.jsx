@@ -98,6 +98,12 @@ export default function UrgentOrder({ row, mine, onRaise, onAnswered }) {
   const ours = row.blockedBy === mine;
   const [raising, setRaising] = useState(false);
 
+  /* The three parts are the whole order between them, so they scale against their own sum
+     rather than against the ordered quantity — which the card does not carry, and which would
+     leave the bar empty on an order whose lines were cut. */
+  const total = (row.gone || 0) + (row.free || 0) + (row.toMake || 0);
+  const share = (part) => (total > 0 ? ((part || 0) / total) * 100 : 0);
+
   return (
     <li
       className={`rounded-xl border p-4 ${
@@ -155,21 +161,38 @@ export default function UrgentOrder({ row, mine, onRaise, onAnswered }) {
         </ul>
       )}
 
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-line/[0.06] pt-3">
-        <p className="text-sm text-steel-400">
-          {formatNumber(row.gone)} gone · {formatNumber(row.free)} free ·{' '}
-          {formatNumber(row.toMake)} to make
-        </p>
-        <div className="flex gap-2">
-          {/* Offered whoever the blocker is: "nothing is holding it" is the screen's reading,
-              and the person standing in the bay may know better. */}
-          {onRaise !== false && (
-            <button type="button" className="btn-secondary" onClick={() => setRaising(true)}>
-              {row.questions?.length ? 'Ask something else' : 'Raise a concern'}
-            </button>
-          )}
-          <Link to={row.link} className="btn-ghost">Open it</Link>
+      {/*
+        Where the order's pieces are, as a bar of three parts.
+
+        This was "0 gone · 0 free · 4,000 to make" — three numbers whose nouns only mean
+        something to somebody who already knows the shape of the answer. Named in full and drawn
+        to scale, it says the thing the reader actually wants: how much of this order has left
+        the building, and how much has not been made yet.
+      */}
+      <div className="mt-3 border-t border-line/[0.06] pt-3">
+        <div
+          className="flex h-1.5 overflow-hidden rounded-full bg-line/[0.08]"
+          role="img"
+          aria-label={`${formatNumber(row.gone)} of ${formatNumber(total)} pieces despatched, ${formatNumber(row.free)} packed and free, ${formatNumber(row.toMake)} still to make`}
+        >
+          <div className="bg-success-500" style={{ width: `${share(row.gone)}%` }} />
+          <div className="bg-aqua-500" style={{ width: `${share(row.free)}%` }} />
         </div>
+        <p className="mt-1.5 text-sm text-steel-400">
+          {formatNumber(row.gone)} despatched · {formatNumber(row.free)} packed and free ·{' '}
+          {formatNumber(row.toMake)} still to make
+        </p>
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
+        {/* Offered whoever the blocker is: "nothing is holding it" is the screen's reading,
+            and the person standing in the bay may know better. */}
+        {onRaise !== false && (
+          <button type="button" className="btn-secondary" onClick={() => setRaising(true)}>
+            {row.questions?.length ? 'Ask something else' : 'Raise a concern'}
+          </button>
+        )}
+        <Link to={row.link} className="btn-ghost">Open it</Link>
       </div>
 
       <RaiseConcern

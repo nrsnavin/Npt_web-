@@ -4,7 +4,7 @@ import { payments as paymentsApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { ErrorState, PageHeader, Spinner } from '../components/ui.jsx';
 import FollowUpForm from '../components/FollowUp.jsx';
-import { formatCurrency, formatDate } from '../utils/format.js';
+import { formatCurrency, formatDate, plural } from '../utils/format.js';
 
 /**
  * The chase, as a day's work [BLUEPRINT §20, §25].
@@ -98,14 +98,16 @@ function why(row, group) {
   if (group === 'broken') {
     return [
       `Promised ${formatDate(row.promise.date)}${row.promise.spokeTo ? ` by ${row.promise.spokeTo}` : ''} — and it has gone`,
-      `${late} days past its due date`,
+      `${plural(late, 'day')} past its due date`,
     ];
   }
   if (group === 'overdue') {
-    return [`${late} days overdue, and no promise on record`];
+    return [`${plural(late, 'day')} overdue, and no promise on record`];
   }
   if (group === 'soon') {
-    return [row.daysToDue === 0 ? 'Falls due today' : `Falls due in ${row.daysToDue} days`];
+    return [
+      row.daysToDue === 0 ? 'Falls due today' : `Falls due in ${plural(row.daysToDue, 'day')}`,
+    ];
   }
   return [
     `Promised ${formatDate(row.promise.date)}${row.promise.spokeTo ? ` by ${row.promise.spokeTo}` : ''}`,
@@ -185,6 +187,71 @@ function Owed({ row, tone, group, onLogged }) {
   );
 }
 
+/**
+ * How old the overdue money is.
+ *
+ * The groups below sort the calls by *what to say*. This sorts the same money by *how bad it
+ * has got*, which is a different question with a different audience: a fortnight late is a
+ * chasing problem, four months late is a provisioning one, and one figure marked "overdue"
+ * cannot tell them apart.
+ *
+ * Drawn as one bar rather than four tiles because the shape is the finding — a bar that is
+ * mostly the last band is a business in trouble and reads that way in half a second, and four
+ * separate numbers do not.
+ */
+function Ageing({ bands, total }) {
+  if (!bands?.length || !total) return null;
+
+  const FILL = {
+    to30: 'bg-warn-500/60',
+    to60: 'bg-warn-500',
+    to90: 'bg-danger-500/70',
+    over90: 'bg-danger-500',
+  };
+
+  return (
+    <section className="card mt-4 px-5 py-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <p className="text-base font-bold text-steel-200">How old the overdue money is</p>
+        <p className="text-sm text-steel-400">{formatCurrency(total)} in total</p>
+      </div>
+
+      <div className="mt-3 flex h-2 overflow-hidden rounded-full bg-line/[0.08]">
+        {bands.map((band) => (
+          <div
+            key={band.key}
+            className={FILL[band.key]}
+            style={{ width: `${(band.value / total) * 100}%` }}
+            title={`${band.label}: ${formatCurrency(band.value)}`}
+          />
+        ))}
+      </div>
+
+      {/* The numbers under the bar, because a bar cannot be read aloud or checked — and because
+          the band somebody needs to act on is the one they will want the figure for. */}
+      <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-4">
+        {bands.map((band) => (
+          <div key={band.key}>
+            <dt className="text-xs font-semibold text-steel-500">{band.label}</dt>
+            {/* The count under the amount rather than beside it: run together they wrap into
+                "₹3,83,000.00 2 items" across two lines, and the 2 reads as part of the money. */}
+            <dd
+              className={`text-sm font-bold tabular-nums ${
+                band.value ? 'text-steel-100' : 'text-steel-500'
+              }`}
+            >
+              {formatCurrency(band.value)}
+            </dd>
+            {band.count > 0 && (
+              <dd className="text-xs text-steel-500">{plural(band.count, 'item')}</dd>
+            )}
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
+}
+
 function Group({ title, hint, children, count }) {
   if (!count) return null;
 
@@ -244,7 +311,7 @@ export default function PaymentsHome() {
         <Count
           label="Overdue"
           value={formatCurrency(meta.overdueValue || 0)}
-          hint={meta.overdue ? `Across ${meta.overdue} invoices` : 'Nothing is late'}
+          hint={meta.overdue ? `Across ${plural(meta.overdue, 'invoice')}` : 'Nothing is late'}
           tone="danger"
         />
         <Count
@@ -259,11 +326,13 @@ export default function PaymentsHome() {
           hint={
             meta.awaitingAdvance
               ? `Including ${formatCurrency(meta.awaitingAdvance)} of advances not in yet`
-              : `Across ${meta.open || 0} open items`
+              : `Across ${plural(meta.open || 0, 'open item')}`
           }
           tone="calm"
         />
       </div>
+
+      <Ageing bands={meta.ageing} total={meta.overdueValue || 0} />
 
       {GROUPS.map((group) => (
         <Group

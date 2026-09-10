@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { production as productionApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
-import { ErrorState, PageHeader, Spinner } from '../components/ui.jsx';
+import { ErrorState, Meter, PageHeader, Spinner } from '../components/ui.jsx';
 import QueryAnswer from '../components/QueryAnswer.jsx';
 import { ProductionLineDialog, ProductionStatusPicker } from '../components/ProductionLine.jsx';
 import UrgentOrder from '../components/UrgentOrder.jsx';
@@ -137,10 +137,27 @@ function Job({ row, onRecord, onSaved }) {
         </p>
       )}
 
-      <p className="mt-3 border-t border-line/[0.06] pt-2 text-sm text-steel-400">
-        {formatNumber(row.toMakeQty)} of {formatNumber(row.quantity)} still to make
-        {row.madePercent ? ` · ${row.madePercent}% done` : ''}
-      </p>
+      {/*
+        The same fact twice: the sentence for whoever is reading this one card, the bar for
+        whoever is scanning fifteen for the one barely started. The bar is what makes "40% with
+        four days left" and "90% with four days left" different at a glance, which is the
+        judgement this screen exists to support.
+      */}
+      <div className="mt-3 border-t border-line/[0.06] pt-2">
+        <p className="text-sm text-steel-400">
+          {formatNumber(row.toMakeQty)} of {formatNumber(row.quantity)} still to make
+          {row.madePercent ? ` · ${row.madePercent}% done` : ''}
+        </p>
+        {/* One colour, whatever the band. The length already means "how much is done"; making
+            the colour mean "how late it is" would put two different facts in one glyph, and a
+            red bar at 40% reads as 40% wrong rather than 40% made. The border and the label
+            carry the urgency. */}
+        <Meter
+          className="mt-1.5"
+          percent={row.madePercent || 0}
+          label={`${row.madePercent || 0}% of ${formatNumber(row.quantity)} made`}
+        />
+      </div>
 
       {/*
         Where the line is, and the button that moves it.

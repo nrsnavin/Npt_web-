@@ -83,6 +83,20 @@
     @apply rounded-xl border border-line/[0.06] bg-ink-800/60;
   }
 
+  /*
+   * A strip that scrolls sideways without a 10px bar eating its height. Only for strips whose
+   * cut edge is faded instead — a scroll region with neither a bar nor a fade is a region
+   * nobody discovers.
+   */
+  .scrollbar-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+
   /* ---------- Buttons ---------- */
 
   .btn {

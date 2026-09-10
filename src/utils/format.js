@@ -28,6 +28,17 @@ export const formatDate = (value) => {
   });
 };
 
+/**
+ * A count and its noun, agreeing.
+ *
+ * Written out at every call site until now, which is how "1 task need you" reached a screen
+ * somebody reads every morning: the noun was pluralised and the verb was not. Pass the whole
+ * phrase — "task needs you" / "tasks need you" — rather than a noun alone, because English
+ * disagrees in more places than the ending of one word.
+ */
+export const plural = (count, one, many) =>
+  `${formatNumber(count)} ${Number(count) === 1 ? one : many ?? `${one}s`}`;
+
 /** Turns snake_case enum values into readable labels. */
 export const humanise = (value) =>
   String(value || '')
