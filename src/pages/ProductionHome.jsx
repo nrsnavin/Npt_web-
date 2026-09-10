@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { ErrorState, PageHeader, Spinner } from '../components/ui.jsx';
 import QueryAnswer from '../components/QueryAnswer.jsx';
 import { ProductionLineDialog, ProductionStatusPicker } from '../components/ProductionLine.jsx';
+import UrgentOrder from '../components/UrgentOrder.jsx';
 import { formatNumber } from '../utils/format.js';
 
 /**
@@ -233,7 +234,8 @@ export default function ProductionHome() {
   if (error) return <ErrorState error={error} onRetry={load} />;
   if (!day) return <Spinner label="Loading the plant's day" />;
 
-  const nothing = !day.pressing.length && !day.next.length && !day.queries.length;
+  const nothing =
+    !day.pressing.length && !day.next.length && !day.queries.length && !day.urgent?.length;
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -248,7 +250,7 @@ export default function ProductionHome() {
         }
       />
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Count
           label="Past its date"
           value={meta.late || 0}
@@ -260,6 +262,18 @@ export default function ProductionHome() {
           value={meta.atRisk || 0}
           hint={meta.atRisk ? 'Not enough days left to make it' : 'Everything else fits'}
           tone="warn"
+        />
+        <Count
+          label="Urgent on us"
+          value={meta.urgentOnUs || 0}
+          hint={
+            meta.urgentOnUs
+              ? 'Escalated orders the plant is holding up'
+              : meta.urgent
+                ? 'None of the escalated ones are ours'
+                : 'Nothing escalated'
+          }
+          tone="danger"
         />
         <Count
           label="Questions"
@@ -293,6 +307,21 @@ export default function ProductionHome() {
             ))}
         </Group>
       )}
+
+      {/*
+        Above the press queue, because these are orders somebody outside the plant is already
+        waiting on an answer about — and on most of them the plant *is* the answer. An escalated
+        order a supervisor is not told about is the one they will be asked about tomorrow.
+      */}
+      <Group
+        title="Marketing and despatch marked these urgent"
+        hint="What is holding each one, and what is being asked about it"
+        count={day.urgent?.length || 0}
+      >
+        {(day.urgent || []).map((row) => (
+          <UrgentOrder key={row._id} row={row} mine="production" onAnswered={load} />
+        ))}
+      </Group>
 
       <Group
         title="Run these first"
