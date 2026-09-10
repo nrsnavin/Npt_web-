@@ -5,7 +5,8 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { ErrorState, PageHeader, Spinner } from '../components/ui.jsx';
 import QueryAnswer from '../components/QueryAnswer.jsx';
 import { DispatchStatusPicker } from '../components/DispatchStatus.jsx';
-import { formatDate, formatNumber } from '../utils/format.js';
+import RaiseConcern from '../components/RaiseConcern.jsx';
+import { formatDate, formatNumber, humanise } from '../utils/format.js';
 
 /**
  * The despatch team's front page.
@@ -132,6 +133,71 @@ function Consignment({ row, tone, mayAct, onDone }) {
   );
 }
 
+/**
+ * An order marketing escalated, and what is holding it.
+ *
+ * Despatch is the last department before the buyer, so despatch is who gets rung about an urgent
+ * order — and the answer is very often not theirs to give. The blocker is on the card for that
+ * reason: it is what lets somebody answer the phone instead of going to find out, and it is what
+ * decides who a concern gets handed to.
+ *
+ * The button is offered on every urgent order rather than only the blocked ones. "Nothing is
+ * holding it" is the screen's reading, and the person looking at the lorry bay may know better.
+ */
+function Urgent({ row, onRaise }) {
+  const critical = row.priority === 'critical';
+  const theirs = row.blockedBy === 'despatch';
+
+  return (
+    <li className={`rounded-xl border p-4 ${critical ? 'border-danger-500/40 bg-danger-500/[0.04]' : 'border-warn-500/40 bg-warn-500/[0.04]'}`}>
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <p className="text-base font-bold text-steel-50">
+          {row.customer?.name || 'Customer not named'}
+        </p>
+        <p className={`text-sm font-bold ${critical ? 'text-danger-400' : 'text-warn-400'}`}>
+          {critical ? 'Critical' : 'Pulled forward'}
+        </p>
+      </div>
+
+      <p className="mt-1 text-sm text-steel-300">
+        <Link to={row.link} className="transition-colors hover:text-accent">{row.number}</Link>
+        {row.deliveryDate ? ` · promised ${formatDate(row.deliveryDate)}` : ''}
+        {row.owner ? ` · ${row.owner}` : ''}
+      </p>
+
+      {/* Who asked and why — the plant's own screen shows this and despatch is entitled to it
+          for the same reason: a flag whose author is visible is a flag people set carefully. */}
+      {row.priorityReason && (
+        <p className="mt-2 rounded-lg border border-line/[0.08] bg-line/[0.03] px-3 py-2 text-sm text-steel-200">
+          <span className="font-bold text-steel-100">{row.priorityBy || 'Marketing'}:</span>{' '}
+          {row.priorityReason}
+        </p>
+      )}
+
+      {/* What is actually stopping it, and whose it is to clear. */}
+      <p className={`mt-2 text-base font-bold ${theirs ? 'text-accent' : 'text-steel-100'}`}>
+        {row.blockerLabel}
+        {!theirs && row.blockedBy ? ` — ${humanise(row.blockedBy)}'s to clear` : ''}
+      </p>
+      {row.why?.map((line) => (
+        <p key={line} className="mt-1 text-sm text-steel-300">{line}</p>
+      ))}
+
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-line/[0.06] pt-3">
+        <p className="text-sm text-steel-400">
+          {formatNumber(row.gone)} gone · {formatNumber(row.free)} free · {formatNumber(row.toMake)} to make
+        </p>
+        <div className="flex gap-2">
+          <button type="button" className="btn-secondary" onClick={() => onRaise(row)}>
+            Raise a concern
+          </button>
+          <Link to={row.link} className="btn-ghost">Open it</Link>
+        </div>
+      </div>
+    </li>
+  );
+}
+
 /** A packed line with nothing claiming it — the thing that is on no other screen. */
 function Waiting({ row }) {
   return (
@@ -180,6 +246,8 @@ export default function DispatchHome() {
   /* Marketing reads this screen through the same component and gets the stage without the
      menu, which is the §19 split: they see where the goods are, the yard moves them. */
   const mayAct = canWrite('dispatch');
+  /* The urgent order whose concern dialog is open, or null. */
+  const [concerning, setConcerning] = useState(null);
   const [day, setDay] = useState(null);
   const [meta, setMeta] = useState({});
   const [error, setError] = useState(null);
@@ -212,6 +280,7 @@ export default function DispatchHome() {
   const nothing =
     !GROUPS.some((group) => day[group.key]?.length) &&
     !day.unclaimed.length &&
+    !day.urgent?.length &&
     !day.queries.length;
 
   const lateQuestions = day.queries.filter((query) => query.isOverdue);
@@ -277,6 +346,21 @@ export default function DispatchHome() {
         ))}
       </Group>
 
+      {/*
+        First, above despatch's own work. An order marketing escalated is the one thing on this
+        screen that somebody outside the team is already waiting on an answer about — and half
+        of them are blocked by a department that does not know it yet.
+      */}
+      <Group
+        title="Marketing marked these urgent"
+        hint="What is holding each one, and who can clear it"
+        count={day.urgent?.length || 0}
+      >
+        {(day.urgent || []).map((row) => (
+          <Urgent key={row._id} row={row} onRaise={setConcerning} />
+        ))}
+      </Group>
+
       {GROUPS.map((group) => (
         <Group
           key={group.key}
@@ -324,6 +408,12 @@ export default function DispatchHome() {
             <QueryAnswer key={query._id} query={query} onAnswered={load} />
           ))}
       </Group>
+
+      <RaiseConcern
+        order={concerning}
+        onClose={() => setConcerning(null)}
+        onRaised={() => { setConcerning(null); load(); }}
+      />
 
       {nothing && (
         <div className="card mt-7 px-6 py-14 text-center">
