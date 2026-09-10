@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { orderQueries } from '../api/endpoints.js';
+import { useToast } from '../context/ToastContext.jsx';
 
 /**
  * A question put to your department, answerable where you read it.
@@ -21,6 +22,7 @@ import { orderQueries } from '../api/endpoints.js';
  * already sent in three loads is unanswerable without knowing which.
  */
 export default function QueryAnswer({ query, onAnswered }) {
+  const { toast } = useToast();
   const [body, setBody] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -34,6 +36,7 @@ export default function QueryAnswer({ query, onAnswered }) {
     try {
       await orderQueries.answer({ orderId: query.order._id, queryId: query._id, body });
       setBody('');
+      toast(`Answered — ${query.raisedBy?.name || 'the asker'} will be told`);
       onAnswered();
     } catch (answerError) {
       setError(answerError);

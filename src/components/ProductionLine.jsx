@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { production as productionApi } from '../api/endpoints.js';
+import { useToast } from '../context/ToastContext.jsx';
 import { Badge, Field, Modal, Notice } from './ui.jsx';
 import { formatNumber } from '../utils/format.js';
 import {
@@ -23,6 +24,7 @@ import {
  * the server refuses it, and the button says why before you press it.
  */
 export default function ProductionLineForm({ order, line, onClose, onSaved, initialStatus }) {
+  const { toast } = useToast();
   const current = line.production || {};
 
   const [values, setValues] = useState({
@@ -75,6 +77,12 @@ export default function ProductionLineForm({ order, line, onClose, onSaved, init
           holdReason: held ? values.holdReason : undefined,
           remarks: text(values.remarks),
         })
+      );
+      /* Names the model and where it now is, rather than saying "saved" — a confirmation that
+         repeats the reader's intent back to them is the only kind that catches a mistake. */
+      toast(
+        `Recorded — ${line.modelNumber || line.mould?.mouldCode || 'the line'} is ${productionStageLabel(values.status).toLowerCase()}`,
+        made ? `${formatNumber(made)} made · ${formatNumber(packed)} packed` : undefined
       );
       onClose();
     } catch (saveError) {
@@ -263,6 +271,7 @@ const MENU_WIDTH = 300;
  * number behind. This is the quick half, sitting next to it.
  */
 export function ProductionStatusPicker({ order, line, onSaved, canRecord = true }) {
+  const { toast } = useToast();
   const current = line?.production?.status || 'awaiting_planning';
 
   const trigger = useRef(null);
@@ -328,6 +337,7 @@ export function ProductionStatusPicker({ order, line, onSaved, canRecord = true 
         status,
       });
       setOpen(false);
+      toast(`${line.modelNumber || 'Line'} moved to ${productionStageLabel(status).toLowerCase()}`);
       onSaved?.(saved);
     } catch (saveError) {
       /* Kept open with the refusal on it. Closing would leave somebody looking at the old stage

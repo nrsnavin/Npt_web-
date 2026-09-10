@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { payments as paymentsApi } from '../api/endpoints.js';
+import { useToast } from '../context/ToastContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useRecord } from '../hooks/useRecords.js';
 import {
@@ -60,6 +61,7 @@ const MODES = [
 /* -------------------------------- Money in -------------------------------- */
 
 function ReceiptForm({ receivable, onClose, onSaved }) {
+  const { toast } = useToast();
   const [values, setValues] = useState({
     amount: '', mode: 'neft', reference: '', receivedAt: '', note: '',
   });
@@ -86,6 +88,12 @@ function ReceiptForm({ receivable, onClose, onSaved }) {
           receivedAt: values.receivedAt || undefined,
           note: values.note.trim() || undefined,
         })
+      );
+      /* Says what is left, because that is the number the next call is about. */
+      const left = receivable.balance - amount;
+      toast(
+        `${formatCurrency(amount)} recorded`,
+        left > 0 ? `${formatCurrency(left)} still owed on this one` : 'Settled in full'
       );
     } catch (saveError) {
       setError(saveError);
@@ -167,6 +175,7 @@ function ReceiptForm({ receivable, onClose, onSaved }) {
 /* ------------------------------- The judgement ------------------------------- */
 
 function JudgementForm({ receivable, onClose, onSaved }) {
+  const { toast } = useToast();
   const [judgement, setJudgement] = useState(receivable?.judgement || 'disputed');
   const [note, setNote] = useState(receivable?.judgementNote || '');
   const [busy, setBusy] = useState(false);
@@ -178,6 +187,10 @@ function JudgementForm({ receivable, onClose, onSaved }) {
     setError(null);
     try {
       onSaved(await paymentsApi.judgement({ id: receivable._id, judgement, note: note.trim() }));
+      toast(
+        judgement === 'disputed' ? 'Marked disputed' : 'Put on hold',
+        'Nobody is chased or reminded while this stands'
+      );
     } catch (saveError) {
       setError(saveError);
     } finally {
@@ -190,6 +203,7 @@ function JudgementForm({ receivable, onClose, onSaved }) {
     setError(null);
     try {
       onSaved(await paymentsApi.judgement({ id: receivable._id }));
+      toast('Cleared — this is being chased again');
     } catch (saveError) {
       setError(saveError);
     } finally {

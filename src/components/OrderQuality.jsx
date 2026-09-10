@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { quality as qualityApi } from '../api/endpoints.js';
+import { useToast } from '../context/ToastContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { Field, Modal, Notice, Section } from './ui.jsx';
 import { formatDate, formatNumber } from '../utils/format.js';
@@ -104,6 +105,7 @@ function InspectionRow({ inspection }) {
 
 /** Recording one. The form is the defect list — everything else is two numbers and a verdict. */
 function InspectionForm({ order, options, onClose, onRecorded }) {
+  const { toast } = useToast();
   const firstLine = order.lines?.[0];
   const [values, setValues] = useState({
     line: firstLine?._id || '',
@@ -139,6 +141,16 @@ function InspectionForm({ order, options, onClose, onRecorded }) {
           defects,
           remarks: values.remarks || undefined,
         })
+      );
+      /* A rejection is not a save, it is a stop — and the person recording it should see that
+         said back to them rather than discovering it on the plant's screen later. */
+      toast(
+        values.verdict === 'rejected'
+          ? 'Rejected — this line is held and the plant has been told'
+          : `Inspection recorded — ${verdictLabel(values.verdict).toLowerCase()}`,
+        Number(values.quantityRejected) > 0
+          ? `${formatNumber(Number(values.quantityRejected))} rejected of ${formatNumber(Number(values.quantityInspected))}`
+          : undefined
       );
       onClose();
     } catch (recordError) {

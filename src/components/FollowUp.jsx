@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { payments as paymentsApi } from '../api/endpoints.js';
+import { useToast } from '../context/ToastContext.jsx';
 import { Field, Modal, Notice } from './ui.jsx';
 import { formatCurrency } from '../utils/format.js';
 
@@ -25,6 +26,7 @@ import { formatCurrency } from '../utils/format.js';
  * anyway and nobody knows it happened.
  */
 export default function FollowUpForm({ receivable, onClose, onSaved }) {
+  const { toast } = useToast();
   const [values, setValues] = useState({
     note: '', spokeTo: '', promisedDate: '', promisedAmount: '',
   });
@@ -49,6 +51,12 @@ export default function FollowUpForm({ receivable, onClose, onSaved }) {
             ? Number(values.promisedAmount)
             : undefined,
       });
+      /* The promise is the part worth confirming: it is what the next caller opens with, and
+         what puts a reminder on the day it falls due. */
+      toast(
+        `Logged against ${receivable.customer?.name || 'the customer'}`,
+        values.promisedDate ? `Promised ${values.promisedDate} — you get a reminder that day` : undefined
+      );
       onSaved(saved);
     } catch (saveError) {
       setError(saveError);

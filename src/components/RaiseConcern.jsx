@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { orderQueries as queriesApi } from '../api/endpoints.js';
+import { useToast } from '../context/ToastContext.jsx';
 import { Field, Modal, Notice } from './ui.jsx';
 import { humanise } from '../utils/format.js';
 
@@ -25,6 +26,7 @@ import { humanise } from '../utils/format.js';
  * screen could not work out for itself.
  */
 export default function RaiseConcern({ order, onClose, onRaised }) {
+  const { toast } = useToast();
   const [askedOf, setAskedOf] = useState(order?.blockedBy || 'production');
   const [question, setQuestion] = useState('');
   const [urgency, setUrgency] = useState('urgent');
@@ -43,6 +45,12 @@ export default function RaiseConcern({ order, onClose, onRaised }) {
           question: question.trim(),
           urgency,
         })
+      );
+      /* Names both recipients, because the second one is the part nobody expects: the order's
+         owner is told as well as the department being asked. */
+      toast(
+        `Raised with ${humanise(askedOf).toLowerCase()}`,
+        `${order.owner || 'The order\u2019s owner'} is told too`
       );
     } catch (raiseError) {
       setError(raiseError);
