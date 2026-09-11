@@ -4,6 +4,7 @@ import { dashboards } from '../api/endpoints.js';
 import { useRecord } from '../hooks/useRecords.js';
 import { Badge, ErrorState, PageHeader, Section, Spinner } from '../components/ui.jsx';
 import TodoBoard from '../components/TodoBoard.jsx';
+import EscalationFeed from '../components/EscalationFeed.jsx';
 import { formatCompactCurrency, formatDate, humanise } from '../utils/format.js';
 import { LOST_REASONS, SOURCES, optionLabel, sampleStageLabel, stageLabel } from '../utils/pipeline.js';
 
@@ -117,6 +118,16 @@ export default function MarketingDashboard() {
         */}
       <div className="mb-5">
         <TodoBoard />
+      </div>
+
+      {/*
+        Orders the plant or the yard has stopped, on the screen of the person who has to ring the
+        buyer about them. Scoped to their own customers by the same rule as everything else here
+        — an escalation carries the order number and the customer's name, and §29 does not stop
+        applying because the record is an alarm.
+      */}
+      <div className="mb-5">
+        <EscalationFeed title="Orders the floor has stopped on" />
       </div>
 
       {/* §37: action required today, before any analysis. */}

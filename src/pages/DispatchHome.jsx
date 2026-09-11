@@ -6,6 +6,7 @@ import { ErrorState, PageHeader, Spinner } from '../components/ui.jsx';
 import QueryAnswer from '../components/QueryAnswer.jsx';
 import { DispatchStatusPicker } from '../components/DispatchStatus.jsx';
 import UrgentOrder from '../components/UrgentOrder.jsx';
+import EscalationFeed from '../components/EscalationFeed.jsx';
 import { formatDate, formatNumber } from '../utils/format.js';
 
 /**
@@ -278,6 +279,13 @@ export default function DispatchHome() {
           <QueryAnswer key={query._id} query={query} onAnswered={load} />
         ))}
       </Group>
+
+      {/*
+        What is stopped, the yard's own escalations among them. Above everything else on the
+        screen: a lorry that cannot be loaded outranks the queue of ones that can, and this is
+        where somebody sees whether the e-way bill they escalated this morning has been raised.
+      */}
+      <EscalationFeed />
 
       {/*
         First, above despatch's own work. An order marketing escalated is the one thing on this

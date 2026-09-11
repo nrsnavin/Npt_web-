@@ -8,6 +8,7 @@ import {
 } from '../components/ui.jsx';
 import HistoryPanel from '../components/HistoryPanel.jsx';
 import OrderQueries from '../components/OrderQueries.jsx';
+import OrderEscalations from '../components/OrderEscalations.jsx';
 import OrderPriority from '../components/OrderPriority.jsx';
 import OrderQuality from '../components/OrderQuality.jsx';
 import DispatchTracker from '../components/DispatchTracker.jsx';
@@ -569,6 +570,13 @@ export default function OrderDetail() {
           {/* Only once the plant has it: an order still being verified has nothing made to
               inspect, and the server refuses an inspection against one. */}
           {released && <OrderQuality order={order} />}
+
+          {/*
+            What has stopped it, and the button that says so. Above the questions because they
+            are different things: a question is somebody wanting to know, an escalation is the
+            order not moving — and the second outranks the first on any screen showing both.
+          */}
+          <OrderEscalations order={order} />
 
           <OrderQueries order={order} />
 

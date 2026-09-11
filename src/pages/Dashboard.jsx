@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { useWorkspace } from '../components/dock/WorkspaceContext.jsx';
 import { Badge, PageHeader, Spinner } from '../components/ui.jsx';
 import SampleDay from '../components/SampleDay.jsx';
+import EscalationFeed from '../components/EscalationFeed.jsx';
 import { formatDate, humanise, plural } from '../utils/format.js';
 
 /**
@@ -184,6 +185,13 @@ export default function Dashboard() {
           <SampleDay />
         </div>
       )}
+
+      {/*
+        Stopped orders, above the task list for the same reason the bench is: a to-do somebody
+        wrote themselves does not outrank a machine that is not running. It draws nothing when
+        nothing is stopped, so the ordinary morning is unchanged.
+      */}
+      {canRead('orders') && <EscalationFeed />}
 
       <div className="mt-4 grid gap-4 lg:grid-cols-3">
         <Panel

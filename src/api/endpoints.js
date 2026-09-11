@@ -320,6 +320,26 @@ export const orderQueries = {
 };
 
 /**
+ * Orders the floor has stopped on.
+ *
+ * The mirror of an order's `priority`, raised from the other end: marketing pulls an order
+ * forward, and this is how production and despatch say one cannot move. Unlike a query it is
+ * addressed to nobody, so `feed` is not narrowed by department — every day screen reads the
+ * same list, scoped only by the orders the reader may already see.
+ *
+ * `feed` and `onOrder` keep their envelopes because the counts travel with the rows, and a
+ * screen totalling them again would disagree with the one that did not.
+ */
+export const escalations = {
+  feed: (params) => api.get('/escalations', { params }).then(listed),
+  options: () => api.get('/escalations/options').then(unwrap),
+  onOrder: (orderId) => api.get(`/orders/${orderId}/escalations`).then((response) => response.data),
+  raise: ({ orderId, ...payload }) => api.post(`/orders/${orderId}/escalations`, payload).then(unwrap),
+  update: ({ id, ...payload }) => api.post(`/escalations/${id}/updates`, payload).then(unwrap),
+  resolve: ({ id, ...payload }) => api.post(`/escalations/${id}/resolve`, payload).then(unwrap),
+};
+
+/**
  * Dispatch [§18-19]: what is on a lorry, and what is still free to put on one.
  *
  * `ready` is despatch's own queue rather than a list of consignments — one row per order line

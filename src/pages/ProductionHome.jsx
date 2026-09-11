@@ -6,6 +6,7 @@ import { ErrorState, Meter, PageHeader, Spinner } from '../components/ui.jsx';
 import QueryAnswer from '../components/QueryAnswer.jsx';
 import { ProductionLineDialog, ProductionStatusPicker } from '../components/ProductionLine.jsx';
 import UrgentOrder from '../components/UrgentOrder.jsx';
+import EscalationFeed from '../components/EscalationFeed.jsx';
 import { formatNumber } from '../utils/format.js';
 
 /**
@@ -324,6 +325,13 @@ export default function ProductionHome() {
             ))}
         </Group>
       )}
+
+      {/*
+        What is stopped, including what the plant stopped itself on. Above the urgent list
+        because an order nobody can run outranks one somebody wants sooner, and because this is
+        where a supervisor sees whether the resin they escalated on Tuesday has been chased.
+      */}
+      <EscalationFeed />
 
       {/*
         Above the press queue, because these are orders somebody outside the plant is already

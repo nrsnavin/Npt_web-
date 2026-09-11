@@ -4,6 +4,7 @@ import { payments as paymentsApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { ErrorState, PageHeader, Spinner } from '../components/ui.jsx';
 import FollowUpForm from '../components/FollowUp.jsx';
+import EscalationFeed from '../components/EscalationFeed.jsx';
 import { formatCurrency, formatDate, plural } from '../utils/format.js';
 
 /**
@@ -267,7 +268,7 @@ function Group({ title, hint, children, count }) {
 }
 
 export default function PaymentsHome() {
-  const { user } = useAuth();
+  const { user, canRead } = useAuth();
   const [day, setDay] = useState(null);
   const [meta, setMeta] = useState({});
   const [error, setError] = useState(null);
@@ -333,6 +334,13 @@ export default function PaymentsHome() {
       </div>
 
       <Ageing bands={meta.ageing} total={meta.overdueValue || 0} />
+
+      {/*
+        Orders the floor has stopped on. Accounts is on this list more often than anybody
+        expects — an e-way bill not raised holds a loaded lorry at the gate, and until now the
+        only way the yard could say so was to ring somebody.
+      */}
+      {canRead('orders') && <EscalationFeed />}
 
       {GROUPS.map((group) => (
         <Group

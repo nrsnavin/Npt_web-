@@ -4,6 +4,7 @@ import { quality as qualityApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import useQualityOptions from '../hooks/useQualityOptions.js';
 import { ErrorState, PageHeader, Spinner } from '../components/ui.jsx';
+import EscalationFeed from '../components/EscalationFeed.jsx';
 import { formatCurrency, formatDate, formatNumber } from '../utils/format.js';
 import { inspectionStageLabel } from '../utils/pipeline.js';
 
@@ -144,7 +145,7 @@ function Group({ title, hint, children, count }) {
 }
 
 export default function QualityHome() {
-  const { user } = useAuth();
+  const { user, canRead } = useAuth();
   const { defectLabel } = useQualityOptions();
   const [held, setHeld] = useState(null);
   const [report, setReport] = useState(null);
@@ -220,6 +221,10 @@ export default function QualityHome() {
           tone="calm"
         />
       </div>
+
+      {/* What has stopped anywhere, including the quality holds somebody escalated. The bench
+          is often the department being waited on, and there was no screen that told them so. */}
+      {canRead('orders') && <EscalationFeed />}
 
       <Group
         title="Held right now"
