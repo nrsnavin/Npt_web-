@@ -48,6 +48,7 @@ const rupees = (value) => (value === undefined || value === null ? '—' : forma
 function Paperwork({ dispatch, outstanding, onSaved, mayWrite }) {
   const [values, setValues] = useState({
     invoiceNumber: dispatch.invoice?.number || '',
+    invoiceDate: dispatch.invoice?.date?.slice(0, 10) || '',
     invoiceValue: dispatch.invoice?.value ?? '',
     lrNumber: dispatch.lrNumber || '',
     ewayBillNumber: dispatch.ewayBillNumber || '',
@@ -57,6 +58,8 @@ function Paperwork({ dispatch, outstanding, onSaved, mayWrite }) {
       ? dispatch.expectedDeliveryDate.slice(0, 10)
       : '',
   });
+  const [version, setVersion] = useState(dispatch.updatedAt);
+  const issued = GONE_DISPATCH_STAGES.includes(dispatch.status);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
@@ -67,23 +70,26 @@ function Paperwork({ dispatch, outstanding, onSaved, mayWrite }) {
     setBusy(true);
     setError(null);
     try {
-      onSaved(
-        await dispatchApi.update({
+      const saved = await dispatchApi.update({
           id: dispatch._id,
-          invoice: {
+          expectedUpdatedAt: version,
+          ...(!issued && { invoice: {
+            date: text(values.invoiceDate),
             number: text(values.invoiceNumber),
             /* Only when it is shown at all — a redacted reader must not write a blank over it. */
             ...(dispatch.valueHidden
               ? {}
               : { value: values.invoiceValue === '' ? undefined : Number(values.invoiceValue) }),
           },
+          }),
           lrNumber: text(values.lrNumber),
           ewayBillNumber: text(values.ewayBillNumber),
           transporter: text(values.transporter),
           vehicleNumber: text(values.vehicleNumber),
           expectedDeliveryDate: text(values.expectedDeliveryDate),
-        })
-      );
+        });
+      setVersion((saved.data ?? saved).updatedAt);
+      onSaved(saved);
     } catch (saveError) {
       setError(saveError);
     } finally {
@@ -132,14 +138,16 @@ function Paperwork({ dispatch, outstanding, onSaved, mayWrite }) {
         </Notice>
       )}
 
+      {issued && <Notice tone="info">The issued invoice is fixed. Contact accounts if a correction is needed.</Notice>}
       <form onSubmit={save} className="mt-3 space-y-4">
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Invoice number">
-            <input className="input" value={values.invoiceNumber} onChange={set('invoiceNumber')} />
+            <input className="input" disabled={issued} value={values.invoiceNumber} onChange={set('invoiceNumber')} />
           </Field>
+          <Field label="Invoice date"><input type="date" className="input" disabled={issued} value={values.invoiceDate} onChange={set('invoiceDate')} /></Field>
           {!dispatch.valueHidden && (
             <Field label="Invoice value">
-              <input type="number" min="0" className="input" value={values.invoiceValue} onChange={set('invoiceValue')} />
+              <input type="number" min="0.01" step="0.01" disabled={issued} className="input" value={values.invoiceValue} onChange={set('invoiceValue')} />
             </Field>
           )}
           <Field
@@ -308,6 +316,7 @@ export default function DispatchDetail() {
         actions={<Badge status={dispatch.status}>{dispatchStageLabel(dispatch.status)}</Badge>}
       />
 
+      {(dispatch.accountingPending || dispatch.orderSyncPending) && <div className="mb-5"><Notice tone="warn">This consignment is saved. Accounting or order totals are still being completed. Refresh to check progress.</Notice><button type="button" className="btn-secondary mt-2" onClick={reload}>Refresh status</button></div>}
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
         <div className="space-y-5">
           <Section

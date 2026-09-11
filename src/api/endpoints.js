@@ -35,7 +35,8 @@ export const users = {
   setAccess: ({ id, moduleAccess }) =>
     api.put(`/users/${id}/access`, { moduleAccess }).then(unwrap),
   resetAccess: (id) => api.post(`/users/${id}/access/reset`).then(unwrap),
-  remove: (id) => api.delete(`/users/${id}`).then(unwrap),
+  workload: (id) => api.get(`/users/${id}/workload`).then(unwrap),
+  remove: (id, transferTo) => api.delete(`/users/${id}`, { data: { transferTo } }).then(unwrap),
 };
 
 /**

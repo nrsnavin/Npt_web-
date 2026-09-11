@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useToast } from '../context/ToastContext.jsx';
 
 /**
  * The list on screen, as a spreadsheet [§34].
@@ -13,6 +14,7 @@ import { useState } from 'react';
  * worse than no download, because the file looks right.
  */
 export default function ExportButton({ download, params, label = 'Export' }) {
+  const { toast, warn } = useToast();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
@@ -21,8 +23,10 @@ export default function ExportButton({ download, params, label = 'Export' }) {
     setError(null);
     try {
       await download(params);
+      toast('Export prepared', 'Check your downloads for the file.');
     } catch (downloadError) {
       setError(downloadError.message);
+      warn('Export failed', downloadError.message);
     } finally {
       setBusy(false);
     }

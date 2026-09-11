@@ -54,7 +54,7 @@ export default function OrderPriority({ order, mayRaise, onSaved }) {
     setSaving(true);
     setError(null);
     try {
-      onSaved(await ordersApi.setPriority({ id: order._id, priority, reason }));
+      onSaved(await ordersApi.setPriority({ id: order._id, expectedUpdatedAt: order.updatedAt, priority, reason }));
       setEditing(false);
       setReason('');
     } catch (saveError) {

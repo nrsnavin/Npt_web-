@@ -51,7 +51,7 @@ function ActionForm({ enquiry, action, onClose, onSaved }) {
     setError(null);
     try {
       const saved = await enquiriesApi.act({
-        id: enquiry._id,
+        id: enquiry._id, expectedUpdatedAt: enquiry.updatedAt,
         action: action.action,
         note: note || undefined,
         nextAction: closes ? undefined : nextAction || undefined,

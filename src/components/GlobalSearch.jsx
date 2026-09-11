@@ -51,7 +51,7 @@ function SearchTrigger({ onOpen }) {
       onClick={onOpen}
       aria-label="Search everything"
       title="Search everything"
-      className="flex shrink-0 items-center gap-2 rounded-lg border border-line/[0.08] bg-ink-800/60 px-2.5 py-1.5 text-left transition-colors hover:border-line/15 sm:min-w-0 sm:flex-1 sm:shrink sm:max-w-xs"
+      className="flex min-h-11 min-w-11 shrink-0 items-center gap-2 rounded-lg border border-line/[0.08] bg-ink-800/60 px-2.5 py-1.5 text-left transition-colors hover:border-line/15 sm:min-w-0 sm:flex-1 sm:shrink sm:max-w-xs"
     >
       {icon}
       <span className="hidden truncate text-xs text-steel-500 sm:block">Search…</span>

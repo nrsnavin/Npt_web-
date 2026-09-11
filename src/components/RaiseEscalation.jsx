@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { escalations as escalationsApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
-import { useToast } from '../context/ToastContext.jsx';
 import { Field, Modal, Notice } from './ui.jsx';
 import { humanise } from '../utils/format.js';
 
@@ -27,7 +26,6 @@ import { humanise } from '../utils/format.js';
  */
 export default function RaiseEscalation({ order, line, dispatch, onClose, onRaised }) {
   const { user } = useAuth();
-  const { toast } = useToast();
 
   const [options, setOptions] = useState(null);
   const [kind, setKind] = useState('');
@@ -70,10 +68,6 @@ export default function RaiseEscalation({ order, line, dispatch, onClose, onRais
       });
       /* Names who was told, because that is the part nobody expects: the order's owner hears
          about it without anybody having to forward anything. */
-      toast(
-        `${order.number} escalated`,
-        `On every department's day screen${order.owner ? ` · ${order.owner} has been told` : ''}`
-      );
       onRaised();
     } catch (raiseError) {
       setError(raiseError);

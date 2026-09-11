@@ -60,7 +60,7 @@ function StageForm({ sample, onClose, onSaved }) {
     try {
       onSaved(
         await samplesApi.setStatus({
-          id: sample._id,
+          id: sample._id, expectedUpdatedAt: sample.updatedAt,
           status,
           note: text(note),
           courier: dispatching ? courier : undefined,

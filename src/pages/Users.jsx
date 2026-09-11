@@ -365,7 +365,7 @@ export default function Users() {
                   return (
                     <tr key={row.id} className="row-hover">
                       <td className="px-4 py-3.5">
-                        <p className="font-semibold text-steel-100">{row.name}</p>
+                        <p className="font-semibold text-steel-100">{row.name} {!row.isActive && <Badge tone="neutral">Inactive</Badge>}</p>
                         <p className="text-xs text-steel-400">{row.email}</p>
                       </td>
                       <td className="px-4 py-3.5 text-steel-200">
@@ -405,7 +405,7 @@ export default function Users() {
                               className="row-action-danger"
                               onClick={() => setDeleting(row)}
                             >
-                              Delete
+                              Offboard
                             </button>
                           </div>
                         )}
@@ -452,27 +452,41 @@ export default function Users() {
         )}
       </Modal>
 
-      <ConfirmDialog
-        open={Boolean(deleting)}
-        title="Delete user"
-        message={`This permanently removes ${deleting?.name}'s account. This cannot be undone.`}
-        confirmLabel="Delete"
-        busy={busy}
-        onClose={() => setDeleting(null)}
-        onConfirm={async () => {
-          setBusy(true);
-          try {
-            await usersApi.remove(deleting.id);
-            setRows((current) => current.filter((row) => row.id !== deleting.id));
-            setDeleting(null);
-          } catch (deleteError) {
-            setError(deleteError);
-            setDeleting(null);
-          } finally {
-            setBusy(false);
-          }
-        }}
-      />
+      {deleting && <OffboardUser user={deleting} onClose={() => setDeleting(null)} onSaved={(updated) => { replaceRow(updated); setDeleting(null); }} />}
+
     </div>
   );
+}
+
+function OffboardUser({ user, onClose, onSaved }) {
+  const [workload, setWorkload] = useState(null);
+  const [colleagues, setColleagues] = useState([]);
+  const [transferTo, setTransferTo] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const load = async () => {
+    setError(null);
+    try {
+      const [held, list] = await Promise.all([usersApi.workload(user.id), usersApi.list({ isActive: true, limit: 100 })]);
+      setWorkload(held); setColleagues(list.data.filter((row) => row.id !== user.id && row.isActive));
+    } catch (err) { setError(err); }
+  };
+  useEffect(() => { load(); }, [user.id]);
+  const submit = async (event) => {
+    event.preventDefault(); setBusy(true); setError(null);
+    try { onSaved(await usersApi.remove(user.id, transferTo || undefined)); }
+    catch (err) { setError(err); }
+    finally { setBusy(false); }
+  };
+  return <Modal open title={`Offboard ${user.name}`} onClose={busy ? undefined : onClose} size="sm">
+    <form onSubmit={submit} className="space-y-4">
+      <p className="text-sm text-steel-300">Deactivate sign-in and hand over their work. Existing records and history are retained.</p>
+      {!workload && !error && <Spinner label="Checking assigned work" />}
+      {workload && <><p className="text-sm">{workload.open} records need a new owner.</p>
+        {workload.open > 0 && <Field label="Transfer work to"><select className="input" required value={transferTo} onChange={(event) => setTransferTo(event.target.value)}><option value="">Choose an active colleague</option>{colleagues.map((row) => <option key={row.id} value={row.id}>{row.name} · {row.email}</option>)}</select></Field>}</>}
+      {error && <Notice>{error.message}</Notice>}
+      {!workload && error && <button type="button" className="btn-secondary" onClick={load}>Try again</button>}
+      <div className="flex justify-end gap-2"><button type="button" className="btn-secondary" onClick={onClose} disabled={busy}>Cancel</button><button className="btn-danger" disabled={busy || !workload || (workload.open > 0 && !transferTo)}>{busy ? 'Transferring…' : 'Offboard user'}</button></div>
+    </form>
+  </Modal>;
 }

@@ -1,36 +1,8 @@
-import { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { subscribeFeedback } from '../api/feedback.js';
 
-/**
- * Telling somebody their action worked.
- *
- * Every successful write in this application was silent. A dialog closed, a list refreshed, and
- * the person was left to infer from the absence of an error that the thing had happened — which
- * works on a fast connection with a screen you are already looking at, and fails everywhere
- * else. On a plant floor, on a phone, on a tab somebody switched away from mid-save, "nothing
- * visibly changed" and "it did not save" look identical.
- *
- * Failures were never silent; they have always had a red notice inside the form. So the gap was
- * exactly one-sided, and the asymmetry is what made it hard to notice while building: the
- * developer testing a save watches the row update. The supervisor who tapped a badge on a phone
- * in a noisy bay does not, and taps it again.
- *
- * Four rules, and they are the whole design:
- *
- * **It says what happened, not that something happened.** "Recorded — NPT-400S is running" beats
- * "Saved". The first confirms the reader's intent back to them, which is the only way a
- * confirmation can catch a mistake; the second is a noise that means "no error".
- *
- * **It never blocks.** No modal, no button to dismiss before continuing. Somebody moving twenty
- * consignments should see twenty confirmations go past and never once be interrupted.
- *
- * **It is announced, not only drawn.** `role="status"` with a polite live region, because a
- * confirmation only a sighted user gets is a confirmation half the point of.
- *
- * **It leaves on its own.** Four seconds is long enough to read one line and short enough not to
- * stack up during a busy morning. Errors stay longer, because they are read more carefully and
- * more often re-read.
- */
+/** Shared feedback for API writes and explicit local actions. */
 
 const ToastContext = createContext(null);
 
@@ -40,6 +12,7 @@ let nextId = 0;
 
 export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([]);
+  const [pending, setPending] = useState(0);
   /* Kept in a ref so a dismiss that fires after unmount cannot set state on a dead tree. */
   const timers = useRef(new Map());
 
@@ -56,12 +29,23 @@ export function ToastProvider({ children }) {
       const id = ++nextId;
       /* Three at a time. A stack taller than that stops being read and starts being scenery,
          and the oldest is always the least relevant. */
-      setToasts((current) => [...current.slice(-2), { id, message, detail, tone }]);
+      setToasts((current) => {
+        current.slice(0, -2).forEach((item) => { clearTimeout(timers.current.get(item.id)); timers.current.delete(item.id); });
+        return [...current.slice(-2), { id, message, detail, tone }];
+      });
       timers.current.set(id, setTimeout(() => dismiss(id), LIFE[tone] ?? LIFE.success));
       return id;
     },
     [dismiss]
   );
+
+  useEffect(() => {
+    const unsubscribe = subscribeFeedback((event) => {
+      setPending(event.pending);
+      if (event.message) push(event.message, event);
+    });
+    return () => { unsubscribe(); timers.current.forEach(clearTimeout); timers.current.clear(); };
+  }, [push]);
 
   const value = useMemo(
     () => ({
@@ -83,6 +67,7 @@ export function ToastProvider({ children }) {
   return (
     <ToastContext.Provider value={value}>
       {children}
+      {pending > 0 && <div role="status" className="fixed left-1/2 top-2 z-[70] -translate-x-1/2 rounded-lg border border-line/20 bg-ink-800 px-4 py-2 text-sm font-semibold shadow-modal">Working{pending > 1 ? ` on ${pending} actions` : ''}…</div>}
       <ToastStack toasts={toasts} onDismiss={dismiss} />
     </ToastContext.Provider>
   );
@@ -113,7 +98,7 @@ function ToastStack({ toasts, onDismiss }) {
          The right padding clears the workspace rail (`w-[4.25rem]`, always on screen). A
          confirmation sitting on top of the to-do icons hides a count somebody is watching, and
          covers the button they were about to press next. */
-      className="pointer-events-none fixed inset-x-0 bottom-0 z-[60] flex flex-col items-center gap-2 p-4 pr-[5.25rem] sm:items-end sm:p-6 sm:pr-[5.75rem]"
+      className="pointer-events-none fixed inset-x-0 bottom-20 sm:bottom-0 z-[60] flex flex-col items-center gap-2 p-4 pr-4 sm:items-end sm:p-6 sm:pr-[5.75rem]"
       role="status"
       aria-live="polite"
       aria-atomic="false"
@@ -138,7 +123,7 @@ function ToastStack({ toasts, onDismiss }) {
           <button
             type="button"
             onClick={() => onDismiss(toast.id)}
-            className="-mr-1 -mt-1 flex-none rounded-md px-1.5 py-0.5 text-steel-500 transition-colors hover:text-steel-200"
+            className="-mr-1 -mt-1 flex-none rounded-md min-h-9 min-w-9 text-steel-500 transition-colors hover:text-steel-200"
             aria-label="Dismiss"
           >
             ×

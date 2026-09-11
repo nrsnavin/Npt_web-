@@ -5,26 +5,32 @@ import { useCallback, useEffect, useRef, useState } from 'react';
  * that changes the record server-side can pull the authoritative version back.
  */
 export function useRecord(fetcher, id) {
-  const [data, setData] = useState(null);
+  const [record, setRecord] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      setData(await fetcher(id));
-    } catch (loadError) {
-      setError(loadError);
-    } finally {
-      setLoading(false);
-    }
+  const requestId = useRef(0), mounted = useRef(false);
+  const active = useRef({ fetcher, id });
+  active.current = { fetcher, id };
+  const setData = useCallback(value => {
+    if (!mounted.current || active.current.id !== id || active.current.fetcher !== fetcher) return;
+    ++requestId.current;
+    setRecord(previous => ({ id, fetcher, data: typeof value === 'function' ? value(previous?.data) : value }));
+    setLoading(false); setError(null);
   }, [fetcher, id]);
-
+  const load = useCallback(async () => {
+    const current = ++requestId.current;
+    setLoading(true); setError(null);
+    try {
+      const data = await fetcher(id);
+      if (current === requestId.current && active.current.id === id && active.current.fetcher === fetcher) setRecord({ id, fetcher, data });
+    } catch (failure) { if (current === requestId.current) setError(failure); }
+    finally { if (current === requestId.current) setLoading(false); }
+  }, [fetcher, id]);
   useEffect(() => {
-    load();
+    mounted.current = true; load();
+    return () => { mounted.current = false; ++requestId.current; };
   }, [load]);
-
+  const data = record?.id === id && record?.fetcher === fetcher ? record.data : null;
   return { data, setData, loading, error, reload: load };
 }
 

@@ -62,7 +62,7 @@ export default function SampleBoard({ filters, canMove, perColumn = 20 }) {
       valueOf: (row) => row.quantity || 0,
       apply: () =>
         samplesApi.setStatus({
-          id: card._id,
+          id: card._id, expectedUpdatedAt: card.updatedAt,
           status: to,
           ...extra,
           ...(extra.dispatchedQuantity !== undefined

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { Children, cloneElement, isValidElement, useEffect, useId, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { statusClass, toneClass } from '../utils/statusStyles.js';
 import { humanise } from '../utils/format.js';
@@ -26,7 +26,7 @@ export function Badge({ status, tone, children }) {
 
 export function Spinner({ label = 'Loading' }) {
   return (
-    <div className="flex items-center justify-center gap-3 py-16 text-sm text-steel-400">
+    <div role="status" className="flex items-center justify-center gap-3 py-16 text-sm text-steel-400">
       <span className="h-4 w-4 animate-spin rounded-full border-2 border-line/10 border-t-flame-500" />
       {label}…
     </div>
@@ -113,36 +113,53 @@ export function PageHeader({ title, subtitle, actions }) {
  * readers announce the two together without needing matching id attributes.
  */
 export function Field({ label, error, hint, children, className = '' }) {
+  const descriptionId = useId();
+  const controls = Children.map(children, (child) => isValidElement(child) && ['input', 'select', 'textarea'].includes(child.type)
+    ? cloneElement(child, { 'aria-invalid': error ? true : undefined, 'aria-describedby': [child.props['aria-describedby'], (error || hint) && descriptionId].filter(Boolean).join(' ') || undefined }) : child);
   return (
     <label className={`block ${className}`}>
       <span className="label">{label}</span>
-      {children}
-      {hint && !error && <p className="mt-1.5 text-xs text-steel-500">{hint}</p>}
+      {controls}
+      {hint && !error && <p id={descriptionId} className="mt-1.5 text-xs text-steel-500">{hint}</p>}
       {error && (
-        <p className="mt-1.5 text-xs font-medium text-danger-400">{error.message || String(error)}</p>
+        <p id={descriptionId} role="alert" className="mt-1.5 text-xs font-medium text-danger-400">{error.message || String(error)}</p>
       )}
     </label>
   );
 }
 
 export function Modal({ open, title, description, onClose, children, size = 'md' }) {
-  // Escape closes, and the page behind must not scroll while a dialog is up.
+  const titleId = useId();
+  const descriptionId = useId();
+  const dialogRef = useRef(null);
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
   useEffect(() => {
     if (!open) return undefined;
-
-    const onKeyDown = (event) => {
-      if (event.key === 'Escape') onClose?.();
-    };
-
-    document.addEventListener('keydown', onKeyDown);
+    const dialog = dialogRef.current;
+    const previousFocus = document.activeElement;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-
+    const focusable = () => [...dialog.querySelectorAll('button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex="0"]')].filter((node) => node.getClientRects().length);
+    (dialog.querySelector('[autofocus]') || focusable()[0] || dialog).focus();
+    const onKeyDown = (event) => {
+      const dialogs = document.querySelectorAll('[role="dialog"]');
+      if (dialogs[dialogs.length - 1] !== dialog) return;
+      if (event.key === 'Escape') { event.stopPropagation(); closeRef.current?.(); }
+      if (event.key === 'Tab') {
+        const items = focusable(); const first = items[0]; const last = items.at(-1);
+        if (!first) { event.preventDefault(); dialog.focus(); }
+        else if (event.shiftKey && (document.activeElement === first || !dialog.contains(document.activeElement))) { event.preventDefault(); last.focus(); }
+        else if (!event.shiftKey && (document.activeElement === last || !dialog.contains(document.activeElement))) { event.preventDefault(); first.focus(); }
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
     return () => {
       document.removeEventListener('keydown', onKeyDown);
       document.body.style.overflow = previousOverflow;
+      if (previousFocus?.isConnected) previousFocus.focus();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 
@@ -157,6 +174,8 @@ export function Modal({ open, title, description, onClose, children, size = 'md'
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <button
         type="button"
+        tabIndex={-1}
+        disabled={!onClose}
         aria-label="Close dialog"
         onClick={onClose}
         className="fixed inset-0 animate-fade-in cursor-default bg-scrim/80 backdrop-blur-sm"
@@ -164,19 +183,24 @@ export function Modal({ open, title, description, onClose, children, size = 'md'
 
       <div className="relative flex min-h-full items-start justify-center p-4 sm:p-8">
         <div
+          ref={dialogRef}
+          tabIndex={-1}
           role="dialog"
+          aria-labelledby={titleId}
+          aria-describedby={description ? descriptionId : undefined}
           aria-modal="true"
           className={`card animate-scale-in my-auto w-full ${width} !bg-ink-850 shadow-modal`}
         >
           <div className="flex items-start justify-between gap-4 border-b border-line/[0.06] px-6 py-4">
             <div>
-              <h2 className="text-lg font-bold tracking-tight text-steel-50">{title}</h2>
-              {description && <p className="mt-0.5 text-sm text-steel-400">{description}</p>}
+              <h2 id={titleId} className="text-lg font-bold tracking-tight text-steel-50">{title}</h2>
+              {description && <p id={descriptionId} className="mt-0.5 text-sm text-steel-400">{description}</p>}
             </div>
             <button
               type="button"
               onClick={onClose}
-              className="-mr-1 rounded-lg p-1.5 text-steel-400 transition-colors hover:bg-line/[0.06] hover:text-steel-100"
+              className="-mr-1 rounded-lg min-h-11 min-w-11 p-1.5 text-steel-400 transition-colors hover:bg-line/[0.06] hover:text-steel-100"
+              disabled={!onClose}
               aria-label="Close"
             >
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -196,10 +220,10 @@ export function Modal({ open, title, description, onClose, children, size = 'md'
 /** Confirm dialog used before destructive or irreversible actions. */
 export function ConfirmDialog({ open, title, message, confirmLabel = 'Confirm', onConfirm, onClose, busy }) {
   return (
-    <Modal open={open} title={title} onClose={onClose} size="sm">
+    <Modal open={open} title={title} onClose={busy ? undefined : onClose} size="sm">
       <p className="text-sm leading-relaxed text-steel-300">{message}</p>
       <div className="mt-6 flex justify-end gap-2">
-        <button type="button" className="btn-secondary" onClick={onClose}>
+        <button type="button" className="btn-secondary" onClick={onClose} disabled={busy}>
           Cancel
         </button>
         <button type="button" className="btn-danger" onClick={onConfirm} disabled={busy}>
@@ -222,7 +246,7 @@ export function Section({ title, actions, children, className = '' }) {
      */
     <section className={`card min-w-0 p-5 ${className}`}>
       {(title || actions) && (
-        <div className="mb-4 flex items-center justify-between gap-3">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           {title && <p className="eyebrow">{title}</p>}
           {actions}
         </div>
@@ -244,7 +268,7 @@ export function Facts({ items, columns = 2 }) {
     <dl className={`grid gap-x-6 gap-y-4 ${columns === 1 ? '' : 'sm:grid-cols-2'}`}>
       {visible.map((item) => (
         <div key={item.label} className={item.wide ? 'sm:col-span-2' : ''}>
-          <dt className="text-xs font-bold uppercase tracking-[0.08em] text-steel-500">
+          <dt className="text-xs font-semibold text-steel-400">
             {item.label}
           </dt>
           <dd className="mt-1 text-sm text-steel-100">{item.value}</dd>
@@ -339,6 +363,6 @@ export function Notice({ tone = 'danger', children }) {
   };
 
   return (
-    <div className={`rounded-lg px-3 py-2.5 text-sm ring-1 ring-inset ${tones[tone]}`}>{children}</div>
+    <div role={tone === 'danger' ? 'alert' : 'status'} className={`rounded-lg px-3 py-2.5 text-sm ring-1 ring-inset ${tones[tone]}`}>{children}</div>
   );
 }

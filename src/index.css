@@ -12,7 +12,7 @@
   body {
     @apply bg-ink-900 font-sans text-steel-100 antialiased;
     /* A single low, wide flame wash keeps the canvas from reading as flat. */
-    background-image: radial-gradient(120rem 44rem at 50% -18rem, var(--canvas-wash), transparent 62%);
+    background-image: none;
     background-attachment: fixed;
     /* Only the palette animates on a theme switch, not layout. */
     transition: background-color 200ms ease, color 200ms ease;
@@ -101,17 +101,19 @@
 
   .btn {
     @apply inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-lg px-4 py-2
-      text-sm font-semibold tracking-tight transition-all duration-150
+      text-sm font-semibold tracking-tight transition-all duration-150 min-h-11
       disabled:pointer-events-none disabled:opacity-40;
   }
 
   /* The accent belongs to one action per view — the one the user came to do. */
   .btn-primary {
-    @apply btn bg-flame-500 text-white hover:shadow-glow active:bg-flame-600 active:translate-y-px;
+    @apply btn active:translate-y-px;
+    background-color: var(--primary-bg);
+    color: var(--primary-text);
   }
 
   .btn-primary:hover {
-    background-color: rgb(var(--flame-hover));
+    background-color: var(--primary-hover);
   }
 
   .btn-secondary {
@@ -124,7 +126,12 @@
   }
 
   .btn-danger {
-    @apply btn bg-danger-500 text-white hover:bg-danger-400 active:bg-danger-600 active:translate-y-px;
+    @apply btn text-white active:translate-y-px;
+    background-color: #b91c36;
+  }
+
+  .btn-danger:hover {
+    background-color: #9f1230;
   }
 
   /* Inline text action, used inside table rows where a button would add too much weight. */
@@ -139,17 +146,17 @@
   /* Actions inside table rows. Neutral at rest so a row of them does not compete
      with the page's primary button; the hue only appears on hover. */
   .row-action {
-    @apply rounded text-sm font-semibold text-steel-300 transition-colors hover:text-accent;
+    @apply inline-flex min-h-9 items-center rounded px-1 text-sm font-semibold text-steel-300 transition-colors hover:text-accent;
   }
 
   .row-action-danger {
-    @apply rounded text-sm font-semibold text-steel-300 transition-colors hover:text-danger-400;
+    @apply inline-flex min-h-9 items-center rounded px-1 text-sm font-semibold text-steel-300 transition-colors hover:text-danger-400;
   }
 
   /* ---------- Forms ---------- */
 
   .input {
-    @apply w-full rounded-lg border px-3 py-2 text-sm text-steel-50
+    @apply w-full rounded-lg border px-3 py-2 text-base min-h-11 text-steel-50
       transition-colors placeholder:text-steel-500
       focus:border-flame-500/60 focus:outline-none focus:ring-2 focus:ring-flame-500/25 focus:ring-offset-0
       disabled:cursor-not-allowed disabled:opacity-50;
@@ -205,8 +212,8 @@
   /* Column headings at 12px rather than 11, and a step darker: they are the labels somebody
      reads to work out what a column *is*, which is the one thing they cannot infer. */
   .table-head {
-    @apply border-b border-line/[0.06] bg-ink-800/70 text-left text-[0.75rem] font-bold
-      uppercase tracking-[0.07em] text-steel-300;
+    @apply border-b border-line/[0.06] bg-ink-800/70 text-left text-xs font-semibold
+      normal-case tracking-normal text-steel-300;
   }
 
   .row-hover {
@@ -221,7 +228,7 @@
   /* Same argument as the table heading: an eyebrow names the number under it, and at 11px
      in the faintest grey it was the least readable text on a screen full of numbers. */
   .eyebrow {
-    @apply text-[0.75rem] font-bold uppercase tracking-[0.07em] text-steel-300;
+    @apply text-xs font-semibold tracking-normal text-steel-300;
   }
 
   /* Loading placeholder that keeps layout stable while data arrives. */
@@ -235,4 +242,10 @@
     background-image: linear-gradient(90deg, transparent, rgb(var(--line) / 0.08), transparent);
     animation: shimmer 1.6s infinite;
   }
+}
+
+@layer components {
+  .skip-link { @apply fixed left-4 top-2 z-[80] -translate-y-20 rounded-lg bg-ink-800 px-4 py-3 font-semibold focus:translate-y-0; }
+  .input[aria-invalid="true"] { border-color: rgb(var(--danger-400)); }
+  .table-head th { white-space: nowrap; }
 }

@@ -272,7 +272,7 @@ export default function CustomerDetail() {
               </div>
             </dl>
             <p className="mt-4 text-xs leading-relaxed text-steel-500">
-              Business figures roll up from orders and payments, which arrive in a later phase.
+              Business value comes from non-cancelled orders. Outstanding reflects invoices and advances after recorded payments.
             </p>
           </Section>
 

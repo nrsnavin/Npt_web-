@@ -54,7 +54,7 @@ export default function EnquiryBoard({ filters, canMove, perColumn = 20 }) {
       valueOf: (row) => row.estimatedValue || 0,
       apply: () =>
         enquiriesApi.setStatus({
-          id: card._id,
+          id: card._id, expectedUpdatedAt: card.updatedAt,
           status: to,
           ...extra,
           /* The dialog hands back strings; the server's schema wants a number and rejects one

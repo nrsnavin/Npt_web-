@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { escalations as escalationsApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
-import { useToast } from '../context/ToastContext.jsx';
 import { Notice } from './ui.jsx';
 import { formatDate, humanise, plural } from '../utils/format.js';
 
@@ -24,7 +23,6 @@ import { formatDate, humanise, plural } from '../utils/format.js';
 
 /** Saying what you did. One sentence, in place, because a page load is not worth it. */
 function Update({ escalation, onSaved }) {
-  const { toast } = useToast();
   const [body, setBody] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -36,7 +34,6 @@ function Update({ escalation, onSaved }) {
     try {
       await escalationsApi.update({ id: escalation._id, body: body.trim() });
       setBody('');
-      toast('Added to the escalation', `${escalation.raisedBy?.name || 'Whoever raised it'} has been told`);
       onSaved();
     } catch (sendError) {
       setError(sendError);
@@ -63,7 +60,6 @@ function Update({ escalation, onSaved }) {
 
 /** Closing it, which asks what was actually done rather than offering a tick. */
 function Resolve({ escalation, onClose, onSaved }) {
-  const { toast } = useToast();
   const [resolution, setResolution] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -74,7 +70,6 @@ function Resolve({ escalation, onClose, onSaved }) {
     setError(null);
     try {
       await escalationsApi.resolve({ id: escalation._id, resolution: resolution.trim() });
-      toast(`${escalation.number} resolved`, 'Everybody watching it will see it clear');
       onSaved();
     } catch (resolveError) {
       setError(resolveError);

@@ -41,7 +41,7 @@ export default function CostingDetailsForm({ pricing, onClose, onSaved }) {
     try {
       onSaved(
         await pricingsApi.update({
-          id: pricing._id,
+          id: pricing._id, expectedUpdatedAt: pricing.updatedAt,
           mould: values.mould || undefined,
           modelNumber: values.modelNumber || undefined,
           targetPrice: number(values.targetPrice),

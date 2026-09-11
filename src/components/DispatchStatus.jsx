@@ -1,7 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { dispatches as dispatchApi } from '../api/endpoints.js';
-import { useToast } from '../context/ToastContext.jsx';
 import { Badge, Field, Modal, Notice, Section } from './ui.jsx';
 import { CLOSED_DISPATCH_STAGES, dispatchStageLabel } from '../utils/pipeline.js';
 
@@ -47,7 +46,6 @@ const NEED_LABELS = {
  * else — while needing identical behaviour behind them.
  */
 export function useDispatchActions(dispatch, onDone) {
-  const { toast } = useToast();
   const [actions, setActions] = useState(null);
   const [chosen, setChosen] = useState(null);
   const [values, setValues] = useState({});
@@ -63,7 +61,7 @@ export function useDispatchActions(dispatch, onDone) {
     dispatchApi
       .actions(dispatch._id)
       .then((next) => live && setActions(next))
-      .catch(() => live && setActions([]));
+      .catch((failure) => { if (live) { setActions([]); setError(failure); } });
     return () => {
       live = false;
     };
@@ -78,8 +76,7 @@ export function useDispatchActions(dispatch, onDone) {
     setBusy(true);
     setError(null);
     try {
-      onDone(await dispatchApi.act({ id: dispatch._id, action: action.action }));
-      toast(`${dispatch.number} — ${action.label.toLowerCase()}`);
+      onDone(await dispatchApi.act({ id: dispatch._id, expectedUpdatedAt: dispatch.updatedAt, action: action.action }));
     } catch (actError) {
       /* The quality concern, which is answerable — everything else is an error to read. */
       if (actError.status === 409 && actError.details?.needs === 'qualityOverrideReason') {
@@ -98,8 +95,7 @@ export function useDispatchActions(dispatch, onDone) {
     setBusy(true);
     setError(null);
     try {
-      onDone(await dispatchApi.act({ id: dispatch._id, action: chosen.action, ...values }));
-      toast(`${dispatch.number} — ${chosen.label.toLowerCase()}`);
+      onDone(await dispatchApi.act({ id: dispatch._id, expectedUpdatedAt: dispatch.updatedAt, action: chosen.action, ...values }));
       setChosen(null);
     } catch (actError) {
       /* The gate can bite here too — cancelling asks for a reason, dispatching from a form
@@ -123,14 +119,13 @@ export function useDispatchActions(dispatch, onDone) {
     try {
       onDone(
         await dispatchApi.act({
-          id: dispatch._id,
+          id: dispatch._id, expectedUpdatedAt: dispatch.updatedAt,
           action: override.action,
           qualityOverrideReason: overrideReason,
         })
       );
       /* Named as an override rather than as an ordinary dispatch, because it is one and it
          goes into the monthly list under the presser's name. */
-      toast(`${dispatch.number} sent past the quality warning`, 'Your reason is on the record');
       setOverride(null);
     } catch (actError) {
       setError(actError);

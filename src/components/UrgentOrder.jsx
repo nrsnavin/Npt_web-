@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { orderQueries as queriesApi } from '../api/endpoints.js';
-import { useToast } from '../context/ToastContext.jsx';
 import { Notice } from './ui.jsx';
 import RaiseConcern from './RaiseConcern.jsx';
 import { formatDate, formatNumber, humanise } from '../utils/format.js';
@@ -26,7 +25,6 @@ import { formatDate, formatNumber, humanise } from '../utils/format.js';
 
 /** Answering in place, because the answer is one sentence and a page load is not worth it. */
 function Answer({ query, orderId, onAnswered }) {
-  const { toast } = useToast();
   const [body, setBody] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -38,7 +36,6 @@ function Answer({ query, orderId, onAnswered }) {
     try {
       await queriesApi.answer({ orderId, queryId: query._id, body: body.trim() });
       setBody('');
-      toast(`Answered — ${query.by || 'they'} will be told`, 'And so will everyone else on this order');
       onAnswered();
     } catch (sendError) {
       setError(sendError);

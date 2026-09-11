@@ -12,6 +12,9 @@
 :root,
 :root[data-theme='dark'] {
   color-scheme: dark;
+  --primary-bg: #f76800;
+  --primary-hover: #ff8124;
+  --primary-text: #0c141a;
 
   /* Brand accent — identical in both themes at 500. */
   --flame-50: 255 241 230;
@@ -57,8 +60,8 @@
    * should not have to lean in.
    */
   --steel-400: 142 156 164;
-  --steel-500: 124 138 146;
-  --steel-600: 100 112 120;
+  --steel-500: 140 154 164;
+  --steel-600: 140 154 164;
 
   --success-400: 61 220 151;
   --success-500: 34 192 122;
@@ -87,8 +90,8 @@
 
   /* Fields sit darker than their card here, so a faint border is enough. */
   --field-bg: rgb(8 13 17 / 0.6);
-  --field-border: rgb(255 255 255 / 0.1);
-  --field-border-hover: rgb(255 255 255 / 0.2);
+  --field-border: rgb(255 255 255 / 0.35);
+  --field-border-hover: rgb(255 255 255 / 0.5);
 
   /* A segmented control raises its selected segment above the track. */
   --tab-track: rgb(8 13 17 / 0.5);
@@ -97,6 +100,9 @@
 
 :root[data-theme='light'] {
   color-scheme: light;
+  --primary-bg: #a94400;
+  --primary-hover: #8a3a00;
+  --primary-text: #ffffff;
 
   /* The accent holds its brand value; only the shades used as text move, for contrast. */
   --flame-50: 255 241 230;
@@ -132,8 +138,8 @@
   --steel-300: 74 90 100;
   /* The same correction on white — see the note in the dark block above. */
   --steel-400: 90 104 113;
-  --steel-500: 107 121 130;
-  --steel-600: 130 144 153;
+  --steel-500: 87 103 113;
+  --steel-600: 91 106 115;
 
   /* Tints stay at 500; the 400s darken so badge text clears AA on a pale fill. */
   --success-400: 15 122 78;
@@ -161,8 +167,8 @@
 
   /* A white field on a white card is only a border, so the border has to carry it. */
   --field-bg: rgb(255 255 255);
-  --field-border: rgb(15 30 41 / 0.16);
-  --field-border-hover: rgb(15 30 41 / 0.3);
+  --field-border: rgb(15 30 41 / 0.5);
+  --field-border-hover: rgb(15 30 41 / 0.65);
 
   --tab-track: rgb(237 242 246);
   --tab-active: rgb(255 255 255);
@@ -172,6 +178,9 @@
 @media (prefers-color-scheme: light) {
   :root:not([data-theme]) {
     color-scheme: light;
+  --primary-bg: #a94400;
+  --primary-hover: #8a3a00;
+  --primary-text: #ffffff;
 
     --flame-300: 217 90 0;
     --flame-400: 194 81 10;
@@ -195,8 +204,8 @@
     --steel-200: 44 72 85;
     --steel-300: 74 90 100;
     --steel-400: 90 104 113;
-    --steel-500: 107 121 130;
-    --steel-600: 130 144 153;
+    --steel-500: 87 103 113;
+    --steel-600: 91 106 115;
 
     --success-400: 15 122 78;
     --success-600: 12 100 63;
@@ -217,8 +226,8 @@
 
     /* A white field on a white card is only a border, so the border has to carry it. */
     --field-bg: rgb(255 255 255);
-    --field-border: rgb(15 30 41 / 0.16);
-    --field-border-hover: rgb(15 30 41 / 0.3);
+    --field-border: rgb(15 30 41 / 0.5);
+    --field-border-hover: rgb(15 30 41 / 0.65);
 
     --tab-track: rgb(237 242 246);
     --tab-active: rgb(255 255 255);

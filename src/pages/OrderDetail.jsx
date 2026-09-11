@@ -60,7 +60,7 @@ function Checklist({ order, checks, onChanged, mayWrite }) {
     setBusy(check.key);
     setError(null);
     try {
-      onChanged(await ordersApi.setCheck({ id: order._id, check: check.key, done: !check.done }));
+      onChanged(await ordersApi.setCheck({ id: order._id, expectedUpdatedAt: order.updatedAt, check: check.key, done: !check.done }));
     } catch (saveError) {
       setError(saveError);
     } finally {
@@ -175,7 +175,7 @@ function OrderActions({ order, onDone, mayWrite }) {
     setBusy(true);
     setError(null);
     try {
-      onDone(await ordersApi.act({ id: order._id, action: action.action }));
+      onDone(await ordersApi.act({ id: order._id, expectedUpdatedAt: order.updatedAt, action: action.action }));
     } catch (actError) {
       setError(actError);
     } finally {
@@ -188,7 +188,7 @@ function OrderActions({ order, onDone, mayWrite }) {
     setBusy(true);
     setError(null);
     try {
-      onDone(await ordersApi.act({ id: order._id, action: chosen.action, ...values }));
+      onDone(await ordersApi.act({ id: order._id, expectedUpdatedAt: order.updatedAt, action: chosen.action, ...values }));
       setChosen(null);
     } catch (actError) {
       setError(actError);

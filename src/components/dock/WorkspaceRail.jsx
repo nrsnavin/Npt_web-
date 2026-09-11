@@ -130,6 +130,7 @@ export default function WorkspaceRail() {
 
   return (
     <>
+      {!open && <button type="button" className="btn-secondary fixed bottom-4 right-4 z-40 shadow-modal sm:hidden" onClick={() => show(activeKey)}>Workspace{waiting > 0 ? ` (${waiting})` : ''}</button>}
       {/* The scrim, and only where the panel overlays rather than pushes. */}
       {open && (
         <button
@@ -144,7 +145,7 @@ export default function WorkspaceRail() {
         className={`z-40 flex shrink-0 ${
           open
             ? 'fixed inset-y-0 right-0 lg:static lg:inset-auto'
-            : ''
+            : 'hidden sm:flex'
         }`}
       >
         {open && (

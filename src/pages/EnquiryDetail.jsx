@@ -71,7 +71,7 @@ function StageForm({ enquiry, onClose, onSaved }) {
     try {
       onSaved(
         await enquiriesApi.setStatus({
-          id: enquiry._id,
+          id: enquiry._id, expectedUpdatedAt: enquiry.updatedAt,
           status,
           note: note || undefined,
           lostReason: status === 'lost' ? lostReason : undefined,

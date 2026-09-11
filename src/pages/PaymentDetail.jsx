@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { payments as paymentsApi } from '../api/endpoints.js';
-import { useToast } from '../context/ToastContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useRecord } from '../hooks/useRecords.js';
 import {
@@ -61,7 +60,7 @@ const MODES = [
 /* -------------------------------- Money in -------------------------------- */
 
 function ReceiptForm({ receivable, onClose, onSaved }) {
-  const { toast } = useToast();
+  const [idempotencyKey] = useState(() => crypto.randomUUID());
   const [values, setValues] = useState({
     amount: '', mode: 'neft', reference: '', receivedAt: '', note: '',
   });
@@ -72,7 +71,7 @@ function ReceiptForm({ receivable, onClose, onSaved }) {
   const amount = Number(values.amount) || 0;
   /* The server refuses this too; saying it here first stops somebody pressing a button that
      was always going to come back with an error. */
-  const tooMuch = amount > (receivable?.balance || 0);
+  const tooMuch = amount > (receivable?.receiptable ?? receivable?.balance ?? 0);
 
   const submit = async (event) => {
     event.preventDefault();
@@ -82,18 +81,13 @@ function ReceiptForm({ receivable, onClose, onSaved }) {
       onSaved(
         await paymentsApi.receipt({
           id: receivable._id,
+          idempotencyKey,
           amount,
           mode: values.mode,
           reference: values.reference.trim() || undefined,
           receivedAt: values.receivedAt || undefined,
           note: values.note.trim() || undefined,
         })
-      );
-      /* Says what is left, because that is the number the next call is about. */
-      const left = receivable.balance - amount;
-      toast(
-        `${formatCurrency(amount)} recorded`,
-        left > 0 ? `${formatCurrency(left)} still owed on this one` : 'Settled in full'
       );
     } catch (saveError) {
       setError(saveError);
@@ -175,7 +169,6 @@ function ReceiptForm({ receivable, onClose, onSaved }) {
 /* ------------------------------- The judgement ------------------------------- */
 
 function JudgementForm({ receivable, onClose, onSaved }) {
-  const { toast } = useToast();
   const [judgement, setJudgement] = useState(receivable?.judgement || 'disputed');
   const [note, setNote] = useState(receivable?.judgementNote || '');
   const [busy, setBusy] = useState(false);
@@ -187,10 +180,6 @@ function JudgementForm({ receivable, onClose, onSaved }) {
     setError(null);
     try {
       onSaved(await paymentsApi.judgement({ id: receivable._id, judgement, note: note.trim() }));
-      toast(
-        judgement === 'disputed' ? 'Marked disputed' : 'Put on hold',
-        'Nobody is chased or reminded while this stands'
-      );
     } catch (saveError) {
       setError(saveError);
     } finally {
@@ -203,7 +192,6 @@ function JudgementForm({ receivable, onClose, onSaved }) {
     setError(null);
     try {
       onSaved(await paymentsApi.judgement({ id: receivable._id }));
-      toast('Cleared — this is being chased again');
     } catch (saveError) {
       setError(saveError);
     } finally {
@@ -325,6 +313,7 @@ export default function PaymentDetail() {
               {[
                 { label: receivable.kind === 'advance' ? 'Advance due' : 'Invoiced', value: receivable.invoice?.value },
                 { label: 'Received', value: receivable.received },
+                { label: 'Advance applied', value: receivable.advanceApplied || 0 },
                 { label: 'Still owed', value: receivable.balance, lit: receivable.balance > 0 },
               ].map((tile) => (
                 <div key={tile.label}>
@@ -498,11 +487,11 @@ export default function PaymentDetail() {
         onClose={() => setCalling(false)}
         onSaved={(next) => { setCalling(false); absorb(next); }}
       />
-      <ReceiptForm
-        receivable={receipting ? receivable : null}
+      {receipting && <ReceiptForm
+        receivable={receivable}
         onClose={() => setReceipting(false)}
         onSaved={(next) => { setReceipting(false); absorb(next); reload(); }}
-      />
+      />}
       <JudgementForm
         receivable={judging ? receivable : null}
         onClose={() => setJudging(false)}

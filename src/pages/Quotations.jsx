@@ -156,7 +156,7 @@ function QuotationForm({ quotation, onClose, onSaved }) {
 
       onSaved(
         editing
-          ? await quotationsApi.update({ id: quotation._id, ...payload })
+          ? await quotationsApi.update({ id: quotation._id, expectedUpdatedAt: quotation.updatedAt, ...payload })
           : await quotationsApi.create({ customer, ...payload })
       );
       onClose();

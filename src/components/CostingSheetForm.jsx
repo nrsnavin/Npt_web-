@@ -163,7 +163,7 @@ export default function CostingSheetForm({ pricing, onClose, onSaved }) {
     try {
       onSaved(
         await pricingsApi.cost({
-          id: pricing._id,
+          id: pricing._id, expectedUpdatedAt: pricing.updatedAt,
           cost: Object.fromEntries(
             Object.entries(cost).map(([key, value]) => [key, number(value)])
           ),

@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { beginFeedback, finishFeedback } from './feedback.js';
 
 const TOKEN_KEY = 'npt.token';
 
@@ -25,11 +26,12 @@ api.interceptors.request.use((config) => {
    */
   if (config.data instanceof FormData) delete config.headers['Content-Type'];
 
+  beginFeedback(config);
   return config;
 });
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => { finishFeedback(response.config, response); return response; },
   async (error) => {
     // An expired or revoked token should drop the user back to the login screen.
     if (error.response?.status === 401 && getToken()) {
@@ -57,6 +59,7 @@ api.interceptors.response.use(
 
     const message = payload?.message || error.message || 'Something went wrong. Please try again.';
 
+    finishFeedback(error.config, error.response, { message });
     return Promise.reject(
       Object.assign(new Error(message), { details: payload?.details, status: error.response?.status })
     );

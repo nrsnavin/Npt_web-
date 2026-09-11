@@ -67,12 +67,16 @@ export function useBoard(fetcher, params = {}) {
   const [error, setError] = useState(null);
   /** A refused move. Distinct from `error`, which means the board itself would not load. */
   const [moveError, setMoveError] = useState(null);
-  const requestId = useRef(0);
+  const requestId = useRef(0), generation = useRef(0), mounted = useRef(false);
+  const pendingMoves = useRef(new Set()), reloadLatest = useRef(null), activeKey = useRef(null);
 
   const key = JSON.stringify(params);
+  activeKey.current = key;
 
   const load = useCallback(async () => {
+    if (!mounted.current) return;
     const current = ++requestId.current;
+    ++generation.current;
     setLoading(true);
     setError(null);
     try {
@@ -90,8 +94,10 @@ export function useBoard(fetcher, params = {}) {
     }
   }, [fetcher, key]);
 
+  reloadLatest.current = load;
   useEffect(() => {
-    load();
+    mounted.current = true; load();
+    return () => { mounted.current = false; ++requestId.current; ++generation.current; };
   }, [load]);
 
   /**
@@ -102,11 +108,16 @@ export function useBoard(fetcher, params = {}) {
    * no endpoint of its own to move anything, which is the point: a second write path would be a
    * second place for the §3 floor and the §9 gate to be enforced, or forgotten.
    */
-  const move = useCallback(async ({ card, from, to, valueOf, apply }) => {
+  const move = useCallback(async options => {
+    const { card, from, to, apply } = options;
+    const valueOf = Object.hasOwn(options, 'valueOf') ? options.valueOf : null;
+    if (pendingMoves.current.has(card._id) || from === to) return { ok: false };
+    pendingMoves.current.add(card._id);
+    const view = generation.current;
+    ++requestId.current; setLoading(false);
     setMoveError(null);
 
     /* Where it was, precisely — so a refusal can put it back rather than approximately back. */
-    const before = columns;
     const index = columns.find((column) => column.status === from)?.cards
       .findIndex((row) => row._id === card._id) ?? -1;
 
@@ -141,24 +152,35 @@ export function useBoard(fetcher, params = {}) {
 
     try {
       const saved = await apply();
+      if (view !== generation.current) { if (mounted.current) await reloadLatest.current(); return { ok: true }; }
       /* The server's version of the card, which carries whatever else the move wrote. */
       setColumns((current) =>
         current.map((column) =>
           column.status === to
-            ? { ...column, cards: column.cards.map((row) => (row._id === card._id ? { ...row, ...saved } : row)) }
+            ? { ...column, value: column.value + (valueOf ? (valueOf(saved) || 0) - worth : 0), cards: column.cards.map((row) => (row._id === card._id ? { ...row, ...saved } : row)) }
             : column
         )
       );
       return { ok: true };
     } catch (failure) {
-      setColumns(before.map((column) => ({ ...column, cards: [...column.cards] })));
+      if (view !== generation.current) { if (mounted.current) await reloadLatest.current(); return { ok: false, error: failure }; }
+      setColumns(current => current.map(column => {
+        if (column.status === to) return { ...column, total: Math.max(0, column.total - 1), value: column.value - worth, cards: column.cards.filter(row => row._id !== card._id) };
+        if (column.status === from) {
+          const cards = column.cards.filter(row => row._id !== card._id);
+          cards.splice(Math.max(0, Math.min(index, cards.length)), 0, card);
+          return { ...column, total: column.total + 1, value: column.value + worth, cards };
+        }
+        return column;
+      }));
       setMoveError(failure);
       return { ok: false, error: failure, index };
-    }
+    } finally { pendingMoves.current.delete(card._id); }
   }, [columns]);
 
   /** Another page of one column, appended — never replacing what is already read. */
   const appendTo = useCallback((status, cards) => {
+    if (!mounted.current || activeKey.current !== key) return;
     setColumns((current) =>
       current.map((column) => {
         if (column.status !== status) return column;
@@ -167,7 +189,7 @@ export function useBoard(fetcher, params = {}) {
         return { ...column, cards: [...column.cards, ...cards.filter((row) => !known.has(row._id))] };
       })
     );
-  }, []);
+  }, [key]);
 
   return {
     columns, sort, loading, error, reload: load,
