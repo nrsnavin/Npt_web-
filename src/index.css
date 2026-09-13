@@ -84,6 +84,24 @@
   }
 
   /*
+   * Straight past the navigation to the page.
+   *
+   * Off-screen until it takes focus, which is the whole design: it is the first thing a
+   * keyboard or screen-reader user reaches, and it exists so they are not made to tab through
+   * twenty nav links on every single screen to get to the content. Positioned rather than
+   * `sr-only`, because it has to be visible once focused — a skip link nobody can see when
+   * they land on it is one they cannot tell they have.
+   */
+  .skip-link {
+    @apply fixed left-4 top-4 z-[100] -translate-y-[200%] rounded-lg bg-flame-500 px-4 py-2
+      text-sm font-semibold text-white shadow-modal transition-transform;
+  }
+
+  .skip-link:focus {
+    @apply translate-y-0;
+  }
+
+  /*
    * A strip that scrolls sideways without a 10px bar eating its height. Only for strips whose
    * cut edge is faded instead — a scroll region with neither a bar nor a fade is a region
    * nobody discovers.

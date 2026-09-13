@@ -244,13 +244,19 @@ function Section({ section, scope, shut, toggle, pathname }) {
         aria-expanded={open}
         aria-controls={id}
         disabled={holdsCurrent}
-        className="eyebrow mb-1.5 flex w-full items-center justify-between gap-2 rounded-lg px-3 py-1 text-left transition-colors hover:text-steel-200 disabled:cursor-default"
+        className="eyebrow mb-1.5 flex w-full items-start justify-between gap-2 rounded-lg px-3 py-1 text-left leading-snug transition-colors hover:text-steel-200 disabled:cursor-default"
       >
-        <span className="truncate">{section.title}</span>
+        {/*
+          Wrapping rather than truncating. A heading is written once and read every time the
+          sidebar is opened, so "Sales and opera…" costs more than the second line it was
+          saving — and which titles fit depends on the words somebody picks later, which the
+          component cannot know.
+        */}
+        <span className="min-w-0">{section.title}</span>
         {/* Drawn even while it refuses to shut, dimmed, exactly as the module carets are. A
             control that disappears on the one group you are working in makes that group look
             like a different kind of thing, and the reader has to work out which. */}
-        <span className={holdsCurrent ? 'opacity-30' : ''}>
+        <span className={`mt-0.5 ${holdsCurrent ? 'opacity-30' : ''}`}>
           <Caret open={open} />
         </span>
       </button>
