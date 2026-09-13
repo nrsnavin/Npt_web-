@@ -8,7 +8,7 @@ import {
 } from '../components/ui.jsx';
 import StagePipeline from '../components/StagePipeline.jsx';
 import QuotationPdf from '../components/QuotationPdf.jsx';
-import { CustomerSelect } from '../components/pickers.jsx';
+import { CustomerSelect, MouldSelect } from '../components/pickers.jsx';
 import { formatCompactCurrency, formatCurrency, formatDate, formatNumber, humanise } from '../utils/format.js';
 
 /**
@@ -106,8 +106,10 @@ function QuotationForm({ quotation, onClose, onSaved }) {
   const set = (key) => (event) =>
     setValues({ ...values, [key]: event.target.type === 'checkbox' ? event.target.checked : event.target.value });
 
-  const setLine = (index, key) => (event) =>
-    setLines(lines.map((line, at) => (at === index ? { ...line, [key]: event.target.value } : line)));
+  const setLineValue = (index, key) => (value) =>
+    setLines(lines.map((line, at) => (at === index ? { ...line, [key]: value } : line)));
+
+  const setLine = (index, key) => (event) => setLineValue(index, key)(event.target.value);
 
   const addLine = () =>
     setLines([...lines, { mould: '', pricing: '', modelNumber: '', colour: '', moq: '', unitPrice: '' }]);
@@ -150,7 +152,14 @@ function QuotationForm({ quotation, onClose, onSaved }) {
           ...(line.pricing ? { pricing: line.pricing } : {}),
           modelNumber: line.modelNumber || undefined,
           colour: line.colour || undefined,
-          quantity: Number(line.quantity),
+          /*
+           * Only when there is one. A quotation quotes a rate against a minimum and the order
+           * settles the quantity, so this form has never asked for one — and `Number(undefined)`
+           * is `NaN`, which `JSON.stringify` writes as `null`. The server accepts a quantity or
+           * no quantity and refuses a null, so every quotation raised through this form came
+           * back 400 on a field nobody had filled in because nobody is shown it.
+           */
+          ...(line.quantity ? { quantity: Number(line.quantity) } : {}),
           moq: line.moq === '' ? undefined : Number(line.moq),
           unitPrice: Number(line.unitPrice),
         })),
@@ -197,8 +206,34 @@ function QuotationForm({ quotation, onClose, onSaved }) {
         <div className="space-y-3">
           {lines.map((line, index) => (
             <div key={line._id || index} className="card px-3 py-3">
-              <div className="grid gap-3 sm:grid-cols-[1.3fr_0.8fr_0.8fr_0.8fr_auto] sm:items-end">
-                <Field label={index === 0 ? 'Model' : ''}>
+              {/*
+                The model off the register, and what the buyer calls it — the same pair the
+                order form asks for, because they are the same two facts.
+
+                This row used to be one free-text box, and that was the hole the photographs
+                fell through. A line that only carries a typed string names no tool, so the
+                quote had no part to print, no minimum to fall back on and no costing to check
+                the rate against — and nothing on screen said so, because a typed model number
+                looks exactly like a chosen one. Every quotation raised through this form went
+                out with an empty image column.
+
+                Still optional, for a traded piece the plant buys in and has no mould for.
+              */}
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Field
+                  label={index === 0 ? 'Model' : ''}
+                  hint={index === 0 ? 'The mould, or leave empty for a traded piece' : undefined}
+                >
+                  <MouldSelect
+                    value={line.mould}
+                    onChange={setLineValue(index, 'mould')}
+                    aria-label={`Model on line ${index + 1}`}
+                  />
+                </Field>
+                <Field
+                  label={index === 0 ? 'Model number' : ''}
+                  hint={index === 0 ? "What the buyer calls it — blank uses the register's" : undefined}
+                >
                   <input
                     className="input"
                     placeholder="NPT-400S"
@@ -206,6 +241,9 @@ function QuotationForm({ quotation, onClose, onSaved }) {
                     onChange={setLine(index, 'modelNumber')}
                   />
                 </Field>
+              </div>
+
+              <div className="mt-3 grid gap-3 sm:grid-cols-[0.8fr_0.8fr_0.8fr_auto] sm:items-end">
                 {/* The shade the rate is offered in. A fact about the price rather than the
                     tool — natural PP and a masterbatch colour come off the same mould at
                     different money — and it is printed against every line on the quote. */}
@@ -372,6 +410,11 @@ function RevisionForm({ quotation, onClose, onSaved }) {
             ...(line.mould ? { mould: line.mould._id ?? line.mould } : {}),
             ...(line.pricing ? { pricing: line.pricing._id ?? line.pricing } : {}),
             modelNumber: line.modelNumber || undefined,
+            /* Carried across like everything else on the line. A revision rebuilds the whole
+               set, so a field left out here is not left alone — it is erased, and the shade the
+               rate was offered in would quietly vanish from every line the first time anybody
+               moved a price. */
+            colour: line.colour || undefined,
             quantity: line.quantity,
             moq: line.moq,
             unitPrice: Number(prices[line._id]),
