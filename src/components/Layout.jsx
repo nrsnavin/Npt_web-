@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useTheme } from '../context/ThemeContext.jsx';
@@ -9,74 +9,129 @@ import { Modal } from './ui.jsx';
 import { humanise } from '../utils/format.js';
 
 /**
- * The navigation, as one list.
+ * Modules across the top, and the screens inside one module down the side.
  *
- * It used to be two: a rail of areas on the far left, and a sidebar that changed to match
- * whichever area you were in. That arrangement kept each column short, and paid for it in the
- * thing navigation is for — you could not see where anything was without first guessing which
- * area held it, and the sidebar rearranging itself under you as you moved made the app feel
- * like several apps. One list, always the same, is worth more rows.
+ * Two levels, each answering a different question. The strip answers "which part of the business
+ * am I in", and it is always the same strip — every module you may open is on it, in one place,
+ * so nothing is ever more than one hop away and nothing is hidden behind guessing which area
+ * holds it. The sidebar answers "what is in this part", and it only ever shows that: a column
+ * listing every screen in the application made the reader scan twenty labels to find two.
  *
- * The rows it costs are given back by the groups, which collapse [`SidebarNav`]. Sections put
- * away whole bands of the business; a module with screens under it nests them rather than
- * listing them as peers — "Quality" and "Quality report" were siblings in a flat list, which
- * said they were equals when one is plainly a view of the other.
+ * The alternative arrangements both failed in the same direction. A rail of *areas* on the left
+ * meant the sidebar rearranged itself as you moved, and you could not see where a module lived
+ * without first knowing its area. One flat list of everything was legible only while short.
  *
- * Every item is gated on the grant that governs it, and `admin` sits beside `module` rather
- * than pretending to be one: some screens are not a module at all — the integrations page
- * carries a third party's key state and spends API calls the whole plant shares — and inventing
- * a grant for them would mean an access list with an entry nobody knows how to reason about.
+ * A module with one screen still gets a sidebar of one row. That is honest — it says this module
+ * has one screen — and it keeps the shape of the app the same wherever you are, which is worth
+ * more than the row it saves.
+ *
+ * Each feature carries the grant that governs it, falling back to the module's own. `admin` sits
+ * beside `module` rather than pretending to be one: the integrations page carries a third
+ * party's key state and spends API calls the whole plant shares, and inventing a grant for it
+ * would mean an access list with an entry nobody knows how to reason about.
  */
-const NAV_SECTIONS = [
+const MODULES = [
   {
-    title: 'Overview',
-    items: [
+    key: 'home',
+    label: 'Home',
+    features: [
       { to: '/', label: 'My day', end: true },
-      /*
-       * "How am I doing", where My day answers "what needs me now" — the same question at two
-       * ranges, and both are why somebody opens the app rather than something they navigate to
-       * mid-task.
-       */
+      /* "How am I doing", where My day answers "what needs me now" — the same question at two
+         ranges, and both are why somebody opens the app rather than navigates to it mid-task. */
       { to: '/dashboard/marketing', label: 'My dashboard', module: 'enquiries' },
       { to: '/profile', label: 'Profile and access' },
     ],
   },
   {
-    title: 'Sales and operations',
-    /*
-     * The boards and reports sit *under* the module they are about rather than beside it. A
-     * parent with children is `end`, or it stays lit while a child is open and two rows claim
-     * to be the current page at once.
-     */
-    items: [
+    key: 'enquiries',
+    label: 'Leads & enquiries',
+    module: 'enquiries',
+    /* Analytics nests under the register it is about. A parent with children is `end`, or it
+       stays lit while a child is open and two rows claim to be the current page at once. */
+    features: [
       {
-        to: '/leads', label: 'Leads', module: 'enquiries', end: true,
-        children: [{ to: '/leads/analytics', label: 'Lead analytics', module: 'enquiries' }],
+        to: '/leads', label: 'Leads', end: true,
+        children: [{ to: '/leads/analytics', label: 'Lead analytics' }],
       },
-      { to: '/enquiries', label: 'Enquiries', module: 'enquiries' },
-      { to: '/pricings', label: 'Costings', module: 'pricing' },
-      { to: '/quotations', label: 'Quotations', module: 'quotations' },
-      { to: '/orders', label: 'Sales orders', module: 'orders' },
-      { to: '/production', label: 'Production', module: 'production' },
+      { to: '/enquiries', label: 'Enquiries' },
+    ],
+  },
+  {
+    key: 'samples',
+    label: 'Sampling',
+    module: 'samples',
+    features: [
       {
-        to: '/quality', label: 'Quality', module: 'quality', end: true,
-        children: [{ to: '/quality/report', label: 'Quality report', module: 'quality' }],
-      },
-      { to: '/dispatches', label: 'Dispatch', module: 'dispatch' },
-      { to: '/payments', label: 'Payments', module: 'payments' },
-      {
-        to: '/samples', label: 'Sampling', module: 'samples', end: true,
+        to: '/samples', label: 'Sample queue', end: true,
         children: [
-          { to: '/samples/dashboard', label: 'Sampling dashboard', module: 'samples' },
-          { to: '/samples/analytics', label: 'Sample analytics', module: 'samples' },
+          { to: '/samples/dashboard', label: 'Sampling dashboard' },
+          { to: '/samples/analytics', label: 'Sample analytics' },
         ],
       },
     ],
   },
   {
-    title: 'Masters',
-    items: [
-      { to: '/customers', label: 'Customers', module: 'customers' },
+    key: 'pricing',
+    label: 'Costing',
+    module: 'pricing',
+    features: [{ to: '/pricings', label: 'Costing sheets' }],
+  },
+  {
+    key: 'quotations',
+    label: 'Quotations',
+    module: 'quotations',
+    features: [{ to: '/quotations', label: 'All quotations' }],
+  },
+  {
+    key: 'orders',
+    label: 'Sales orders',
+    module: 'orders',
+    features: [{ to: '/orders', label: 'All sales orders' }],
+  },
+  {
+    key: 'production',
+    label: 'Production',
+    module: 'production',
+    features: [{ to: '/production', label: 'Production status' }],
+  },
+  {
+    key: 'quality',
+    label: 'Quality',
+    module: 'quality',
+    features: [
+      {
+        to: '/quality', label: 'Inspections', end: true,
+        children: [{ to: '/quality/report', label: 'Quality report' }],
+      },
+    ],
+  },
+  {
+    key: 'dispatch',
+    label: 'Dispatch',
+    module: 'dispatch',
+    features: [{ to: '/dispatches', label: 'Consignments' }],
+  },
+  {
+    key: 'payments',
+    label: 'Payments',
+    module: 'payments',
+    features: [{ to: '/payments', label: 'What is owed' }],
+  },
+  {
+    key: 'customers',
+    label: 'Customers',
+    module: 'customers',
+    features: [{ to: '/customers', label: 'All customers' }],
+  },
+  {
+    /*
+     * The registers, together. Each is thin on its own — one screen apiece — and they are the
+     * same kind of thing to the plant: what a model is made of. Splitting them into five tabs
+     * would put five near-identical entries on the strip and leave each sidebar holding one row.
+     */
+    key: 'catalogue',
+    label: 'Catalogue',
+    features: [
       { to: '/moulds', label: 'Models & moulds', module: 'moulds' },
       { to: '/materials', label: 'Material register', module: 'materials' },
       { to: '/hooks', label: 'Hook register', module: 'materials' },
@@ -85,14 +140,46 @@ const NAV_SECTIONS = [
     ],
   },
   {
-    title: 'Security control',
-    items: [{ to: '/users', label: 'Users and access', module: 'users' }],
-  },
-  {
-    title: 'Outside feeds',
-    items: [{ to: '/integrations', label: 'Integrations', admin: true }],
+    key: 'admin',
+    label: 'Administration',
+    features: [
+      { to: '/users', label: 'Users and access', module: 'users' },
+      { to: '/integrations', label: 'Integrations', admin: true },
+    ],
   },
 ];
+
+/** Every screen in a module, parents and the children under them. */
+const screensOf = (entry) =>
+  entry.features.flatMap((feature) => [feature, ...(feature.children || [])]);
+
+/**
+ * Whether a route is the one being looked at. `/` is exact or it would claim every screen.
+ */
+const covers = (pathname, to) =>
+  to === '/' ? pathname === '/' : pathname === to || pathname.startsWith(`${to}/`);
+
+/**
+ * Which module the current screen belongs to.
+ *
+ * Longest match wins, so `/samples/analytics` resolves through its own entry rather than
+ * stopping at `/samples` — and a detail route like `/orders/6aa2…` still lands on Sales orders,
+ * which is what keeps the strip lit while somebody reads one record.
+ */
+const moduleFor = (pathname) => {
+  let best = MODULES[0];
+  let longest = -1;
+
+  for (const entry of MODULES) {
+    for (const screen of screensOf(entry)) {
+      if (covers(pathname, screen.to) && screen.to.length > longest) {
+        best = entry;
+        longest = screen.to.length;
+      }
+    }
+  }
+  return best;
+};
 
 /** Brand lockup, used on the login screen and in the sidebar header. */
 export function Wordmark({ compact = false }) {
@@ -144,6 +231,92 @@ export function ThemeToggle({ className = '' }) {
   );
 }
 
+/**
+ * The module strip.
+ *
+ * It will outrun its space on most accounts — a dozen modules beside a search box — and the
+ * honest answer is to let it scroll and say so. The cut edge is faded on whichever side is
+ * actually cut, because a tab sliced through the middle against a hard edge reads as a
+ * rendering fault rather than as "there is more this way"; and a wheel over the strip moves it
+ * sideways, because shift-scrolling a bar with no visible scrollbar is not something anybody
+ * discovers.
+ */
+function ModuleTabs({ modules, active }) {
+  const strip = useRef(null);
+  const [cut, setCut] = useState({ start: false, end: false });
+
+  useEffect(() => {
+    const node = strip.current;
+    if (!node) return undefined;
+
+    const measure = () => {
+      const slack = node.scrollWidth - node.clientWidth;
+      /* A pixel or two of slack is sub-pixel layout, not a hidden tab. */
+      setCut({ start: node.scrollLeft > 4, end: slack > 4 && node.scrollLeft < slack - 4 });
+    };
+
+    measure();
+    node.addEventListener('scroll', measure, { passive: true });
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    return () => {
+      node.removeEventListener('scroll', measure);
+      observer.disconnect();
+    };
+  }, [modules.length]);
+
+  /* The active tab scrolled into view, for the case nobody clicked it — arriving from a search
+     result or a link with the strip already scrolled elsewhere. */
+  useEffect(() => {
+    strip.current
+      ?.querySelector('[data-active="true"]')
+      ?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, [active]);
+
+  const mask =
+    cut.start && cut.end
+      ? '[mask-image:linear-gradient(to_right,transparent,#000_1.25rem,#000_calc(100%-1.25rem),transparent)]'
+      : cut.end
+        ? '[mask-image:linear-gradient(to_right,#000_calc(100%-1.25rem),transparent)]'
+        : cut.start
+          ? '[mask-image:linear-gradient(to_right,transparent,#000_1.25rem)]'
+          : '';
+
+  return (
+    <div
+      ref={strip}
+      onWheel={(event) => {
+        const node = strip.current;
+        if (!node || node.scrollWidth <= node.clientWidth) return;
+        if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+        node.scrollLeft += event.deltaY;
+      }}
+      className={`scrollbar-none flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto ${mask}`}
+    >
+      {modules.map((entry) => {
+        const lit = entry.key === active;
+
+        return (
+          <NavLink
+            key={entry.key}
+            to={entry.features[0].to}
+            end={entry.features[0].end}
+            data-active={lit}
+            /* Lit by which module owns the screen, not by the tab's own href — otherwise a
+               detail route or a second screen in the module leaves no tab marked, and the strip
+               reads as having lost its place. */
+            className={`relative whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-semibold tracking-tight transition-colors ${
+              lit ? 'bg-line/[0.08] text-flame-500' : 'text-steel-300 hover:bg-line/[0.05] hover:text-steel-50'
+            }`}
+          >
+            {entry.label}
+          </NavLink>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function Layout() {
   const { user, logout, canRead, isAdmin } = useAuth();
   const navigate = useNavigate();
@@ -160,100 +333,133 @@ export default function Layout() {
   };
 
   /*
-   * The nav, narrowed to what this person may read.
+   * What this person may open.
    *
-   * Kept here rather than inside `SidebarNav`, because what somebody may open is the Layout's
-   * business and a nav that decided it too would be a second access rule to keep in step with
-   * the first.
-   *
-   * A child is dropped with its parent: a report on a module you cannot open is a screen you
-   * cannot open either, and offering it would be offering a refusal.
+   * Decided here rather than inside the nav components, because access is the Layout's business
+   * and a nav that ruled on it too would be a second access rule to keep in step with the first.
+   * A feature falls back to its module's grant; a child is dropped with its parent, since a
+   * report on a module you cannot open is a screen you cannot open either.
    */
-  const mayOpen = (item) => (!item.module || canRead(item.module)) && (!item.admin || isAdmin);
+  const readable = useMemo(() => {
+    const mayOpen = (feature, entry) => {
+      if (feature.admin && !isAdmin) return false;
+      const grant = feature.module ?? entry.module;
+      return !grant || canRead(grant);
+    };
 
-  const readableSections = NAV_SECTIONS
-    .map((section) => ({
-      ...section,
-      items: section.items.filter(mayOpen).map((item) => ({
-        ...item,
-        children: (item.children || []).filter(mayOpen),
-      })),
-    }))
-    .filter((section) => section.items.length);
+    return MODULES.map((entry) => ({
+      ...entry,
+      features: entry.features
+        .filter((feature) => mayOpen(feature, entry))
+        .map((feature) => ({
+          ...feature,
+          children: (feature.children || []).filter((child) => mayOpen(child, entry)),
+        })),
+    })).filter((entry) => entry.features.length);
+  }, [canRead, isAdmin]);
 
   /*
-   * One nav, rendered in two places — the column on a wide screen, the drawer on a narrow one.
-   * They are never both on screen, so each keeps its own open/shut state and both read the same
-   * remembered preference when they mount.
+   * The module in view — and a fallback, because the one the route belongs to may be one this
+   * person cannot read. Landing on a screen with an empty sidebar would read as broken.
    */
-  const navigation = <SidebarNav sections={readableSections} scope="main" />;
+  const routed = moduleFor(location.pathname);
+  const active = readable.find((entry) => entry.key === routed.key) || readable[0];
+
+  /* One titleless section: the module's name is already lit on the strip above, and repeating
+     it as a heading over its own list is a row that says nothing new. */
+  const sidebar = active ? [{ items: active.features }] : [];
+
+  const features = <SidebarNav sections={sidebar} scope={active?.key || 'nav'} />;
 
   return (
-    <div className="flex h-dvh overflow-hidden">
+    <div className="flex h-dvh flex-col overflow-hidden">
       <a href="#main-content" className="skip-link">Skip to main content</a>
 
-      <aside className="hidden w-56 shrink-0 flex-col border-r border-line/10 bg-ink-850 lg:flex">
-        <div className="border-b border-line/10 px-5 py-5">
-          <Wordmark />
-        </div>
-        {/* `min-h-0` so the nav scrolls inside the column rather than pushing it taller. */}
-        <div className="flex min-h-0 flex-1 flex-col py-3">{navigation}</div>
-      </aside>
-
-      <div className="flex min-w-0 flex-1 flex-col">
-        {/* `relative z-30` so the header's own overlays — the search results — paint above the
-            main pane. Without a stacking context here, `main` comes later in the DOM and wins,
-            and the results render behind the page they are offering to open. */}
-        <header className="relative z-30 flex min-h-16 shrink-0 flex-wrap items-center gap-2 border-b border-line/10 bg-ink-850 px-3 py-2 sm:px-6">
-          <button
-            type="button"
-            className="btn-secondary px-3 lg:hidden"
-            onClick={() => setMenuOpen(true)}
-            aria-label="Open navigation"
-            aria-expanded={menuOpen}
-          >
-            <span aria-hidden>☰</span> <span className="hidden sm:inline">Menu</span>
-          </button>
-
-          <div className="min-w-0 flex-1"><GlobalSearch /></div>
-
-          <ThemeToggle />
-
-          <NavLink
-            to="/profile"
-            className="hidden rounded-lg px-2 py-1 text-sm transition-colors hover:bg-line/[0.04] sm:block"
-            title="Profile and access"
-          >
-            <span className="block font-semibold text-steel-100">{user?.name}</span>
-            <span className="block text-xs text-steel-400">
-              {humanise(user?.department) || humanise(user?.role)}
-            </span>
-          </NavLink>
-
-          <button type="button" className="btn-ghost px-2 text-xs sm:text-sm" onClick={handleLogout}>
-            Sign out
-          </button>
-        </header>
-
-        <main
-          id="main-content"
-          tabIndex={-1}
-          key={location.pathname}
-          className="min-h-0 flex-1 overflow-y-auto p-4 pb-24 sm:p-6 lg:p-8"
+      {/* `relative z-30` so the header's own overlays — the search results — paint above the
+          main pane. Without a stacking context here, `main` comes later in the DOM and wins,
+          and the results render behind the page they are offering to open. */}
+      <header className="relative z-30 flex min-h-14 shrink-0 items-center gap-2 border-b border-line/10 bg-ink-850 px-3 sm:px-4">
+        <button
+          type="button"
+          className="btn-secondary px-3 lg:hidden"
+          onClick={() => setMenuOpen(true)}
+          aria-label="Open navigation"
+          aria-expanded={menuOpen}
         >
-          <Outlet />
-        </main>
+          <span aria-hidden>☰</span>
+        </button>
+
+        <div className="hidden shrink-0 lg:block"><Wordmark /></div>
+        <div className="lg:hidden"><Wordmark compact /></div>
+
+        {/* The modules. Hidden on a narrow screen, where the drawer carries them instead —
+            a strip that has to be scrolled to find anything is worse than a list. */}
+        <div className="hidden min-w-0 flex-1 lg:flex">
+          <ModuleTabs modules={readable} active={active?.key} />
+        </div>
+
+        <div className="min-w-0 flex-1 lg:max-w-xs lg:flex-none"><GlobalSearch /></div>
+
+        <ThemeToggle />
+
+        <NavLink
+          to="/profile"
+          className="hidden shrink-0 rounded-lg px-2 py-1 text-sm transition-colors hover:bg-line/[0.04] sm:block"
+          title="Profile and access"
+        >
+          <span className="block font-semibold leading-tight text-steel-100">{user?.name}</span>
+          <span className="block text-xs text-steel-400">
+            {humanise(user?.department) || humanise(user?.role)}
+          </span>
+        </NavLink>
+
+        <button
+          type="button"
+          className="btn-ghost shrink-0 px-2 text-xs sm:text-sm"
+          onClick={handleLogout}
+        >
+          Sign out
+        </button>
+      </header>
+
+      <div className="flex min-h-0 flex-1">
+        {/* The screens inside the module on the strip above. */}
+        <aside className="hidden w-52 shrink-0 flex-col border-r border-line/10 bg-ink-850 lg:flex">
+          <p className="shrink-0 px-5 pb-1 pt-4 text-xs font-bold tracking-tight text-steel-100">
+            {active?.label}
+          </p>
+          {/* `min-h-0` so the list scrolls inside the column rather than pushing it taller. */}
+          <div className="flex min-h-0 flex-1 flex-col pb-4 pt-1">{features}</div>
+        </aside>
+
+        <div className="flex min-w-0 flex-1 flex-col">
+          <main
+            id="main-content"
+            tabIndex={-1}
+            key={location.pathname}
+            className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8"
+          >
+            <Outlet />
+          </main>
+        </div>
+
+        {/*
+          The workspace, on the right of every screen. A sibling of the main column rather than
+          something floating above it: that is what lets the page reflow around it and the to-do
+          list stay open while you work, instead of covering the work it refers to.
+        */}
+        <WorkspaceRail />
       </div>
 
       {/*
-        The workspace, on the right of every screen. A sibling of the main column rather than
-        something floating above it: that is what lets the page reflow around it and the to-do
-        list stay open while you work, instead of covering the work it refers to.
+        The drawer, which carries both levels because a phone has room for neither beside the
+        content: every module, with its screens under it, as one list.
       */}
-      <WorkspaceRail />
-
       <Modal open={menuOpen} title="Navigate" onClose={() => setMenuOpen(false)} size="sm">
-        {navigation}
+        <SidebarNav
+          sections={readable.map((entry) => ({ title: entry.label, items: entry.features }))}
+          scope="drawer"
+        />
       </Modal>
     </div>
   );
