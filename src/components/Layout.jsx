@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useTheme } from '../context/ThemeContext.jsx';
 import WorkspaceRail from './dock/WorkspaceRail.jsx';
+import SidebarNav from './SidebarNav.jsx';
 import GlobalSearch from './GlobalSearch.jsx';
 import { humanise } from '../utils/format.js';
 
@@ -88,24 +89,40 @@ const SIDEBARS = {
     sections: [
       {
         title: 'Before the order',
+        /*
+         * The boards and reports sit *under* the module they are about rather than beside it.
+         *
+         * Flat, "Quality" and "Quality report" were siblings — which told the reader they were
+         * peers when one is plainly a view of the other, and made a fourteen-row list where
+         * every entry carried the same weight. Nested, the parent reads as the thing and the
+         * rest as its views, and the list is ten rows with the detail put away.
+         *
+         * A parent with children is `end`, or it stays lit while a child is open and two rows
+         * claim to be the current page at once.
+         */
         items: [
-          // Exact, or Leads stays lit while its analytics page is open.
-          { to: '/leads', label: 'Leads', module: 'enquiries', end: true },
-          { to: '/leads/analytics', label: 'Lead analytics', module: 'enquiries' },
+          {
+            to: '/leads', label: 'Leads', module: 'enquiries', end: true,
+            children: [{ to: '/leads/analytics', label: 'Lead analytics', module: 'enquiries' }],
+          },
           { to: '/enquiries', label: 'Enquiries', module: 'enquiries' },
           { to: '/pricings', label: 'Costings', module: 'pricing' },
           { to: '/quotations', label: 'Quotations', module: 'quotations' },
           { to: '/orders', label: 'Sales orders', module: 'orders' },
           { to: '/production', label: 'Production', module: 'production' },
-          // Exact, or the register stays lit while the report is open beneath it.
-          { to: '/quality', label: 'Quality', module: 'quality', end: true },
-          { to: '/quality/report', label: 'Quality report', module: 'quality' },
+          {
+            to: '/quality', label: 'Quality', module: 'quality', end: true,
+            children: [{ to: '/quality/report', label: 'Quality report', module: 'quality' }],
+          },
           { to: '/dispatches', label: 'Dispatch', module: 'dispatch' },
           { to: '/payments', label: 'Payments', module: 'payments' },
-          // Exact, or the queue stays lit while the dashboard is open beneath it.
-          { to: '/samples', label: 'Sampling', module: 'samples', end: true },
-          { to: '/samples/dashboard', label: 'Sampling dashboard', module: 'samples' },
-          { to: '/samples/analytics', label: 'Sample analytics', module: 'samples' },
+          {
+            to: '/samples', label: 'Sampling', module: 'samples', end: true,
+            children: [
+              { to: '/samples/dashboard', label: 'Sampling dashboard', module: 'samples' },
+              { to: '/samples/analytics', label: 'Sample analytics', module: 'samples' },
+            ],
+          },
         ],
       },
       {
@@ -384,6 +401,33 @@ export default function Layout() {
   const sidebarKey = railItems.find((item) => item.to !== '/' && owns(item))?.to;
   const sidebar = SIDEBARS[sidebarKey || '/'];
 
+  /*
+   * The nav, narrowed to what this person may read.
+   *
+   * Kept here rather than inside `SidebarNav`, because what somebody may open is the Layout's
+   * business and a nav that decided it too would be a second access rule to keep in step with
+   * the first.
+   *
+   * `admin` sits beside `module` rather than pretending to be one. Some screens are not a module
+   * at all — the integrations page carries a third party's key state and spends API calls the
+   * whole plant shares — and inventing a grant for them would mean an access list with an entry
+   * nobody knows how to reason about.
+   *
+   * A child is dropped with its parent: a report on a module you cannot open is a screen you
+   * cannot open either, and offering it would be offering a refusal.
+   */
+  const mayOpen = (item) => (!item.module || canRead(item.module)) && (!item.admin || isAdmin);
+
+  const readableSections = sidebar.sections
+    .map((section) => ({
+      ...section,
+      items: section.items.filter(mayOpen).map((item) => ({
+        ...item,
+        children: (item.children || []).filter(mayOpen),
+      })),
+    }))
+    .filter((section) => section.items.length);
+
   return (
     <div className="flex h-screen flex-col overflow-hidden">
       <div className="flex min-h-0 flex-1">
@@ -440,53 +484,7 @@ export default function Layout() {
             </p>
           </div>
 
-          <nav className="flex-1 space-y-5 overflow-y-auto px-3 pb-6">
-            {sidebar.sections.map((section) => {
-              /*
-               * `admin` sits beside `module` rather than pretending to be one. Some screens are
-               * not a module at all — the integrations page carries a third party's key state
-               * and spends API calls the whole plant shares — and inventing a grant for them
-               * would mean an access list with an entry nobody knows how to reason about.
-               */
-              const items = section.items.filter(
-                (item) => (!item.module || canRead(item.module)) && (!item.admin || isAdmin)
-              );
-              if (!items.length) return null;
-
-              return (
-                <div key={section.title}>
-                  <p className="eyebrow mb-1.5 px-3">{section.title}</p>
-                  <div className="space-y-0.5">
-                    {items.map((item) => (
-                      <NavLink
-                        key={item.to}
-                        to={item.to}
-                        end={item.end}
-                        className={({ isActive }) =>
-                          `relative flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold tracking-tight transition-colors ${
-                            isActive
-                              ? 'bg-line/[0.07] text-steel-50'
-                              : 'text-steel-400 hover:bg-line/[0.04] hover:text-steel-100'
-                          }`
-                        }
-                      >
-                        {({ isActive }) => (
-                          <>
-                            <span
-                              className={`absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-r-full bg-flame-500 transition-opacity ${
-                                isActive ? 'opacity-100' : 'opacity-0'
-                              }`}
-                            />
-                            {item.label}
-                          </>
-                        )}
-                      </NavLink>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
-          </nav>
+          <SidebarNav sections={readableSections} scope={sidebarKey || '/'} />
 
           <div className="border-t border-line/[0.06] px-4 py-3">
             <p className="text-xs text-steel-500">A hanger expert you can hang onto</p>
