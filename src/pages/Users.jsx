@@ -11,12 +11,26 @@ const grantsToMap = (moduleAccess = []) =>
 
 const mapToGrants = (map) =>
   Object.entries(map)
-    .filter(([, level]) => level === 'read' || level === 'write')
+    .filter(([, level]) => level && level !== 'none')
     .map(([module, level]) => ({ module, level }));
 
+/** What every module has unless it says otherwise — the catalogue is the authority. */
+const DEFAULT_LEVELS = ['read', 'write'];
+
+const LEVEL_LABELS = {
+  read: 'Read',
+  /* Pricing's middle level, and the only place this word appears: raise and send the
+     quotation, without the cost sheet behind it [§8]. */
+  quote: 'Quote',
+  write: 'Write',
+};
+
 /**
- * Three-state control per module: none, read or write. A segmented control makes the
- * current level obvious at a glance across a long list, which a checkbox pair does not.
+ * The levels each module offers, none first.
+ *
+ * Read off the catalogue rather than hardcoded, because they are no longer the same everywhere:
+ * pricing has three since quotations folded into it, and a row that offered Quote on despatch
+ * would be inviting an admin to grant something the server discards.
  */
 function AccessPicker({ modules, value, onChange, disabled }) {
   const grouped = useMemo(() => {
@@ -28,12 +42,6 @@ function AccessPicker({ modules, value, onChange, disabled }) {
     return [...groups.entries()];
   }, [modules]);
 
-  const options = [
-    { value: 'none', label: 'None' },
-    { value: 'read', label: 'Read' },
-    { value: 'write', label: 'Write' },
-  ];
-
   return (
     <div className="space-y-5">
       {grouped.map(([group, items]) => (
@@ -42,6 +50,13 @@ function AccessPicker({ modules, value, onChange, disabled }) {
           <ul className="space-y-2">
             {items.map((module) => {
               const level = value[module.key] || 'none';
+              const options = [
+                { value: 'none', label: 'None' },
+                ...(module.levels || DEFAULT_LEVELS).map((key) => ({
+                  value: key,
+                  label: LEVEL_LABELS[key] || humanise(key),
+                })),
+              ];
               return (
                 <li key={module.key} className="flex items-center justify-between gap-4">
                   <div className="min-w-0">
@@ -58,7 +73,11 @@ function AccessPicker({ modules, value, onChange, disabled }) {
                   <div
                     role="radiogroup"
                     aria-label={`Access to ${module.label}`}
-                    className="tab-track shrink-0 grid-cols-3"
+                    /* Sized to what this module offers. A fixed three-column track squeezed
+                       pricing's four buttons into three slots, and the labels ran together. */
+                    className={`tab-track shrink-0 ${
+                      options.length === 4 ? 'grid-cols-4' : 'grid-cols-3'
+                    }`}
                   >
                     {options.map((option) => (
                       <button
@@ -359,8 +378,20 @@ export default function Users() {
               </thead>
               <tbody className="divide-y divide-line/[0.04]">
                 {rows.map((row) => {
+                  /*
+                   * Counted by the level actually held, so the middle one is not swallowed.
+                   *
+                   * Subtracting write from read made every level that is neither into "read",
+                   * which meant a marketing person who may raise and send quotations was
+                   * summarised as a reader — the one row on this screen that had to be right.
+                   */
                   const writable = row.modules.filter((module) => module.canWrite).length;
-                  const readable = row.modules.filter((module) => module.canRead).length;
+                  const quoting = row.modules.filter(
+                    (module) => module.canQuote && !module.canWrite
+                  ).length;
+                  const readable = row.modules.filter(
+                    (module) => module.canRead && !module.canQuote && !module.canWrite
+                  ).length;
 
                   return (
                     <tr key={row.id} className="row-hover">
@@ -381,7 +412,13 @@ export default function Users() {
                           <span className="text-xs text-steel-400">All modules</span>
                         ) : (
                           <span className="text-xs tabular-nums text-steel-300">
-                            {writable} write · {readable - writable} read
+                            {[
+                              `${writable} write`,
+                              quoting ? `${quoting} quote` : null,
+                              `${readable} read`,
+                            ]
+                              .filter(Boolean)
+                              .join(' · ')}
                           </span>
                         )}
                       </td>

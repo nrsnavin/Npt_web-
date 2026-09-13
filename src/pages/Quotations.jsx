@@ -565,7 +565,7 @@ function ResponseForm({ quotation, onClose, onSaved }) {
 }
 
 export default function Quotations() {
-  const { canWrite } = useAuth();
+  const { canQuote } = useAuth();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const [page, setPage] = useState(1);
@@ -577,7 +577,7 @@ export default function Quotations() {
   const [sendError, setSendError] = useState(null);
   const [params] = useSearchParams();
 
-  const mayWrite = canWrite('quotations');
+  const mayWrite = canQuote('pricing');
   const term = useDebounced(search);
 
   const filters = {

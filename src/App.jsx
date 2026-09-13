@@ -173,7 +173,7 @@ export default function App() {
           <Route
             path="quotations"
             element={
-              <RequireModule moduleKey="quotations">
+              <RequireModule moduleKey="pricing">
                 <Quotations />
               </RequireModule>
             }
@@ -181,7 +181,7 @@ export default function App() {
           <Route
             path="quotations/:id"
             element={
-              <RequireModule moduleKey="quotations">
+              <RequireModule moduleKey="pricing">
                 <QuotationDetail />
               </RequireModule>
             }

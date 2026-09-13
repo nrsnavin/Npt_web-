@@ -70,17 +70,19 @@ const MODULES = [
       },
     ],
   },
+  /*
+   * One module, two screens. A costing exists to become a quotation and a quotation carries a
+   * costing's price to a buyer — they were two tabs for one question, and the answer lived half
+   * in each.
+   */
   {
     key: 'pricing',
-    label: 'Costing',
+    label: 'Pricing',
     module: 'pricing',
-    features: [{ to: '/pricings', label: 'Costing sheets' }],
-  },
-  {
-    key: 'quotations',
-    label: 'Quotations',
-    module: 'quotations',
-    features: [{ to: '/quotations', label: 'All quotations' }],
+    features: [
+      { to: '/pricings', label: 'Costing sheets' },
+      { to: '/quotations', label: 'Quotations' },
+    ],
   },
   {
     key: 'orders',

@@ -577,7 +577,7 @@ export default function EnquiryDetail() {
   const mayWriteMoulds = canWrite('moulds');
   const mayReadSamples = canRead('samples');
   const mayReadPricing = canRead('pricing');
-  const mayReadQuotes = canRead('quotations');
+  const mayReadQuotes = canRead('pricing');
   const open = !CLOSED_STAGES.includes(enquiry.status);
   const due = followUpState(enquiry.nextFollowUpDate);
   const stageIndex = ENQUIRY_STAGES.findIndex((stage) => stage.value === enquiry.status);
