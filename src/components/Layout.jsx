@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useTheme } from '../context/ThemeContext.jsx';
 import WorkspaceRail from './dock/WorkspaceRail.jsx';
+import SidebarNav from './SidebarNav.jsx';
 import GlobalSearch from './GlobalSearch.jsx';
 import { Modal } from './ui.jsx';
 import { humanise } from '../utils/format.js';
