@@ -4,6 +4,7 @@ import { pricings as pricingsApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useRecord } from '../hooks/useRecords.js';
 import { Badge, ErrorState, Modal, Notice, PageHeader, Section, Spinner } from '../components/ui.jsx';
+import { MouldThumb } from '../components/MouldPhoto.jsx';
 import CostingSheetForm from '../components/CostingSheetForm.jsx';
 import CostingDetailsForm from '../components/CostingDetailsForm.jsx';
 import QuotationPdf from '../components/QuotationPdf.jsx';
@@ -490,7 +491,15 @@ export default function PricingDetail() {
           {mould && (
             <Section title="From the register">
               <dl className="space-y-3 text-sm">
-                <Fact label="Mould" value={`${mould.mouldCode} — ${mould.name}`} />
+                <Fact
+                  label="Mould"
+                  value={(
+                    <span className="flex items-center justify-end gap-2.5">
+                      <MouldThumb mould={mould} />
+                      <span>{mould.mouldCode} — {mould.name}</span>
+                    </span>
+                  )}
+                />
                 <Fact label="Category" value={optionLabel(HANGER_CATEGORIES, mould.category)} />
                 <Fact label="Size" value={mould.sizeMm && `${mould.sizeMm} mm`} />
                 <Fact label="Hook" value={optionLabel(HOOK_TYPES, mould.hookType)} />

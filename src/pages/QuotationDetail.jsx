@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { Badge, ErrorState, Modal, Notice, PageHeader, Section, Spinner } from '../components/ui.jsx';
 import OrderFromQuotation from '../components/OrderFromQuotation.jsx';
 import QuotationPdf from '../components/QuotationPdf.jsx';
+import { MouldThumb } from '../components/MouldPhoto.jsx';
 import {
   formatCompactCurrency, formatCurrency, formatDate, formatNumber, humanise,
 } from '../utils/format.js';
@@ -256,11 +257,19 @@ export default function QuotationDetail() {
                   {(quotation.lines || []).map((line, index) => (
                     <tr key={line._id || index}>
                       <td className="px-3 py-2.5 tabular-nums text-steel-500">{(index + 1) * 10}</td>
+                      {/* The part, because this is the screen the price quote is checked on
+                          before it goes to a buyer — and the quote itself now carries the same
+                          picture. Seeing them agree here is the check. */}
                       <td className="px-3 py-2.5">
-                        <p className="text-steel-100">{line.modelNumber || '—'}</p>
-                        {line.mould?.name && (
-                          <p className="text-xs text-steel-500">{line.mould.name}</p>
-                        )}
+                        <div className="flex items-center gap-2.5">
+                          <MouldThumb mould={line.mould} />
+                          <div className="min-w-0">
+                            <p className="text-steel-100">{line.modelNumber || '—'}</p>
+                            {line.mould?.name && (
+                              <p className="text-xs text-steel-500">{line.mould.name}</p>
+                            )}
+                          </div>
+                        </div>
                       </td>
                       {/* The minimum the rate is good for. A dash rather than a zero: a
                           document saying the minimum is 0 pieces answers a question nobody

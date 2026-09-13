@@ -207,9 +207,11 @@ export default function Combobox({
                 type="button"
                 role="option"
                 aria-selected={option.value === (value || '')}
-                className={`flex w-full items-baseline gap-2 px-3 py-2 text-left text-xs ${
-                  index === active ? 'bg-line/[0.06] text-steel-50' : 'text-steel-200'
-                }`}
+                /* `items-center` once a row carries a picture — a thumbnail sitting on the
+                   text baseline hangs below the row it belongs to. */
+                className={`flex w-full gap-2 px-3 py-2 text-left text-xs ${
+                  option.media ? 'items-center' : 'items-baseline'
+                } ${index === active ? 'bg-line/[0.06] text-steel-50' : 'text-steel-200'}`}
                 onMouseEnter={() => setActive(index)}
                 /*
                  * Keeps focus in the input through the click. Without this the button takes
@@ -220,6 +222,9 @@ export default function Combobox({
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => choose(option)}
               >
+                {/* Anything the caller wants drawn before the name — a part photo, on the one
+                    picker where people are looking for a shape rather than reading a code. */}
+                {option.media}
                 <span className="truncate font-medium">{option.label}</span>
                 {option.hint && (
                   <span className="ml-auto shrink-0 text-xs text-steel-500">{option.hint}</span>

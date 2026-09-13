@@ -14,6 +14,7 @@ import Documents from '../components/Documents.jsx';
 import EnquiryActions from '../components/EnquiryActions.jsx';
 import HistoryPanel from '../components/HistoryPanel.jsx';
 import QuotationPdf from '../components/QuotationPdf.jsx';
+import { MouldThumb } from '../components/MouldPhoto.jsx';
 import { formatCurrency, formatDate, formatNumber, humanise } from '../utils/format.js';
 import {
   CLOSED_STAGES, ENQUIRY_STAGES, HANGER_CATEGORIES, LOST_REASONS, MATERIALS,
@@ -681,11 +682,18 @@ export default function EnquiryDetail() {
                    * on — and an empty one here means a piece we buy in rather than make.
                    */
                   label: 'Mould',
-                  value: enquiry.mould
-                    ? `${enquiry.mould.mouldCode} — ${enquiry.mould.name}`
-                    : enquiry.isNewDevelopment
-                      ? 'Not cut yet'
-                      : 'Bought in — no tool of ours',
+                  value: enquiry.mould ? (
+                    /* The part beside its code. What the buyer described is a shape, and this
+                       is the first screen where somebody can check the two agree. */
+                    <span className="flex items-center gap-2.5">
+                      <MouldThumb mould={enquiry.mould} />
+                      <span>{enquiry.mould.mouldCode} — {enquiry.mould.name}</span>
+                    </span>
+                  ) : enquiry.isNewDevelopment ? (
+                    'Not cut yet'
+                  ) : (
+                    'Bought in — no tool of ours'
+                  ),
                 },
                 { label: 'Category', value: optionLabel(HANGER_CATEGORIES, enquiry.requirement?.category) },
                 {

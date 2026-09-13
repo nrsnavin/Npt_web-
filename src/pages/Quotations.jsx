@@ -75,10 +75,11 @@ function QuotationForm({ quotation, onClose, onSaved }) {
           mould: line.mould?._id ?? line.mould ?? '',
           pricing: line.pricing?._id ?? line.pricing ?? '',
           modelNumber: line.modelNumber ?? '',
+          colour: line.colour ?? '',
           moq: line.moq ?? '',
           unitPrice: line.unitPrice ?? '',
         }))
-      : [{ mould: '', pricing: '', modelNumber: '', moq: '', unitPrice: '' }]
+      : [{ mould: '', pricing: '', modelNumber: '', colour: '', moq: '', unitPrice: '' }]
   );
   const [values, setValues] = useState(quotation ? {
     gstPercent: quotation.gstPercent ?? 18,
@@ -109,7 +110,7 @@ function QuotationForm({ quotation, onClose, onSaved }) {
     setLines(lines.map((line, at) => (at === index ? { ...line, [key]: event.target.value } : line)));
 
   const addLine = () =>
-    setLines([...lines, { mould: '', pricing: '', modelNumber: '', moq: '', unitPrice: '' }]);
+    setLines([...lines, { mould: '', pricing: '', modelNumber: '', colour: '', moq: '', unitPrice: '' }]);
 
   /* Never below one: the server refuses an empty quotation, and it is right to. */
   const removeLine = (index) =>
@@ -148,6 +149,7 @@ function QuotationForm({ quotation, onClose, onSaved }) {
           ...(line.mould ? { mould: line.mould } : {}),
           ...(line.pricing ? { pricing: line.pricing } : {}),
           modelNumber: line.modelNumber || undefined,
+          colour: line.colour || undefined,
           quantity: Number(line.quantity),
           moq: line.moq === '' ? undefined : Number(line.moq),
           unitPrice: Number(line.unitPrice),
@@ -195,13 +197,24 @@ function QuotationForm({ quotation, onClose, onSaved }) {
         <div className="space-y-3">
           {lines.map((line, index) => (
             <div key={line._id || index} className="card px-3 py-3">
-              <div className="grid gap-3 sm:grid-cols-[1.4fr_0.9fr_0.9fr_0.9fr_auto] sm:items-end">
+              <div className="grid gap-3 sm:grid-cols-[1.3fr_0.8fr_0.8fr_0.8fr_auto] sm:items-end">
                 <Field label={index === 0 ? 'Model' : ''}>
                   <input
                     className="input"
                     placeholder="NPT-400S"
                     value={line.modelNumber}
                     onChange={setLine(index, 'modelNumber')}
+                  />
+                </Field>
+                {/* The shade the rate is offered in. A fact about the price rather than the
+                    tool — natural PP and a masterbatch colour come off the same mould at
+                    different money — and it is printed against every line on the quote. */}
+                <Field label={index === 0 ? 'Colour' : ''}>
+                  <input
+                    className="input"
+                    placeholder="White"
+                    value={line.colour}
+                    onChange={setLine(index, 'colour')}
                   />
                 </Field>
                 <Field
