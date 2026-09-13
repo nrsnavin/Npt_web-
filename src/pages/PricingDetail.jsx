@@ -4,9 +4,11 @@ import { pricings as pricingsApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useRecord } from '../hooks/useRecords.js';
 import { Badge, ErrorState, Modal, Notice, PageHeader, Section, Spinner } from '../components/ui.jsx';
+import { MouldThumb } from '../components/MouldPhoto.jsx';
 import CostingSheetForm from '../components/CostingSheetForm.jsx';
 import CostingDetailsForm from '../components/CostingDetailsForm.jsx';
 import QuotationPdf from '../components/QuotationPdf.jsx';
+import QuoteFromCosting from '../components/QuoteFromCosting.jsx';
 import { formatCompactCurrency, formatDate, formatNumber, humanise } from '../utils/format.js';
 import { HANGER_CATEGORIES, HOOK_TYPES, optionLabel } from '../utils/pipeline.js';
 
@@ -66,8 +68,11 @@ function CostLine({ label, hint, note, value, share, strong }) {
 
 export default function PricingDetail() {
   const { id } = useParams();
-  const { canWrite } = useAuth();
+  const { canWrite, canQuote } = useAuth();
   const mayCost = canWrite('pricing');
+  /* Two different jobs on one record [§8]: building the sheet, and offering what it produced.
+     The same person often does both and is not required to. */
+  const mayQuote = canQuote('pricing');
 
   const fetch = useCallback((pricingId) => pricingsApi.get(pricingId), []);
   const { data, loading, error, reload } = useRecord(fetch, id);
@@ -84,6 +89,7 @@ export default function PricingDetail() {
    * "rendered more hooks than during the previous render" the moment the costing arrived.
    */
   const [previewing, setPreviewing] = useState(null);
+  const [quoting, setQuoting] = useState(false);
 
   if (loading) return <Spinner label="Loading the costing" />;
   if (error) return <ErrorState error={error} onRetry={reload} />;
@@ -149,6 +155,19 @@ export default function PricingDetail() {
         }
         actions={
           <div className="flex items-center gap-2">
+            {/*
+              Quoting, from the sheet that priced it.
+
+              This lived only on the costing list, which meant the one screen showing what a
+              price is made of and what has been offered against it was the one screen you
+              could not offer from. `canQuote`, not `canWrite`: marketing turns an approved
+              price into a document without ever being shown the cost above it.
+            */}
+            {mayQuote && pricing.status === 'approved' && (
+              <button type="button" className="btn-primary" onClick={() => setQuoting(true)}>
+                Quote this price
+              </button>
+            )}
             {mayCost && (
               <>
                 <button
@@ -358,9 +377,18 @@ export default function PricingDetail() {
           {/* ------------------------------ What was quoted ------------------------------ */}
           <Section title={`Quoted from this costing (${quotations.length})`}>
             {quotations.length === 0 ? (
-              <p className="text-sm text-steel-400">
-                Nothing has gone out against this price yet.
-              </p>
+              <div className="space-y-3">
+                <p className="text-sm text-steel-400">
+                  Nothing has gone out against this price yet.
+                </p>
+                {/* The next step, where the absence of it is noticed. An empty panel that only
+                    states the emptiness sends the reader back to the list to do the thing. */}
+                {mayQuote && pricing.status === 'approved' && (
+                  <button type="button" className="btn-secondary" onClick={() => setQuoting(true)}>
+                    Quote this price
+                  </button>
+                )}
+              </div>
             ) : (
               <ul className="space-y-2">
                 {quotations.map((quote) => (
@@ -420,6 +448,12 @@ export default function PricingDetail() {
                       >
                         PDF
                       </button>
+                      {/* Editing a quotation is the quotation's own screen — it carries the
+                          revision rules, the send gate and the buyer's answer, and none of that
+                          belongs in a panel on a costing. What belongs here is the way there. */}
+                      <Link to={`/quotations/${quote._id}`} className="row-action">
+                        Open
+                      </Link>
                       <Badge status={quote.status}>{humanise(quote.status)}</Badge>
                     </div>
                   </li>
@@ -433,6 +467,22 @@ export default function PricingDetail() {
             open={Boolean(previewing)}
             onClose={() => setPreviewing(null)}
           />
+
+          <Modal
+            open={quoting}
+            title={`Quote from ${pricing.number}`}
+            subtitle="The price goes on a new quotation, or onto one already being written for this buyer"
+            onClose={() => setQuoting(false)}
+          >
+            <QuoteFromCosting
+              pricing={pricing}
+              onClose={() => setQuoting(false)}
+              /* Reloaded rather than patched in: adding a line to a draft changes a quotation
+                 this screen is already listing, and the server is the only thing that knows
+                 what it now looks like. */
+              onQuoted={reload}
+            />
+          </Modal>
         </div>
 
         {/* --------------------------------- The side --------------------------------- */}
@@ -490,7 +540,15 @@ export default function PricingDetail() {
           {mould && (
             <Section title="From the register">
               <dl className="space-y-3 text-sm">
-                <Fact label="Mould" value={`${mould.mouldCode} — ${mould.name}`} />
+                <Fact
+                  label="Mould"
+                  value={(
+                    <span className="flex items-center justify-end gap-2.5">
+                      <MouldThumb mould={mould} />
+                      <span>{mould.mouldCode} — {mould.name}</span>
+                    </span>
+                  )}
+                />
                 <Fact label="Category" value={optionLabel(HANGER_CATEGORIES, mould.category)} />
                 <Fact label="Size" value={mould.sizeMm && `${mould.sizeMm} mm`} />
                 <Fact label="Hook" value={optionLabel(HOOK_TYPES, mould.hookType)} />

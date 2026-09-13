@@ -10,6 +10,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import Combobox from './Combobox.jsx';
 import CustomerQuickCreate from './CustomerQuickCreate.jsx';
 import MouldQuickCreate from './MouldQuickCreate.jsx';
+import { MouldThumb } from './MouldPhoto.jsx';
 
 /**
  * Reference-data selects.
@@ -58,8 +59,19 @@ export function MouldSelect({
     []
   );
   const loadOne = useCallback((id) => mouldsApi.get(id), []);
+  /*
+   * With the part drawn beside the code.
+   *
+   * This is the one picker where the reader is looking for a shape rather than reading a name:
+   * marketing choosing a model for a quotation knows the hanger the buyer asked for, and
+   * "NCP-25 — 25cm shirt hanger" makes them guess which of four similar codes it is.
+   */
   const toOption = useCallback(
-    (mould) => ({ value: mould._id, label: `${mould.mouldCode} — ${mould.name}` }),
+    (mould) => ({
+      value: mould._id,
+      label: `${mould.mouldCode} — ${mould.name}`,
+      media: <MouldThumb mould={mould} />,
+    }),
     []
   );
 

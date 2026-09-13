@@ -9,6 +9,7 @@ import {
 import HistoryPanel from '../components/HistoryPanel.jsx';
 import OrderQueries from '../components/OrderQueries.jsx';
 import OrderEscalations from '../components/OrderEscalations.jsx';
+import { MouldThumb } from '../components/MouldPhoto.jsx';
 import OrderPriority from '../components/OrderPriority.jsx';
 import OrderQuality from '../components/OrderQuality.jsx';
 import DispatchTracker from '../components/DispatchTracker.jsx';
@@ -443,6 +444,11 @@ export default function OrderDetail() {
                   {order.lines.map((line) => (
                     <tr key={line._id}>
                       <td className="px-3 py-3">
+                        {/* The part beside the code, so what was ordered can be recognised
+                            rather than decoded. */}
+                        <div className="flex items-center gap-2.5">
+                          <MouldThumb mould={line.mould} />
+                          <div className="min-w-0">
                         <p className="font-semibold text-steel-100">
                           {line.modelNumber || line.mould?.mouldCode || '—'}
                         </p>
@@ -455,6 +461,8 @@ export default function OrderDetail() {
                           */}
                           {line.mould ? line.mould.mouldCode : 'Bought in'}
                         </p>
+                          </div>
+                        </div>
                       </td>
                       <td className="px-3 py-3">
                         <p className="text-steel-300">{line.colour || '—'}</p>

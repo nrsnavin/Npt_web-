@@ -203,7 +203,10 @@ function Parent({ item, shut, toggle, pathname }) {
  * it saves.
  */
 function Section({ section, scope, shut, toggle, pathname }) {
-  const key = `s:${scope}:${section.title}`;
+  /* A section may have no title at all — see `collapsible` below. Defaulted rather than
+     assumed, because the id and the remembered key are both built out of it. */
+  const title = section.title || '';
+  const key = `s:${scope}:${title}`;
 
   const holdsCurrent = section.items.some(
     (item) =>
@@ -211,9 +214,16 @@ function Section({ section, scope, shut, toggle, pathname }) {
       (item.children || []).some((child) => isActive(pathname, child.to, child.end))
   );
 
-  const collapsible = section.items.length > 1;
+  /*
+   * Collapsible only when it is a named group of more than one thing.
+   *
+   * A disclosure control that puts away a single link is chrome pretending to be a feature. And
+   * a section with no title is not a group at all — it is the whole of the nav, which the
+   * caller has already framed elsewhere, so there is nothing to put it away *under*.
+   */
+  const collapsible = Boolean(title) && section.items.length > 1;
   const open = !collapsible || holdsCurrent || !shut.has(key);
-  const id = `nav-section-${scope.replace(/\W+/g, '-')}-${section.title.replace(/\W+/g, '-')}`;
+  const id = `nav-section-${scope.replace(/\W+/g, '-')}-${title.replace(/\W+/g, '-')}`;
 
   const body = (
     <div className="space-y-0.5">
@@ -230,7 +240,7 @@ function Section({ section, scope, shut, toggle, pathname }) {
   if (!collapsible) {
     return (
       <div>
-        <p className="eyebrow mb-1.5 px-3">{section.title}</p>
+        {section.title && <p className="eyebrow mb-1.5 px-3">{section.title}</p>}
         {body}
       </div>
     );
@@ -293,9 +303,9 @@ export default function SidebarNav({ sections, scope = 'nav' }) {
 
   return (
     <nav className="flex-1 space-y-4 overflow-y-auto px-3 pb-6">
-      {visible.map((section) => (
+      {visible.map((section, index) => (
         <Section
-          key={section.title}
+          key={section.title || `section-${index}`}
           section={section}
           scope={scope}
           shut={shut}

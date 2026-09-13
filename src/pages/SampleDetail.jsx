@@ -10,6 +10,7 @@ import HistoryPanel from '../components/HistoryPanel.jsx';
 import AuthedImage from '../components/AuthedImage.jsx';
 import { CustomerSelect, EnquirySelect } from '../components/pickers.jsx';
 import SampleLog from '../components/SampleLog.jsx';
+import { MouldThumb } from '../components/MouldPhoto.jsx';
 import { formatDate, formatNumber } from '../utils/format.js';
 import {
   CLOSED_SAMPLE_STAGES, HANGER_CATEGORIES, MATERIALS, MESSAGE_CHANNELS, MESSAGE_EVENTS,
@@ -1127,9 +1128,16 @@ export default function SampleDetail() {
                 { label: 'Purpose', value: optionLabel(SAMPLE_PURPOSES, sample.purpose) },
                 {
                   label: 'Model',
-                  value: sample.mould
-                    ? `${sample.mould.mouldCode} — ${sample.mould.name}`
-                    : sample.modelNumber,
+                  /* The part, so the bench can see what it is making before reading what it
+                     is called. */
+                  value: sample.mould ? (
+                    <span className="flex items-center gap-2.5">
+                      <MouldThumb mould={sample.mould} />
+                      <span>{sample.mould.mouldCode} — {sample.mould.name}</span>
+                    </span>
+                  ) : (
+                    sample.modelNumber
+                  ),
                 },
                 { label: 'Category', value: optionLabel(HANGER_CATEGORIES, sample.category) },
                 {

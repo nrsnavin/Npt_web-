@@ -11,6 +11,7 @@ import CostingSheetForm from '../components/CostingSheetForm.jsx';
 import CostingDetailsForm from '../components/CostingDetailsForm.jsx';
 import { CustomerSelect, MouldSelect } from '../components/pickers.jsx';
 import QuotationPdf from '../components/QuotationPdf.jsx';
+import QuoteFromCosting from '../components/QuoteFromCosting.jsx';
 import { formatCompactCurrency, formatDate, formatNumber, humanise } from '../utils/format.js';
 import { inDays } from '../utils/pipeline.js';
 
@@ -213,179 +214,9 @@ function NewCostingForm({ onClose, onSaved }) {
   );
 }
 
-/**
- * Turning an approved costing into a quotation [§7 → §10].
- *
- * The minimum order quantity is set *here*, not on the costing. It is a term of the offer —
- * something the buyer reads beside the price and then argues about — rather than a fact about
- * what the job costs, so it belongs to the quotation and starts from the model's registered
- * standard [§28].
- *
- * **And there is no quantity beside it**, which is the whole shape of §10. A quotation from this
- * plant offers a *rate against a minimum*, not a lot: the buyer is told ₹4.90 a piece with a
- * 5,000 minimum, and the purchase order decides how many, months later. The quantity that used
- * to sit here came off the enquiry by way of the costing — a figure nobody had agreed to — and
- * then printed on a document as though somebody had.
- *
- * Nothing here is retyped — the customer, the enquiry, the model and the price come off the
- * sheet. What is left is the minimum and the terms, which belong to the conversation.
- */
-function QuoteFromCosting({ pricing, onClose, onQuoted }) {
-  const standard = pricing.mould?.moq || 0;
-  const [moq, setMoq] = useState(standard || '');
-  const [unitPrice, setUnitPrice] = useState(pricing.approvedSellingPrice ?? '');
-  const [gstPercent, setGst] = useState(18);
-  const [isExport, setExport] = useState(false);
-  const [paymentTerms, setPayment] = useState('');
-  const [deliveryTerms, setDelivery] = useState('');
-  /*
-   * Defaulted rather than left blank. A quotation with no validity prints "Valid until —" on
-   * the document, and §10 lists the validity among the terms the buyer reads — an offer with
-   * no expiry is one the plant is still honouring two years later.
-   */
-  const [validUntil, setValidUntil] = useState(inDays(30));
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState(null);
-
-  const submit = async (event) => {
-    event.preventDefault();
-    setBusy(true);
-    setError(null);
-    try {
-      const quote = await pricingsApi.quote({
-        id: pricing._id,
-        moq: moq === '' ? undefined : Number(moq),
-        unitPrice: unitPrice === '' ? undefined : Number(unitPrice),
-        gstPercent: isExport ? undefined : Number(gstPercent),
-        isExport,
-        paymentTerms: paymentTerms || undefined,
-        deliveryTerms: deliveryTerms || undefined,
-        validUntil: validUntil || undefined,
-      });
-      onQuoted(quote);
-      onClose();
-    } catch (saveError) {
-      setError(saveError.message);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <form onSubmit={submit} className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="card px-4 py-3">
-          <p className="eyebrow">Approved price</p>
-          <p className="stat-value mt-1 text-steel-50">{rupees(pricing.approvedSellingPrice)}</p>
-          <p className="mt-0.5 text-xs text-steel-500">Per piece, which is what a quote states</p>
-        </div>
-        <div className="card px-4 py-3">
-          <p className="eyebrow">Minimum being offered</p>
-          <p className="stat-value mt-1 text-steel-50">
-            {moq ? formatNumber(Number(moq)) : '—'}
-          </p>
-          <p className="mt-0.5 text-xs text-steel-500">The smallest lot this rate holds for</p>
-        </div>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Unit price" hint="From the costing. Change it and the floor is re-checked">
-          <input
-            type="number"
-            step="0.01"
-            min="0"
-            className="input"
-            value={unitPrice}
-            onChange={(event) => setUnitPrice(event.target.value)}
-          />
-        </Field>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field
-          label="Minimum order quantity"
-          hint={
-            standard
-              ? `The register's standard is ${formatNumber(standard)}. This buyer may be offered another`
-              : 'The smallest lot this price is offered at. Printed on the quotation'
-          }
-        >
-          <input
-            type="number"
-            min="0"
-            className="input"
-            value={moq}
-            onChange={(event) => setMoq(event.target.value)}
-          />
-        </Field>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Payment terms">
-          <input
-            className="input"
-            placeholder="30 days from invoice"
-            value={paymentTerms}
-            onChange={(event) => setPayment(event.target.value)}
-          />
-        </Field>
-        <Field label="Delivery">
-          <input
-            className="input"
-            placeholder="4 weeks from PO"
-            value={deliveryTerms}
-            onChange={(event) => setDelivery(event.target.value)}
-          />
-        </Field>
-        <Field label="Valid until" hint="Printed on the quotation">
-          <input
-            type="date"
-            className="input"
-            value={validUntil}
-            onChange={(event) => setValidUntil(event.target.value)}
-          />
-        </Field>
-      </div>
-
-      <div className="flex flex-wrap items-end gap-4">
-        <label className="flex items-center gap-2 text-sm text-steel-200">
-          <input
-            type="checkbox"
-            className="h-4 w-4 rounded border-line/20 bg-ink-800"
-            checked={isExport}
-            onChange={(event) => setExport(event.target.checked)}
-          />
-          This is an export quote (no GST)
-        </label>
-        {!isExport && (
-          <Field label="GST (%)" className="w-28">
-            <input
-              type="number"
-              step="0.1"
-              min="0"
-              max="100"
-              className="input"
-              value={gstPercent}
-              onChange={(event) => setGst(event.target.value)}
-            />
-          </Field>
-        )}
-      </div>
-
-      {error && <Notice tone="danger">{error}</Notice>}
-
-      <div className="flex justify-end gap-2">
-        <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
-        <button type="submit" className="btn-primary" disabled={busy}>
-          {busy ? 'Raising…' : 'Raise the quotation'}
-        </button>
-      </div>
-    </form>
-  );
-}
 
 export default function Pricings() {
-  const { canWrite } = useAuth();
+  const { canWrite, canQuote } = useAuth();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const [page, setPage] = useState(1);
@@ -400,7 +231,7 @@ export default function Pricings() {
   const mayCost = canWrite('pricing');
   /* Raising a quote is a quoting right, not a costing one: marketing may turn an approved
      price into a quotation without ever seeing the cost behind it. */
-  const mayQuote = canWrite('quotations');
+  const mayQuote = canQuote('pricing');
   const term = useDebounced(search);
 
   const filters = {

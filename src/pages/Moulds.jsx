@@ -7,6 +7,7 @@ import {
   Badge, EmptyState, ErrorState, Field, Modal, Notice, PageHeader, Pagination, TableSkeleton,
 } from '../components/ui.jsx';
 import { CustomerSelect } from '../components/pickers.jsx';
+import { MouldPhotoField, MouldThumb } from '../components/MouldPhoto.jsx';
 import ExportButton from '../components/ExportButton.jsx';
 import { formatCurrency, formatNumber } from '../utils/format.js';
 import {
@@ -39,6 +40,8 @@ const grams = (value) =>
 
 function MouldForm({ mould, onClose, onSaved }) {
   const [error, setError] = useState(null);
+  /* Held until Save, then sent on its own endpoint — see `MouldPhotoField` for why it waits. */
+  const [photo, setPhoto] = useState(null);
   const editing = Boolean(mould);
 
   const {
@@ -171,11 +174,29 @@ function MouldForm({ mould, onClose, onSaved }) {
     };
 
     try {
-      onSaved(
-        editing
-          ? await mouldsApi.update({ id: mould._id, expectedUpdatedAt: mould.updatedAt, ...payload })
-          : await mouldsApi.create({ mouldCode: values.mouldCode, ...payload })
-      );
+      let saved = editing
+        ? await mouldsApi.update({ id: mould._id, expectedUpdatedAt: mould.updatedAt, ...payload })
+        : await mouldsApi.create({ mouldCode: values.mouldCode, ...payload });
+
+      /*
+       * The photograph afterwards, because it needs a record to hang on — a new mould has no id
+       * until the first call returns. Second, so a failure here leaves the register holding the
+       * numbers rather than losing them: the photo can be added again, and re-keying a whole
+       * tool because its picture would not upload is the worse of the two failures.
+       */
+      if (photo) {
+        try {
+          saved = await mouldsApi.setPhoto(saved._id, photo);
+        } catch (photoError) {
+          onSaved(saved);
+          setError({
+            message: `${saved.mouldCode} was saved, but the photo did not upload — ${photoError.message}`,
+          });
+          return;
+        }
+      }
+
+      onSaved(saved);
       onClose();
     } catch (submitError) {
       setError(submitError);
@@ -193,6 +214,20 @@ function MouldForm({ mould, onClose, onSaved }) {
             {...(editing ? {} : register('mouldCode', { required: 'The mould number is required' }))}
           />
         </Field>
+        {/* Across both columns, above the numbers: it is the one field on this form somebody
+            recognises the tool by without reading. */}
+        <div className="sm:col-span-2">
+          <span className="label">The part</span>
+          <div className="mt-1.5">
+            <MouldPhotoField
+              photo={mould?.photo}
+              file={photo}
+              onPick={setPhoto}
+              onClear={() => setPhoto(null)}
+            />
+          </div>
+        </div>
+
         <Field label="What it makes" error={errors.name}>
           <input className="input" placeholder="400mm shirt hanger" {...register('name', { required: 'A name is required' })} />
         </Field>
@@ -538,9 +573,16 @@ export default function Moulds() {
                     const short = mould.runningCavities < mould.cavities;
                     return (
                       <tr key={mould._id} className="row-hover">
+                        {/* The shape beside the code. A register of forty tools is scanned for
+                            a hanger, not for a string — and until now it was all strings. */}
                         <td className="px-4 py-3.5">
-                          <p className="font-semibold text-steel-100">{mould.mouldCode}</p>
-                          <p className="text-xs text-steel-400">{mould.name}</p>
+                          <div className="flex items-center gap-3">
+                            <MouldThumb mould={mould} />
+                            <div className="min-w-0">
+                              <p className="font-semibold text-steel-100">{mould.mouldCode}</p>
+                              <p className="text-xs text-steel-400">{mould.name}</p>
+                            </div>
+                          </div>
                         </td>
                         <td className="px-4 py-3.5 text-xs text-steel-300">
                           {[

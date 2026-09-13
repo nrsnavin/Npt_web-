@@ -68,6 +68,16 @@ export function AuthProvider({ children }) {
       canWrite(moduleKey) {
         return Boolean(user?.modules?.find((module) => module.key === moduleKey)?.canWrite);
       },
+      /**
+       * True when they may raise and send a quotation.
+       *
+       * The middle level, and only pricing has one: quoting is not costing, so marketing may
+       * write the document the buyer receives without being shown the cost behind the price.
+       * Anywhere else this is the same answer as `canWrite`, because nowhere else offers it.
+       */
+      canQuote(moduleKey) {
+        return Boolean(user?.modules?.find((module) => module.key === moduleKey)?.canQuote);
+      },
       isAdmin: user?.role === 'admin',
       /** Replaces the cached user after a profile update. */
       applyUser: setUser,
