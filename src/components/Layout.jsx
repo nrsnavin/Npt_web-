@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useTheme } from '../context/ThemeContext.jsx';
 import WorkspaceRail from './dock/WorkspaceRail.jsx';
+import SidebarNav from './SidebarNav.jsx';
 import GlobalSearch from './GlobalSearch.jsx';
 import { Modal } from './ui.jsx';
 import { humanise } from '../utils/format.js';
@@ -31,24 +32,40 @@ const SIDEBARS = {
     sections: [
       {
         title: 'Before the order',
+        /*
+         * The boards and reports sit *under* the module they are about rather than beside it.
+         *
+         * Flat, "Quality" and "Quality report" were siblings — which told the reader they were
+         * peers when one is plainly a view of the other, and made a fourteen-row list where
+         * every entry carried the same weight. Nested, the parent reads as the thing and the
+         * rest as its views, and the list is ten rows with the detail put away.
+         *
+         * A parent with children is `end`, or it stays lit while a child is open and two rows
+         * claim to be the current page at once.
+         */
         items: [
-          // Exact, or Leads stays lit while its analytics page is open.
-          { to: '/leads', label: 'Leads', module: 'enquiries', end: true },
-          { to: '/leads/analytics', label: 'Lead analytics', module: 'enquiries' },
+          {
+            to: '/leads', label: 'Leads', module: 'enquiries', end: true,
+            children: [{ to: '/leads/analytics', label: 'Lead analytics', module: 'enquiries' }],
+          },
           { to: '/enquiries', label: 'Enquiries', module: 'enquiries' },
           { to: '/pricings', label: 'Costings', module: 'pricing' },
           { to: '/quotations', label: 'Quotations', module: 'quotations' },
           { to: '/orders', label: 'Sales orders', module: 'orders' },
           { to: '/production', label: 'Production', module: 'production' },
-          // Exact, or the register stays lit while the report is open beneath it.
-          { to: '/quality', label: 'Quality', module: 'quality', end: true },
-          { to: '/quality/report', label: 'Quality report', module: 'quality' },
+          {
+            to: '/quality', label: 'Quality', module: 'quality', end: true,
+            children: [{ to: '/quality/report', label: 'Quality report', module: 'quality' }],
+          },
           { to: '/dispatches', label: 'Dispatch', module: 'dispatch' },
           { to: '/payments', label: 'Payments', module: 'payments' },
-          // Exact, or the queue stays lit while the dashboard is open beneath it.
-          { to: '/samples', label: 'Sampling', module: 'samples', end: true },
-          { to: '/samples/dashboard', label: 'Sampling dashboard', module: 'samples' },
-          { to: '/samples/analytics', label: 'Sample analytics', module: 'samples' },
+          {
+            to: '/samples', label: 'Sampling', module: 'samples', end: true,
+            children: [
+              { to: '/samples/dashboard', label: 'Sampling dashboard', module: 'samples' },
+              { to: '/samples/analytics', label: 'Sample analytics', module: 'samples' },
+            ],
+          },
         ],
       },
       {
@@ -161,6 +178,198 @@ export default function Layout() {
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   useEffect(() => setMenuOpen(false), [location.pathname]);
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
+  const railItems = RAIL.filter(
+    (item) =>
+      (!item.module || canRead(item.module)) &&
+      (!item.modules || item.modules.some((module) => canRead(module)))
+  );
+
+  /**
+   * Where clicking an area actually lands.
+   *
+   * The area's own `to` when the caller can read it, and otherwise the first screen inside it
+   * that they can — because an area they may open containing a landing page they may not is a
+   * link that leads to a refusal.
+   */
+  const railTarget = (item) => {
+    const inside = SIDEBARS[item.to]?.sections.flatMap((section) => section.items) || [];
+    const reachable = inside.find((entry) => !entry.module || canRead(entry.module));
+    const landing = inside.find((entry) => entry.to === item.to);
+
+    if (landing && (!landing.module || canRead(landing.module))) return item.to;
+    return reachable?.to || item.to;
+  };
+
+  const owns = (item) =>
+    (item.paths || [item.to]).some((path) => location.pathname.startsWith(path));
+  const sidebarKey = railItems.find((item) => item.to !== '/' && owns(item))?.to;
+  const sidebar = SIDEBARS[sidebarKey || '/'];
+
+  /*
+   * The nav, narrowed to what this person may read.
+   *
+   * Kept here rather than inside `SidebarNav`, because what somebody may open is the Layout's
+   * business and a nav that decided it too would be a second access rule to keep in step with
+   * the first.
+   *
+   * `admin` sits beside `module` rather than pretending to be one. Some screens are not a module
+   * at all — the integrations page carries a third party's key state and spends API calls the
+   * whole plant shares — and inventing a grant for them would mean an access list with an entry
+   * nobody knows how to reason about.
+   *
+   * A child is dropped with its parent: a report on a module you cannot open is a screen you
+   * cannot open either, and offering it would be offering a refusal.
+   */
+  const mayOpen = (item) => (!item.module || canRead(item.module)) && (!item.admin || isAdmin);
+
+  const readableSections = sidebar.sections
+    .map((section) => ({
+      ...section,
+      items: section.items.filter(mayOpen).map((item) => ({
+        ...item,
+        children: (item.children || []).filter(mayOpen),
+      })),
+    }))
+    .filter((section) => section.items.length);
+
+  return (
+    <div className="flex h-screen flex-col overflow-hidden">
+      <div className="flex min-h-0 flex-1">
+        {/* Far-left rail */}
+        <nav
+          aria-label="Areas"
+          className="hidden w-[4.25rem] shrink-0 flex-col items-center gap-1 border-r border-line/[0.06] bg-ink-850 py-3 sm:flex"
+        >
+          {railItems.map((item) => (
+            <NavLink
+              key={item.to}
+              to={railTarget(item)}
+              end={item.end}
+              /* An area stays lit across every route it owns, not just its landing page. */
+              className={({ isActive }) =>
+                `flex w-[3.4rem] flex-col items-center gap-1 rounded-lg px-1 py-2 text-[0.75rem] font-semibold transition-colors ${
+                  /*
+                   * `owns` is consulted for every area now, not only the ones without `end`.
+                   * Home is exact-matched on `/` so that My day does not light it from every
+                   * route, but it still owns the dashboards — and an area with no lit icon on
+                   * a screen it owns reads as the navigation having lost its place.
+                   */
+                  isActive || owns(item)
+                    ? 'bg-line/[0.08] text-flame-500'
+                    : 'text-steel-400 hover:bg-line/[0.05] hover:text-steel-100'
+                }`
+              }
+            >
+              <Icon name={item.icon} />
+              {item.label}
+            </NavLink>
+          ))}
+
+          <div className="mt-auto flex flex-col items-center gap-1">
+            <span className="rounded bg-flame-500/15 px-1.5 py-0.5 text-[0.75rem] font-bold uppercase tracking-wide text-flame-400">
+              Trial
+            </span>
+          </div>
+        </nav>
+
+        {/* Secondary sidebar */}
+        <aside
+          className={`fixed inset-y-0 left-0 z-40 flex w-60 shrink-0 flex-col border-r border-line/[0.06] bg-ink-850/95 backdrop-blur-xl transition-transform duration-300 ease-out lg:static lg:translate-x-0 ${
+            menuOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
+        >
+          <div className="border-b border-line/[0.06] px-4 py-3.5">
+            <Wordmark />
+          </div>
+
+          <div className="px-4 py-3">
+            <p className="text-xs font-bold tracking-tight text-steel-100">
+              {sidebar.title}
+            </p>
+          </div>
+
+          <SidebarNav sections={readableSections} scope={sidebarKey || '/'} />
+
+          <div className="border-t border-line/[0.06] px-4 py-3">
+            <p className="text-xs text-steel-500">A hanger expert you can hang onto</p>
+          </div>
+        </aside>
+
+        {menuOpen && (
+          <button
+            type="button"
+            aria-label="Close navigation"
+            className="fixed inset-0 z-30 animate-fade-in bg-scrim/70 backdrop-blur-sm lg:hidden"
+            onClick={() => setMenuOpen(false)}
+          />
+        )}
+
+        {/* Main column */}
+        <div className="flex min-w-0 flex-1 flex-col">
+          {/* `relative z-30` so the header's own overlays — the search results — paint above
+              the main pane. Without a stacking context here, `main` comes later in the DOM
+              and wins, and the results render behind the page they are offering to open. */}
+          <header className="relative z-30 flex shrink-0 items-center gap-3 border-b border-line/[0.06] bg-ink-900/80 px-4 py-2 backdrop-blur-xl">
+            <button
+              type="button"
+              className="btn-ghost px-2.5 py-1.5 lg:hidden"
+              onClick={() => setMenuOpen((open) => !open)}
+              aria-label="Toggle navigation"
+              aria-expanded={menuOpen}
+            >
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <path d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+
+            <TopTabs />
+
+            <GlobalSearch />
+
+            <div className="flex shrink-0 items-center gap-2">
+              <ThemeToggle />
+              <div className="hidden text-right sm:block">
+                <p className="text-xs font-semibold leading-tight text-steel-100">
+                  {user?.name}
+                </p>
+                <p className="text-xs font-medium text-steel-500">
+                  {humanise(user?.department) || humanise(user?.role)}
+                </p>
+              </div>
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-flame-500/15 text-xs font-bold text-flame-400 ring-1 ring-inset ring-flame-500/25">
+                {user?.name?.charAt(0).toUpperCase()}
+              </div>
+              <button type="button" className="btn-secondary px-3 py-1.5" onClick={handleLogout}>
+                Sign out
+              </button>
+            </div>
+          </header>
+
+          <main key={location.pathname} className="min-h-0 flex-1 animate-fade-up overflow-y-auto p-4 sm:p-6 lg:p-8">
+            <Outlet />
+          </main>
+        </div>
+
+        {/*
+          The workspace, on the right of every screen. A sibling of the main column rather than
+          something floating above it: that is what lets the page reflow around it and the
+          to-do list stay open while you work, instead of covering the work it refers to.
+        */}
+        <WorkspaceRail />
+      </div>
+
+      {/* Bottom bar: who is signed in, and nothing else — the tools moved to the right. */}
+      <footer className="flex shrink-0 items-center gap-3 border-t border-line/[0.06] bg-ink-850 px-3 py-1">
+        <span className="hidden text-xs text-steel-500 sm:block">
+          {user?.name} · {humanise(user?.department)}
+        </span>
+      </footer>
   const sections = [
     SIDEBARS['/'].sections[0],
     { title: 'Sales and operations', items: SIDEBARS['/enquiries'].sections[0].items },
