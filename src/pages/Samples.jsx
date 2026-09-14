@@ -9,6 +9,7 @@ import {
 } from '../components/ui.jsx';
 import { CustomerSelect, EnquirySelect } from '../components/pickers.jsx';
 import SampleBoard from '../components/boards/SampleBoard.jsx';
+import { SortHeader, useSort } from '../components/SortHeader.jsx';
 import SampleRequestForm from '../components/SampleRequestForm.jsx';
 import ViewSwitch from '../components/ViewSwitch.jsx';
 import { useViewMode } from '../hooks/useBoard.js';
@@ -90,6 +91,18 @@ export default function Samples() {
   const [status, setStatus] = useState('');
   const [view, setView] = useState('open');
   const [page, setPage] = useState(1);
+  const { sort, toggle } = useSort();
+
+  /*
+   * Back to page one on every sort — and note that sorting this register deliberately drops its
+   * late-first grouping. The server groups late requests above the rest and orders within each
+   * band; naming a column asks for that column, plainly, which is what somebody clicking
+   * "Required by" means. Clicking a third time clears the sort and the grouping comes back.
+   */
+  const sortBy = (field) => {
+    toggle(field);
+    setPage(1);
+  };
 
   /*
    * Fetched alongside the page rather than derived here: what counts as stalled — which
@@ -118,7 +131,7 @@ export default function Samples() {
 
   const { data, pagination, loading, error, reload } = useRecordList(
     board ? idle : samplesApi.list,
-    { ...filters, page, limit: 25 }
+    { ...filters, sort: sort || undefined, page, limit: 25 }
   );
 
   const change = (setter) => (value) => {
@@ -233,7 +246,7 @@ export default function Samples() {
               <table className="min-w-full text-sm">
                 <thead className="table-head">
                   <tr>
-                    <th className="px-3 py-3">Request</th>
+                    <SortHeader field="number" label="Request" sort={sort} onToggle={sortBy} />
                     <th className="px-3 py-3">Customer</th>
                     {/*
                       Purpose folded under the model rather than kept as a column of its own.
@@ -241,11 +254,11 @@ export default function Samples() {
                       clipped the stage badge off the right edge — and the stage is the column
                       somebody is actually reading. Fewer columns, wider ones.
                     */}
-                    <th className="px-3 py-3">Model</th>
-                    <th className="px-3 py-3 text-right">Qty</th>
-                    <th className="px-3 py-3">Required by</th>
+                    <SortHeader field="modelNumber" label="Model" sort={sort} onToggle={sortBy} />
+                    <SortHeader field="quantity" label="Qty" sort={sort} onToggle={sortBy} align="right" />
+                    <SortHeader field="requiredDate" label="Required by" sort={sort} onToggle={sortBy} />
                     <th className="px-3 py-3">With</th>
-                    <th className="w-[15rem] px-3 py-3">Stage</th>
+                    <SortHeader field="status" label="Stage" sort={sort} onToggle={sortBy} className="w-[15rem]" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line/[0.04]">

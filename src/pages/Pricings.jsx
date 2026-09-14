@@ -7,6 +7,7 @@ import {
   Badge, EmptyState, ErrorState, Field, Modal, Notice, PageHeader, Pagination, TableSkeleton,
 } from '../components/ui.jsx';
 import StagePipeline from '../components/StagePipeline.jsx';
+import { SortHeader, useSort } from '../components/SortHeader.jsx';
 import CostingSheetForm from '../components/CostingSheetForm.jsx';
 import CostingDetailsForm from '../components/CostingDetailsForm.jsx';
 import { CustomerSelect, MouldSelect } from '../components/pickers.jsx';
@@ -226,6 +227,7 @@ export default function Pricings() {
   const [editing, setEditing] = useState(null);
   const [quoting, setQuoting] = useState(null);
   const [madeQuote, setMadeQuote] = useState(null);
+  const { sort, toggle } = useSort();
   const [params] = useSearchParams();
 
   const mayCost = canWrite('pricing');
@@ -241,12 +243,20 @@ export default function Pricings() {
   };
   const { data, pagination, meta, loading, error, reload } = useRecordList(pricingsApi.list, {
     ...filters,
+    sort: sort || undefined,
     page,
     limit: 25,
   });
 
   const selectStage = (value) => {
     setStatus(value === status ? '' : value);
+    setPage(1);
+  };
+
+  /* Back to page one on every sort. Re-ordering four hundred rows while staying on page seven
+     lands the reader in the middle of an ordering they have not seen the top of. */
+  const sortBy = (field) => {
+    toggle(field);
     setPage(1);
   };
 
@@ -331,14 +341,20 @@ export default function Pricings() {
               <table className="min-w-full text-sm">
                 <thead className="table-head">
                   <tr>
-                    <th className="px-3 py-3">Costing</th>
+                    <SortHeader field="number" label="Costing" sort={sort} onToggle={sortBy} />
+                    {/* The customer is a populated reference, so the collection has an id to
+                        order by and not a name — sorting by it would group the table by
+                        whichever buyer happened to be created first, which reads as random. */}
                     <th className="px-3 py-3">Customer</th>
-                    <th className="px-3 py-3">Model</th>
-                    <th className="px-3 py-3 text-right">Quantity</th>
+                    <SortHeader field="modelNumber" label="Model" sort={sort} onToggle={sortBy} />
+                    <SortHeader field="quantity" label="Quantity" sort={sort} onToggle={sortBy} align="right" />
+                    {/* Cost and margin are virtuals — worked out on the way out of the document,
+                        so there is nothing stored for the database to order by. A heading that
+                        offered it would draw an arrow and not sort. */}
                     {mayCost && <th className="px-3 py-3 text-right">Cost</th>}
-                    <th className="px-3 py-3 text-right">Price</th>
+                    <SortHeader field="approvedSellingPrice" label="Price" sort={sort} onToggle={sortBy} align="right" />
                     {mayCost && <th className="px-3 py-3 text-right">Margin</th>}
-                    <th className="px-3 py-3">Stage</th>
+                    <SortHeader field="status" label="Stage" sort={sort} onToggle={sortBy} />
                     <th className="px-3 py-3" />
                   </tr>
                 </thead>

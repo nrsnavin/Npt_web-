@@ -10,6 +10,7 @@ import {
 import EnquiryForm from '../components/EnquiryForm.jsx';
 import EnquiryBoard from '../components/boards/EnquiryBoard.jsx';
 import StagePipeline from '../components/StagePipeline.jsx';
+import { SortHeader, useSort } from '../components/SortHeader.jsx';
 import ViewSwitch from '../components/ViewSwitch.jsx';
 import { useViewMode } from '../hooks/useBoard.js';
 import { CustomerSelect } from '../components/pickers.jsx';
@@ -43,6 +44,14 @@ export default function Enquiries() {
   const [view, setView] = useState('open');
   const [mode, setMode] = useViewMode('enquiries');
   const [page, setPage] = useState(1);
+  const { sort, toggle } = useSort();
+
+  /* Back to page one on every sort. Re-ordering a long register while staying on page seven
+     lands the reader in the middle of an ordering they have not seen the top of. */
+  const sortBy = (field) => {
+    toggle(field);
+    setPage(1);
+  };
   const [creating, setCreating] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -89,7 +98,7 @@ export default function Enquiries() {
 
   const { data, pagination, meta, loading, error, reload } = useRecordList(
     board ? idle : enquiriesApi.list,
-    { ...filters, page, limit: 25 }
+    { ...filters, sort: sort || undefined, page, limit: 25 }
   );
 
   const mayWrite = canWrite('enquiries');
@@ -278,14 +287,16 @@ export default function Enquiries() {
                         />
                       </th>
                     )}
-                    <th className="px-3 py-3">Enquiry</th>
+                    {/* By the enquiry's own date rather than its number: they agree today, and
+                        the date is the fact somebody means by "newest". */}
+                    <SortHeader field="enquiryDate" label="Enquiry" sort={sort} onToggle={sortBy} />
                     <th className="px-3 py-3">Customer</th>
                     <th className="px-3 py-3">Model</th>
                     <th className="px-3 py-3">Colour</th>
-                    <th className="px-3 py-3 text-right">Value</th>
-                    <th className="px-3 py-3">Next action</th>
+                    <SortHeader field="estimatedValue" label="Value" sort={sort} onToggle={sortBy} align="right" />
+                    <SortHeader field="nextFollowUpDate" label="Next action" sort={sort} onToggle={sortBy} />
                     <th className="px-3 py-3">Owner</th>
-                    <th className="px-3 py-3">Stage</th>
+                    <SortHeader field="status" label="Stage" sort={sort} onToggle={sortBy} />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line/[0.04]">

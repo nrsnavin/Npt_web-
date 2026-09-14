@@ -11,6 +11,7 @@ import BulkBar, { RowCheckbox, useSelection } from '../components/BulkReassign.j
 import ExportButton from '../components/ExportButton.jsx';
 import LeadForm from '../components/LeadForm.jsx';
 import StagePipeline from '../components/StagePipeline.jsx';
+import { SortHeader, useSort } from '../components/SortHeader.jsx';
 import LeadBoard from '../components/boards/LeadBoard.jsx';
 import ViewSwitch from '../components/ViewSwitch.jsx';
 import { useViewMode } from '../hooks/useBoard.js';
@@ -33,6 +34,14 @@ export default function Leads() {
   const [status, setStatus] = useState('');
   const [mode, setMode] = useViewMode('leads');
   const [page, setPage] = useState(1);
+  const { sort, toggle } = useSort();
+
+  /* Back to page one on every sort. Re-ordering a long register while staying on page seven
+     lands the reader in the middle of an ordering they have not seen the top of. */
+  const sortBy = (field) => {
+    toggle(field);
+    setPage(1);
+  };
   const [creating, setCreating] = useState(false);
 
   /*
@@ -82,7 +91,7 @@ export default function Leads() {
 
   const { data, pagination, meta, loading, error, reload } = useRecordList(
     board ? idle : leadsApi.list,
-    { ...filters, page, limit: 25 }
+    { ...filters, sort: sort || undefined, page, limit: 25 }
   );
 
   const mayWrite = canWrite('enquiries');
@@ -243,13 +252,19 @@ export default function Leads() {
                         />
                       </th>
                     )}
-                    <th className="px-4 py-3">Lead</th>
+                    {/* The firm, which is what the column leads with. */}
+                    <SortHeader field="company" label="Lead" sort={sort} onToggle={sortBy} className="px-4" />
                     <th className="px-4 py-3">Contact</th>
                     <th className="px-4 py-3">Interest</th>
-                    <th className="px-4 py-3 text-right">Estimate</th>
-                    <th className="px-4 py-3">Next action</th>
+                    <SortHeader field="estimatedValue" label="Estimate" sort={sort} onToggle={sortBy} align="right" className="px-4" />
+                    {/* The date, not the sentence beside it — "who is due next" is the question
+                        this column gets asked, and the wording is nobody's sort order. */}
+                    <SortHeader field="nextFollowUpDate" label="Next action" sort={sort} onToggle={sortBy} className="px-4" />
+                    {/* The owner is a populated reference: the collection holds an id, so ordering
+                        by it would group the table by whoever was created first, which reads as
+                        random to anybody looking at names. */}
                     <th className="px-4 py-3">Owner</th>
-                    <th className="px-4 py-3">Stage</th>
+                    <SortHeader field="status" label="Stage" sort={sort} onToggle={sortBy} className="px-4" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line/[0.04]">
