@@ -31,6 +31,9 @@ const PaymentDetail = lazy(() => import('./pages/PaymentDetail.jsx'));
 const Moulds = lazy(() => import('./pages/Moulds.jsx'));
 const Materials = lazy(() => import('./pages/Materials.jsx'));
 const PartsRegister = lazy(() => import('./pages/PartsRegister.jsx'));
+const MouldDetail = lazy(() => import('./pages/MouldDetail.jsx'));
+const MaterialDetail = lazy(() => import('./pages/MaterialDetail.jsx'));
+const PartDetail = lazy(() => import('./pages/PartDetail.jsx'));
 const Customers = lazy(() => import('./pages/Customers.jsx'));
 const CustomerDetail = lazy(() => import('./pages/CustomerDetail.jsx'));
 const Leads = lazy(() => import('./pages/Leads.jsx'));
@@ -328,11 +331,28 @@ export default function App() {
               </RequireModule>
             }
           />
+          {/* Below the list, so the literal segment is not swallowed by `:id`. */}
+          <Route
+            path="moulds/:id"
+            element={
+              <RequireModule moduleKey="moulds">
+                <MouldDetail />
+              </RequireModule>
+            }
+          />
           <Route
             path="materials"
             element={
               <RequireModule moduleKey="materials">
                 <Materials />
+              </RequireModule>
+            }
+          />
+          <Route
+            path="materials/:id"
+            element={
+              <RequireModule moduleKey="materials">
+                <MaterialDetail />
               </RequireModule>
             }
           />
@@ -347,6 +367,17 @@ export default function App() {
               element={
                 <RequireModule moduleKey="materials">
                   <PartsRegister kind={kind} />
+                </RequireModule>
+              }
+            />
+          ))}
+          {['hook', 'clip', 'print'].map((kind) => (
+            <Route
+              key={`${kind}-detail`}
+              path={`${kind}s/:id`}
+              element={
+                <RequireModule moduleKey="materials">
+                  <PartDetail kind={kind} />
                 </RequireModule>
               }
             />

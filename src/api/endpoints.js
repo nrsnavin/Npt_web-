@@ -88,7 +88,18 @@ export const materials = {
   get: (id) => api.get(`/materials/${id}`).then(unwrap),
   create: (payload) => api.post('/materials', payload).then(unwrap),
   update: ({ id, ...payload }) => api.patch(`/materials/${id}`, payload).then(unwrap),
-  pricings: (id) => api.get(`/materials/${id}/pricings`),
+  /**
+   * What has been costed on this resin, and how much of it on a rate that has since moved.
+   *
+   * Unwrapped to `{ rows, stale }` rather than handed over as a raw axios response — it had no
+   * callers until the detail page, so nothing depended on the old shape and nothing should have
+   * to know that `.data.data` is the list.
+   */
+  pricings: (id) =>
+    api.get(`/materials/${id}/pricings`).then((response) => ({
+      rows: response.data.data || [],
+      stale: response.data.stale || 0,
+    })),
   /**
    * The colours the register actually holds.
    *
@@ -111,7 +122,12 @@ export const components = {
   get: (id) => api.get(`/components/${id}`).then(unwrap),
   create: (payload) => api.post('/components', payload).then(unwrap),
   update: ({ id, ...payload }) => api.patch(`/components/${id}`, payload).then(unwrap),
-  pricings: (id) => api.get(`/components/${id}/pricings`),
+  /** What has been costed with this part — see the note on the material register's own. */
+  pricings: (id) =>
+    api.get(`/components/${id}/pricings`).then((response) => ({
+      rows: response.data.data || [],
+      stale: response.data.stale || 0,
+    })),
 };
 
 export const customers = {

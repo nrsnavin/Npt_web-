@@ -471,7 +471,7 @@ export default function PricingDetail() {
           <Modal
             open={quoting}
             title={`Quote from ${pricing.number}`}
-            subtitle="The price goes on a new quotation, or onto one already being written for this buyer"
+            description="The price goes on a new quotation, or onto one already being written for this buyer"
             onClose={() => setQuoting(false)}
           >
             <QuoteFromCosting

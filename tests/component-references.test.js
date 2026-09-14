@@ -49,8 +49,13 @@ function namesInScope(source) {
     }
   }
 
-  /* Declared here. */
-  for (const match of source.matchAll(/(?:function|const|let|class)\s+([A-Z][A-Za-z0-9_]*)/g)) {
+  /*
+   * Declared here — at any case, and at any depth.
+   *
+   * Lowercase matters as much as capitalised: a page that defines its own `numeric` inside a
+   * submit handler is not missing an import, and a guard that says it is gets switched off.
+   */
+  for (const match of source.matchAll(/(?:function|const|let|class)\s+([A-Za-z_$][\w$]*)/g)) {
     known.add(match[1]);
   }
 
@@ -82,6 +87,93 @@ test('every component rendered is imported or defined in the same file', () => {
     unreachable,
     [],
     `rendered but never imported or defined — this is a blank screen, not a warning:\n  ${unreachable.join('\n  ')}`
+  );
+});
+
+/**
+ * React's hooks, by the same rule and for the same reason.
+ *
+ * A component is not the only thing a dropped import takes with it. Extracting a form out of a
+ * page left `useMemo` behind, the build passed — a bundler treats an unknown identifier as a
+ * global it cannot see yet, exactly as it does for a component — and the form threw the moment
+ * anybody opened it. Same failure, same silence, so the same guard covers it.
+ *
+ * Only React's own, deliberately. A project hook is caught by the import check either way, and
+ * a blanket rule over every `useThing()` would flag the many that are defined locally.
+ */
+const REACT_HOOKS = [
+  'useState', 'useEffect', 'useMemo', 'useCallback', 'useRef', 'useContext',
+  'useReducer', 'useId', 'useLayoutEffect', 'useTransition', 'useDeferredValue',
+];
+
+test('every React hook called is imported', () => {
+  const unreachable = [];
+
+  for (const file of sourceFiles('src')) {
+    const source = readFileSync(file, 'utf8');
+    const known = namesInScope(source);
+
+    for (const hook of REACT_HOOKS) {
+      /* Called, rather than merely mentioned in a comment or a longer name. */
+      if (new RegExp(`(^|[^.\\w])${hook}\\s*\\(`).test(source) && !known.has(hook)) {
+        unreachable.push(`${file}: ${hook}()`);
+      }
+    }
+  }
+
+  assert.deepEqual(
+    unreachable,
+    [],
+    `called but never imported — the build passes and the screen throws:\n  ${unreachable.join('\n  ')}`
+  );
+});
+
+/**
+ * And the project's own shared helpers, by the same rule again.
+ *
+ * The third time this bit: extracting a form out of a page left `formatCurrency` and
+ * `formatNumber` behind as well as `useMemo`. A component, a hook and a helper are the same
+ * failure wearing three hats — the bundler sees an unknown identifier, assumes a global, builds
+ * clean, and the screen throws when somebody opens it.
+ *
+ * The list is read from what the utils modules actually export rather than typed out here, so a
+ * helper added tomorrow is covered without anybody remembering to add it.
+ */
+const sharedHelpers = () => {
+  const names = new Set();
+  for (const module of ['src/utils/format.js', 'src/utils/pipeline.js']) {
+    const source = readFileSync(module, 'utf8');
+    for (const match of source.matchAll(/export\s+(?:const|function)\s+([a-z][A-Za-z0-9_]*)/g)) {
+      names.add(match[1]);
+    }
+  }
+  return [...names];
+};
+
+test('every shared helper called is imported', () => {
+  const helpers = sharedHelpers();
+  assert.ok(helpers.length > 3, 'the helper list must actually have been read');
+
+  const unreachable = [];
+
+  for (const file of sourceFiles('src')) {
+    /* The modules that define them are not asked to import themselves. */
+    if (file.startsWith('src/utils/')) continue;
+
+    const source = readFileSync(file, 'utf8');
+    const known = namesInScope(source);
+
+    for (const helper of helpers) {
+      if (new RegExp(`(^|[^.\\w])${helper}\\s*\\(`).test(source) && !known.has(helper)) {
+        unreachable.push(`${file}: ${helper}()`);
+      }
+    }
+  }
+
+  assert.deepEqual(
+    unreachable,
+    [],
+    `called but never imported — the build passes and the screen throws:\n  ${unreachable.join('\n  ')}`
   );
 });
 
