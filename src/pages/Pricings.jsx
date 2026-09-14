@@ -278,11 +278,19 @@ export default function Pricings() {
             : 'The price you may quote. What it costs to make is management’s to see'
         }
         actions={
-          mayCost && (
-            <button type="button" className="btn-primary" onClick={() => setRaising(true)}>
-              + New costing
-            </button>
-          )
+          <div className="flex items-center gap-2">
+            {/* The other half of this module's question. A costing is worth having because it
+                becomes a price somebody sends; what has actually been sent, and off which
+                sheet, is one click from here rather than two screens away. */}
+            <Link to="/quotations/sent" className="btn-secondary">
+              Sent quotations
+            </Link>
+            {mayCost && (
+              <button type="button" className="btn-primary" onClick={() => setRaising(true)}>
+                + New costing
+              </button>
+            )}
+          </div>
         }
       />
 

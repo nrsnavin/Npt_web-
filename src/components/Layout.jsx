@@ -81,7 +81,12 @@ const MODULES = [
     module: 'pricing',
     features: [
       { to: '/pricings', label: 'Costing sheets' },
-      { to: '/quotations', label: 'Quotations' },
+      /* Exact, now that a screen lives under it: without this both entries light on the sent
+         board, and two lit links in one section is the nav saying it has lost its place. */
+      { to: '/quotations', label: 'Quotations', end: true },
+      /* What is out there with buyers right now, kept apart from the drafts it would otherwise
+         be buried among — and carrying the costing each price was worked out from. */
+      { to: '/quotations/sent', label: 'Sent quotations' },
     ],
   },
   {

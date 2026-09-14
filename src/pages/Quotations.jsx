@@ -622,11 +622,18 @@ export default function Quotations() {
         title="Quotations"
         subtitle="Every price this plant has offered, and what was said about each one"
         actions={
-          mayWrite && (
-            <button type="button" className="btn-primary" onClick={() => setCreating(true)}>
-              + New quotation
-            </button>
-          )
+          <div className="flex items-center gap-2">
+            {/* This register is everything, drafts included — which is right for it and wrong
+                for the question "what is out there with buyers". That has its own board. */}
+            <Link to="/quotations/sent" className="btn-secondary">
+              Sent only
+            </Link>
+            {mayWrite && (
+              <button type="button" className="btn-primary" onClick={() => setCreating(true)}>
+                + New quotation
+              </button>
+            )}
+          </div>
         }
       />
 

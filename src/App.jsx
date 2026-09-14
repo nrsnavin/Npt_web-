@@ -41,6 +41,7 @@ const LeadAnalytics = lazy(() => import('./pages/LeadAnalytics.jsx'));
 const Pricings = lazy(() => import('./pages/Pricings.jsx'));
 const PricingDetail = lazy(() => import('./pages/PricingDetail.jsx'));
 const Quotations = lazy(() => import('./pages/Quotations.jsx'));
+const SentQuotations = lazy(() => import('./pages/SentQuotations.jsx'));
 const QuotationDetail = lazy(() => import('./pages/QuotationDetail.jsx'));
 const LeadDetail = lazy(() => import('./pages/LeadDetail.jsx'));
 const Enquiries = lazy(() => import('./pages/Enquiries.jsx'));
@@ -178,6 +179,17 @@ export default function App() {
             element={
               <RequireModule moduleKey="pricing">
                 <Quotations />
+              </RequireModule>
+            }
+          />
+          {/* Before the `:id` route so the word is read as the board it names. React Router
+              ranks a static segment above a dynamic one either way, but a reader should not
+              have to know that to be sure. */}
+          <Route
+            path="quotations/sent"
+            element={
+              <RequireModule moduleKey="pricing">
+                <SentQuotations />
               </RequireModule>
             }
           />
