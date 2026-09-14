@@ -8,6 +8,7 @@ import {
 } from '../components/ui.jsx';
 import ExportButton from '../components/ExportButton.jsx';
 import OrderForm from '../components/OrderForm.jsx';
+import { PriorityForm, PRIORITY_TONE, isRaised, priorityLabel } from '../components/OrderPriority.jsx';
 import { formatCurrency, formatDate, formatNumber } from '../utils/format.js';
 import { ORDER_STAGES, orderStageLabel, numeric, text } from '../utils/pipeline.js';
 
@@ -35,19 +36,37 @@ const rupees = (value) => (value === undefined || value === null ? '—' : forma
  * nowhere else — how many, at what rate, by when, and the buyer's own model number.
  */
 
+/**
+ * Who may ask the plant to move this job: the marketing person who owns it, or management.
+ *
+ * Not everybody who can read the order — the plant can read every order, and a flag the plant
+ * can set is a flag that stops meaning "the customer asked". The same rule the order's own page
+ * draws, and the server enforces it either way; this only decides whether to offer a control
+ * that would be refused. Per row rather than per screen, because it turns on who owns the order.
+ */
+const mayRaiseFor = (order, user) =>
+  String(order.assignedTo?._id ?? order.assignedTo) === String(user?.id) ||
+  user?.role === 'admin' ||
+  user?.department === 'management';
+
 export default function Orders() {
-  const { canWrite } = useAuth();
+  const { canWrite, user } = useAuth();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const [awaiting, setAwaiting] = useState(false);
   const [page, setPage] = useState(1);
   const [creating, setCreating] = useState(false);
+  /* Which order's priority is being set, if any. Held here rather than per row so only one
+     dialog can ever be open. */
+  const [prioritising, setPrioritising] = useState(null);
+  const [urgentOnly, setUrgentOnly] = useState(false);
 
   const term = useDebounced(search);
   const filters = {
     search: term || undefined,
     status: status || undefined,
     awaitingRelease: awaiting ? 'true' : undefined,
+    priority: urgentOnly ? 'raised' : undefined,
   };
   const { data, pagination, loading, error, reload } = useRecordList(ordersApi.list, {
     ...filters,
@@ -110,9 +129,24 @@ export default function Orders() {
           />
           Waiting on verification
         </label>
+
+        {/* The other question this register gets asked, and could not answer: what have we told
+            the plant to pull forward? */}
+        <label className="flex items-center gap-2 text-sm text-steel-300">
+          <input
+            type="checkbox"
+            className="h-4 w-4 accent-flame-500"
+            checked={urgentOnly}
+            onChange={(event) => {
+              setUrgentOnly(event.target.checked);
+              setPage(1);
+            }}
+          />
+          Marked urgent
+        </label>
       </div>
 
-      {loading && <TableSkeleton columns={6} />}
+      {loading && <TableSkeleton columns={7} />}
       {error && <ErrorState error={error} onRetry={reload} />}
 
       {!loading && !error && (data?.length ? (
@@ -128,11 +162,13 @@ export default function Orders() {
                     <th className="px-4 py-3 text-right">Pieces</th>
                     <th className="px-4 py-3 text-right">Value</th>
                     <th className="px-4 py-3">Stage</th>
+                    <th className="px-4 py-3">Priority</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line/[0.04]">
                   {data.map((order) => {
                     const short = order.outstandingChecks?.length || 0;
+                    const mayRaise = mayRaiseFor(order, user);
                     return (
                       <tr key={order._id} className="row-hover">
                         <td className="px-4 py-3.5">
@@ -169,6 +205,39 @@ export default function Orders() {
                             </p>
                           )}
                         </td>
+
+                        {/*
+                          What the plant has been asked for, on the register rather than only on
+                          the order's own page. Both directions of that mattered: a flag nobody
+                          can see from the list is a flag nobody audits — this is the column that
+                          makes an over-used one obvious — and setting it meant opening an order,
+                          so triaging a morning's worth was five round trips.
+                        */}
+                        <td className="px-4 py-3.5">
+                          {isRaised(order) ? (
+                            <>
+                              <p className={`text-xs font-bold ${PRIORITY_TONE[order.priority]}`}>
+                                {priorityLabel(order.priority)}
+                              </p>
+                              {/* Who asked. The same reason it is on the order page: it is what
+                                  makes an over-used flag something anybody can notice. */}
+                              {order.priorityBy?.name && (
+                                <p className="text-xs text-steel-500">{order.priorityBy.name}</p>
+                              )}
+                            </>
+                          ) : (
+                            <span className="text-xs text-steel-600">Normal</span>
+                          )}
+                          {mayRaise && order.isOpen && (
+                            <button
+                              type="button"
+                              className="row-action mt-0.5 block text-xs"
+                              onClick={() => setPrioritising(order)}
+                            >
+                              {isRaised(order) ? 'Change' : 'Mark urgent'}
+                            </button>
+                          )}
+                        </td>
                       </tr>
                     );
                   })}
@@ -193,6 +262,25 @@ export default function Orders() {
         onClose={() => setCreating(false)}
       >
         <OrderForm onClose={() => setCreating(false)} onSaved={reload} />
+      </Modal>
+
+      {/*
+        The same form the order's own page uses, so the reason box — which is the whole feature —
+        cannot soften in one place and not the other.
+      */}
+      <Modal
+        open={Boolean(prioritising)}
+        title={`Priority for ${prioritising?.number || ''}`}
+        description="What you are asking the plant to move, and what it costs whoever is already on the press"
+        onClose={() => setPrioritising(null)}
+      >
+        {prioritising && (
+          <PriorityForm
+            order={prioritising}
+            onClose={() => setPrioritising(null)}
+            onSaved={reload}
+          />
+        )}
       </Modal>
     </div>
   );

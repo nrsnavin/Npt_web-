@@ -39,30 +39,102 @@ const TONE = {
   critical: 'text-danger-400',
 };
 
-export default function OrderPriority({ order, mayRaise, onSaved }) {
-  const [editing, setEditing] = useState(false);
+/** How the level reads at a glance, for a register row that has no room to explain itself. */
+export const PRIORITY_TONE = TONE;
+export const priorityLabel = (key) => LEVELS.find((level) => level.key === (key || 'normal'))?.label;
+export const isRaised = (order) => (order?.priority || 'normal') !== 'normal';
+
+/**
+ * The form itself, separated from the panel it used to live inside.
+ *
+ * It is wanted in two places now — the order's own page, and a dialog off the register, so a
+ * whole list can be triaged without opening five orders. One form behind both, because the
+ * reason box is the feature and a second copy of it is a second place for that rule to soften.
+ */
+export function PriorityForm({ order, onClose, onSaved }) {
   const [priority, setPriority] = useState(order.priority || 'normal');
   const [reason, setReason] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
-
-  const current = LEVELS.find((level) => level.key === (order.priority || 'normal'));
-  const raised = (order.priority || 'normal') !== 'normal';
 
   const save = async (event) => {
     event.preventDefault();
     setSaving(true);
     setError(null);
     try {
-      onSaved(await ordersApi.setPriority({ id: order._id, expectedUpdatedAt: order.updatedAt, priority, reason }));
-      setEditing(false);
+      onSaved(
+        await ordersApi.setPriority({
+          id: order._id,
+          expectedUpdatedAt: order.updatedAt,
+          priority,
+          reason,
+        })
+      );
       setReason('');
+      onClose();
     } catch (saveError) {
       setError(saveError);
     } finally {
       setSaving(false);
     }
   };
+
+  return (
+    <form onSubmit={save} className="space-y-4">
+      <fieldset className="space-y-2">
+        <legend className="label mb-1">How urgent, and what it costs</legend>
+        {LEVELS.map((level) => (
+          <label
+            key={level.key}
+            className="flex items-start gap-2.5 rounded-lg border border-line/[0.08] p-3 text-sm text-steel-200"
+          >
+            <input
+              type="radio"
+              name="priority"
+              className="mt-0.5 h-4 w-4 accent-flame-500"
+              checked={priority === level.key}
+              onChange={() => setPriority(level.key)}
+            />
+            <span>
+              <span className={`font-bold ${TONE[level.key]}`}>{level.label}</span>
+              <span className="mt-0.5 block text-xs text-steel-500">{level.hint}</span>
+            </span>
+          </label>
+        ))}
+      </fieldset>
+
+      <Field
+        label="Why"
+        hint="A supervisor reads this before moving a job. Say what happens if it slips."
+      >
+        <textarea
+          className="input min-h-[5rem]"
+          value={reason}
+          onChange={(event) => setReason(event.target.value)}
+          placeholder="Buyer is holding a vessel booking for Thursday"
+          aria-label="Why"
+        />
+      </Field>
+
+      {error && <Notice tone="danger">{error.message}</Notice>}
+
+      <div className="flex gap-2">
+        <button type="submit" className="btn-primary" disabled={saving || reason.trim().length < 10}>
+          {saving ? 'Saving…' : 'Tell the plant'}
+        </button>
+        <button type="button" className="btn-ghost" onClick={onClose}>
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
+}
+
+export default function OrderPriority({ order, mayRaise, onSaved }) {
+  const [editing, setEditing] = useState(false);
+
+  const current = LEVELS.find((level) => level.key === (order.priority || 'normal'));
+  const raised = isRaised(order);
 
   /* Nothing to show a reader who can neither change it nor is being told anything by it. */
   if (!mayRaise && !raised) return null;
@@ -79,62 +151,7 @@ export default function OrderPriority({ order, mayRaise, onSaved }) {
       }
     >
       {editing ? (
-        <form onSubmit={save} className="space-y-4">
-          <fieldset className="space-y-2">
-            <legend className="label mb-1">How urgent, and what it costs</legend>
-            {LEVELS.map((level) => (
-              <label
-                key={level.key}
-                className="flex items-start gap-2.5 rounded-lg border border-line/[0.08] p-3 text-sm text-steel-200"
-              >
-                <input
-                  type="radio"
-                  name="priority"
-                  className="mt-0.5 h-4 w-4 accent-flame-500"
-                  checked={priority === level.key}
-                  onChange={() => setPriority(level.key)}
-                />
-                <span>
-                  <span className={`font-bold ${TONE[level.key]}`}>{level.label}</span>
-                  <span className="mt-0.5 block text-xs text-steel-500">{level.hint}</span>
-                </span>
-              </label>
-            ))}
-          </fieldset>
-
-          <Field
-            label="Why"
-            hint="A supervisor reads this before moving a job. Say what happens if it slips."
-          >
-            <textarea
-              className="input min-h-[5rem]"
-              value={reason}
-              onChange={(event) => setReason(event.target.value)}
-              placeholder="Buyer is holding a vessel booking for Thursday"
-              aria-label="Why"
-            />
-          </Field>
-
-          {error && <Notice tone="danger">{error.message}</Notice>}
-
-          <div className="flex gap-2">
-            <button type="submit" className="btn-primary" disabled={saving || reason.trim().length < 10}>
-              {saving ? 'Saving…' : 'Tell the plant'}
-            </button>
-            <button
-              type="button"
-              className="btn-ghost"
-              onClick={() => {
-                setEditing(false);
-                setPriority(order.priority || 'normal');
-                setReason('');
-                setError(null);
-              }}
-            >
-              Cancel
-            </button>
-          </div>
-        </form>
+        <PriorityForm order={order} onClose={() => setEditing(false)} onSaved={onSaved} />
       ) : (
         <div className="space-y-2">
           <p className={`text-base font-bold ${TONE[order.priority || 'normal']}`}>{current?.label}</p>
