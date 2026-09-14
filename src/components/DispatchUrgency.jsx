@@ -241,6 +241,14 @@ export function TellMarketing({ row, onTold }) {
  */
 const PAPERWORK = [
   { label: 'an invoice number', field: 'invoiceNumber', placeholder: 'INV-2026-0091' },
+  /*
+   * The one the gate blocks on most often, and the one this form used to leave out — so a row
+   * could be filled in until it was empty of everything the form offered and still refuse to
+   * go, saying it needed a value nobody had been asked for. Read off the invoice the clerk is
+   * holding, which is why it is a number field with paise rather than a free-text box.
+   */
+  { label: 'a positive invoice value', field: 'invoiceValue', placeholder: '37500.00', numeric: true },
+  { label: 'an invoice date', field: 'invoiceDate', type: 'date' },
   { label: 'a transporter', field: 'transporter', placeholder: 'KPN Roadways' },
   { label: 'an LR number', field: 'lrNumber', placeholder: 'LR-88213' },
   { label: 'a delivery address', field: 'address', placeholder: '14 Avinashi Road, Tiruppur' },
@@ -263,7 +271,14 @@ export function FillPaperwork({ row, onFilled }) {
       /* Only what was typed. Sending blanks for the rest would clear fields this form never
          showed, which is how a half-filled quick action destroys the other half. */
       const payload = {};
-      if (values.invoiceNumber) payload.invoice = { number: values.invoiceNumber.trim() };
+      /* Both live inside `invoice`, so they are merged rather than assigned twice — the second
+         assignment would drop the first, and the server merges what it is given onto what is
+         already there. */
+      const invoice = {};
+      if (values.invoiceNumber) invoice.number = values.invoiceNumber.trim();
+      if (values.invoiceValue) invoice.value = Number(values.invoiceValue);
+      if (values.invoiceDate) invoice.date = values.invoiceDate;
+      if (Object.keys(invoice).length) payload.invoice = invoice;
       if (values.transporter) payload.transporter = values.transporter.trim();
       if (values.lrNumber) payload.lrNumber = values.lrNumber.trim();
       if (values.address) payload.destination = { address: values.address.trim() };
@@ -285,6 +300,8 @@ export function FillPaperwork({ row, onFilled }) {
           <Field key={paper.field} label={paper.label.replace(/^an? /, '')}>
             <input
               className="input"
+              type={paper.numeric ? 'number' : paper.type || 'text'}
+              {...(paper.numeric ? { min: '0.01', step: '0.01' } : {})}
               placeholder={paper.placeholder}
               value={values[paper.field] || ''}
               onChange={set(paper.field)}
