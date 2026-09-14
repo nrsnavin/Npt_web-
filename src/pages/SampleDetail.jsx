@@ -10,6 +10,7 @@ import HistoryPanel from '../components/HistoryPanel.jsx';
 import AuthedImage from '../components/AuthedImage.jsx';
 import { CustomerSelect, EnquirySelect } from '../components/pickers.jsx';
 import SampleLog from '../components/SampleLog.jsx';
+import SampleRequestForm from '../components/SampleRequestForm.jsx';
 import { MouldThumb } from '../components/MouldPhoto.jsx';
 import { formatDate, formatNumber } from '../utils/format.js';
 import {
@@ -897,6 +898,7 @@ export default function SampleDetail() {
   const [givingFeedback, setGivingFeedback] = useState(false);
   const [messaging, setMessaging] = useState(false);
   const [editingDispatch, setEditingDispatch] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [linking, setLinking] = useState(false);
   const [namingCustomer, setNamingCustomer] = useState(false);
   const [messagesKey, setMessagesKey] = useState(0);
@@ -997,6 +999,22 @@ export default function SampleDetail() {
                 }
               >
                 {sample.assignedTo ? 'Hand back to the queue' : 'Pick this up'}
+              </button>
+            )}
+
+            {/*
+              Correcting the request itself.
+              
+              A sample request is typed in a hurry off a phone call, and the size, the shade or
+              the date is wrong often enough that the only alternative — abandon it and raise a
+              second — leaves two samples for one job on the bench's queue.
+
+              Not once it is closed: a finished sample is a record of what was actually sent, and
+              editing that is rewriting history rather than correcting a request.
+            */}
+            {maySample && !closed && (
+              <button type="button" className="btn-secondary" onClick={() => setEditing(true)}>
+                Edit the request
               </button>
             )}
 
@@ -1300,6 +1318,20 @@ export default function SampleDetail() {
           </Section>
         </div>
       </div>
+
+      <Modal
+        open={editing}
+        title={`Edit ${sample.number}`}
+        description="The same form that raised it, so there is one place a field can be wrong"
+        onClose={() => setEditing(false)}
+        size="lg"
+      >
+        <SampleRequestForm
+          sample={sample}
+          onClose={() => setEditing(false)}
+          onSaved={reload}
+        />
+      </Modal>
 
       <Modal
         open={movingStage}

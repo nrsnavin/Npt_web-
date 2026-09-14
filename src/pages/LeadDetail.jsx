@@ -11,6 +11,7 @@ import HistoryPanel from '../components/HistoryPanel.jsx';
 import LeadLog from '../components/LeadLog.jsx';
 import EnquiryFields from '../components/EnquiryFields.jsx';
 import SampleRequestForm from '../components/SampleRequestForm.jsx';
+import LeadForm from '../components/LeadForm.jsx';
 import { formatCompactCurrency, formatDate, formatNumber } from '../utils/format.js';
 import {
   ACTIVITY_TYPES, CUSTOMER_TYPES, DISQUALIFY_REASONS, SOURCES,
@@ -478,6 +479,7 @@ export default function LeadDetail() {
   /* Which door was used, so the dialog opens with the enquiry section already expanded. */
   const [enquiryFirst, setEnquiryFirst] = useState(true);
   const [disqualifying, setDisqualifying] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState(null);
 
@@ -520,6 +522,20 @@ export default function LeadDetail() {
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <Badge status={lead.status}>{leadStageLabel(lead.status)}</Badge>
+            {/*
+              Correcting the lead itself.
+
+              The record typed in the biggest hurry in the system — somebody is on the phone —
+              and so the one most often wrong in a small way. "Raise a second" is not a
+              correction: it is two leads for one company and a follow-up queue that
+              double-counts them.
+            */}
+            {mayWrite && open && (
+              <button type="button" className="btn-secondary" onClick={() => setEditing(true)}>
+                Edit the lead
+              </button>
+            )}
+
             {mayWrite && open && (
               <>
                 {lead.status !== 'qualified' && (
@@ -679,6 +695,16 @@ export default function LeadDetail() {
 
       <Modal open={disqualifying} title="Disqualify lead" size="sm" onClose={() => setDisqualifying(false)}>
         <DisqualifyForm lead={lead} onClose={() => setDisqualifying(false)} onSaved={setData} />
+      </Modal>
+
+      <Modal
+        open={editing}
+        title={`Edit ${lead.company}`}
+        description="The same form that raised it, so there is one place a field can be wrong"
+        onClose={() => setEditing(false)}
+        size="lg"
+      >
+        <LeadForm lead={lead} onClose={() => setEditing(false)} onSaved={reload} />
       </Modal>
     </div>
   );

@@ -10,6 +10,7 @@ import HistoryPanel from '../components/HistoryPanel.jsx';
 import OrderQueries from '../components/OrderQueries.jsx';
 import OrderEscalations from '../components/OrderEscalations.jsx';
 import { MouldThumb } from '../components/MouldPhoto.jsx';
+import OrderForm from '../components/OrderForm.jsx';
 import OrderPriority from '../components/OrderPriority.jsx';
 import OrderQuality from '../components/OrderQuality.jsx';
 import DispatchTracker from '../components/DispatchTracker.jsx';
@@ -376,6 +377,7 @@ export default function OrderDetail() {
   const { data, setData, loading, error, reload } = useRecord(fetch, id);
   /** Which line the plant is recording against, if any. */
   const [recording, setRecording] = useState(null);
+  const [editing, setEditing] = useState(false);
 
   if (loading) return <Spinner label="Loading the order" />;
   if (error) return <ErrorState error={error} onRetry={reload} />;
@@ -417,7 +419,25 @@ export default function OrderDetail() {
             {order.customerPo?.number ? ` · ${order.customerPo.number}` : ''}
           </>
         }
-        actions={<Badge status={order.status}>{orderStageLabel(order.status)}</Badge>}
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            {/*
+              Correcting the order, while it is still in front of §13's gate.
+
+              Bounded deliberately, and the server holds the bound rather than this button: once
+              an order is released its lines are what production is working to and what despatch
+              will claim stock against, so changing them is not a correction but a different
+              order the floor has already started. §13's answer to a released order that is
+              wrong is a clarification.
+            */}
+            {mayWrite && PRE_RELEASE_STAGES.includes(order.status) && (
+              <button type="button" className="btn-secondary" onClick={() => setEditing(true)}>
+                Edit the order
+              </button>
+            )}
+            <Badge status={order.status}>{orderStageLabel(order.status)}</Badge>
+          </div>
+        }
       />
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
@@ -649,6 +669,16 @@ export default function OrderDetail() {
           <HistoryPanel model="SalesOrder" id={order._id} refreshKey={order.updatedAt} />
         </div>
       </div>
+
+      <Modal
+        open={editing}
+        title={`Edit ${order.number}`}
+        description="The same form that booked it, so there is one place a field can be wrong"
+        onClose={() => setEditing(false)}
+        size="lg"
+      >
+        <OrderForm order={order} onClose={() => setEditing(false)} onSaved={reload} />
+      </Modal>
 
       <ProductionLineDialog
         order={order}

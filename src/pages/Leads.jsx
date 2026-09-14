@@ -9,7 +9,7 @@ import {
 } from '../components/ui.jsx';
 import BulkBar, { RowCheckbox, useSelection } from '../components/BulkReassign.jsx';
 import ExportButton from '../components/ExportButton.jsx';
-import PlaceInput from '../components/PlaceInput.jsx';
+import LeadForm from '../components/LeadForm.jsx';
 import StagePipeline from '../components/StagePipeline.jsx';
 import LeadBoard from '../components/boards/LeadBoard.jsx';
 import ViewSwitch from '../components/ViewSwitch.jsx';
@@ -23,124 +23,6 @@ const TONE_TEXT = {
   info: 'text-aqua-300',
   neutral: 'text-steel-400',
 };
-
-function LeadForm({ onClose, onSaved }) {
-  const [error, setError] = useState(null);
-  const {
-    register,
-    handleSubmit,
-    setValue,
-    watch,
-    formState: { errors, isSubmitting },
-  } = useForm({ defaultValues: { source: 'phone' } });
-
-  // Registered rather than spread onto an input, because the value comes from the suggestion
-  // list as well as the keyboard and react-hook-form has to see both.
-  const city = watch('city');
-  const state = watch('state');
-
-  const submit = async (values) => {
-    setError(null);
-    const numeric = (value) => (value === '' || value == null ? undefined : Number(value));
-
-    try {
-      onSaved(
-        await leadsApi.create({
-          ...values,
-          email: values.email || undefined,
-          estimatedValue: numeric(values.estimatedValue),
-          nextFollowUpDate: values.nextFollowUpDate || undefined,
-        })
-      );
-      onClose();
-    } catch (submitError) {
-      setError(submitError);
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit(submit)} className="space-y-5">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Company" error={errors.company} className="sm:col-span-2">
-          <input className="input" {...register('company', { required: 'Company is required' })} />
-        </Field>
-        <Field label="Contact name">
-          <input className="input" {...register('contactName')} />
-        </Field>
-        <Field label="Designation">
-          <input className="input" {...register('designation')} />
-        </Field>
-        <Field label="Mobile">
-          <input type="tel" className="input" {...register('mobile')} />
-        </Field>
-        <Field label="Email" error={errors.email}>
-          <input type="email" className="input" {...register('email')} />
-        </Field>
-        {/* City before state, and choosing a town fills the state in — which is the order
-            somebody says an address in, and saves the second field most of the time. */}
-        <Field label="City" hint="Pick from the list where you can — one spelling per town keeps the reports honest">
-          <PlaceInput
-            kind="city"
-            aria-label="City"
-            placeholder="Tiruppur, Ludhiana, Surat…"
-            value={city}
-            state={state}
-            onChange={(next) => setValue('city', next, { shouldDirty: true })}
-            onResolveState={(next) => setValue('state', next, { shouldDirty: true })}
-          />
-        </Field>
-        <Field label="State">
-          <PlaceInput
-            kind="state"
-            aria-label="State"
-            placeholder="Tamil Nadu…"
-            value={state}
-            onChange={(next) => setValue('state', next, { shouldDirty: true })}
-          />
-        </Field>
-        <Field label="How did they reach us">
-          <select className="input" {...register('source')}>
-            {SOURCES.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Estimated value (₹)">
-          <input type="number" className="input" {...register('estimatedValue')} />
-        </Field>
-      </div>
-
-      <Field label="What are they after" hint="Free text — a lead rarely names a model yet">
-        <textarea rows={2} className="input" {...register('productInterest')} />
-      </Field>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Next action">
-          <input className="input" placeholder="Call to confirm sizes" {...register('nextAction')} />
-        </Field>
-        <Field label="Follow up on">
-          <input type="date" className="input" {...register('nextFollowUpDate')} />
-        </Field>
-      </div>
-
-      {error && (
-        <Notice tone="danger">
-          <p>{error.message}</p>
-          {error.details?.map((detail) => (
-            <p key={detail.field} className="text-xs">{detail.field}: {detail.message}</p>
-          ))}
-        </Notice>
-      )}
-
-      <div className="flex justify-end gap-2">
-        <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
-        <button type="submit" className="btn-primary" disabled={isSubmitting}>
-          {isSubmitting ? 'Saving…' : 'Create lead'}
-        </button>
-      </div>
-    </form>
-  );
-}
 
 /** What the list hook fetches while the board is showing — see the note on the enquiry list. */
 const idle = async () => ({ data: [], pagination: null });

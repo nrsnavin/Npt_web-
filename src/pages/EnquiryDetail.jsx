@@ -15,6 +15,7 @@ import EnquiryActions from '../components/EnquiryActions.jsx';
 import HistoryPanel from '../components/HistoryPanel.jsx';
 import QuotationPdf from '../components/QuotationPdf.jsx';
 import { MouldThumb } from '../components/MouldPhoto.jsx';
+import EnquiryForm from '../components/EnquiryForm.jsx';
 import { formatCurrency, formatDate, formatNumber, humanise } from '../utils/format.js';
 import {
   CLOSED_STAGES, ENQUIRY_STAGES, HANGER_CATEGORIES, LOST_REASONS, MATERIALS,
@@ -565,6 +566,7 @@ export default function EnquiryDetail() {
   const { canRead, canWrite } = useAuth();
   const [movingStage, setMovingStage] = useState(false);
   const [promoting, setPromoting] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   const fetch = useCallback((enquiryId) => enquiriesApi.get(enquiryId), []);
   const { data: enquiry, setData, loading, error, reload } = useRecord(fetch, id);
@@ -598,6 +600,19 @@ export default function EnquiryDetail() {
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <Badge status={enquiry.status}>{stageLabel(enquiry.status)}</Badge>
+            {/*
+              Correcting what the buyer actually asked for.
+
+              Everything downstream is built on it — the sample, the costing, the quotation — and
+              it was taken down from a phone call. A wrong size or a misheard shade needs fixing
+              in place; raising a second enquiry leaves two nobody can tell apart, and the sample
+              already on the bench belongs to the first.
+            */}
+            {mayWrite && (
+              <button type="button" className="btn-secondary" onClick={() => setEditing(true)}>
+                Edit the enquiry
+              </button>
+            )}
             {mayWrite && enquiry.isNewDevelopment && mayWriteMoulds && (
               <button type="button" className="btn-secondary" onClick={() => setPromoting(true)}>
                 Add to the register
@@ -844,6 +859,16 @@ export default function EnquiryDetail() {
         onClose={() => setMovingStage(false)}
       >
         <StageForm enquiry={enquiry} onClose={() => setMovingStage(false)} onSaved={setData} />
+      </Modal>
+
+      <Modal
+        open={editing}
+        title={`Edit ${enquiry.number}`}
+        description="The same form that raised it, so there is one place a field can be wrong"
+        onClose={() => setEditing(false)}
+        size="lg"
+      >
+        <EnquiryForm enquiry={enquiry} onClose={() => setEditing(false)} onSaved={reload} />
       </Modal>
 
       <Modal

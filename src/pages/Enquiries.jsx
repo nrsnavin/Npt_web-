@@ -7,7 +7,7 @@ import { useDebounced, useRecord, useRecordList } from '../hooks/useRecords.js';
 import {
   Badge, EmptyState, ErrorState, Field, Modal, Notice, PageHeader, Pagination, TableSkeleton,
 } from '../components/ui.jsx';
-import EnquiryFields from '../components/EnquiryFields.jsx';
+import EnquiryForm from '../components/EnquiryForm.jsx';
 import EnquiryBoard from '../components/boards/EnquiryBoard.jsx';
 import StagePipeline from '../components/StagePipeline.jsx';
 import ViewSwitch from '../components/ViewSwitch.jsx';
@@ -35,93 +35,6 @@ const TONE_TEXT = {
  * than the hook keeps the rule and drops the request.
  */
 const idle = async () => ({ data: [], pagination: null });
-
-function EnquiryForm({ onClose, onSaved }) {
-  const [error, setError] = useState(null);
-  const [customer, setCustomer] = useState(undefined);
-  const [mould, setMould] = useState(undefined);
-  const [isNewDevelopment, setNewDevelopment] = useState(false);
-  /* The register picks, held here like the mould: they are controlled selects, not inputs. */
-  const [spec, setSpec] = useState({});
-
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm({ defaultValues: { source: 'phone' } });
-
-  const submit = async (values) => {
-    setError(null);
-
-    if (!customer) {
-      setError({ message: 'Pick the customer this enquiry belongs to.' });
-      return;
-    }
-    if (!mould && !isNewDevelopment && !values.requirement?.modelNumber?.trim()) {
-      setError({
-        message:
-          'Name the mould, or give the model number the buyer asked for, or mark this as a new development.',
-      });
-      return;
-    }
-
-    try {
-      onSaved(
-        await enquiriesApi.create({
-          customer,
-          ...buildEnquiryPayload(values, { mould, isNewDevelopment, spec }),
-        })
-      );
-      onClose();
-    } catch (submitError) {
-      setError(submitError);
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit(submit)} className="space-y-5">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Customer" className="sm:col-span-2" hint="Not a customer yet? Start it as a lead instead.">
-          <CustomerSelect value={customer} onChange={setCustomer} aria-label="Customer" />
-        </Field>
-        <Field label="How the enquiry reached us">
-          <select className="input" {...register('source')}>
-            {SOURCES.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-          </select>
-        </Field>
-      </div>
-
-      <EnquiryFields
-        register={register}
-        errors={errors}
-        mould={mould}
-        onMouldChange={setMould}
-        spec={spec}
-        onSpecChange={setSpec}
-        newDevelopment={isNewDevelopment}
-        onNewDevelopmentChange={setNewDevelopment}
-      />
-
-      {error && (
-        <Notice tone="danger">
-          <p>{error.message}</p>
-          {error.details?.map((detail) => (
-            <p key={detail.field} className="text-xs">{detail.field}: {detail.message}</p>
-          ))}
-        </Notice>
-      )}
-
-      <div className="flex justify-end gap-2 border-t border-line/[0.06] pt-4">
-        <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
-        <button type="submit" className="btn-primary" disabled={isSubmitting}>
-          {isSubmitting ? 'Saving…' : 'Raise enquiry'}
-        </button>
-      </div>
-    </form>
-  );
-}
 
 export default function Enquiries() {
   const { canWrite, isAdmin } = useAuth();

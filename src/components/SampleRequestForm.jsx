@@ -19,17 +19,38 @@ import { HANGER_CATEGORIES, SAMPLE_PURPOSES, numeric, text } from '../utils/pipe
  * so the block asking what to make is shown for it too. That is the only thing the bench
  * actually needs; who asked is a link, not a specification.
  */
-export default function SampleRequestForm({ lead, onClose, onSaved }) {
-  const [enquiry, setEnquiry] = useState(undefined);
-  const [customer, setCustomer] = useState(undefined);
-  const [mould, setMould] = useState(undefined);
+export default function SampleRequestForm({ lead, sample, onClose, onSaved }) {
+  /*
+   * The same form raises a request and corrects one.
+   *
+   * A sample request is typed in a hurry off a phone call — the size is wrong, the colour was
+   * misheard, the date was optimistic — and until now the only way to fix any of it was to
+   * abandon the request and raise a second one. That leaves two samples for one job on the
+   * bench's queue and no way to tell which the buyer is waiting for.
+   */
+  const editing = Boolean(sample);
+
+  const [enquiry, setEnquiry] = useState(sample?.enquiry?._id ?? sample?.enquiry ?? undefined);
+  const [customer, setCustomer] = useState(sample?.customer?._id ?? sample?.customer ?? undefined);
+  const [mould, setMould] = useState(sample?.mould?._id ?? sample?.mould ?? undefined);
   /*
    * The register picks [§28], held here like the mould rather than registered with the form:
    * they are controlled selects. A sample carries the same four references an order line does,
    * and that is what makes "approved sample" a comparison later — the sample the buyer signed
    * off and the order booked against it point at the same register rows.
    */
-  const [spec, setSpec] = useState({});
+  const [spec, setSpec] = useState(
+    sample
+      ? {
+          materialRef: sample.materialRef?._id ?? sample.materialRef ?? undefined,
+          hookRef: sample.hookRef?._id ?? sample.hookRef ?? undefined,
+          clipRef: sample.clipRef?._id ?? sample.clipRef ?? undefined,
+          printRef: sample.printRef?._id ?? sample.printRef ?? undefined,
+          colour: sample.colour || '',
+          colourMandatory: Boolean(sample.colourMandatory),
+        }
+      : {}
+  );
   const setPick = (key) => (value) => setSpec((current) => ({ ...current, [key]: value }));
   const [error, setError] = useState(null);
 
@@ -38,7 +59,20 @@ export default function SampleRequestForm({ lead, onClose, onSaved }) {
     handleSubmit,
     watch,
     formState: { errors, isSubmitting },
-  } = useForm({ defaultValues: { quantity: 5, purpose: 'existing_model' } });
+  } = useForm({
+    defaultValues: sample
+      ? {
+          modelNumber: sample.modelNumber || '',
+          category: sample.category || '',
+          sizeMm: sample.sizeMm ?? '',
+          quantity: sample.quantity ?? 5,
+          purpose: sample.purpose || 'existing_model',
+          requiredDate: sample.requiredDate ? sample.requiredDate.slice(0, 10) : '',
+          remarks: sample.remarks || '',
+          standaloneReason: sample.standaloneReason || '',
+        }
+      : { quantity: 5, purpose: 'existing_model' },
+  });
 
   const modelNumber = watch('modelNumber');
   /*
@@ -59,38 +93,51 @@ export default function SampleRequestForm({ lead, onClose, onSaved }) {
       return;
     }
 
-    try {
-      onSaved(
-        await samplesApi.create({
+    /* The request it is *for* never moves. Re-pointing a sample at a different enquiry or buyer
+       is not a correction, it is a different request — and the bench may already have made
+       something against this one. */
+    const fields = editing
+      ? {}
+      : {
           enquiry: forLead ? undefined : enquiry,
           /* A lead is not a customer yet, and the server refuses a request naming both. */
           customer: forLead ? undefined : customer,
           lead: lead?._id,
-          mould,
-          modelNumber: text(values.modelNumber),
-          category: text(values.category),
-          sizeMm: numeric(values.sizeMm),
-          materialRef: spec.materialRef || undefined,
-          hookRef: spec.hookRef || undefined,
-          clipRef: spec.clipRef || undefined,
-          printRef: spec.printRef || undefined,
-          /* Left blank, the server fills it from the resin's own colour. */
-          colour: text(spec.colour),
-          /*
-           * Only when this form actually asked. Where the request has an enquiry behind it the
-           * tick box is not drawn — the specification is the enquiry's — and sending `false` for
-           * a box nobody was shown would silently overrule a buyer who *had* insisted on the
-           * shade. Undefined lets what the enquiry recorded stand; `false` here is a real answer.
-           */
-          colourMandatory: standalone || forLead ? Boolean(spec.colourMandatory) : undefined,
-          /* How many pieces to put in the courier bag — a figure the requester actually knows,
-             unlike the order quantity an enquiry used to be asked for. */
-          quantity: numeric(values.quantity),
-          purpose: values.purpose,
-          requiredDate: text(values.requiredDate),
-          remarks: text(values.remarks),
-          standaloneReason: forLead ? undefined : (standalone ? text(values.standaloneReason) : undefined),
-        })
+        };
+
+    const payload = {
+      ...fields,
+      mould,
+      modelNumber: text(values.modelNumber),
+      category: text(values.category),
+      sizeMm: numeric(values.sizeMm),
+      materialRef: spec.materialRef || undefined,
+      hookRef: spec.hookRef || undefined,
+      clipRef: spec.clipRef || undefined,
+      printRef: spec.printRef || undefined,
+      /* Left blank, the server fills it from the resin's own colour. */
+      colour: text(spec.colour),
+      /*
+       * Only when this form actually asked. Where the request has an enquiry behind it the
+       * tick box is not drawn — the specification is the enquiry's — and sending `false` for
+       * a box nobody was shown would silently overrule a buyer who *had* insisted on the
+       * shade. Undefined lets what the enquiry recorded stand; `false` here is a real answer.
+       */
+      colourMandatory: standalone || forLead ? Boolean(spec.colourMandatory) : undefined,
+      /* How many pieces to put in the courier bag — a figure the requester actually knows,
+         unlike the order quantity an enquiry used to be asked for. */
+      quantity: numeric(values.quantity),
+      purpose: values.purpose,
+      requiredDate: text(values.requiredDate),
+      remarks: text(values.remarks),
+      standaloneReason: forLead ? undefined : (standalone ? text(values.standaloneReason) : undefined),
+    };
+
+    try {
+      onSaved(
+        editing
+          ? await samplesApi.update({ id: sample._id, ...payload })
+          : await samplesApi.create(payload)
       );
       onClose();
     } catch (submitError) {
@@ -244,7 +291,9 @@ export default function SampleRequestForm({ lead, onClose, onSaved }) {
       <div className="flex justify-end gap-2 border-t border-line/[0.06] pt-4">
         <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
         <button type="submit" className="btn-primary" disabled={isSubmitting}>
-          {isSubmitting ? 'Raising…' : 'Raise request'}
+          {isSubmitting
+            ? editing ? 'Saving…' : 'Raising…'
+            : editing ? 'Save changes' : 'Raise request'}
         </button>
       </div>
     </form>
