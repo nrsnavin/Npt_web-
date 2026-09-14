@@ -6,6 +6,9 @@ import { ErrorState, PageHeader, Spinner } from '../components/ui.jsx';
 import QueryAnswer from '../components/QueryAnswer.jsx';
 import { DispatchStatusPicker } from '../components/DispatchStatus.jsx';
 import UrgentOrder from '../components/UrgentOrder.jsx';
+import {
+  FillPaperwork, PriorityFlag, PromisedDate, TellMarketing,
+} from '../components/DispatchUrgency.jsx';
 import EscalationFeed from '../components/EscalationFeed.jsx';
 import { formatDate, formatNumber } from '../utils/format.js';
 
@@ -87,9 +90,18 @@ function Count({ label, value, hint, tone }) {
 }
 
 /** One consignment, as a card: what it is, and the sentence saying what to do with it. */
-function Consignment({ row, tone, mayAct, onDone }) {
+function Consignment({ row, tone, mayAct, mayPromise, onDone }) {
+  /* A flagged row is outlined as well as badged. Inside a group where every card is the same
+     colour, the badge alone is a line of text among five others — the ring is what makes it the
+     one you reach for first, which is the whole of what a priority buys on this screen. */
+  const flagged = row.order?.priority === 'critical';
+
   return (
-    <li className={`rounded-xl border p-4 ${EDGE[tone]}`}>
+    <li
+      className={`rounded-xl border p-4 ${EDGE[tone]} ${
+        flagged ? 'ring-1 ring-danger-500/40' : ''
+      }`}
+    >
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <p className="text-base font-bold text-steel-50">
           {row.customer?.name || 'Customer not named'}
@@ -105,6 +117,9 @@ function Consignment({ row, tone, mayAct, onDone }) {
         {row.order?.number ? ` · ${row.order.number}` : ''}
       </p>
 
+      {/* What marketing asked for, above the instruction — it is why this row is where it is. */}
+      <PriorityFlag order={row.order} />
+
       {/* The whole point of the card: what to do, in a sentence. */}
       {row.urgency.why.map((line) => (
         <p key={line} className={`mt-2 text-base font-bold ${TEXT[tone]}`}>
@@ -112,11 +127,23 @@ function Consignment({ row, tone, mayAct, onDone }) {
         </p>
       ))}
 
+      {/* What the customer was actually told, which is the date lateness is counted against. */}
+      <PromisedDate row={row} mayPromise={mayPromise} onChanged={onDone} />
+
       <p className="mt-3 border-t border-line/[0.06] pt-2 text-sm text-steel-400">
         {row.lrNumber ? `LR ${row.lrNumber}` : 'No LR yet'}
         {row.vehicleNumber ? ` · ${row.vehicleNumber}` : ''}
-        {row.expectedDeliveryDate ? ` · due ${formatDate(row.expectedDeliveryDate)}` : ''}
+        {/* Only when the line above is not already showing it. With a promise recorded, that
+            line says "promised the 12th · we planned the 18th", and repeating "due 18 Sept"
+            here makes the reader check whether the two dates are the same thing. */}
+        {row.expectedDeliveryDate && !row.promise?.date
+          ? ` · due ${formatDate(row.expectedDeliveryDate)}`
+          : ''}
       </p>
+
+      {/* The documents it is short of, typed here rather than a screen away — on the group whose
+          whole job is chasing them, that is the job. */}
+      {mayAct && <FillPaperwork row={row} onFilled={onDone} />}
 
       {/*
         Where it is, and what moves it.
@@ -130,6 +157,9 @@ function Consignment({ row, tone, mayAct, onDone }) {
         <DispatchStatusPicker dispatch={row} canAct={mayAct} onDone={onDone} />
         <Link to={row.link} className="btn-secondary">Open it</Link>
       </div>
+
+      {/* And the answer, back up the thread the flag came down. */}
+      {mayAct && <TellMarketing row={row} />}
     </li>
   );
 }
@@ -177,14 +207,57 @@ function Group({ title, hint, children, count }) {
   );
 }
 
+/**
+ * Narrowing the whole board to one buyer or one order.
+ *
+ * The question that most often interrupts a despatch day is a customer ringing about a specific
+ * order, and answering it meant reading four groups looking for a name. Filtered in the browser
+ * rather than re-fetched: the day is one reply and already in hand, and a round trip to hide
+ * rows the screen is holding would make the answer slower than scrolling.
+ */
+function Filter({ value, onChange, options }) {
+  return (
+    <div className="mt-5 flex flex-wrap items-center gap-2">
+      <input
+        className="input max-w-xs"
+        placeholder="Find a customer, order or consignment…"
+        aria-label="Narrow the board"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      />
+      {value && (
+        <button type="button" className="btn-ghost" onClick={() => onChange('')}>
+          Clear
+        </button>
+      )}
+      {/* The buyers actually on the board, so the commonest filter is one press rather than
+          a correctly-spelled guess. */}
+      {!value &&
+        options.slice(0, 4).map((name) => (
+          <button key={name} type="button" className="row-action" onClick={() => onChange(name)}>
+            {name}
+          </button>
+        ))}
+    </div>
+  );
+}
+
 export default function DispatchHome() {
   const { user, canWrite } = useAuth();
   /* Marketing reads this screen through the same component and gets the stage without the
      menu, which is the §19 split: they see where the goods are, the yard moves them. */
   const mayAct = canWrite('dispatch');
+  /*
+   * Recording what a customer was told is marketing's, and the server enforces it — this only
+   * decides whether the control is offered. Management can too, because they are who answers
+   * when the person who sold it is on leave.
+   */
+  const mayPromise = user?.department === 'marketing' || user?.role === 'admin' ||
+    user?.department === 'management';
   const [day, setDay] = useState(null);
   const [meta, setMeta] = useState({});
   const [error, setError] = useState(null);
+  const [term, setTerm] = useState('');
 
   const load = useCallback(async () => {
     setError(null);
@@ -211,11 +284,42 @@ export default function DispatchHome() {
   if (error) return <ErrorState error={error} onRetry={load} />;
   if (!day) return <Spinner label="Loading the yard" />;
 
+  /*
+   * One matcher over everything a person would type: a buyer, an order number, a consignment
+   * number, or a lorry. Anything less and the filter is a lookup table nobody can remember.
+   *
+   * It runs over the urgent orders too, and that is not a detail. A control that sits on the
+   * board and silently exempts one section is worse than no control: somebody narrows to a
+   * buyer, reads what is left, and concludes those are all the rows for that buyer.
+   */
+  const needle = term.trim().toLowerCase();
+  const matches = (row) =>
+    !needle ||
+    [row.customer?.name, row.order?.number, row.number, row.lrNumber, row.vehicleNumber]
+      .some((field) => String(field || '').toLowerCase().includes(needle));
+
+  const shown = (key) => (day[key] || []).filter(matches);
+  const urgent = (day.urgent || []).filter(matches);
+
+  /* Deduplicated, in the order they appear — the buyers on the board today, not every buyer. */
+  const customers = [
+    ...new Set(
+      GROUPS.flatMap((group) => day[group.key] || [])
+        .map((row) => row.customer?.name)
+        .filter(Boolean)
+    ),
+  ];
+
   const nothing =
     !GROUPS.some((group) => day[group.key]?.length) &&
     !day.unclaimed.length &&
     !day.urgent?.length &&
     !day.queries.length;
+
+  /* Filtered to nothing is a different state from an empty yard, and saying so is what stops
+     somebody concluding the board is broken when they have simply mistyped a name. */
+  const hidden =
+    needle && !urgent.length && !GROUPS.some((group) => shown(group.key).length);
 
   const lateQuestions = day.queries.filter((query) => query.isOverdue);
 
@@ -265,6 +369,14 @@ export default function DispatchHome() {
         />
       </div>
 
+      <Filter value={term} onChange={setTerm} options={customers} />
+
+      {hidden && (
+        <p className="mt-5 rounded-lg border border-line/[0.08] px-4 py-6 text-center text-sm text-steel-400">
+          Nothing in the yard matches &ldquo;{term}&rdquo;.
+        </p>
+      )}
+
       {/*
         Late questions first, as on the plant's screen and for the same reason: the yard's own
         work will still be there in ten minutes, and a marketing person past the hour they
@@ -295,9 +407,9 @@ export default function DispatchHome() {
       <Group
         title="Marketing marked these urgent"
         hint="What is holding each one, and who can clear it"
-        count={day.urgent?.length || 0}
+        count={urgent.length}
       >
-        {(day.urgent || []).map((row) => (
+        {urgent.map((row) => (
           <UrgentOrder key={row._id} row={row} mine="despatch" onAnswered={load} />
         ))}
       </Group>
@@ -307,14 +419,15 @@ export default function DispatchHome() {
           key={group.key}
           title={group.title}
           hint={group.hint}
-          count={day[group.key]?.length || 0}
+          count={shown(group.key).length}
         >
-          {(day[group.key] || []).map((row) => (
+          {shown(group.key).map((row) => (
             <Consignment
               key={row._id}
               row={row}
               tone={group.tone}
               mayAct={mayAct}
+              mayPromise={mayPromise}
               /* Reloaded rather than patched: a moved consignment changes which group it
                  belongs to and the counts above it, and a card sitting in the old band with
                  the new stage on it would be lying about both. */

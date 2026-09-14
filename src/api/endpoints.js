@@ -370,6 +370,16 @@ export const dispatches = {
   day: () => api.get('/dispatches/day').then((response) => response.data),
   /** The tracker panel: the consignments on one order, and the stock behind them. */
   onOrder: (orderId) => api.get(`/orders/${orderId}/dispatches`).then((response) => response.data),
+  /**
+   * What the customer was actually told, and why they need it then.
+   *
+   * Marketing's to set — it is a fact about a conversation the yard was not on. A null date
+   * clears it and hands lateness back to the plant's own estimate.
+   */
+  promise: ({ id, ...payload }) => api.put(`/dispatches/${id}/promise`, payload).then(unwrap),
+  /** Answering whoever flagged this consignment, on the to-do list they already read. */
+  tellMarketing: ({ id, note }) =>
+    api.post(`/dispatches/${id}/tell-marketing`, { note }).then(unwrap),
   /** The signed delivery note coming back. Multipart, so it goes as a form rather than JSON. */
   setPod: (id, file) => {
     const form = new FormData();
