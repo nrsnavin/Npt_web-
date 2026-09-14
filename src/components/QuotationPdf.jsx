@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { quotations as quotationsApi } from '../api/endpoints.js';
+import { useAuth } from '../context/AuthContext.jsx';
 import { Modal, Notice, Spinner } from './ui.jsx';
 
 /**
@@ -13,10 +15,36 @@ import { Modal, Notice, Spinner } from './ui.jsx';
  *
  * Shown before sending rather than only after, which is the point of having it at all: the
  * moment to catch a wrong quantity or a missing payment term is while it is still a draft.
+ *
+ * And sending happens *here*, from the same dialog, for the same reason. Raising a quote off a
+ * costing used to leave it as a draft on a screen the person had already navigated away from:
+ * they saw the document, closed it, and the quotation sat unsent until somebody went looking
+ * for it on the quotations register. The step that follows reading a document is deciding to
+ * send it, so the decision belongs on the document.
+ *
+ * §9's gate still applies and still refuses without naming the floor [§8]. It arrives here as a
+ * message rather than as a silent failure, because a Send that does nothing reads as a broken
+ * button rather than as a rule.
  */
-export default function QuotationPdf({ quotation, open, onClose }) {
+export default function QuotationPdf({ quotation, open, onClose, onSent }) {
+  const { canQuote } = useAuth();
   const [url, setUrl] = useState(null);
   const [error, setError] = useState(null);
+  /*
+   * The send is tracked here rather than read back off the `quotation` prop, because the
+   * caller may or may not re-fetch — this dialog is opened from five screens — and the person
+   * looking at it needs to see the outcome either way.
+   */
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState(null);
+  const [justSent, setJustSent] = useState(null);
+
+  /* A fresh open is a fresh question: a dialog that reopens still saying "Sent" about the last
+     quotation is worse than one that says nothing. */
+  useEffect(() => {
+    setSendError(null);
+    setJustSent(null);
+  }, [open, quotation?._id]);
 
   useEffect(() => {
     if (!open || !quotation?._id) return undefined;
@@ -46,6 +74,36 @@ export default function QuotationPdf({ quotation, open, onClose }) {
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [open, quotation?._id]);
+
+  /*
+   * Offered only where it is the real next step. Not on a quote that has already gone out —
+   * changing what a customer has been told is a revision, which is the quotation screen's job —
+   * and not to a reader without the quoting right.
+   */
+  const alreadyOut = Boolean(justSent?.sentAt || quotation?.sentAt);
+  const maySend =
+    canQuote('pricing') &&
+    quotation?._id &&
+    !alreadyOut &&
+    !['accepted', 'rejected'].includes(quotation?.status);
+
+  const send = async () => {
+    setSending(true);
+    setSendError(null);
+    try {
+      const sent = await quotationsApi.send({ id: quotation._id });
+      setJustSent(sent);
+      onSent?.(sent);
+    } catch (failure) {
+      /* §9 arrives here. Said plainly, without the figure it is protecting. */
+      setSendError(failure.message);
+      /* The refusal moves the quote into the approval queue, so the caller's list is now stale
+         whether the send worked or not. */
+      onSent?.(null);
+    } finally {
+      setSending(false);
+    }
+  };
 
   const download = () => {
     if (!url) return;
@@ -84,17 +142,47 @@ export default function QuotationPdf({ quotation, open, onClose }) {
             />
           </div>
 
-          <div className="mt-4 flex items-center justify-between gap-3">
+          {sendError && (
+            <div className="mt-4">
+              <Notice tone="warn">{sendError}</Notice>
+            </div>
+          )}
+
+          {/* Where it went, said as a place somebody can go and look. A confirmation that only
+              says "done" leaves the person wondering where "done" is. */}
+          {justSent && (
+            <div className="mt-4">
+              <Notice tone="success">
+                {quotation.number} has gone out, and is on the{' '}
+                <Link to="/quotations/sent" className="font-semibold underline">
+                  sent quotations
+                </Link>{' '}
+                board. What the buyer says next is recorded there.
+              </Notice>
+            </div>
+          )}
+
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
             <p className="text-xs text-steel-400">
               Rendered from the record — a new revision produces a new document.
             </p>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <button type="button" className="btn-secondary" onClick={onClose}>
-                Close
+                {justSent ? 'Done' : 'Close'}
               </button>
-              <button type="button" className="btn-primary" onClick={download}>
+              <button type="button" className="btn-secondary" onClick={download}>
                 Download PDF
               </button>
+              {maySend && (
+                <button
+                  type="button"
+                  className="btn-primary"
+                  disabled={sending}
+                  onClick={send}
+                >
+                  {sending ? 'Sending…' : 'Mark it sent'}
+                </button>
+              )}
             </div>
           </div>
         </>

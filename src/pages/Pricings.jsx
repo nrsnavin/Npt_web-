@@ -502,11 +502,21 @@ export default function Pricings() {
         )}
       </Modal>
 
-      {/* The document, opened on the quote that was just raised. */}
+      {/*
+        The document, opened on the quote that was just raised — and the place it is sent from.
+        Raising a quote and sending it are one errand; splitting them across two screens is how
+        a quotation ends up sitting in draft while everybody believes the buyer has it.
+      */}
       <QuotationPdf
         quotation={madeQuote}
         open={Boolean(madeQuote)}
         onClose={() => setMadeQuote(null)}
+        onSent={(sent) => {
+          /* Null when §9 refused it — the quote moved to the approval queue, so the board below
+             is stale either way and the dialog says what happened. */
+          if (sent) setMadeQuote(sent);
+          reload();
+        }}
       />
     </div>
   );

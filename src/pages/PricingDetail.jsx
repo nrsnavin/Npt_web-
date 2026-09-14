@@ -466,6 +466,12 @@ export default function PricingDetail() {
             quotation={previewing}
             open={Boolean(previewing)}
             onClose={() => setPreviewing(null)}
+            /* Sending is done from the document, so this screen's list of what has been quoted
+               off this costing is stale the moment it happens. */
+            onSent={(sent) => {
+              if (sent) setPreviewing(sent);
+              reload();
+            }}
           />
 
           <Modal
@@ -477,10 +483,18 @@ export default function PricingDetail() {
             <QuoteFromCosting
               pricing={pricing}
               onClose={() => setQuoting(false)}
-              /* Reloaded rather than patched in: adding a line to a draft changes a quotation
-                 this screen is already listing, and the server is the only thing that knows
-                 what it now looks like. */
-              onQuoted={reload}
+              /*
+                Straight into the document, as on the costings screen. The question after
+                raising a quote is always "what does that look like", and the answer to it is
+                also the place it gets sent from — a draft nobody opened is a draft nobody sent.
+                Reloaded rather than patched in: adding a line to a draft changes a quotation
+                this screen is already listing, and the server is the only thing that knows
+                what it now looks like.
+              */
+              onQuoted={(quotation) => {
+                setPreviewing(quotation);
+                reload();
+              }}
             />
           </Modal>
         </div>

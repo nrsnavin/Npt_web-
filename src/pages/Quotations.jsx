@@ -871,10 +871,16 @@ export default function Quotations() {
         )}
       </Modal>
 
+      {/* Reading the document and deciding to send it are one act, so the row's Send button is
+          not the only way — this is the one that follows actually looking at it. */}
       <QuotationPdf
         quotation={viewing}
         open={Boolean(viewing)}
         onClose={() => setViewing(null)}
+        onSent={(sent) => {
+          if (sent) setViewing(sent);
+          reload();
+        }}
       />
     </div>
   );
