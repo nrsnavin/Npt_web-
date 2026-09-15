@@ -11,6 +11,7 @@ import { DispatchStatusPicker } from '../components/DispatchStatus.jsx';
 import { DispatchDialog } from '../components/DispatchForm.jsx';
 import { formatDate, formatNumber } from '../utils/format.js';
 import { SortHeader, useSort } from '../components/SortHeader.jsx';
+import FilterTiles from '../components/FilterTiles.jsx';
 import { DISPATCH_STAGES } from '../utils/pipeline.js';
 
 /**
@@ -238,6 +239,9 @@ function Consignments({ mayWrite }) {
     status: status || undefined,
     open: only === 'open' ? 'true' : undefined,
     inTransit: only === 'transit' ? 'true' : undefined,
+    /* A real query rather than a count: a consignment's due date is two stored fields with a
+       precedence between them, so "late" is expressible — see the note on the controller. */
+    overdue: only === 'overdue' ? 'true' : undefined,
   };
 
   const load = useCallback(async () => {
@@ -265,21 +269,38 @@ function Consignments({ mayWrite }) {
 
   return (
     <>
-      <div className="mb-5 grid gap-3 sm:grid-cols-3">
-        {[
-          { label: 'Open consignments', value: formatNumber(meta.open || 0), lit: false },
-          { label: 'On the road', value: formatNumber(meta.inTransit || 0), lit: false },
-          { label: 'Past their delivery date', value: formatNumber(meta.overdue || 0), lit: Boolean(meta.overdue) },
-        ].map((tile) => (
-          <div
-            key={tile.label}
-            className={`card px-4 py-3 ${tile.lit ? 'ring-1 ring-danger-500/40' : ''}`}
-          >
-            <p className="eyebrow">{tile.label}</p>
-            <p className={`stat-value mt-1 ${tile.lit ? 'text-danger-400' : 'text-steel-50'}`}>{tile.value}</p>
-          </div>
-        ))}
-      </div>
+      {/* The three figures the board opens on, made into the way to look at them. */}
+      <FilterTiles
+        value={only}
+        onPick={(next) => {
+          setOnly(next);
+          setPage(1);
+        }}
+        tiles={[
+          {
+            label: 'Open consignments',
+            figure: formatNumber(meta.open || 0),
+            value: 'open',
+            clear: '',
+            hint: 'Anything not yet delivered or closed',
+          },
+          {
+            label: 'On the road',
+            figure: formatNumber(meta.inTransit || 0),
+            value: 'transit',
+            clear: 'open',
+            hint: 'Gone, and not yet acknowledged',
+          },
+          {
+            label: 'Past their delivery date',
+            figure: formatNumber(meta.overdue || 0),
+            value: 'overdue',
+            clear: 'open',
+            lit: Boolean(meta.overdue),
+            hint: 'Past the date the buyer was given',
+          },
+        ]}
+      />
 
       <div className="mb-5 flex flex-wrap items-center gap-2">
         <input
@@ -298,6 +319,7 @@ function Consignments({ mayWrite }) {
         <select className="input w-44" value={only} onChange={narrow(setOnly)} aria-label="Narrow to">
           <option value="open">Everything open</option>
           <option value="transit">On the road</option>
+          <option value="overdue">Past their date</option>
           <option value="">Including closed</option>
         </select>
         <ExportButton download={downloads.dispatches} params={filters} />

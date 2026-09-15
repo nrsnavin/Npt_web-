@@ -38,6 +38,7 @@ export default function Materials() {
   const [type, setType] = useState('');
   const [page, setPage] = useState(1);
   const [editing, setEditing] = useState(null);
+  const [active, setActive] = useState('');
   const { sort, toggle } = useSort();
 
   const sortBy = (field) => {
@@ -46,7 +47,11 @@ export default function Materials() {
   };
 
   const term = useDebounced(search);
-  const filters = { search: term || undefined, type: type || undefined };
+  const filters = {
+    search: term || undefined,
+    type: type || undefined,
+    isActive: active || undefined,
+  };
   const { data, pagination, loading, error, reload } = useRecordList(materialsApi.list, {
     ...filters,
     sort: sort || undefined,
@@ -91,6 +96,16 @@ export default function Materials() {
           {MATERIAL_TYPES.map((option) => (
             <option key={option.value} value={option.value}>{option.label}</option>
           ))}
+        </select>
+        {/*
+          A retired grade stays on the register because old costings still point at it, so the
+          list carries rows nobody will ever buy again. The API has always understood this
+          filter; the screen simply never asked.
+        */}
+        <select className="input w-44" value={active} onChange={onFilterChange(setActive)} aria-label="In use">
+          <option value="">In use and retired</option>
+          <option value="true">In use only</option>
+          <option value="false">Retired only</option>
         </select>
       </div>
 

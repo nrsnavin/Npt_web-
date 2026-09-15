@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { payments as paymentsApi } from '../api/endpoints.js';
 import { useDebounced } from '../hooks/useRecords.js';
 import {
@@ -35,8 +35,20 @@ const STATE_LABELS = {
 };
 
 export default function Payments() {
+  const [params, setParams] = useSearchParams();
   const [search, setSearch] = useState('');
   const [kind, setKind] = useState('');
+  /*
+   * Which slice of the ledger, held in the address rather than in state.
+   *
+   * It mostly arrives from somewhere else — the management home's "Overdue money" tile links
+   * straight here with `?overdue=true` — and a filter in the URL is also a link somebody can
+   * send a colleague. Held in component state instead, that tile would open the whole ledger
+   * beside a figure counting a fraction of it, which is what it did until now.
+   */
+  const only = params.get('overdue') === 'true' ? 'overdue'
+    : params.get('broken') === 'true' ? 'broken'
+      : params.get('open') === 'true' ? 'open' : '';
   const [page, setPage] = useState(1);
 
   const [rows, setRows] = useState(null);
@@ -58,6 +70,10 @@ export default function Payments() {
       const response = await paymentsApi.list({
         search: term || undefined,
         kind: kind || undefined,
+        /* One of the three, or none of them — the server reads whichever is present. */
+        open: only === 'open' ? 'true' : undefined,
+        overdue: only === 'overdue' ? 'true' : undefined,
+        broken: only === 'broken' ? 'true' : undefined,
         sort: sort || undefined,
         page,
         limit: 25,
@@ -69,7 +85,7 @@ export default function Payments() {
       setError(loadError);
       setRows([]);
     }
-  }, [term, kind, sort, page]);
+  }, [term, kind, only, sort, page]);
 
   useEffect(() => {
     load();
@@ -115,6 +131,30 @@ export default function Payments() {
           <option value="">Invoices and advances</option>
           <option value="invoice">Invoices only</option>
           <option value="advance">Advances only</option>
+        </select>
+        {/*
+          The three slices a chase list is actually worked from. All three turn on the balance,
+          which is the invoice less the receipts and is worked out rather than stored — so this
+          is a filter the server applies to the open set it already has in hand, not a database
+          query. Through the address, so the choice survives a reload and can be linked to.
+        */}
+        <select
+          className="input w-52"
+          value={only}
+          aria-label="Which of the ledger"
+          onChange={(event) => {
+            const value = event.target.value;
+            const next = new URLSearchParams(params);
+            for (const key of ['overdue', 'broken', 'open']) next.delete(key);
+            if (value) next.set(value, 'true');
+            setParams(next, { replace: true });
+            setPage(1);
+          }}
+        >
+          <option value="">The whole ledger</option>
+          <option value="open">Still owed</option>
+          <option value="overdue">Past its date</option>
+          <option value="broken">Promise broken</option>
         </select>
       </div>
 

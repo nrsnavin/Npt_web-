@@ -291,6 +291,12 @@ export default function Users() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
+  /* The three questions an access screen gets asked: who is in this department, who holds this
+     role, and who is still active. All three are filters the API already understood and the
+     screen simply never offered. */
+  const [department, setDepartment] = useState('');
+  const [role, setRole] = useState('');
+  const [active, setActive] = useState('');
 
   const [creating, setCreating] = useState(false);
   const [editingAccess, setEditingAccess] = useState(null);
@@ -307,13 +313,22 @@ export default function Users() {
    * the answer depends on which table you are looking at, and the server is also what decides
    * that the password column is not an ordering anybody may ask for.
    */
-  const load = async (term = search, order = sort) => {
+  const load = async (term = search, order = sort, narrow = { department, role, active }) => {
     setLoading(true);
     setError(null);
     try {
       const [cat, list] = await Promise.all([
         catalogue ? Promise.resolve(catalogue) : usersApi.catalogue(),
-        usersApi.list({ search: term || undefined, sort: order || undefined, limit: 100 }),
+        usersApi.list({
+          search: term || undefined,
+          department: narrow.department || undefined,
+          role: narrow.role || undefined,
+          /* Sent as the string the API reads, and only when a choice has been made — an empty
+             picker means "either", not "inactive". */
+          isActive: narrow.active || undefined,
+          sort: order || undefined,
+          limit: 100,
+        }),
       ]);
       setCatalogue(cat);
       setRows(list.data);
@@ -325,9 +340,9 @@ export default function Users() {
   };
 
   useEffect(() => {
-    load(search, sort);
+    load(search, sort, { department, role, active });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sort]);
+  }, [sort, department, role, active]);
 
   const replaceRow = (updated) =>
     setRows((current) => current.map((row) => (row.id === updated.id ? updated : row)));
@@ -350,7 +365,7 @@ export default function Users() {
       />
 
       <form
-        className="mb-5 flex gap-2"
+        className="mb-5 flex flex-wrap gap-2"
         onSubmit={(event) => {
           event.preventDefault();
           load();
@@ -366,6 +381,43 @@ export default function Users() {
         <button type="submit" className="btn-secondary">
           Search
         </button>
+
+        {/* The pickers narrow on change rather than on submit, because unlike a search term
+            there is nothing half-typed to wait for. */}
+        <select
+          className="input max-w-[12rem]"
+          value={department}
+          onChange={(event) => setDepartment(event.target.value)}
+          aria-label="Department"
+        >
+          <option value="">Every department</option>
+          {(catalogue?.departments || []).map((entry) => (
+            <option key={entry.key} value={entry.key}>{entry.label}</option>
+          ))}
+        </select>
+
+        <select
+          className="input max-w-[10rem]"
+          value={role}
+          onChange={(event) => setRole(event.target.value)}
+          aria-label="Role"
+        >
+          <option value="">Any role</option>
+          <option value="admin">Admin</option>
+          {/* `member`, which is what the model calls it and what the badge below prints. */}
+          <option value="member">Member</option>
+        </select>
+
+        <select
+          className="input max-w-[11rem]"
+          value={active}
+          onChange={(event) => setActive(event.target.value)}
+          aria-label="Account status"
+        >
+          <option value="">Active and closed</option>
+          <option value="true">Active only</option>
+          <option value="false">Closed only</option>
+        </select>
       </form>
 
       {loading && <Spinner label="Loading users" />}

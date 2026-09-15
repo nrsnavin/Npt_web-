@@ -41,6 +41,7 @@ export default function PartsRegister({ kind }) {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [editing, setEditing] = useState(null);
+  const [active, setActive] = useState('');
   const { sort, toggle } = useSort();
 
   const sortBy = (field) => {
@@ -51,7 +52,7 @@ export default function PartsRegister({ kind }) {
   const copy = KINDS[kind];
   const term = useDebounced(search);
   /* `kind` is not a filter here, it is which register this is — so it is always sent. */
-  const filters = { kind, search: term || undefined };
+  const filters = { kind, search: term || undefined, isActive: active || undefined };
   const { data, pagination, loading, error, reload } = useRecordList(componentsApi.list, {
     ...filters,
     sort: sort || undefined,
@@ -89,6 +90,23 @@ export default function PartsRegister({ kind }) {
             setPage(1);
           }}
         />
+        {/*
+          Retired parts stay on the register because old costings still point at them, so the
+          list carries rows nobody will fit again. The API already understood this filter.
+        */}
+        <select
+          className="input w-44"
+          value={active}
+          aria-label="In use"
+          onChange={(event) => {
+            setActive(event.target.value);
+            setPage(1);
+          }}
+        >
+          <option value="">In use and retired</option>
+          <option value="true">In use only</option>
+          <option value="false">Retired only</option>
+        </select>
       </div>
 
       {loading && <TableSkeleton columns={5} />}

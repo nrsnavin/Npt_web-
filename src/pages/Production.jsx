@@ -10,6 +10,7 @@ import ExportButton from '../components/ExportButton.jsx';
 import { ProductionLineDialog, ProductionStatusPicker } from '../components/ProductionLine.jsx';
 import { formatDate, formatNumber } from '../utils/format.js';
 import { SortHeader, useSort } from '../components/SortHeader.jsx';
+import FilterTiles from '../components/FilterTiles.jsx';
 import { PRODUCTION_STAGES } from '../utils/pipeline.js';
 
 /**
@@ -90,24 +91,42 @@ export default function Production() {
         actions={<ExportButton download={downloads.production} params={filters} />}
       />
 
-      {/* What a production head opens this screen to find out, before reading a single row. */}
-      <div className="mb-5 grid gap-3 sm:grid-cols-3">
-        {[
-          { label: 'Open lines', value: formatNumber(meta.open || 0), lit: false },
-          { label: 'Past their date', value: formatNumber(meta.overdue || 0), lit: Boolean(meta.overdue) },
-          { label: 'Stopped', value: formatNumber(meta.held || 0), lit: Boolean(meta.held) },
-        ].map((tile) => (
-          <div
-            key={tile.label}
-            className={`card px-4 py-3 ${tile.lit ? 'ring-1 ring-danger-500/40' : ''}`}
-          >
-            <p className="eyebrow">{tile.label}</p>
-            <p className={`stat-value mt-1 ${tile.lit ? 'text-danger-400' : 'text-steel-50'}`}>
-              {tile.value}
-            </p>
-          </div>
-        ))}
-      </div>
+      {/*
+        What a production head opens this screen to find out, before reading a single row — and
+        now the way to look at it. The three tiles are the three values the picker below already
+        offered, so pointing at the figure is the shortest route to the rows behind it.
+      */}
+      <FilterTiles
+        value={only}
+        onPick={(next) => {
+          setOnly(next);
+          setPage(1);
+        }}
+        tiles={[
+          {
+            label: 'Open lines',
+            figure: formatNumber(meta.open || 0),
+            value: 'open',
+            /* Clearing "open" means including finished lines, not showing nothing. */
+            clear: '',
+            hint: 'Everything still to make',
+          },
+          {
+            label: 'Past their date',
+            figure: formatNumber(meta.overdue || 0),
+            value: 'overdue',
+            clear: 'open',
+            lit: Boolean(meta.overdue),
+          },
+          {
+            label: 'Stopped',
+            figure: formatNumber(meta.held || 0),
+            value: 'held',
+            clear: 'open',
+            lit: Boolean(meta.held),
+          },
+        ]}
+      />
 
       <div className="mb-5 flex flex-wrap items-center gap-2">
         <input
