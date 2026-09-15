@@ -7,6 +7,7 @@ const ProductionHome = lazy(() => import('./ProductionHome.jsx'));
 const DispatchHome = lazy(() => import('./DispatchHome.jsx'));
 const QualityHome = lazy(() => import('./QualityHome.jsx'));
 const PaymentsHome = lazy(() => import('./PaymentsHome.jsx'));
+const ManagementHome = lazy(() => import('./ManagementHome.jsx'));
 
 /**
  * What somebody sees when they open the app.
@@ -38,9 +39,13 @@ const PaymentsHome = lazy(() => import('./PaymentsHome.jsx'));
  * work. A yard cannot — chasing a transporter, chasing an invoice and loading a lorry are three
  * unrelated jobs, so its screen groups by what to *do* rather than by severity.
  *
- * Accounts still falls through to My day, deliberately. It has the same argument waiting and a
- * different screen to make it with, and inventing a mapping before that screen exists would be
- * a guess. Department by department, as each one's own view is built.
+ * Management's is the argument at its sharpest. A managing director is not chased by follow-up
+ * dates either; they are chased by money that has not come in, by a promise about to break, and
+ * by the one queue nobody else can clear. So that screen leads with what will not move without
+ * a signature, then four numbers about the plant rather than about the reader.
+ *
+ * Marketing and order confirmation still get My day, and for them it is the right screen: they
+ * genuinely are chased by follow-up dates, which is what it counts.
  */
 const HOME_BY_DEPARTMENT = {
   sampling: () => <SampleHome />,
@@ -53,6 +58,16 @@ const HOME_BY_DEPARTMENT = {
      screen they navigate to. Marketing keeps the general dashboard and reaches payments from
      the nav — chasing is part of their day, not the whole of it. */
   accounts: () => <PaymentsHome />,
+  /*
+   * And management, which was the last department still falling through to My day.
+   *
+   * The same argument as all the others, with the sharpest answer: a managing director is not
+   * chased by follow-up dates at all. They are chased by money that has not come in, by a
+   * promise the plant is about to break, and by the one queue nobody else can clear — a price
+   * under the floor waits on their signature and on nothing else [§9]. Four tiles counting
+   * their own to-dos told them none of that.
+   */
+  management: () => <ManagementHome />,
 };
 
 export default function Home() {

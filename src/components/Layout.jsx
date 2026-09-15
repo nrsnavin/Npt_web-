@@ -30,12 +30,31 @@ import { humanise } from '../utils/format.js';
  * party's key state and spends API calls the whole plant shares, and inventing a grant for it
  * would mean an access list with an entry nobody knows how to reason about.
  */
+/**
+ * What the Home link is called, per department.
+ *
+ * Home is a different screen for each of them [pages/Home.jsx], so one label cannot be honest
+ * for all: "My day" over management's plant figures describes somebody else's morning, and a
+ * nav that mislabels the page you are on is the first thing a new user stops trusting.
+ */
+const HOME_LABELS = {
+  management: 'The plant today',
+  sampling: 'The bench today',
+  production: 'The plant floor',
+  despatch: 'The yard today',
+  quality: 'On hold',
+  accounts: 'The chase',
+};
+
 const MODULES = [
   {
     key: 'home',
     label: 'Home',
     features: [
-      { to: '/', label: 'My day', end: true },
+      /* Labelled by what the screen actually is for this reader — see HOME_LABELS. Home is
+         chosen by department [pages/Home.jsx], and a link reading "My day" over a screen of
+         plant figures is the nav describing somebody else's morning. */
+      { to: '/', label: 'My day', end: true, home: true },
       /* "How am I doing", where My day answers "what needs me now" — the same question at two
          ranges, and both are why somebody opens the app rather than navigates to it mid-task. */
       { to: '/dashboard/marketing', label: 'My dashboard', module: 'enquiries' },
@@ -348,6 +367,8 @@ export default function Layout() {
    * report on a module you cannot open is a screen you cannot open either.
    */
   const readable = useMemo(() => {
+    const homeLabel = HOME_LABELS[user?.department] || 'My day';
+
     const mayOpen = (feature, entry) => {
       if (feature.admin && !isAdmin) return false;
       const grant = feature.module ?? entry.module;
@@ -360,10 +381,11 @@ export default function Layout() {
         .filter((feature) => mayOpen(feature, entry))
         .map((feature) => ({
           ...feature,
+          label: feature.home ? homeLabel : feature.label,
           children: (feature.children || []).filter((child) => mayOpen(child, entry)),
         })),
     })).filter((entry) => entry.features.length);
-  }, [canRead, isAdmin]);
+  }, [canRead, isAdmin, user?.department]);
 
   /*
    * The module in view — and a fallback, because the one the route belongs to may be one this

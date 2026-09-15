@@ -8,6 +8,7 @@ import {
 } from '../components/ui.jsx';
 import StagePipeline from '../components/StagePipeline.jsx';
 import { SortHeader, useSort } from '../components/SortHeader.jsx';
+import PricingDecision from '../components/PricingDecision.jsx';
 import CostingSheetForm from '../components/CostingSheetForm.jsx';
 import CostingDetailsForm from '../components/CostingDetailsForm.jsx';
 import { CustomerSelect, MouldSelect } from '../components/pickers.jsx';
@@ -38,65 +39,6 @@ const PRICING_STAGES = [
 
 const rupees = (value) =>
   value === undefined || value === null ? '—' : `₹${Number(value).toFixed(2)}`;
-
-/** Signing off a price under the floor, or sending it back [§9]. */
-function DecisionForm({ pricing, onClose, onSaved }) {
-  const [note, setNote] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState(null);
-
-  const decide = async (approve) => {
-    setBusy(true);
-    setError(null);
-    try {
-      onSaved(await pricingsApi.decide({ id: pricing._id, approve, note: note || undefined }));
-      onClose();
-    } catch (saveError) {
-      setError(saveError.message);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-3">
-        <div className="card px-4 py-3">
-          <p className="eyebrow">Total cost</p>
-          <p className="stat-value mt-1 text-steel-50">{rupees(pricing.totalCost)}</p>
-        </div>
-        <div className="card px-4 py-3">
-          <p className="eyebrow">Minimum</p>
-          <p className="stat-value mt-1 text-steel-50">{rupees(pricing.minimumSellingPrice)}</p>
-        </div>
-        <div className="card px-4 py-3">
-          <p className="eyebrow">Asking</p>
-          <p className="stat-value mt-1 text-warn-400">{rupees(pricing.approvedSellingPrice)}</p>
-          <p className="mt-0.5 text-xs text-steel-500">
-            {pricing.grossMarginPercent}% margin
-          </p>
-        </div>
-      </div>
-
-      <Field label="Note" hint="Required when refusing — it is what the re-costing is built from">
-        <textarea rows={2} className="input" value={note} onChange={(event) => setNote(event.target.value)} />
-      </Field>
-
-      {error && <Notice tone="danger">{error}</Notice>}
-
-      <div className="flex justify-end gap-2">
-        <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
-        <button type="button" className="btn-danger" disabled={busy} onClick={() => decide(false)}>
-          Send it back
-        </button>
-        <button type="button" className="btn-primary" disabled={busy} onClick={() => decide(true)}>
-          Approve this price
-        </button>
-      </div>
-    </div>
-  );
-}
-
 
 /**
  * A costing raised by hand, with no enquiry behind it.
@@ -476,7 +418,7 @@ export default function Pricings() {
         onClose={() => setDeciding(null)}
       >
         {deciding && (
-          <DecisionForm pricing={deciding} onClose={() => setDeciding(null)} onSaved={saved} />
+          <PricingDecision pricing={deciding} onClose={() => setDeciding(null)} onSaved={saved} />
         )}
       </Modal>
 
