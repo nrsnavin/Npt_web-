@@ -7,6 +7,7 @@ import {
   Badge, EmptyState, ErrorState, PageHeader, Pagination, TableSkeleton,
 } from '../components/ui.jsx';
 import { formatDate, formatNumber } from '../utils/format.js';
+import { SortHeader, useSort } from '../components/SortHeader.jsx';
 import {
   INSPECTION_STAGES, VERDICTS, inspectionStageLabel, verdictLabel, verdictTone,
 } from '../utils/pipeline.js';
@@ -43,6 +44,12 @@ export default function Quality() {
   const [rows, setRows] = useState(null);
   const [pagination, setPagination] = useState(null);
   const [error, setError] = useState(null);
+  const { sort, toggle } = useSort();
+
+  const sortBy = (field) => {
+    toggle(field);
+    setPage(1);
+  };
 
   const term = useDebounced(search);
 
@@ -56,6 +63,7 @@ export default function Quality() {
            held wins, because it is the more specific question. */
         verdict: only === 'held' ? undefined : verdict || undefined,
         held: only === 'held' ? 'true' : undefined,
+        sort: sort || undefined,
         page,
         limit: 25,
       });
@@ -65,7 +73,7 @@ export default function Quality() {
       setError(loadError);
       setRows([]);
     }
-  }, [term, stage, verdict, only, page]);
+  }, [term, stage, verdict, only, sort, page]);
 
   useEffect(() => {
     load();
@@ -135,13 +143,21 @@ export default function Quality() {
               <table className="min-w-full text-sm">
                 <thead className="table-head">
                   <tr>
-                    <th className="px-4 py-3">Model</th>
+                    <SortHeader field="modelNumber" label="Model" sort={sort} onToggle={sortBy} className="px-4" />
                     <th className="px-4 py-3">Order</th>
-                    <th className="px-4 py-3">Stage</th>
-                    <th className="px-4 py-3 text-right">Checked</th>
-                    <th className="px-4 py-3 text-right">Rejected</th>
+                    <SortHeader field="stage" label="Stage" sort={sort} onToggle={sortBy} className="px-4" />
+                    <SortHeader field="quantityInspected" label="Checked" sort={sort} onToggle={sortBy} align="right" className="px-4" />
+                    {/*
+                      The rejection *percentage* is what a quality head really wants ranked, and
+                      it is divided out on the way out of the record — so the server has nothing
+                      to sort and refuses the key. The count is the honest version of the same
+                      question, and it is the one that matters when deciding what to do about a
+                      mould: worst batches by volume, not by ratio on a sample of forty.
+                    */}
+                    <SortHeader field="quantityRejected" label="Rejected" sort={sort} onToggle={sortBy} align="right" className="px-4" />
                     <th className="px-4 py-3">What was wrong</th>
-                    <th className="px-4 py-3">Verdict</th>
+                    <SortHeader field="inspectedAt" label="Checked on" sort={sort} onToggle={sortBy} className="px-4" />
+                    <SortHeader field="verdict" label="Verdict" sort={sort} onToggle={sortBy} className="px-4" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line/[0.04]">
@@ -167,7 +183,6 @@ export default function Quality() {
                       </td>
                       <td className="px-4 py-3.5">
                         <span className="text-steel-300">{inspectionStageLabel(row.stage)}</span>
-                        <p className="text-xs text-steel-500">{formatDate(row.inspectedAt)}</p>
                       </td>
                       <td className="px-4 py-3.5 text-right tabular-nums text-steel-200">
                         {formatNumber(row.quantityInspected)}
@@ -190,6 +205,11 @@ export default function Quality() {
                         ) : (
                           <span className="text-xs text-steel-500">Nothing found</span>
                         )}
+                      </td>
+                      {/* The day it was checked, out from under the stage label and into a
+                          column of its own, so the register can be read newest-first. */}
+                      <td className="whitespace-nowrap px-4 py-3.5 text-xs text-steel-400">
+                        {formatDate(row.inspectedAt)}
                       </td>
                       <td className="px-4 py-3.5">
                         <Badge status={row.verdict}>{verdictLabel(row.verdict)}</Badge>

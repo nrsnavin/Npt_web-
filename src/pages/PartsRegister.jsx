@@ -8,6 +8,7 @@ import {
 } from '../components/ui.jsx';
 import ExportButton from '../components/ExportButton.jsx';
 import PartForm, { KINDS } from '../components/PartForm.jsx';
+import { SortHeader, useSort } from '../components/SortHeader.jsx';
 import { formatDate } from '../utils/format.js';
 
 /**
@@ -40,6 +41,12 @@ export default function PartsRegister({ kind }) {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [editing, setEditing] = useState(null);
+  const { sort, toggle } = useSort();
+
+  const sortBy = (field) => {
+    toggle(field);
+    setPage(1);
+  };
 
   const copy = KINDS[kind];
   const term = useDebounced(search);
@@ -47,6 +54,7 @@ export default function PartsRegister({ kind }) {
   const filters = { kind, search: term || undefined };
   const { data, pagination, loading, error, reload } = useRecordList(componentsApi.list, {
     ...filters,
+    sort: sort || undefined,
     page,
     limit: 25,
   });
@@ -98,12 +106,14 @@ export default function PartsRegister({ kind }) {
               <table className="min-w-full text-sm">
                 <thead className="table-head">
                   <tr>
-                    <th className="px-4 py-3">Name</th>
-                    <th className="px-4 py-3">Colour</th>
+                    <SortHeader field="name" label="Name" sort={sort} onToggle={sortBy} className="px-4" />
+                    <SortHeader field="colour" label="Colour" sort={sort} onToggle={sortBy} className="px-4" />
                     {/* The unit in the header, so no column here reads as a per-kilo rate. */}
-                    <th className="px-4 py-3 text-right">Rate / pc</th>
-                    <th className="px-4 py-3">Supplier</th>
-                    <th className="px-4 py-3">Confirmed</th>
+                    <SortHeader field="ratePerPiece" label="Rate / pc" sort={sort} onToggle={sortBy} align="right" className="px-4" />
+                    <SortHeader field="supplier" label="Supplier" sort={sort} onToggle={sortBy} className="px-4" />
+                    {/* Oldest first is the housekeeping list: a price nobody has confirmed
+                        lately is a costing quietly out of date. */}
+                    <SortHeader field="rateUpdatedAt" label="Confirmed" sort={sort} onToggle={sortBy} className="px-4" />
                     {mayWrite && <th className="px-4 py-3" />}
                   </tr>
                 </thead>

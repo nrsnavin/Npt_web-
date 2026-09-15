@@ -9,6 +9,7 @@ import {
 import ExportButton from '../components/ExportButton.jsx';
 import { ProductionLineDialog, ProductionStatusPicker } from '../components/ProductionLine.jsx';
 import { formatDate, formatNumber } from '../utils/format.js';
+import { SortHeader, useSort } from '../components/SortHeader.jsx';
 import { PRODUCTION_STAGES } from '../utils/pipeline.js';
 
 /**
@@ -40,6 +41,12 @@ export default function Production() {
   const [pagination, setPagination] = useState(null);
   const [meta, setMeta] = useState({ open: 0, overdue: 0, held: 0, toMake: 0 });
   const [error, setError] = useState(null);
+  const { sort, toggle } = useSort();
+
+  const sortBy = (field) => {
+    toggle(field);
+    setPage(1);
+  };
 
   const term = useDebounced(search);
   const filters = {
@@ -53,7 +60,7 @@ export default function Production() {
   const load = useCallback(async () => {
     setError(null);
     try {
-      const response = await productionApi.list({ ...filters, page, limit: 25 });
+      const response = await productionApi.list({ ...filters, sort: sort || undefined, page, limit: 25 });
       setRows(response.data);
       setPagination(response.pagination);
       setMeta(response.meta || {});
@@ -62,7 +69,7 @@ export default function Production() {
       setRows([]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [term, status, only, page]);
+  }, [term, status, only, sort, page]);
 
   useEffect(() => {
     load();
@@ -141,13 +148,23 @@ export default function Production() {
               <table className="min-w-full text-sm">
                 <thead className="table-head">
                   <tr>
-                    <th className="px-4 py-3">Model</th>
-                    <th className="px-4 py-3">Order</th>
-                    <th className="px-4 py-3 text-right">Ordered</th>
-                    <th className="px-4 py-3">Made</th>
-                    <th className="px-4 py-3 text-right">Packed</th>
-                    <th className="px-4 py-3">Due</th>
-                    <th className="px-4 py-3">Stage</th>
+                    {/*
+                      Sortable end to end, like despatch's ready queue and unlike most of the
+                      app: these rows are built line by line on the server, so even "Made" — a
+                      percentage the record divides out rather than stores — is a plain number
+                      by the time anything ranks it.
+
+                      "Made, least first" is the one to reach for. A line due Friday that is 95%
+                      made needs nobody; one due Friday at 4% needs a press today, and the date
+                      on its own cannot tell them apart.
+                    */}
+                    <SortHeader field="modelNumber" label="Model" sort={sort} onToggle={sortBy} className="px-4" />
+                    <SortHeader field="order.number" label="Order" sort={sort} onToggle={sortBy} className="px-4" />
+                    <SortHeader field="quantity" label="Ordered" sort={sort} onToggle={sortBy} align="right" className="px-4" />
+                    <SortHeader field="madePercent" label="Made" sort={sort} onToggle={sortBy} className="px-4" />
+                    <SortHeader field="production.readyQty" label="Packed" sort={sort} onToggle={sortBy} align="right" className="px-4" />
+                    <SortHeader field="deliveryDate" label="Due" sort={sort} onToggle={sortBy} className="px-4" />
+                    <SortHeader field="production.status" label="Stage" sort={sort} onToggle={sortBy} className="px-4" />
                     {mayWrite && <th className="px-4 py-3" />}
                   </tr>
                 </thead>

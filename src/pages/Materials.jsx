@@ -7,6 +7,7 @@ import {
   Badge, EmptyState, ErrorState, Modal, PageHeader, Pagination, TableSkeleton,
 } from '../components/ui.jsx';
 import ExportButton from '../components/ExportButton.jsx';
+import { SortHeader, useSort } from '../components/SortHeader.jsx';
 import MaterialForm from '../components/MaterialForm.jsx';
 import { formatDate } from '../utils/format.js';
 import { MATERIAL_TYPES, optionLabel } from '../utils/pipeline.js';
@@ -37,11 +38,18 @@ export default function Materials() {
   const [type, setType] = useState('');
   const [page, setPage] = useState(1);
   const [editing, setEditing] = useState(null);
+  const { sort, toggle } = useSort();
+
+  const sortBy = (field) => {
+    toggle(field);
+    setPage(1);
+  };
 
   const term = useDebounced(search);
   const filters = { search: term || undefined, type: type || undefined };
   const { data, pagination, loading, error, reload } = useRecordList(materialsApi.list, {
     ...filters,
+    sort: sort || undefined,
     page,
     limit: 25,
   });
@@ -101,12 +109,14 @@ export default function Materials() {
               <table className="min-w-full text-sm">
                 <thead className="table-head">
                   <tr>
-                    <th className="px-4 py-3">Material</th>
-                    <th className="px-4 py-3">Polymer</th>
-                    <th className="px-4 py-3">Colour</th>
-                    <th className="px-4 py-3 text-right">Rate / kg</th>
-                    <th className="px-4 py-3 text-right">Grammage</th>
-                    <th className="px-4 py-3">Confirmed</th>
+                    <SortHeader field="name" label="Material" sort={sort} onToggle={sortBy} className="px-4" />
+                    <SortHeader field="type" label="Polymer" sort={sort} onToggle={sortBy} className="px-4" />
+                    <SortHeader field="colour" label="Colour" sort={sort} onToggle={sortBy} className="px-4" />
+                    <SortHeader field="ratePerKg" label="Rate / kg" sort={sort} onToggle={sortBy} align="right" className="px-4" />
+                    <SortHeader field="grammageFactorPercent" label="Grammage" sort={sort} onToggle={sortBy} align="right" className="px-4" />
+                    {/* Oldest first is this register's housekeeping list: a rate nobody has
+                        confirmed in months is a costing built on a guess. */}
+                    <SortHeader field="rateUpdatedAt" label="Confirmed" sort={sort} onToggle={sortBy} className="px-4" />
                     {mayWrite && <th className="px-4 py-3" />}
                   </tr>
                 </thead>

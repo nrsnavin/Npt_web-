@@ -8,6 +8,7 @@ import {
 } from '../components/ui.jsx';
 import StagePipeline from '../components/StagePipeline.jsx';
 import QuotationPdf from '../components/QuotationPdf.jsx';
+import { SortHeader, useSort } from '../components/SortHeader.jsx';
 import { CustomerSelect, MouldSelect } from '../components/pickers.jsx';
 import { formatCompactCurrency, formatCurrency, formatDate, formatNumber, humanise } from '../utils/format.js';
 
@@ -575,6 +576,14 @@ export default function Quotations() {
   const [editing, setEditing] = useState(null);
   const [responding, setResponding] = useState(null);
   const [sendError, setSendError] = useState(null);
+  const { sort, toggle } = useSort();
+
+  /* Back to page one on every sort, so a re-ordering never lands somebody in the middle of a
+     list whose top they have not seen. */
+  const sortBy = (field) => {
+    toggle(field);
+    setPage(1);
+  };
   const [params] = useSearchParams();
 
   const mayWrite = canQuote('pricing');
@@ -587,6 +596,7 @@ export default function Quotations() {
   };
   const { data, pagination, meta, loading, error, reload } = useRecordList(quotationsApi.list, {
     ...filters,
+    sort: sort || undefined,
     page,
     limit: 25,
   });
@@ -680,12 +690,16 @@ export default function Quotations() {
               <table className="min-w-full text-sm">
                 <thead className="table-head">
                   <tr>
-                    <th className="px-3 py-3">Quotation</th>
+                    <SortHeader field="number" label="Quotation" sort={sort} onToggle={sortBy} />
                     <th className="px-3 py-3">Customer</th>
                     <th className="px-3 py-3">Model</th>
+                    {/* Both figures come off the lines, and ordering by a field inside an array
+                        ranks each quotation by the smallest price on it rather than the one the
+                        row draws. The server refuses it; these headings stay plain. */}
                     <th className="px-3 py-3 text-right">Minimum</th>
                     <th className="px-3 py-3 text-right">Rate per piece</th>
-                    <th className="px-3 py-3">Stage</th>
+                    <SortHeader field="validUntil" label="Valid until" sort={sort} onToggle={sortBy} />
+                    <SortHeader field="status" label="Stage" sort={sort} onToggle={sortBy} />
                     <th className="px-3 py-3" />
                   </tr>
                 </thead>
@@ -747,11 +761,17 @@ export default function Quotations() {
                           <p className="text-[0.75rem] uppercase tracking-wide text-aqua-400">Export</p>
                         )}
                       </td>
+                      {/* The expiry warning sits on the date it is about rather than under the
+                          stage badge, now that the date has a column. A quote lapsing on Friday
+                          is a call to make today, which is why this column can be sorted. */}
+                      <td className="whitespace-nowrap px-3 py-3.5 text-xs text-steel-300">
+                        {row.validUntil ? formatDate(row.validUntil) : '—'}
+                        {row.isExpired && (
+                          <p className="font-semibold text-danger-400">Validity passed</p>
+                        )}
+                      </td>
                       <td className="whitespace-nowrap px-3 py-3.5">
                         <Badge status={row.status}>{humanise(row.status)}</Badge>
-                        {row.isExpired && (
-                          <p className="text-xs text-danger-400">Validity passed</p>
-                        )}
                       </td>
                       <td className="whitespace-nowrap px-3 py-3.5 text-right">
                         <div className="flex justify-end gap-1.5">

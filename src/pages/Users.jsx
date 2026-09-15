@@ -4,6 +4,7 @@ import { users as usersApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { Badge, ConfirmDialog, Field, Modal, Notice, PageHeader, Spinner } from '../components/ui.jsx';
 import { formatDate, humanise } from '../utils/format.js';
+import { SortHeader, useSort } from '../components/SortHeader.jsx';
 
 /** Grants are edited as a map of module key to level, then flattened on save. */
 const grantsToMap = (moduleAccess = []) =>
@@ -297,14 +298,22 @@ export default function Users() {
   const [busy, setBusy] = useState(false);
 
   const mayWrite = canWrite('users');
+  const { sort, toggle } = useSort();
 
-  const load = async (term = search) => {
+  /*
+   * Re-fetched on every sort rather than re-ordered here, like every other table in the app.
+   * This one loads a hundred rows at a time and could plausibly sort them in the browser — but
+   * a screen that sorts client-side on one page and server-side on the others is a screen where
+   * the answer depends on which table you are looking at, and the server is also what decides
+   * that the password column is not an ordering anybody may ask for.
+   */
+  const load = async (term = search, order = sort) => {
     setLoading(true);
     setError(null);
     try {
       const [cat, list] = await Promise.all([
         catalogue ? Promise.resolve(catalogue) : usersApi.catalogue(),
-        usersApi.list({ search: term || undefined, limit: 100 }),
+        usersApi.list({ search: term || undefined, sort: order || undefined, limit: 100 }),
       ]);
       setCatalogue(cat);
       setRows(list.data);
@@ -316,9 +325,9 @@ export default function Users() {
   };
 
   useEffect(() => {
-    load('');
+    load(search, sort);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [sort]);
 
   const replaceRow = (updated) =>
     setRows((current) => current.map((row) => (row.id === updated.id ? updated : row)));
@@ -368,11 +377,18 @@ export default function Users() {
             <table className="min-w-full text-sm">
               <thead className="table-head">
                 <tr>
-                  <th className="px-4 py-3">User</th>
-                  <th className="px-4 py-3">Department</th>
-                  <th className="px-4 py-3">Role</th>
+                  <SortHeader field="name" label="User" sort={sort} onToggle={toggle} className="px-4" />
+                  <SortHeader field="department" label="Department" sort={sort} onToggle={toggle} className="px-4" />
+                  <SortHeader field="role" label="Role" sort={sort} onToggle={toggle} className="px-4" />
+                  {/* A list of grants, summarised. There is no single value to rank it by; the
+                      department and role columns are how that question actually gets asked. */}
                   <th className="px-4 py-3">Module access</th>
-                  <th className="px-4 py-3">Last sign-in</th>
+                  {/*
+                    The reason this screen needed an ordering at all. Oldest first is the
+                    dormant-account list, and a dormant account still holding module grants is
+                    exactly the housekeeping an access screen exists to make visible.
+                  */}
+                  <SortHeader field="lastLoginAt" label="Last sign-in" sort={sort} onToggle={toggle} className="px-4" />
                   <th className="px-4 py-3" />
                 </tr>
               </thead>

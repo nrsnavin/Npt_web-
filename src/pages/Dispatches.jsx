@@ -10,6 +10,7 @@ import ExportButton from '../components/ExportButton.jsx';
 import { DispatchStatusPicker } from '../components/DispatchStatus.jsx';
 import { DispatchDialog } from '../components/DispatchForm.jsx';
 import { formatDate, formatNumber } from '../utils/format.js';
+import { SortHeader, useSort } from '../components/SortHeader.jsx';
 import { DISPATCH_STAGES } from '../utils/pipeline.js';
 
 /**
@@ -46,13 +47,24 @@ function ReadyQueue({ mayWrite }) {
   const [error, setError] = useState(null);
   /** The order a consignment is being raised against, with the stock of every line on it. */
   const [raising, setRaising] = useState(null);
+  const { sort, toggle } = useSort();
+
+  const sortBy = (field) => {
+    toggle(field);
+    setPage(1);
+  };
 
   const term = useDebounced(search);
 
   const load = useCallback(async () => {
     setError(null);
     try {
-      const response = await dispatchApi.ready({ search: term || undefined, page, limit: 25 });
+      const response = await dispatchApi.ready({
+        search: term || undefined,
+        sort: sort || undefined,
+        page,
+        limit: 25,
+      });
       setRows(response.data);
       setPagination(response.pagination);
       setMeta(response.meta || {});
@@ -60,7 +72,7 @@ function ReadyQueue({ mayWrite }) {
       setError(loadError);
       setRows([]);
     }
-  }, [term, page]);
+  }, [term, sort, page]);
 
   useEffect(() => {
     load();
@@ -121,13 +133,23 @@ function ReadyQueue({ mayWrite }) {
               <table className="min-w-full text-sm">
                 <thead className="table-head">
                   <tr>
-                    <th className="px-4 py-3">Model</th>
-                    <th className="px-4 py-3">Order</th>
-                    <th className="px-4 py-3 text-right">Packed</th>
-                    <th className="px-4 py-3 text-right">Held</th>
-                    <th className="px-4 py-3 text-right">Gone</th>
-                    <th className="px-4 py-3 text-right">Free</th>
-                    <th className="px-4 py-3">Wanted by</th>
+                    {/*
+                      Every column here is sortable, which is unusual in this app and worth a
+                      word. These rows are built line by line on the server rather than read out
+                      of a collection, so the figures are plain numbers on the row by the time
+                      anything sorts them — none of the "computed on the way out" problem that
+                      keeps arrows off the consignment table next door.
+
+                      "Free, biggest first" is the one that earns its keep: it is how a clerk
+                      fills a lorry that would otherwise go out half empty.
+                    */}
+                    <SortHeader field="modelNumber" label="Model" sort={sort} onToggle={sortBy} className="px-4" />
+                    <SortHeader field="order.number" label="Order" sort={sort} onToggle={sortBy} className="px-4" />
+                    <SortHeader field="readyQty" label="Packed" sort={sort} onToggle={sortBy} align="right" className="px-4" />
+                    <SortHeader field="reserved" label="Held" sort={sort} onToggle={sortBy} align="right" className="px-4" />
+                    <SortHeader field="dispatched" label="Gone" sort={sort} onToggle={sortBy} align="right" className="px-4" />
+                    <SortHeader field="available" label="Free" sort={sort} onToggle={sortBy} align="right" className="px-4" />
+                    <SortHeader field="deliveryDate" label="Wanted by" sort={sort} onToggle={sortBy} className="px-4" />
                     {mayWrite && <th className="px-4 py-3" />}
                   </tr>
                 </thead>
@@ -203,6 +225,12 @@ function Consignments({ mayWrite }) {
   const [pagination, setPagination] = useState(null);
   const [meta, setMeta] = useState({});
   const [error, setError] = useState(null);
+  const { sort, toggle } = useSort();
+
+  const sortBy = (field) => {
+    toggle(field);
+    setPage(1);
+  };
 
   const term = useDebounced(search);
   const filters = {
@@ -215,7 +243,7 @@ function Consignments({ mayWrite }) {
   const load = useCallback(async () => {
     setError(null);
     try {
-      const response = await dispatchApi.list({ ...filters, page, limit: 25 });
+      const response = await dispatchApi.list({ ...filters, sort: sort || undefined, page, limit: 25 });
       setRows(response.data);
       setPagination(response.pagination);
       setMeta(response.meta || {});
@@ -224,7 +252,7 @@ function Consignments({ mayWrite }) {
       setRows([]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [term, status, only, page]);
+  }, [term, status, only, sort, page]);
 
   useEffect(() => {
     load();
@@ -292,12 +320,16 @@ function Consignments({ mayWrite }) {
               <table className="min-w-full text-sm">
                 <thead className="table-head">
                   <tr>
-                    <th className="px-4 py-3">Consignment</th>
+                    <SortHeader field="number" label="Consignment" sort={sort} onToggle={sortBy} className="px-4" />
                     <th className="px-4 py-3">Order</th>
+                    {/* Summed over the lines on the way out, so there is nothing stored to
+                        rank — the server refuses the key rather than draw an arrow that lies. */}
                     <th className="px-4 py-3 text-right">Pieces</th>
-                    <th className="px-4 py-3">Going to</th>
+                    <SortHeader field="destination.city" label="Going to" sort={sort} onToggle={sortBy} className="px-4" />
+                    {/* The ordering §19 is about: the day somebody gave a buyer. */}
+                    <SortHeader field="expectedDeliveryDate" label="Wanted by" sort={sort} onToggle={sortBy} className="px-4" />
                     <th className="px-4 py-3">Paperwork</th>
-                    <th className="px-4 py-3">Stage</th>
+                    <SortHeader field="status" label="Stage" sort={sort} onToggle={sortBy} className="px-4" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line/[0.04]">
@@ -322,11 +354,18 @@ function Consignments({ mayWrite }) {
                       </td>
                       <td className="px-4 py-3.5 text-steel-300">
                         {row.destination?.city || row.destination?.address || '—'}
-                        {row.expectedDeliveryDate && (
-                          <p className={`text-xs ${row.isOverdue ? 'text-danger-400' : 'text-steel-500'}`}>
-                            {row.isOverdue ? 'Was due ' : 'Due '}
+                      </td>
+                      {/* The promised date has a column of its own now rather than sitting
+                          under the destination, so a board can be ranked by it — which is the
+                          ordering despatch actually works from. */}
+                      <td className="whitespace-nowrap px-4 py-3.5 text-xs">
+                        {row.expectedDeliveryDate ? (
+                          <span className={row.isOverdue ? 'font-semibold text-danger-400' : 'text-steel-300'}>
                             {formatDate(row.expectedDeliveryDate)}
-                          </p>
+                            {row.isOverdue && <p className="text-danger-400">Past its date</p>}
+                          </span>
+                        ) : (
+                          <span className="text-steel-600">&mdash;</span>
                         )}
                       </td>
                       <td className="px-4 py-3.5 text-xs text-steel-400">

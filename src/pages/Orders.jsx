@@ -7,6 +7,7 @@ import {
   Badge, EmptyState, ErrorState, Field, Modal, Notice, PageHeader, Pagination, TableSkeleton,
 } from '../components/ui.jsx';
 import ExportButton from '../components/ExportButton.jsx';
+import { SortHeader, useSort } from '../components/SortHeader.jsx';
 import OrderForm from '../components/OrderForm.jsx';
 import { PriorityForm, PRIORITY_TONE, isRaised, priorityLabel } from '../components/OrderPriority.jsx';
 import { formatCurrency, formatDate, formatNumber } from '../utils/format.js';
@@ -60,6 +61,14 @@ export default function Orders() {
      dialog can ever be open. */
   const [prioritising, setPrioritising] = useState(null);
   const [urgentOnly, setUrgentOnly] = useState(false);
+  const { sort, toggle } = useSort();
+
+  /* Back to page one on every sort. Re-ordering a long register while staying on page seven
+     lands the reader in the middle of an ordering they have not seen the top of. */
+  const sortBy = (field) => {
+    toggle(field);
+    setPage(1);
+  };
 
   const term = useDebounced(search);
   const filters = {
@@ -70,6 +79,7 @@ export default function Orders() {
   };
   const { data, pagination, loading, error, reload } = useRecordList(ordersApi.list, {
     ...filters,
+    sort: sort || undefined,
     page,
     limit: 25,
   });
@@ -156,13 +166,17 @@ export default function Orders() {
               <table className="min-w-full text-sm">
                 <thead className="table-head">
                   <tr>
-                    <th className="px-4 py-3">Order</th>
+                    <SortHeader field="number" label="Order" sort={sort} onToggle={sortBy} className="px-4" />
                     <th className="px-4 py-3">Customer</th>
                     <th className="px-4 py-3">Models</th>
+                    {/* Pieces and value are summed from the lines on the way out of the
+                        document, so the server has nothing to rank them by and refuses the
+                        ordering. A heading that looked sortable and was not would be worse. */}
                     <th className="px-4 py-3 text-right">Pieces</th>
                     <th className="px-4 py-3 text-right">Value</th>
-                    <th className="px-4 py-3">Stage</th>
-                    <th className="px-4 py-3">Priority</th>
+                    <SortHeader field="orderDate" label="Booked" sort={sort} onToggle={sortBy} className="px-4" />
+                    <SortHeader field="status" label="Stage" sort={sort} onToggle={sortBy} className="px-4" />
+                    <SortHeader field="priority" label="Priority" sort={sort} onToggle={sortBy} className="px-4" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line/[0.04]">
@@ -175,9 +189,13 @@ export default function Orders() {
                           <Link to={`/orders/${order._id}`} className="font-semibold text-steel-100 hover:text-accent">
                             {order.number}
                           </Link>
-                          <p className="text-xs text-steel-400">
-                            {order.customerPo?.number || formatDate(order.orderDate)}
-                          </p>
+                          {/* The buyer's own reference, which is what they will quote back on
+                              the phone. The order date used to fall back into this line when
+                              there was no PO; it has a column of its own now, so it can be
+                              sorted by and so two rows do not mean different things here. */}
+                          {order.customerPo?.number && (
+                            <p className="text-xs text-steel-400">{order.customerPo.number}</p>
+                          )}
                         </td>
                         <td className="px-4 py-3.5 text-steel-300">{order.customer?.name}</td>
                         <td className="px-4 py-3.5 text-xs text-steel-300">
@@ -191,6 +209,9 @@ export default function Orders() {
                         <td className="px-4 py-3.5 text-right tabular-nums text-steel-200">
                           {/* Blank rather than ₹0 for a reader who may not see it — see the API. */}
                           {order.valueHidden ? <span className="text-steel-600">&mdash;</span> : rupees(order.netValue)}
+                        </td>
+                        <td className="px-4 py-3.5 whitespace-nowrap text-xs text-steel-300">
+                          {formatDate(order.orderDate)}
                         </td>
                         <td className="px-4 py-3.5">
                           <Badge status={order.status}>{orderStageLabel(order.status)}</Badge>

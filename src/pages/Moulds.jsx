@@ -9,6 +9,7 @@ import {
 import { MouldThumb } from '../components/MouldPhoto.jsx';
 import MouldForm from '../components/MouldForm.jsx';
 import ExportButton from '../components/ExportButton.jsx';
+import { SortHeader, useSort } from '../components/SortHeader.jsx';
 import { formatCurrency, formatNumber } from '../utils/format.js';
 import {
   HANGER_CATEGORIES, HOOK_TYPES, MATERIALS, MOULD_STATUSES, optionLabel,
@@ -47,6 +48,12 @@ export default function Moulds() {
   const [category, setCategory] = useState('');
   const [page, setPage] = useState(1);
   const [editing, setEditing] = useState(null);
+  const { sort, toggle } = useSort();
+
+  const sortBy = (field) => {
+    toggle(field);
+    setPage(1);
+  };
 
   const term = useDebounced(search);
   const filters = {
@@ -57,6 +64,7 @@ export default function Moulds() {
   };
   const { data, pagination, loading, error, reload } = useRecordList(mouldsApi.list, {
     ...filters,
+    sort: sort || undefined,
     page,
     limit: 25,
   });
@@ -128,16 +136,22 @@ export default function Moulds() {
               <table className="min-w-full text-sm">
                 <thead className="table-head">
                   <tr>
-                    <th className="px-4 py-3">Mould</th>
-                    <th className="px-4 py-3">Makes</th>
-                    <th className="px-4 py-3 text-right">Minimum</th>
-                    <th className="px-4 py-3 text-right">Cavities</th>
-                    <th className="px-4 py-3 text-right">Part</th>
-                    {/* The two columns that are the point of the register, side by side. */}
+                    <SortHeader field="mouldCode" label="Mould" sort={sort} onToggle={sortBy} className="px-4" />
+                    <SortHeader field="name" label="Makes" sort={sort} onToggle={sortBy} className="px-4" />
+                    <SortHeader field="moq" label="Minimum" sort={sort} onToggle={sortBy} align="right" className="px-4" />
+                    <SortHeader field="cavities" label="Cavities" sort={sort} onToggle={sortBy} align="right" className="px-4" />
+                    <SortHeader field="partWeightGrams" label="Part" sort={sort} onToggle={sortBy} align="right" className="px-4" />
+                    {/*
+                      The two columns that are the point of the register, side by side — and the
+                      two that cannot be ordered by. Both are divided out of the cavities, the
+                      weights and the cycle time on the way out of the record, so there is
+                      nothing stored for the server to rank. Sorting by cavities or by part
+                      weight asks most of the same question and gives an honest answer.
+                    */}
                     <th className="px-4 py-3 text-right">Consumes</th>
                     <th className="px-4 py-3 text-right">Runner</th>
                     <th className="px-4 py-3 text-right">Pcs/hour</th>
-                    <th className="px-4 py-3">Status</th>
+                    <SortHeader field="status" label="Status" sort={sort} onToggle={sortBy} className="px-4" />
                     {mayWrite && <th className="px-4 py-3" />}
                   </tr>
                 </thead>

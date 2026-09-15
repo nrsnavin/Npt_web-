@@ -8,6 +8,7 @@ import {
 } from '../components/ui.jsx';
 import StagePipeline from '../components/StagePipeline.jsx';
 import QuotationPdf from '../components/QuotationPdf.jsx';
+import { SortHeader, useSort } from '../components/SortHeader.jsx';
 import { formatDate, formatNumber, humanise } from '../utils/format.js';
 
 /**
@@ -159,6 +160,14 @@ export default function SentQuotations() {
   const [open, setOpen] = useState({});
   const [viewing, setViewing] = useState(null);
   const [params] = useSearchParams();
+  /* Renamed at the destructure: `toggle` on this screen already means expanding a row's
+     costing, and two functions of that name in one component is how the wrong one gets bound. */
+  const { sort, toggle: toggleSort } = useSort();
+
+  const sortBy = (field) => {
+    toggleSort(field);
+    setPage(1);
+  };
 
   /* The cost base, the floor and the margin are management's [§8]; the server has already
      removed them, and this only decides whether to print the columns at all. */
@@ -173,6 +182,7 @@ export default function SentQuotations() {
     status: status || undefined,
     customer: params.get('customer') || undefined,
     enquiry: params.get('enquiry') || undefined,
+    sort: sort || undefined,
     page,
     limit: 25,
   });
@@ -251,13 +261,17 @@ export default function SentQuotations() {
               <table className="min-w-full text-sm">
                 <thead className="table-head">
                   <tr>
-                    <th className="px-3 py-3">Quotation</th>
+                    <SortHeader field="number" label="Quotation" sort={sort} onToggle={sortBy} />
                     <th className="px-3 py-3">Customer</th>
                     <th className="px-3 py-3">Models</th>
+                    {/* Off the lines, so there is no single stored figure to rank — see the API. */}
                     <th className="px-3 py-3 text-right">Rate per piece</th>
                     <th className="px-3 py-3">Priced off</th>
-                    <th className="px-3 py-3">Valid</th>
-                    <th className="px-3 py-3">Stage</th>
+                    {/* The ordering this board is really for: how long a price has been with a
+                        buyer unanswered is what somebody opens this screen to find out. */}
+                    <SortHeader field="sentAt" label="Sent" sort={sort} onToggle={sortBy} />
+                    <SortHeader field="validUntil" label="Valid" sort={sort} onToggle={sortBy} />
+                    <SortHeader field="status" label="Stage" sort={sort} onToggle={sortBy} />
                     <th className="px-3 py-3" />
                   </tr>
                 </thead>
@@ -267,6 +281,7 @@ export default function SentQuotations() {
                     const sheets = lines.filter((line) => line.pricing);
                     const under = sheets.filter((line) => line.pricing.belowFloor).length;
                     const left = daysLeft(row.validUntil);
+                    const waiting = row.sentAt ? -daysLeft(row.sentAt) : null;
                     const expanded = Boolean(open[row._id]);
 
                     return [
@@ -278,11 +293,10 @@ export default function SentQuotations() {
                           >
                             {row.number}
                           </Link>
-                          {/* The revision that went out and the day it did — the two facts
-                              somebody holding a printed copy reads back down the phone. */}
-                          <p className="text-xs text-steel-400">
-                            Rev {row.revision} · sent {formatDate(row.sentAt)}
-                          </p>
+                          {/* The revision that went out — the fact somebody holding a printed
+                              copy reads back down the phone. The day it went has a column of
+                              its own now, so it can be sorted by. */}
+                          <p className="text-xs text-steel-400">Rev {row.revision}</p>
                         </td>
                         <td className="px-3 py-3.5 text-steel-200">{row.customer?.name || '—'}</td>
                         <td className="px-3 py-3.5 text-steel-300">
@@ -332,6 +346,17 @@ export default function SentQuotations() {
                           {under > 0 && (
                             <p className="text-xs font-semibold text-danger-400">
                               {under === 1 ? '1 line under its floor' : `${under} lines under their floor`}
+                            </p>
+                          )}
+                        </td>
+
+                        {/* How long it has been out, which is the question a sent board is
+                            asked. The day alone does not answer it — "18 days ago" does. */}
+                        <td className="whitespace-nowrap px-3 py-3.5 text-xs">
+                          <span className="text-steel-300">{formatDate(row.sentAt)}</span>
+                          {waiting !== null && (
+                            <p className={waiting >= 14 ? 'font-semibold text-warn-400' : 'text-steel-500'}>
+                              {waiting === 0 ? 'today' : waiting === 1 ? '1 day ago' : `${waiting} days ago`}
                             </p>
                           )}
                         </td>

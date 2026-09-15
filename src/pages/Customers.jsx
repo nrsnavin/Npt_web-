@@ -10,6 +10,7 @@ import {
 import BulkBar, { RowCheckbox, useSelection } from '../components/BulkReassign.jsx';
 import ExportButton from '../components/ExportButton.jsx';
 import PlaceInput from '../components/PlaceInput.jsx';
+import { SortHeader, useSort } from '../components/SortHeader.jsx';
 import { formatCompactCurrency, formatDate } from '../utils/format.js';
 import { CUSTOMER_TYPES, SOURCES, optionLabel } from '../utils/pipeline.js';
 
@@ -228,6 +229,12 @@ export default function Customers() {
   const [status, setStatus] = useState('');
   const [page, setPage] = useState(1);
   const [creating, setCreating] = useState(false);
+  const { sort, toggle } = useSort();
+
+  const sortBy = (field) => {
+    toggle(field);
+    setPage(1);
+  };
 
   const term = useDebounced(search);
   // One object for both the list and the export, so the file is exactly what is on screen.
@@ -238,6 +245,7 @@ export default function Customers() {
   };
   const { data, pagination, loading, error, reload } = useRecordList(customersApi.list, {
     ...filters,
+    sort: sort || undefined,
     page,
     limit: 25,
   });
@@ -313,13 +321,20 @@ export default function Customers() {
                         />
                       </th>
                     )}
-                    <th className="px-4 py-3">Customer</th>
-                    <th className="px-4 py-3">Type</th>
-                    <th className="px-4 py-3">Location</th>
+                    <SortHeader field="name" label="Customer" sort={sort} onToggle={sortBy} className="px-4" />
+                    <SortHeader field="customerType" label="Type" sort={sort} onToggle={sortBy} className="px-4" />
+                    <SortHeader field="city" label="Location" sort={sort} onToggle={sortBy} className="px-4" />
                     <th className="px-4 py-3">Owner</th>
+                    {/*
+                      Not sortable, and the reason is worth knowing: the customer record carries
+                      stored fields by these names, but nothing writes them — the server
+                      recomputes both figures from the orders and receivables on every read. An
+                      ordering would rank the page by a dead number and draw a live one beside
+                      it, so the server refuses the key rather than answer a question wrong.
+                    */}
                     <th className="px-4 py-3 text-right">Business</th>
                     <th className="px-4 py-3 text-right">Last order</th>
-                    <th className="px-4 py-3">Status</th>
+                    <SortHeader field="status" label="Status" sort={sort} onToggle={sortBy} className="px-4" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line/[0.04]">

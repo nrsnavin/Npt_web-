@@ -6,6 +6,7 @@ import {
   Badge, EmptyState, ErrorState, PageHeader, Pagination, TableSkeleton,
 } from '../components/ui.jsx';
 import { formatCurrency, formatDate } from '../utils/format.js';
+import { SortHeader, useSort } from '../components/SortHeader.jsx';
 
 /**
  * Everything owed [BLUEPRINT §20].
@@ -42,6 +43,12 @@ export default function Payments() {
   const [pagination, setPagination] = useState(null);
   const [meta, setMeta] = useState({});
   const [error, setError] = useState(null);
+  const { sort, toggle } = useSort();
+
+  const sortBy = (field) => {
+    toggle(field);
+    setPage(1);
+  };
 
   const term = useDebounced(search);
 
@@ -51,6 +58,7 @@ export default function Payments() {
       const response = await paymentsApi.list({
         search: term || undefined,
         kind: kind || undefined,
+        sort: sort || undefined,
         page,
         limit: 25,
       });
@@ -61,7 +69,7 @@ export default function Payments() {
       setError(loadError);
       setRows([]);
     }
-  }, [term, kind, page]);
+  }, [term, kind, sort, page]);
 
   useEffect(() => {
     load();
@@ -127,12 +135,20 @@ export default function Payments() {
               <table className="min-w-full text-sm">
                 <thead className="table-head">
                   <tr>
-                    <th className="px-4 py-3">Reference</th>
+                    <SortHeader field="number" label="Reference" sort={sort} onToggle={sortBy} className="px-4" />
                     <th className="px-4 py-3">Customer</th>
-                    <th className="px-4 py-3 text-right">Value</th>
+                    <SortHeader field="invoice.value" label="Value" sort={sort} onToggle={sortBy} align="right" className="px-4" />
+                    {/*
+                      What is still owed is the invoice less the receipts, summed on the way out
+                      of the record — there is nothing stored for the server to rank, so this
+                      heading stays plain. Due date is the near-enough proxy, and it is the
+                      order this list opens on anyway.
+                    */}
                     <th className="px-4 py-3 text-right">Outstanding</th>
-                    <th className="px-4 py-3">Due</th>
-                    <th className="px-4 py-3">Where it stands</th>
+                    <SortHeader field="dueBy" label="Due" sort={sort} onToggle={sortBy} className="px-4" />
+                    {/* Descending is "who have we already chased hardest and still not been
+                        paid", which is a different list from "who is most overdue". */}
+                    <SortHeader field="escalationLevel" label="Where it stands" sort={sort} onToggle={sortBy} className="px-4" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line/[0.04]">
