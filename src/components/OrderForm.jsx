@@ -61,6 +61,19 @@ export default function OrderForm({ order, onClose, onSaved }) {
     number: order?.customerPo?.number ?? '',
     date: order?.customerPo?.date ? order.customerPo.date.slice(0, 10) : '',
   });
+  /*
+   * Which record in the other system this is, when it has one.
+   *
+   * Only on a new order: a reference is what the record *is*, not something corrected later, and
+   * the server refuses a second order carrying one that is already here.
+   *
+   * It exists for one case, and that case is common. An order is phoned through and typed here
+   * before the Chirix poll fetches it; without somewhere to say "this is their SO-1042", the
+   * poll arrives an hour later, finds nothing carrying that reference and books the same order
+   * again. Saying so turns the poll into an update instead of a duplicate.
+   */
+  const [externalRef, setExternalRef] = useState({ source: '', id: '' });
+
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
@@ -83,6 +96,11 @@ export default function OrderForm({ order, onClose, onSaved }) {
     try {
       const payload = {
           customerPo: { number: text(po.number), date: text(po.date) },
+          /* Both halves or neither: an id with no system to read it against identifies nothing,
+             and the server refuses the pair half-filled. */
+          ...(text(externalRef.source) && text(externalRef.id)
+            ? { externalRef: { source: externalRef.source.trim(), id: externalRef.id.trim() } }
+            : {}),
           gstPercent: numeric(terms.gstPercent),
           paymentTerms: text(terms.paymentTerms),
           remarks: text(terms.remarks),
@@ -138,6 +156,40 @@ export default function OrderForm({ order, onClose, onSaved }) {
           />
         </Field>
       </div>
+
+      {/*
+        Shown only when raising one. On an edit the reference is already fixed, and the update
+        door does not take it — see the note where it is held.
+      */}
+      {!editing && (
+        <details className="rounded-lg border border-line/[0.06] px-3.5 py-3">
+          <summary className="cursor-pointer text-sm text-steel-300">
+            Is this order already in another system?
+          </summary>
+          <p className="mt-2 text-xs leading-relaxed text-steel-400">
+            Say so and the import will recognise it rather than booking it a second time when it
+            next reads the feed. Leave both blank for an order that starts here.
+          </p>
+          <div className="mt-3 grid gap-4 sm:grid-cols-2">
+            <Field label="Which system" hint="chirix">
+              <input
+                className="input"
+                placeholder="chirix"
+                value={externalRef.source}
+                onChange={(event) => setExternalRef({ ...externalRef, source: event.target.value })}
+              />
+            </Field>
+            <Field label="Their number for it" hint="Exactly as it reads there">
+              <input
+                className="input"
+                placeholder="SO-1042"
+                value={externalRef.id}
+                onChange={(event) => setExternalRef({ ...externalRef, id: event.target.value })}
+              />
+            </Field>
+          </div>
+        </details>
+      )}
 
       <div>
         <div className="mb-2 flex items-baseline justify-between">
