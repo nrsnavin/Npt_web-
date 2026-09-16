@@ -7,6 +7,7 @@ import { Badge, ErrorState, Modal, Notice, PageHeader, Section, Spinner } from '
 import { MouldThumb } from '../components/MouldPhoto.jsx';
 import CostingSheetForm from '../components/CostingSheetForm.jsx';
 import CostingDetailsForm from '../components/CostingDetailsForm.jsx';
+import PricingDecision from '../components/PricingDecision.jsx';
 import QuotationPdf from '../components/QuotationPdf.jsx';
 import QuoteFromCosting from '../components/QuoteFromCosting.jsx';
 import { formatCompactCurrency, formatDate, formatNumber, humanise } from '../utils/format.js';
@@ -166,6 +167,19 @@ export default function PricingDetail() {
             {mayQuote && pricing.status === 'approved' && (
               <button type="button" className="btn-primary" onClick={() => setQuoting(true)}>
                 Quote this price
+              </button>
+            )}
+            {/*
+              Signing it off, on the screen that shows what is being signed.
+
+              This lived only on the costing register, so the one page laying out the cost lines,
+              the tiers, the margin and what the buyer asked to pay was the one page without the
+              decision they are all for. Whoever opened a sheet to think about it had to go back
+              to a table of numbers to say yes.
+            */}
+            {mayCost && pricing.status === 'approval_pending' && (
+              <button type="button" className="btn-primary" onClick={() => setEditing('decision')}>
+                Approve or refuse
               </button>
             )}
             {mayCost && (
@@ -613,6 +627,19 @@ export default function PricingDetail() {
         onClose={() => setEditing(null)}
       >
         <CostingDetailsForm
+          pricing={pricing}
+          onClose={() => setEditing(null)}
+          onSaved={reload}
+        />
+      </Modal>
+
+      <Modal
+        open={editing === 'decision'}
+        title={`Approve ${pricing.number}?`}
+        description="This price is below the approved minimum, so nothing can be quoted until it is settled"
+        onClose={() => setEditing(null)}
+      >
+        <PricingDecision
           pricing={pricing}
           onClose={() => setEditing(null)}
           onSaved={reload}

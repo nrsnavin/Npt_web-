@@ -47,7 +47,19 @@ export default function QuotationPdf({ quotation, open, onClose, onSent }) {
   }, [open, quotation?._id]);
 
   useEffect(() => {
-    if (!open || !quotation?._id) return undefined;
+    /*
+     * Closing drops the document as well as the fetch.
+     *
+     * Returning early left the last `url` set, so the body below went on rendering the previous
+     * quotation's frame and its "has gone out" notice against a `quotation` the caller had
+     * already set to null — `quotation.number` on nothing, which takes the whole page down. The
+     * callers that close this dialog by clearing the record are the ordinary ones: the costing
+     * screen opens it on the quote it just raised and clears it on Done.
+     */
+    if (!open || !quotation?._id) {
+      setUrl(null);
+      return undefined;
+    }
 
     let objectUrl;
     let cancelled = false;
@@ -76,16 +88,24 @@ export default function QuotationPdf({ quotation, open, onClose, onSent }) {
   }, [open, quotation?._id]);
 
   /*
-   * Offered only where it is the real next step. Not on a quote that has already gone out —
-   * changing what a customer has been told is a revision, which is the quotation screen's job —
-   * and not to a reader without the quoting right.
+   * Offered only where it is the real next step: on a quote the customer has not been given in
+   * this form, and to a reader with the quoting right.
+   *
+   * The test is the *status*, matching the server and the quotations register. It used to be
+   * `sentAt`, which is a date that never clears — so once a quote had gone out, revising it and
+   * sending the new price was impossible from the document: the button vanished for good and the
+   * only way through was the register's own Send, on a screen the person had already left. A
+   * revision is exactly the case where somebody is looking at the document and deciding to send
+   * it, and it was the one case this dialog refused.
+   *
+   * `justSent` is still consulted, so the button disappears the moment it is pressed rather than
+   * waiting for the caller to re-fetch.
    */
-  const alreadyOut = Boolean(justSent?.sentAt || quotation?.sentAt);
   const maySend =
     canQuote('pricing') &&
     quotation?._id &&
-    !alreadyOut &&
-    !['accepted', 'rejected'].includes(quotation?.status);
+    !justSent &&
+    !['sent', 'accepted', 'rejected'].includes(quotation?.status);
 
   const send = async () => {
     setSending(true);
@@ -109,7 +129,7 @@ export default function QuotationPdf({ quotation, open, onClose, onSent }) {
     if (!url) return;
     const link = document.createElement('a');
     link.href = url;
-    link.download = `${quotation.number}.pdf`;
+    link.download = `${quotation?.number || 'quotation'}.pdf`;
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -153,7 +173,7 @@ export default function QuotationPdf({ quotation, open, onClose, onSent }) {
           {justSent && (
             <div className="mt-4">
               <Notice tone="success">
-                {quotation.number} has gone out, and is on the{' '}
+                {justSent.number || quotation?.number} has gone out, and is on the{' '}
                 <Link to="/quotations/sent" className="font-semibold underline">
                   sent quotations
                 </Link>{' '}
@@ -180,8 +200,19 @@ export default function QuotationPdf({ quotation, open, onClose, onSent }) {
                   disabled={sending}
                   onClick={send}
                 >
-                  {sending ? 'Sending…' : 'Mark it sent'}
+                  {/* A quote that has been out before is going out again with a new price on
+                      it, and saying so is what tells the sender they are revising rather than
+                      repeating. */}
+                  {sending ? 'Sending…' : quotation?.sentAt ? 'Send the new price' : 'Mark it sent'}
                 </button>
+              )}
+              {/* Why there is no Send, rather than a gap where one was. Sending twice overwrites
+                  the date the chase is measured from, so the way to put a changed offer in front
+                  of the buyer is a revision. */}
+              {quotation?.status === 'sent' && !justSent && canQuote('pricing') && (
+                <p className="self-center text-xs text-steel-400">
+                  Already with the buyer — revise it to send a new price
+                </p>
               )}
             </div>
           </div>

@@ -229,10 +229,17 @@ export default function QuoteFromCosting({ pricing, onClose, onQuoted }) {
                 onChange={(event) => setDelivery(event.target.value)}
               />
             </Field>
-            <Field label="Valid until" hint="Printed on the quotation">
+            <Field label="Valid until" hint="Printed on the quotation. Today at the earliest">
+              {/*
+                `min` today, because the server refuses a validity that has already passed and a
+                date picker that offers last month is a picker that invites the refusal. A
+                quotation raised already expired prints an offer the buyer cannot act on and
+                files itself under Expired on the board it was created from.
+              */}
               <input
                 type="date"
                 className="input"
+                min={inDays(0)}
                 value={validUntil}
                 onChange={(event) => setValidUntil(event.target.value)}
               />

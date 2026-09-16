@@ -238,6 +238,53 @@
     @apply transition-colors hover:bg-line/[0.035];
   }
 
+  /*
+   * The last cell of a wide table, pinned to the right edge.
+   *
+   * A register with nine columns is wider than the card it sits in, so `overflow-x-auto` gives
+   * it a scrollbar — and the column that falls off the end is always the last one, which is
+   * where the buttons are. The costings table showed "Ra…" where it meant "Raise a quote", and
+   * the quotations table cut Revise and Send in half: the row's whole purpose, unreachable
+   * without a sideways scroll that nothing on the screen announces.
+   *
+   * Pinning the actions keeps them where the eye already is. The columns still scroll under
+   * them, so nothing is lost — only the order in which it is reached.
+   *
+   * The card's own background is repainted on the cell so the columns sliding underneath do not
+   * show through, and a hairline on its left says the cell is floating rather than joined to
+   * whatever column happens to be behind it.
+   */
+  /*
+   * From `sm` up only. On a phone the actions are a third of the screen, so pinning them holds
+   * the buttons still and scrolls the quotation number out from under them — the row's whole
+   * identity traded for its buttons. A narrow screen scrolls the table as one piece instead,
+   * which is the behaviour every other register on a phone already has.
+   */
+  @media (min-width: 640px) {
+    .col-actions {
+      position: sticky;
+      right: 0;
+      z-index: 1;
+      background-color: rgb(var(--ink-850));
+      box-shadow: inset 1px 0 0 0 rgb(var(--line) / 0.08);
+    }
+  }
+
+  /* The wash a hovered row carries, repainted over the opaque background above — otherwise the
+     pinned cell is the one part of the row that does not light up. */
+  .row-hover:hover > .col-actions {
+    background-image: linear-gradient(rgb(var(--line) / 0.035), rgb(var(--line) / 0.035));
+  }
+
+  /*
+   * The heading over it travels with it, or the column label parts company with its column.
+   * The card's background first and the heading's own 70% wash over it, because the wash alone
+   * is translucent and would let the scrolling columns through.
+   */
+  .table-head .col-actions {
+    background-image: linear-gradient(rgb(var(--ink-800) / 0.7), rgb(var(--ink-800) / 0.7));
+  }
+
   /* Numeric emphasis for headline figures — tight, heavy, never wrapped. */
   .stat-value {
     @apply text-[1.75rem] font-extrabold leading-none tracking-tighter text-steel-50;

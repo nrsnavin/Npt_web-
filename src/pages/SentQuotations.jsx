@@ -272,7 +272,9 @@ export default function SentQuotations() {
                     <SortHeader field="sentAt" label="Sent" sort={sort} onToggle={sortBy} />
                     <SortHeader field="validUntil" label="Valid" sort={sort} onToggle={sortBy} />
                     <SortHeader field="status" label="Stage" sort={sort} onToggle={sortBy} />
-                    <th className="px-3 py-3" />
+                    {/* Pinned — see `.col-actions`. Answer is the whole point of this board and
+                        it was cut in half by the card's right edge. */}
+                    <th className="col-actions px-3 py-3 text-right">Next step</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line/[0.04]">
@@ -388,7 +390,7 @@ export default function SentQuotations() {
                         <td className="whitespace-nowrap px-3 py-3.5">
                           <Badge status={row.status}>{humanise(row.status)}</Badge>
                         </td>
-                        <td className="whitespace-nowrap px-3 py-3.5 text-right">
+                        <td className="col-actions whitespace-nowrap px-3 py-3.5 text-right">
                           <div className="flex justify-end gap-1.5">
                             {/*
                               What was actually sent. Outside every write guard on purpose — a

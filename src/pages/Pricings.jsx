@@ -10,12 +10,11 @@ import StagePipeline from '../components/StagePipeline.jsx';
 import { SortHeader, useSort } from '../components/SortHeader.jsx';
 import PricingDecision from '../components/PricingDecision.jsx';
 import CostingSheetForm from '../components/CostingSheetForm.jsx';
-import CostingDetailsForm from '../components/CostingDetailsForm.jsx';
 import { CustomerSelect, MouldSelect } from '../components/pickers.jsx';
 import QuotationPdf from '../components/QuotationPdf.jsx';
 import QuoteFromCosting from '../components/QuoteFromCosting.jsx';
 import { formatCompactCurrency, formatDate, formatNumber, humanise } from '../utils/format.js';
-import { inDays } from '../utils/pipeline.js';
+import { inDays, ownsRecord } from '../utils/pipeline.js';
 
 /**
  * Costing sheets [BLUEPRINT §7, §9].
@@ -158,15 +157,87 @@ function NewCostingForm({ onClose, onSaved }) {
 }
 
 
+/**
+ * The one thing this row is waiting for.
+ *
+ * Which step a sheet is on is decided by its stage and by what the reader is allowed to do, and
+ * both were previously left for the reader to work out from a row of three buttons. Written once
+ * here so the register reads as a queue: find the job, read what happens next, do it.
+ *
+ * `quoted` is the live quotation already raised off this sheet, when there is one. A costing
+ * raises one offer at a time — the server refuses a second — so an approved sheet that is
+ * already out is not waiting for a quote, it is waiting for an answer. Saying so, and pointing
+ * at the document, is the difference between a rule and a button that fails.
+ */
+function NextStep({ row, quoted, mayCost, mayQuote, mine, onDecide, onCost, onQuote }) {
+  if (row.status === 'approval_pending') {
+    return mayCost ? (
+      <button type="button" className="btn-primary px-3 py-1 text-xs" onClick={onDecide}>
+        Approve or refuse
+      </button>
+    ) : (
+      <span className="text-xs text-steel-500">With management</span>
+    );
+  }
+
+  if (quoted) {
+    return (
+      <Link
+        to={`/quotations/${quoted._id}`}
+        className="btn-secondary inline-block px-3 py-1 text-xs"
+      >
+        On {quoted.number}
+      </Link>
+    );
+  }
+
+  if (row.status === 'approved' && mayQuote) {
+    /*
+     * Quoting is scoped to whoever works the buyer [§29], and the register did not say so: every
+     * approved sheet offered the button, and the ones for a colleague's accounts answered "that
+     * customer belongs to another marketing person" once the form had been filled in. Naming
+     * them is also the useful answer — it says who to ask.
+     */
+    if (!mine) {
+      return (
+        <span className="text-xs text-steel-500">
+          {row.customer?.assignedTo?.name ? `${row.customer.assignedTo.name}’s buyer` : 'Another owner'}
+        </span>
+      );
+    }
+
+    return (
+      <button type="button" className="btn-primary px-3 py-1 text-xs" onClick={onQuote}>
+        Raise a quote
+      </button>
+    );
+  }
+
+  if (mayCost) {
+    return (
+      <button type="button" className="btn-secondary px-3 py-1 text-xs" onClick={onCost}>
+        {row.status === 'requested' ? 'Build it' : 'Re-cost'}
+      </button>
+    );
+  }
+
+  /* A marketing reader on a sheet nobody has priced yet. Saying whose move it is beats an empty
+     cell, which reads as a screen that failed to draw. */
+  return (
+    <span className="text-xs text-steel-500">
+      {row.status === 'requested' ? 'Being costed' : '—'}
+    </span>
+  );
+}
+
 export default function Pricings() {
-  const { canWrite, canQuote } = useAuth();
+  const { user, canWrite, canQuote } = useAuth();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const [page, setPage] = useState(1);
   const [costing, setCosting] = useState(null);
   const [deciding, setDeciding] = useState(null);
   const [raising, setRaising] = useState(null);
-  const [editing, setEditing] = useState(null);
   const [quoting, setQuoting] = useState(null);
   const [madeQuote, setMadeQuote] = useState(null);
   const { sort, toggle } = useSort();
@@ -206,7 +277,6 @@ export default function Pricings() {
     setCosting(null);
     setDeciding(null);
     setRaising(null);
-    setEditing(null);
     reload();
   };
 
@@ -297,7 +367,9 @@ export default function Pricings() {
                     <SortHeader field="approvedSellingPrice" label="Price" sort={sort} onToggle={sortBy} align="right" />
                     {mayCost && <th className="px-3 py-3 text-right">Margin</th>}
                     <SortHeader field="status" label="Stage" sort={sort} onToggle={sortBy} />
-                    <th className="px-3 py-3" />
+                    {/* Pinned — see `.col-actions`. With nine columns the row's own buttons were
+                        the part that fell off the end of the card. */}
+                    <th className="col-actions px-3 py-3 text-right">Next step</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line/[0.04]">
@@ -341,47 +413,30 @@ export default function Pricings() {
                       <td className="whitespace-nowrap px-3 py-3.5">
                         <Badge status={row.status}>{humanise(row.status)}</Badge>
                       </td>
-                      <td className="whitespace-nowrap px-3 py-3.5 text-right">
-                        {mayCost && row.status === 'approval_pending' && (
-                          <button type="button" className="btn-primary px-3 py-1 text-xs" onClick={() => setDeciding(row)}>
-                            Decide
-                          </button>
-                        )}
-                        {/*
-                          Available at every stage, settled included. Refusing to edit a
-                          settled sheet sent people to raise a second costing for the same
-                          job, which is how one job ends up with three sheets and nobody can
-                          say which price is live. §9 re-runs on save, so a price that no
-                          longer clears the floor goes back for signature.
-                        */}
-                        {mayCost && row.status !== 'approval_pending' && (
-                          <button type="button" className="btn-secondary px-3 py-1 text-xs" onClick={() => setCosting(row)}>
-                            {{ requested: 'Build it', approved: 'Re-cost', rejected: 'Re-cost' }[row.status] || 'Edit'}
-                          </button>
-                        )}
-                        {mayCost && (
-                          <button
-                            type="button"
-                            className="btn-secondary ml-2 px-3 py-1 text-xs"
-                            onClick={() => setEditing(row)}
-                          >
-                            Details
-                          </button>
-                        )}
-                        {/*
-                          The action that follows an approved price, on the row that carries it.
-                          Everything the quote needs is on this sheet — sending somebody to the
-                          quotations screen to retype it is how the link between them gets lost.
-                        */}
-                        {mayQuote && row.status === 'approved' && (
-                          <button
-                            type="button"
-                            className="btn-primary ml-2 px-3 py-1 text-xs"
-                            onClick={() => setQuoting(row)}
-                          >
-                            Raise a quote
-                          </button>
-                        )}
+                      {/*
+                        One button, and it is the step this row is actually waiting for.
+
+                        There were three — Re-cost, Details, Raise a quote — and together they
+                        were wider than the space the card had left, so the pinned column
+                        covered the margin and the stage to make room for two buttons nobody was
+                        looking for. Three choices on every row is also a worse question than
+                        one: a register is read down the Costing column to find the job, and
+                        what it should answer at the end of the row is "and what now".
+
+                        Nothing is lost. The costing's own page carries the full set — quote,
+                        edit the details, re-cost — and it is one click away on the number.
+                      */}
+                      <td className="col-actions whitespace-nowrap px-3 py-3.5 text-right">
+                        <NextStep
+                          row={row}
+                          quoted={meta.quotedOn?.[row._id]}
+                          mine={ownsRecord(user, row.customer)}
+                          mayCost={mayCost}
+                          mayQuote={mayQuote}
+                          onDecide={() => setDeciding(row)}
+                          onCost={() => setCosting(row)}
+                          onQuote={() => setQuoting(row)}
+                        />
                       </td>
                     </tr>
                   ))}
@@ -423,18 +478,6 @@ export default function Pricings() {
       </Modal>
 
       <Modal
-        open={Boolean(editing)}
-        title={`Details of ${editing?.number || ''}`}
-        description="What this costing is for. The cost lines are on the sheet itself"
-        size="lg"
-        onClose={() => setEditing(null)}
-      >
-        {editing && (
-          <CostingDetailsForm pricing={editing} onClose={() => setEditing(null)} onSaved={saved} />
-        )}
-      </Modal>
-
-      <Modal
         open={Boolean(raising)}
         title="New costing"
         description="For a job with no enquiry behind it — a tender, a repeat, a walk-in"
@@ -444,10 +487,13 @@ export default function Pricings() {
         {raising && <NewCostingForm onClose={() => setRaising(null)} onSaved={saved} />}
       </Modal>
 
+      {/* Not "set the quantity": a quotation offers a rate against a minimum and the purchase
+          order settles how many [§10]. The form has had no quantity field for some time and
+          this description was still asking for one. */}
       <Modal
         open={Boolean(quoting)}
         title={`Quote from ${quoting?.number || ''}`}
-        description="The customer, the model and the price come off the costing. Set the quantity and the terms"
+        description="The customer, the model and the price come off the costing. Set the minimum and the terms"
         size="lg"
         onClose={() => setQuoting(null)}
       >

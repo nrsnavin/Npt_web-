@@ -552,3 +552,43 @@ export function followUpState(date) {
   if (days === 1) return { text: 'Due tomorrow', tone: 'info' };
   return { text: `In ${days} days`, tone: 'neutral' };
 }
+
+/* ------------------------------ Ownership [§29] ------------------------------ */
+
+/**
+ * Whose records a marketing person may work on.
+ *
+ * The server decides this — nothing here grants anything, and a screen that got it wrong in the
+ * permissive direction would still be refused at the door. What it is for is the opposite case:
+ * offering a step the door will refuse. The costings register showed marketing a Raise a quote
+ * button on every approved sheet, including the buyers a colleague works, and the refusal
+ * arrived after the form had been filled in.
+ *
+ * Mirrors `src/services/ownership.service.js`: marketing is the only scoped department, and an
+ * admin is never scoped.
+ */
+const OWNED_BY_DEPARTMENT = ['marketing'];
+
+export const isOwnershipScoped = (user) =>
+  user?.role !== 'admin' && OWNED_BY_DEPARTMENT.includes(user?.department);
+
+/** An owner is an id on a lean record and an object once populated, so compare on the id. */
+const ownerId = (value) => String(value?._id ?? value ?? '');
+
+/**
+ * `id` as well as `_id`, because the two sides spell it differently.
+ *
+ * Records arrive from the API with Mongo's `_id`; the signed-in user arrives from the session
+ * endpoint, which serialises to `id`. Reading only `_id` made every comparison a blank against
+ * an id — so the costings register told Nandhini that her own buyers were somebody else's, by
+ * name, which is a worse failure than the missing rule it was written to fix.
+ */
+const selfId = (user) => String(user?._id ?? user?.id ?? '');
+
+export const ownsRecord = (user, record, field = 'assignedTo') => {
+  if (!isOwnershipScoped(user)) return true;
+  /* Two blanks are not a match. An unowned record reaching a scoped reader is not something the
+     server's filter produces, and guessing "yours" on one would offer a step it then refuses. */
+  const mine = selfId(user);
+  return Boolean(mine) && ownerId(record?.[field]) === mine;
+};

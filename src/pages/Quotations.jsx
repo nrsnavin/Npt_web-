@@ -11,6 +11,9 @@ import QuotationPdf from '../components/QuotationPdf.jsx';
 import { SortHeader, useSort } from '../components/SortHeader.jsx';
 import { CustomerSelect, MouldSelect } from '../components/pickers.jsx';
 import { formatCompactCurrency, formatCurrency, formatDate, formatNumber, humanise } from '../utils/format.js';
+/* The shared one, not a second copy of it: this date now decides whether the server takes the
+   form, so the two must not be able to drift apart. */
+import { inDays } from '../utils/pipeline.js';
 
 /**
  * Quotations [BLUEPRINT §10].
@@ -44,12 +47,6 @@ const FREIGHT = [
 
 const rupees = (value) =>
   value === undefined || value === null ? '—' : `₹${Number(value).toFixed(2)}`;
-
-const inDays = (days) => {
-  const date = new Date();
-  date.setDate(date.getDate() + days);
-  return date.toISOString().slice(0, 10);
-};
 
 /**
  * One form for writing a quotation and for correcting one.
@@ -323,8 +320,16 @@ function QuotationForm({ quotation, onClose, onSaved }) {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Valid until">
-          <input type="date" className="input" value={values.validUntil} onChange={set('validUntil')} />
+        <Field label="Valid until" hint="Today at the earliest">
+          {/* `min` today: the server refuses a date already gone, on this door and on the
+              revision door beside it. See the note in QuoteFromCosting. */}
+          <input
+            type="date"
+            className="input"
+            min={inDays(0)}
+            value={values.validUntil}
+            onChange={set('validUntil')}
+          />
         </Field>
       </div>
 
@@ -387,12 +392,24 @@ function RevisionForm({ quotation, onClose, onSaved }) {
     Object.fromEntries((quotation.lines || []).map((line) => [line._id, String(line.unitPrice)]))
   );
   const [note, setNote] = useState('');
+  /*
+   * How long the new offer holds.
+   *
+   * A revision could not touch it, and a lapsed quotation is exactly when one is raised: the
+   * detail screen says an expired quote "needs a new revision before the customer can act on
+   * it", and the revision it sent you to reissued the same dead date. Defaulted to a month out
+   * from today when the old one has already passed, and left alone when it has not.
+   */
+  const current = quotation.validUntil ? quotation.validUntil.slice(0, 10) : '';
+  const lapsed = Boolean(current) && current < inDays(0);
+  const [validUntil, setValidUntil] = useState(lapsed ? inDays(30) : current);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
   const moved = (quotation.lines || []).filter(
     (line) => Number(prices[line._id]) !== line.unitPrice
   );
+  const datedOn = validUntil !== current;
 
   const submit = async (event) => {
     event.preventDefault();
@@ -420,6 +437,7 @@ function RevisionForm({ quotation, onClose, onSaved }) {
             moq: line.moq,
             unitPrice: Number(prices[line._id]),
           })),
+          ...(datedOn ? { validUntil: validUntil || undefined } : {}),
           note: note || undefined,
         })
       );
@@ -497,9 +515,28 @@ function RevisionForm({ quotation, onClose, onSaved }) {
         <p className="mt-2 text-xs text-steel-500">
           {moved.length
             ? `${moved.length} of ${quotation.lines.length} prices changed.`
-            : 'Nothing has changed yet — a revision has to revise something.'}
+            : datedOn
+              ? 'Only the validity is moving, which is a revision in its own right.'
+              : 'Nothing has changed yet — a revision has to revise something.'}
         </p>
       </div>
+
+      <Field
+        label="Valid until"
+        hint={
+          lapsed
+            ? `The old one passed on ${formatDate(quotation.validUntil)} — this reissues it`
+            : 'How long the new price holds. Today at the earliest'
+        }
+      >
+        <input
+          type="date"
+          className="input"
+          min={inDays(0)}
+          value={validUntil}
+          onChange={(event) => setValidUntil(event.target.value)}
+        />
+      </Field>
 
       <Field label="Why" hint="Recorded against the revision in the history">
         <input className="input" placeholder="Buyer pushed back on the landed cost" value={note} onChange={(event) => setNote(event.target.value)} />
@@ -509,7 +546,7 @@ function RevisionForm({ quotation, onClose, onSaved }) {
 
       <div className="flex justify-end gap-2">
         <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
-        <button type="submit" className="btn-primary" disabled={busy || !moved.length}>
+        <button type="submit" className="btn-primary" disabled={busy || (!moved.length && !datedOn)}>
           {busy ? 'Saving…' : 'Add the revision'}
         </button>
       </div>
@@ -700,7 +737,9 @@ export default function Quotations() {
                     <th className="px-3 py-3 text-right">Rate per piece</th>
                     <SortHeader field="validUntil" label="Valid until" sort={sort} onToggle={sortBy} />
                     <SortHeader field="status" label="Stage" sort={sort} onToggle={sortBy} />
-                    <th className="px-3 py-3" />
+                    {/* Pinned — see `.col-actions`. Revise and Send were the half of the row
+                        that fell off the right edge of the card. */}
+                    <th className="col-actions px-3 py-3 text-right">Next step</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line/[0.04]">
@@ -773,7 +812,7 @@ export default function Quotations() {
                       <td className="whitespace-nowrap px-3 py-3.5">
                         <Badge status={row.status}>{humanise(row.status)}</Badge>
                       </td>
-                      <td className="whitespace-nowrap px-3 py-3.5 text-right">
+                      <td className="col-actions whitespace-nowrap px-3 py-3.5 text-right">
                         <div className="flex justify-end gap-1.5">
                           {/*
                             Outside the write guard and outside the open check, on purpose. The

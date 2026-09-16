@@ -156,6 +156,16 @@ export default function CostingSheetForm({ pricing, onClose, onSaved }) {
   const tiers = [10, 15, 20];
   const floor = minimumOverride === '' ? priceAt(10) : Number(minimumOverride);
 
+  /*
+   * A floor under the cost base is not a lower floor, it is no floor.
+   *
+   * §9's approval fires when the price is under the minimum; a minimum typed under what the
+   * piece costs means every price clears it, so the gate never fires again for this model. The
+   * server refuses it — this says so while the number is still being typed, and names the field
+   * that does what the person is actually reaching for.
+   */
+  const belowCost = minimumOverride !== '' && total > 0 && Number(minimumOverride) < total;
+
   const submit = async (event) => {
     event.preventDefault();
     setBusy(true);
@@ -406,11 +416,14 @@ export default function CostingSheetForm({ pricing, onClose, onSaved }) {
           <input
             type="number"
             step="0.01"
-            min="0"
+            /* Never under cost — the server refuses it, and the field beside this one is what
+               the person reaching for a small number here actually wants. */
+            min={total ? total.toFixed(2) : '0'}
             className="input"
             placeholder={priceAt(10) ? priceAt(10).toFixed(2) : ''}
             value={minimumOverride}
             onChange={(event) => setMinimumOverride(event.target.value)}
+            aria-invalid={belowCost ? 'true' : undefined}
           />
         </Field>
         <Field label="Approved selling price" hint="What marketing may quote. Blank uses the calculated price">
@@ -433,7 +446,19 @@ export default function CostingSheetForm({ pricing, onClose, onSaved }) {
         nobody entered a minimum, which is every sheet. Before, a blank minimum meant this
         warning never appeared and the approval arrived as a surprise after saving.
       */}
-      {approved !== '' && floor > 0 && Number(approved) < floor && (
+      {belowCost && (
+        <Notice tone="danger">
+          A floor of {rupees(Number(minimumOverride))} is under the {rupees(total)} the piece
+          costs to make, so every price would clear it and nothing would ever go for approval
+          again. To let one job through cheaply, put the price in <strong>Approved selling
+          price</strong> — under the floor it goes to management, which is the decision being
+          made.
+        </Notice>
+      )}
+
+      {/* The floor holds, and the price is under it: the ordinary route to a signature, said
+          before saving rather than discovered after. */}
+      {!belowCost && approved !== '' && floor > 0 && Number(approved) < floor && (
         <Notice tone="warn">
           {rupees(Number(approved))} is below the floor of {rupees(floor)}, so this goes to
           management for approval and nothing can be quoted until they sign it off.
