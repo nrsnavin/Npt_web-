@@ -129,8 +129,15 @@ export default function LeadForm({ lead, onClose, onSaved }) {
         <Field label="Next action">
           <input className="input" placeholder="Call to confirm sizes" {...register('nextAction')} />
         </Field>
+        {/* Not a date already gone — the server refuses one, and a reminder born late lands
+            in somebody's morning list looking like neglect on the day it was made. */}
         <Field label="Follow up on">
-          <input type="date" className="input" {...register('nextFollowUpDate')} />
+          <input
+            type="date"
+            className="input"
+            min={new Date().toISOString().slice(0, 10)}
+            {...register('nextFollowUpDate')}
+          />
         </Field>
       </div>
 

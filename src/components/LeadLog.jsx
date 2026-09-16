@@ -301,6 +301,9 @@ function LogForm({ leadId, lead, onSaved, onLogged }) {
           <input
             type="date"
             className="input !py-1.5 text-xs"
+            /* The server refuses a date already gone, and offering one here only means the
+               refusal is how somebody finds out. */
+            min={new Date().toISOString().slice(0, 10)}
             value={when}
             onChange={(event) => setWhen(event.target.value)}
             aria-label="Follow up on"

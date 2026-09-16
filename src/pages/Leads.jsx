@@ -16,7 +16,7 @@ import LeadBoard from '../components/boards/LeadBoard.jsx';
 import ViewSwitch from '../components/ViewSwitch.jsx';
 import { useViewMode } from '../hooks/useBoard.js';
 import { formatCompactCurrency, formatNumber, humanise } from '../utils/format.js';
-import { SOURCES, followUpState, leadStageLabel } from '../utils/pipeline.js';
+import { CLOSED_LEAD_STAGES, SOURCES, followUpState, leadStageLabel } from '../utils/pipeline.js';
 
 const TONE_TEXT = {
   danger: 'text-danger-400',
@@ -32,6 +32,19 @@ export default function Leads() {
   const { canWrite, isAdmin } = useAuth();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
+  /*
+   * Which slice of the book, and why it opens on Open.
+   *
+   * The API has understood `open=true` on leads since the beginning and this screen never sent
+   * it, so the list arrived every morning with converted and written-off leads sitting among
+   * the live ones. A book that has been worked for a year is then mostly finished business,
+   * and the rows somebody can actually do something about are scattered through it — which is
+   * how a register stops being read.
+   *
+   * "Due now" is the same question the enquiry list answers under the same name: everything
+   * still being worked whose follow-up date has arrived. It is the morning queue.
+   */
+  const [view, setView] = useState('open');
   const [mode, setMode] = useViewMode('leads');
   const [page, setPage] = useState(1);
   const { sort, toggle } = useSort();
@@ -79,10 +92,20 @@ export default function Leads() {
   const team = owners || [];
 
   const term = useDebounced(search);
+
+  /** Everything whose date has arrived counts as due, including what is already late. */
+  const endOfToday = () => {
+    const date = new Date();
+    date.setHours(23, 59, 59, 999);
+    return date.toISOString();
+  };
+
   // One object for both the list and the export, so the file is exactly what is on screen.
   const filters = {
     search: term || undefined,
     status: status || undefined,
+    open: view === 'open' || view === 'due' ? 'true' : undefined,
+    dueBy: view === 'due' ? endOfToday() : undefined,
     assignedTo: owner || undefined,
     source: source || undefined,
     [place?.field || 'city']: place?.value,
@@ -97,8 +120,17 @@ export default function Leads() {
   const mayWrite = canWrite('enquiries');
   const selection = useSelection(data);
 
+  /**
+   * Picking Converted or Disqualified off the funnel also drops the open-only view.
+   *
+   * Otherwise the two filters contradict each other: the tile says there are five converted
+   * leads and the table under it shows none, because `open=true` has quietly excluded exactly
+   * the rows that were just asked for. The enquiry list settles this the same way.
+   */
   const selectStage = (value) => {
-    setStatus(value === status ? '' : value);
+    const next = value === status ? '' : value;
+    setStatus(next);
+    if (CLOSED_LEAD_STAGES.includes(next) && view !== 'all') setView('all');
     setPage(1);
   };
 
@@ -184,6 +216,33 @@ export default function Leads() {
           }}
         />
         {/*
+          * The same three views the enquiry list offers, in the same words and the same place.
+          * A lead and an enquiry are one pipeline at two stages, and a reader who learns "Due
+          * now" on one screen should not have to learn it again on the other.
+          */}
+        <div role="tablist" aria-label="View" className="tab-track grid-flow-col">
+          {[
+            { value: 'open', label: 'Open' },
+            { value: 'due', label: 'Due now' },
+            { value: 'all', label: 'All' },
+          ].map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              role="tab"
+              aria-selected={view === option.value}
+              onClick={() => {
+                setView(option.value);
+                setPage(1);
+              }}
+              className="tab py-1.5"
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+
+        {/*
           * Drawn only when there is a choice to make. A marketing person is offered one name —
           * their own — and a dropdown with a single option is a control that can only waste a
           * click, so it is simply not there.
@@ -231,10 +290,18 @@ export default function Leads() {
       {!board && loading && <TableSkeleton columns={7} />}
       {!board && error && <ErrorState error={error} onRetry={reload} />}
 
+      {/* Which emptiness this is. "No leads here" under the Due now view reads as the book
+          being empty when in fact nothing is due, which is the good outcome. */}
       {!board && !loading && !error && (data.length === 0 ? (
         <EmptyState
-          title="No leads here"
-          description="Every enquiry that is not from an existing customer starts as a lead."
+          title={view === 'due' ? 'Nothing due' : 'No leads here'}
+          description={
+            view === 'due'
+              ? 'Every lead being worked has a follow-up date still ahead of it.'
+              : view === 'open'
+                ? 'Nothing is being worked right now. Try All to see what has been converted or written off.'
+                : 'Every enquiry that is not from an existing customer starts as a lead.'
+          }
         />
       ) : (
         <>

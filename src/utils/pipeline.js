@@ -186,6 +186,15 @@ export const LEAD_STAGES = [
   { value: 'disqualified', label: 'Disqualified' },
 ];
 
+/**
+ * The two lead stages that are finished with — the lead vocabulary's `won` and `lost`.
+ *
+ * Named beside `CLOSED_STAGES` above rather than written out wherever it is wanted, because
+ * the two lists answer the same question about two halves of one pipeline and a copy of either
+ * is a copy that drifts.
+ */
+export const CLOSED_LEAD_STAGES = ['converted', 'disqualified'];
+
 export const LOST_REASONS = [
   { value: 'price', label: 'Price' },
   { value: 'lead_time', label: 'Lead time' },

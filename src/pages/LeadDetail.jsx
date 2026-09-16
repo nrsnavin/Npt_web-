@@ -329,6 +329,84 @@ function ConvertForm({ lead, onClose, onConverted, startWithEnquiry = true }) {
   );
 }
 
+/**
+ * Bringing a written-off lead back into play.
+ *
+ * The same shape as reopening a closed enquiry, and for the same argument: a rule with no
+ * legitimate escape is one people work around by not recording the truth — they raise a second
+ * lead for the same company, and two people ring the same buyer.
+ *
+ * The note is the whole of the cost, and it is the part that earns its keep: it lands in the
+ * log beside the write-off it undoes, so six weeks later the record says why somebody decided
+ * the first call was wrong. The server clears the disqualify reason at the same time, or the
+ * lead would read *Contacted* with "price shopper" still attached to it.
+ *
+ * It returns at Contacted rather than at Qualified. Coming back is news, not a qualification —
+ * and marking it qualified is a judgement somebody makes after they have spoken to them again.
+ */
+function ReviveForm({ lead, onClose, onSaved }) {
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+
+  const submit = async (event) => {
+    event.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      onSaved(
+        await leadsApi.update({
+          id: lead._id,
+          expectedUpdatedAt: lead.updatedAt,
+          status: 'contacted',
+          note,
+        })
+      );
+      onClose();
+    } catch (submitError) {
+      setError(submitError.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form onSubmit={submit} className="space-y-4">
+      <p className="text-sm leading-relaxed text-steel-300">
+        It was written off as{' '}
+        <span className="font-semibold text-steel-100">
+          {optionLabel(DISQUALIFY_REASONS, lead.disqualifyReason)}
+        </span>
+        {lead.disqualifyNote ? ` — ${lead.disqualifyNote}` : ''}.
+      </p>
+
+      <Field
+        label="Why is it worth working again"
+        hint="Required — it goes into the log beside the write-off"
+      >
+        <textarea
+          rows={3}
+          className="input"
+          required
+          autoFocus
+          placeholder="Came back at our price after their supplier let them down"
+          value={note}
+          onChange={(event) => setNote(event.target.value)}
+        />
+      </Field>
+
+      {error && <Notice tone="danger">{error}</Notice>}
+
+      <div className="flex justify-end gap-2">
+        <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
+        <button type="submit" className="btn-primary" disabled={busy}>
+          {busy ? 'Saving…' : 'Bring it back'}
+        </button>
+      </div>
+    </form>
+  );
+}
+
 function DisqualifyForm({ lead, onClose, onSaved }) {
   const [reason, setReason] = useState('not_our_product');
   const [note, setNote] = useState('');
@@ -479,6 +557,7 @@ export default function LeadDetail() {
   /* Which door was used, so the dialog opens with the enquiry section already expanded. */
   const [enquiryFirst, setEnquiryFirst] = useState(true);
   const [disqualifying, setDisqualifying] = useState(false);
+  const [reviving, setReviving] = useState(false);
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState(null);
@@ -612,11 +691,35 @@ export default function LeadDetail() {
         </div>
       )}
 
+      {/*
+        A written-off lead, and the way back out of it.
+
+        It used to be a dead end: every control on this page is gated on the lead being open, so
+        a lead disqualified by mistake — or one whose buyer came back six months later at our
+        price — could only be re-keyed as a second lead for the same company. Two leads for one
+        buyer is two people ringing them, which is the thing the duplicate check exists to stop.
+
+        The way back is the enquiry's, deliberately: a reason, recorded. That is what stops this
+        being a button somebody leans on — and what makes the write-off worth trusting, since a
+        lead that comes back says on its own record why somebody decided the first call was
+        wrong.
+      */}
       {lead.status === 'disqualified' && (
         <div className="mb-5">
           <Notice tone="warn">
-            Disqualified — {optionLabel(DISQUALIFY_REASONS, lead.disqualifyReason)}
-            {lead.disqualifyNote && `. ${lead.disqualifyNote}`}
+            <span className="block">
+              Disqualified — {optionLabel(DISQUALIFY_REASONS, lead.disqualifyReason)}
+              {lead.disqualifyNote && `. ${lead.disqualifyNote}`}
+            </span>
+            {mayWrite && (
+              <button
+                type="button"
+                className="btn-secondary mt-2.5"
+                onClick={() => setReviving(true)}
+              >
+                Bring it back
+              </button>
+            )}
           </Notice>
         </div>
       )}
@@ -691,6 +794,16 @@ export default function LeadDetail() {
             navigate(`/customers/${result.customer._id}`);
           }}
         />
+      </Modal>
+
+      <Modal
+        open={reviving}
+        title="Bring this lead back"
+        description="It returns at Contacted, and the reason it was written off is cleared."
+        size="sm"
+        onClose={() => setReviving(false)}
+      >
+        <ReviveForm lead={lead} onClose={() => setReviving(false)} onSaved={setData} />
       </Modal>
 
       <Modal open={disqualifying} title="Disqualify lead" size="sm" onClose={() => setDisqualifying(false)}>
