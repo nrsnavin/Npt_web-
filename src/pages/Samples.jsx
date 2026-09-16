@@ -13,7 +13,7 @@ import { SortHeader, useSort } from '../components/SortHeader.jsx';
 import SampleRequestForm from '../components/SampleRequestForm.jsx';
 import ViewSwitch from '../components/ViewSwitch.jsx';
 import { useViewMode } from '../hooks/useBoard.js';
-import { formatDate, formatNumber } from '../utils/format.js';
+import { formatDate, formatNumber, plural } from '../utils/format.js';
 import {
   HANGER_CATEGORIES, MATERIALS, SAMPLE_PURPOSES, SAMPLE_STAGES, followUpState, numeric,
   optionLabel, sampleStageLabel, text,
@@ -281,15 +281,24 @@ export default function Samples() {
                           <Link to={`/samples/${sample._id}`} className="font-semibold text-steel-100 hover:text-accent">
                             {sample.number}
                           </Link>
-                          {/* Overdue is already shown against the date. This is the other
-                              thing: nobody is working on it, which is often true while the
-                              date is still comfortably ahead. */}
+                          {/*
+                            Overdue is already shown against the date. This is the other thing:
+                            nobody is working on it, which is often true while the date is still
+                            comfortably ahead.
+
+                            Said in words rather than as "Idle 3d". Uppercased by CSS, that
+                            rendered as "IDLE 3D" — which reads as three-dimensional, not three
+                            days — and the only place the real meaning lived was a `title`
+                            tooltip, which does not exist on a touch screen and is not read at a
+                            glance by anybody. The server already says it plainly in `reason`;
+                            the chip was throwing that away and inventing a shorter lie.
+                          */}
                           {idle && (
                             <span
                               title={idle.reason}
-                              className="ml-1.5 rounded bg-danger-500/15 px-1.5 py-0.5 text-[0.75rem] font-bold uppercase tracking-wide text-danger-400"
+                              className="ml-1.5 whitespace-nowrap rounded bg-danger-500/15 px-1.5 py-0.5 text-[0.75rem] font-semibold text-danger-400"
                             >
-                              Idle {idle.idleDays}d
+                              Untouched {plural(idle.idleDays, 'day', 'days')}
                             </span>
                           )}
                           <p className="text-xs text-steel-400">

@@ -58,6 +58,16 @@ export const CLOSED_SAMPLE_STAGES = ['approved', 'rejected', 'cancelled'];
 /** Stages where the sample is with the customer, so the plant is no longer the holdup. */
 export const WITH_CUSTOMER_STAGES = ['dispatched', 'delivered', 'customer_feedback_pending'];
 
+/** Stages where the plant still has the piece — everything before it goes out. */
+export const ON_THE_BENCH_STAGES = [
+  'request_received',
+  'checking_stock',
+  'sample_available',
+  'production_required',
+  'printing_required',
+  'sample_ready',
+];
+
 /** The sample stages that have something to tell the customer [§42.5]. */
 export const NOTIFIABLE_STAGES = {
   sample_ready: 'sample_ready',
@@ -356,14 +366,37 @@ export const optionLabel = label;
 /**
  * Which sample stages the maker may move to.
  *
- * The three feedback outcomes are excluded on purpose: only the person who spoke to the
- * customer may set those, and the server refuses them on this route regardless.
+ * Three exclusions, and each is a refusal the server would make anyway — the point of doing it
+ * here is that a dropdown offering a move that ends in an error message is a dropdown that
+ * teaches people the software is unreliable.
+ *
+ * **The feedback outcomes**, because only whoever spoke to the customer may set those.
+ *
+ * **The bench's own stages, once the sample has gone.** A piece on a buyer's desk is not being
+ * checked for stock, and saying it is puts the request back in the overdue queue that chases
+ * the bench. Going backwards *within* the bench stays on offer and is deliberate: a piece that
+ * breaks genuinely returns to production, and forbidding that would forbid the ordinary day.
+ *
+ * **The customer's hands, until it has been sent.** Dispatching is the only door in, and it is
+ * the door §6's paperwork gate stands in. Naming only `delivered` here was the first version of
+ * this and left `customer_feedback_pending` open beside it — a piece never made and never sent,
+ * which the feedback action then accepts, so the next click marks it approved. An approved
+ * sample is what §13 checks an order against.
  */
 export const nextSampleStagesFrom = (current) => {
   if (CLOSED_SAMPLE_STAGES.includes(current)) return [];
-  return SAMPLE_STAGES.filter(
-    (stage) => stage.value !== current && !FEEDBACK_OUTCOMES.includes(stage.value)
-  );
+
+  const gone = WITH_CUSTOMER_STAGES.includes(current);
+
+  return SAMPLE_STAGES.filter((stage) => {
+    if (stage.value === current) return false;
+    if (FEEDBACK_OUTCOMES.includes(stage.value)) return false;
+    if (gone && ON_THE_BENCH_STAGES.includes(stage.value)) return false;
+    if (!gone && WITH_CUSTOMER_STAGES.includes(stage.value) && stage.value !== 'dispatched') {
+      return false;
+    }
+    return true;
+  });
 };
 
 /**
