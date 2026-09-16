@@ -61,6 +61,17 @@ const MODULES = [
       { to: '/profile', label: 'Profile and access' },
     ],
   },
+  /*
+   * The front door sits above the pipeline it feeds, because that is the order the work arrives
+   * in: a message becomes an enquiry becomes a quotation. A nav that put the inbox after the
+   * registers would describe the data model rather than the morning.
+   */
+  {
+    key: 'whatsapp',
+    label: 'WhatsApp',
+    module: 'whatsapp',
+    features: [{ to: '/whatsapp', label: 'Inbox' }],
+  },
   {
     key: 'enquiries',
     label: 'Leads & enquiries',

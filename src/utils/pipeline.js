@@ -457,7 +457,14 @@ export function buildEnquiryPayload(values, { mould, isNewDevelopment, spec = {}
   const requirement = values.requirement || {};
 
   return {
-    mould: isNewDevelopment ? undefined : mould,
+    /*
+     * `|| undefined`, because an empty picker is "no tool" and `''` is not an id — the server
+     * refuses it as a malformed ObjectId rather than reading it as absent. Every caller that
+     * initialises its mould state to `''` rather than `undefined` would otherwise fail on the
+     * perfectly ordinary case this field's own hint invites: leave it empty for anything
+     * bought in.
+     */
+    mould: isNewDevelopment ? undefined : mould || undefined,
     isNewDevelopment,
     requirement: {
       modelNumber: text(requirement.modelNumber),

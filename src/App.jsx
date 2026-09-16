@@ -25,6 +25,7 @@ const Production = lazy(() => import('./pages/Production.jsx'));
 const Dispatches = lazy(() => import('./pages/Dispatches.jsx'));
 const DispatchDetail = lazy(() => import('./pages/DispatchDetail.jsx'));
 const Quality = lazy(() => import('./pages/Quality.jsx'));
+const WhatsappInbox = lazy(() => import('./pages/WhatsappInbox.jsx'));
 const QualityReport = lazy(() => import('./pages/QualityReport.jsx'));
 const Payments = lazy(() => import('./pages/Payments.jsx'));
 const PaymentDetail = lazy(() => import('./pages/PaymentDetail.jsx'));
@@ -286,6 +287,22 @@ export default function App() {
             element={
               <RequireModule moduleKey="dispatch">
                 <DispatchDetail />
+              </RequireModule>
+            }
+          />
+          {/*
+            The WhatsApp inbox [§41]. On the read grant rather than write, because reading the
+            front door and working it are different jobs: management reads the queue to see what
+            is arriving and going unanswered, marketing works it. Every control inside the screen
+            is gated on write, and converting needs the enquiry grant on top — which the server
+            enforces, since the grant that governs a thing is the grant for that thing wherever
+            the button happens to live.
+          */}
+          <Route
+            path="whatsapp"
+            element={
+              <RequireModule moduleKey="whatsapp">
+                <WhatsappInbox />
               </RequireModule>
             }
           />
