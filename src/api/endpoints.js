@@ -175,6 +175,14 @@ export const customers = {
   update: ({ id, ...payload }) => api.patch(`/customers/${id}`, payload).then(unwrap),
   /** Warns before submitting, on the same GST-then-number rule the server enforces. */
   checkDuplicate: (params) => api.get('/customers/check-duplicate', { params }).then(unwrap),
+  /**
+   * Who a new customer may be given to: the marketing team.
+   *
+   * Not `owners` — that is who currently holds records, for the filter, and it is scoped down to
+   * one name for a marketing person. This is who *may* hold a new one, which is the whole team.
+   * Keeps the envelope, because `meta.you` says whether the reader is on it.
+   */
+  team: () => api.get('/customers/team').then((response) => response.data),
 };
 
 export const leads = {
@@ -184,6 +192,8 @@ export const leads = {
   get: (id) => api.get(`/leads/${id}`).then(unwrap),
   create: (payload) => api.post('/leads', payload).then(unwrap),
   update: ({ id, ...payload }) => api.patch(`/leads/${id}`, payload).then(unwrap),
+  /** Who a new lead may be given to — the marketing team. See `customers.team`. */
+  team: () => api.get('/leads/team').then((response) => response.data),
   addActivity: ({ id, ...payload }) => api.post(`/leads/${id}/activities`, payload).then(unwrap),
   /** Creates the customer, its first contact and optionally the first enquiry in one go. */
   convert: ({ id, ...payload }) => api.post(`/leads/${id}/convert`, payload).then(unwrap),

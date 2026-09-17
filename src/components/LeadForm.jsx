@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { leads as leadsApi } from '../api/endpoints.js';
 import { Field, FormError } from './ui.jsx';
+import OwnerPicker from './OwnerPicker.jsx';
 import PlaceInput from './PlaceInput.jsx';
 import { SOURCES } from '../utils/pipeline.js';
 
@@ -119,6 +120,20 @@ export default function LeadForm({ lead, onClose, onSaved }) {
         <Field label="Estimated value (₹)">
           <input type="number" className="input" {...register('estimatedValue')} />
         </Field>
+
+        {/*
+          Whose lead it is. Only on create: moving one afterwards is a reassignment, which the
+          server treats as a management decision and which this form has never done.
+        */}
+        {!editing && (
+          <OwnerPicker
+            register={register}
+            watch={watch}
+            error={errors.assignedTo}
+            load={leadsApi.team}
+            label="Who will chase this lead"
+          />
+        )}
       </div>
 
       <Field label="What are they after" hint="Free text — a lead rarely names a model yet">

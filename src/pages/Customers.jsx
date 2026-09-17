@@ -9,6 +9,7 @@ import {
 } from '../components/ui.jsx';
 import BulkBar, { RowCheckbox, useSelection } from '../components/BulkReassign.jsx';
 import ExportButton from '../components/ExportButton.jsx';
+import OwnerPicker from '../components/OwnerPicker.jsx';
 import PlaceInput from '../components/PlaceInput.jsx';
 import { SortHeader, useSort } from '../components/SortHeader.jsx';
 import { formatCompactCurrency, formatDate } from '../utils/format.js';
@@ -109,6 +110,20 @@ export function CustomerForm({ customer, onClose, onSaved }) {
             ))}
           </select>
         </Field>
+
+        {/*
+          The account owner. Only on create: moving a customer afterwards is a reassignment, and
+          the server holds that to be a management decision — see `assertReassignment`.
+        */}
+        {!editing && (
+          <OwnerPicker
+            register={register}
+            watch={watch}
+            error={errors.assignedTo}
+            load={customersApi.team}
+            label="Who owns this account"
+          />
+        )}
         <Field label="Mobile">
           <input type="tel" className="input" onBlurCapture={checkForDuplicate} {...register('mobile')} />
         </Field>
