@@ -101,7 +101,14 @@ export function EscalateTaskDialog({ task, open, onClose, onEscalated }) {
             className="btn-primary"
             disabled={busy || !department || reason.trim().length < 10}
           >
-            {busy ? 'Sending…' : `Hand it to ${department ? departmentLabel(department) : '…'}`}
+            {/* Named once a department is chosen, because "Hand it to Despatch" is a press
+                somebody can check before making it. Before that it stays the generic verb: an
+                ellipsis standing in for the department read as a truncated label. */}
+            {busy
+              ? 'Sending…'
+              : department
+                ? `Hand it to ${departmentLabel(department)}`
+                : 'Hand it on'}
           </button>
         </div>
       </form>
