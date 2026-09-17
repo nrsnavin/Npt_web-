@@ -193,6 +193,20 @@ export default function DispatchForm({ order, stock, onClose, onRaised }) {
           <Field label="Town">
             <input className="input" value={values.city} onChange={set('city')} />
           </Field>
+          {/*
+            The street address, which was the one field this form sent and never asked for: it
+            was in the payload and had no input, so it went out blank every time. §19 gates
+            despatch on having one, so every consignment was raised one item short of being able
+            to leave. Blank is still fine — the server fills it from the customer, and it can be
+            typed or corrected later on the consignment's own page.
+          */}
+          <Field
+            label="Delivery address"
+            hint="Blank means the buyer's own address"
+            className="sm:col-span-2"
+          >
+            <textarea rows={2} className="input" value={values.address} onChange={set('address')} />
+          </Field>
         </div>
         <Field label="Address" className="mt-4">
           <input

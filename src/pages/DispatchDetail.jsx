@@ -6,6 +6,7 @@ import { useRecord } from '../hooks/useRecords.js';
 import {
   Badge, ErrorState, Facts, Field, FormError, Modal, Notice, PageHeader, Section, Spinner,
 } from '../components/ui.jsx';
+import DeliveryAddress from '../components/DeliveryAddress.jsx';
 import HistoryPanel from '../components/HistoryPanel.jsx';
 import { DispatchActionsPanel } from '../components/DispatchStatus.jsx';
 import { formatCurrency, formatDate, formatNumber } from '../utils/format.js';
@@ -432,19 +433,22 @@ export default function DispatchDetail() {
 
         <div className="space-y-5">
           <Section title="Where it is going">
-            <dl className="space-y-3 text-sm">
+            {/*
+              Editable here, which it was not. §19 gates despatch on a delivery address and the
+              only box that could supply one lived on the despatch board's blocked card — so the
+              consignment's own page named the problem and could not fix it.
+            */}
+            <DeliveryAddress
+              dispatch={dispatch}
+              customer={dispatch.customer}
+              editable={mayWrite}
+              onSaved={reload}
+            />
+
+            <dl className="mt-3 space-y-3 text-sm">
               <Facts
                 columns={1}
                 items={[
-                  { label: 'Consignee', value: dispatch.destination?.name },
-                  { label: 'Address', value: dispatch.destination?.address },
-                  {
-                    label: 'Town',
-                    value: [dispatch.destination?.city, dispatch.destination?.state]
-                      .filter(Boolean)
-                      .join(', '),
-                  },
-                  { label: 'Contact', value: dispatch.destination?.contactMobile },
                   { label: 'Left', value: dispatch.dispatchDate && formatDate(dispatch.dispatchDate) },
                   /*
                    * When it is owed. It was missing from this panel altogether, which made the

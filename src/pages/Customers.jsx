@@ -136,6 +136,18 @@ export function CustomerForm({ customer, onClose, onSaved }) {
         <Field label="GST number" hint="The strongest way to spot a duplicate">
           <input className="input uppercase" onBlurCapture={checkForDuplicate} {...register('gstin')} />
         </Field>
+        {/*
+          The street address, which is what a lorry needs. §19 will not let a consignment leave
+          without one, and it prefills from here — so a buyer with a town and no address is a
+          buyer whose every consignment is raised one paperwork item short.
+        */}
+        <Field
+          label="Delivery address"
+          hint="Where the lorry goes. Copied onto each consignment, which can then be edited for a one-off destination"
+          className="sm:col-span-2"
+        >
+          <textarea rows={2} className="input" {...register('address')} />
+        </Field>
         {/* The same suggestion list the lead form uses. Suggesting on one and not the other
             would leave half the records free text, and the by-city report reads both. */}
         <Field label="City">
@@ -157,6 +169,9 @@ export function CustomerForm({ customer, onClose, onSaved }) {
             value={watch('state')}
             onChange={(next) => setValue('state', next, { shouldDirty: true })}
           />
+        </Field>
+        <Field label="Pincode">
+          <input className="input" inputMode="numeric" {...register('pincode')} />
         </Field>
         <Field label="Country">
           <input className="input" {...register('country')} />
