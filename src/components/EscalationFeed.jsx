@@ -24,30 +24,48 @@ import { plural } from '../utils/format.js';
  * empty.
  */
 export default function EscalationFeed({ limit = 6, title = 'Orders that have stopped' }) {
-  const { user } = useAuth();
+  const { user, canRead } = useAuth();
   const [rows, setRows] = useState(null);
   const [meta, setMeta] = useState({});
   const [error, setError] = useState(null);
   const [showAll, setShowAll] = useState(false);
 
+  /*
+   * Not every department holds the escalations grant, and this panel is dropped onto several
+   * day screens that a reader without it can legitimately open. Asked anyway, the server
+   * refused, and the panel below announced the refusal as a failure — "Could not load what has
+   * stopped" on a screen somebody sees every morning, about a list that is simply not theirs.
+   * A warning that is always there and never actionable is the one people stop reading, and
+   * then miss on the day it means something.
+   */
+  /* `orders`, because that is the grant the feed's route is actually behind — an escalation is
+     a fact about an order, and the server guards it as one. Guessing a module named after the
+     feature would have been a check that never refuses anything. */
+  const mine = canRead('orders');
+
   const load = useCallback(async () => {
+    if (!mine) return;
     setError(null);
     try {
       const response = await escalationsApi.feed({ limit: 50 });
       setRows(response.data || []);
       setMeta(response.meta || {});
     } catch (loadError) {
-      setError(loadError);
-      setRows([]);
+      /* A refusal is not a failure. The grant can also be withdrawn between this render and
+         the reply, so the status is checked here as well as before the call. */
+      if (loadError?.status === 403 || loadError?.status === 401) setRows([]);
+      else setError(loadError);
     }
-  }, []);
+  }, [mine]);
 
   useEffect(() => {
     load();
   }, [load]);
 
-  /* Silent while loading and silent when clear — see the note above. An error is worth a line,
-     because a feed that failed to load looks exactly like a plant with nothing wrong. */
+  if (!mine) return null;
+
+  /* Silent while loading and silent when clear — see the note above. A genuine error is worth a
+     line, because a feed that failed to load looks exactly like a plant with nothing wrong. */
   if (error) {
     return (
       <Notice tone="warn">

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { customers as customersApi } from '../api/endpoints.js';
-import { Field, Modal, Notice } from './ui.jsx';
+import { Field, FormError, Modal, Notice } from './ui.jsx';
 import { CUSTOMER_TYPES } from '../utils/pipeline.js';
 
 /**
@@ -154,14 +154,7 @@ export default function CustomerQuickCreate({ open, initialName = '', onClose, o
           </Notice>
         )}
 
-        {error && (
-          <Notice tone="danger">
-            <p>{error.message}</p>
-            {error.details?.map((detail) => (
-              <p key={detail.field} className="text-xs">{detail.field}: {detail.message}</p>
-            ))}
-          </Notice>
-        )}
+        <FormError error={error} />
 
         <div className="flex justify-end gap-2 border-t border-line/[0.06] pt-4">
           <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>

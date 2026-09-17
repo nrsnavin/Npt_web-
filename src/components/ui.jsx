@@ -2,6 +2,7 @@ import { Children, cloneElement, isValidElement, useEffect, useId, useRef } from
 import { createPortal } from 'react-dom';
 import { statusClass, toneClass } from '../utils/statusStyles.js';
 import { humanise } from '../utils/format.js';
+import { fieldErrors } from '../api/failure.js';
 
 /**
  * A status, as a chip.
@@ -64,15 +65,18 @@ export function ErrorState({ error, onRetry }) {
       <p className="text-base font-bold tracking-tight text-steel-50">
         {error?.message || 'Something went wrong'}
       </p>
-      {error?.details?.length ? (
+      {/* Through `fieldErrors`, so an object `details` is nothing to list rather than a throw —
+          see `FormError` below. This one happened to survive on `?.length`, which an object
+          does not have; that is luck, not a check. */}
+      {fieldErrors(error?.details).length > 0 && (
         <ul className="mt-3 space-y-1 text-sm text-steel-400">
-          {error.details.map((detail) => (
+          {fieldErrors(error.details).map((detail) => (
             <li key={detail.field}>
               <span className="text-steel-300">{detail.field}</span>: {detail.message}
             </li>
           ))}
         </ul>
-      ) : null}
+      )}
       {onRetry && (
         <button type="button" className="btn-secondary mt-5" onClick={onRetry}>
           Try again
@@ -364,5 +368,39 @@ export function Notice({ tone = 'danger', children }) {
 
   return (
     <div role={tone === 'danger' ? 'alert' : 'status'} className={`rounded-lg px-3 py-2.5 text-sm ring-1 ring-inset ${tones[tone]}`}>{children}</div>
+  );
+}
+
+/**
+ * A refused save, shown inside the form that was refused.
+ *
+ * Every form in the app had written this out itself, and every one of them the same way:
+ *
+ *     {error.details?.map((detail) => <p>{detail.field}: {detail.message}</p>)}
+ *
+ * which is right for a validation failure, where `details` is a list of fields, and a **thrown
+ * TypeError** for every other kind of refusal, where it is an object — `{ needs }` on a soft
+ * gate, `{ order }` on a duplicate reference, `{ customer }` on a duplicate buyer. A throw
+ * during render is not an error message; React unmounts the tree, and the whole application
+ * goes white with everything the person had typed still in it.
+ *
+ * That was reachable from the order form, on exactly the case the external reference exists to
+ * catch: book an order the importer has already brought in, and the server names the order it
+ * is already on — the most useful refusal in the app, and the one that blanked the screen.
+ *
+ * So it is one component rather than twenty copies, it asks whether `details` is a list before
+ * treating it as one, and `children` takes whatever that particular refusal can offer instead —
+ * a button to open the record it clashed with, usually.
+ */
+export function FormError({ error, children }) {
+  if (!error) return null;
+  return (
+    <Notice tone="danger">
+      <p>{error.message}</p>
+      {fieldErrors(error.details).map((detail) => (
+        <p key={detail.field} className="text-xs">{detail.field}: {detail.message}</p>
+      ))}
+      {children}
+    </Notice>
   );
 }

@@ -5,6 +5,7 @@ import { useTheme } from '../context/ThemeContext.jsx';
 import WorkspaceRail from './dock/WorkspaceRail.jsx';
 import SidebarNav from './SidebarNav.jsx';
 import GlobalSearch from './GlobalSearch.jsx';
+import ErrorBoundary from './ErrorBoundary.jsx';
 import { Modal } from './ui.jsx';
 import { humanise } from '../utils/format.js';
 
@@ -479,7 +480,17 @@ export default function Layout() {
             key={location.pathname}
             className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8"
           >
-            <Outlet />
+            {/*
+              Inside the main column rather than around the whole app, so a screen that throws
+              loses the screen and not the navigation: the sidebar, the search and the workspace
+              all keep working, and going somewhere else is one press rather than a reload.
+
+              Keyed on the path so the apology clears when the person navigates away — a caught
+              boundary stays caught until something resets it.
+            */}
+            <ErrorBoundary resetKey={location.pathname}>
+              <Outlet />
+            </ErrorBoundary>
           </main>
         </div>
 

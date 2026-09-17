@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { samples as samplesApi } from '../api/endpoints.js';
-import { Field, Notice } from './ui.jsx';
+import { Field, FormError } from './ui.jsx';
 import {
   ColourInput, CustomerSelect, EnquirySelect, MaterialSelect, MouldSelect, PartSelect,
 } from './pickers.jsx';
@@ -279,14 +279,7 @@ export default function SampleRequestForm({ lead, sample, onClose, onSaved }) {
         <textarea rows={2} className="input" {...register('remarks')} />
       </Field>
 
-      {error && (
-        <Notice tone="danger">
-          <p>{error.message}</p>
-          {error.details?.map((detail) => (
-            <p key={detail.field} className="text-xs">{detail.field}: {detail.message}</p>
-          ))}
-        </Notice>
-      )}
+      <FormError error={error} />
 
       <div className="flex justify-end gap-2 border-t border-line/[0.06] pt-4">
         <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>

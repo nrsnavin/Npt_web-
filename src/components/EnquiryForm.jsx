@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { enquiries as enquiriesApi } from '../api/endpoints.js';
-import { Field, Notice } from './ui.jsx';
+import { Field, FormError } from './ui.jsx';
 import { CustomerSelect } from './pickers.jsx';
 import EnquiryFields from './EnquiryFields.jsx';
 import { SOURCES, buildEnquiryPayload } from '../utils/pipeline.js';
@@ -140,14 +140,7 @@ export default function EnquiryForm({ enquiry, onClose, onSaved }) {
         onNewDevelopmentChange={setNewDevelopment}
       />
 
-      {error && (
-        <Notice tone="danger">
-          <p>{error.message}</p>
-          {error.details?.map((detail) => (
-            <p key={detail.field} className="text-xs">{detail.field}: {detail.message}</p>
-          ))}
-        </Notice>
-      )}
+      <FormError error={error} />
 
       <div className="flex justify-end gap-2 border-t border-line/[0.06] pt-4">
         <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>

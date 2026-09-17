@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { orderQueries as queriesApi } from '../api/endpoints.js';
-import { Field, Modal, Notice } from './ui.jsx';
+import { Field, FormError, Modal, Notice } from './ui.jsx';
 import { humanise } from '../utils/format.js';
 
 /**
@@ -107,14 +107,7 @@ export default function RaiseConcern({ order, onClose, onRaised }) {
             </select>
           </Field>
 
-          {error && (
-            <Notice tone="danger">
-              <p>{error.message}</p>
-              {error.details?.map((detail) => (
-                <p key={detail.field} className="text-xs">{detail.field}: {detail.message}</p>
-              ))}
-            </Notice>
-          )}
+          <FormError error={error} />
 
           <div className="flex justify-end gap-2 border-t border-line/[0.06] pt-4">
             <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>

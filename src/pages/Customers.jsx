@@ -5,7 +5,7 @@ import { customers as customersApi, downloads } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useDebounced, useRecordList } from '../hooks/useRecords.js';
 import {
-  Badge, EmptyState, ErrorState, Field, Modal, Notice, PageHeader, Pagination, TableSkeleton,
+  Badge, EmptyState, ErrorState, Field, FormError, Modal, Notice, PageHeader, Pagination, TableSkeleton,
 } from '../components/ui.jsx';
 import BulkBar, { RowCheckbox, useSelection } from '../components/BulkReassign.jsx';
 import ExportButton from '../components/ExportButton.jsx';
@@ -203,14 +203,7 @@ export function CustomerForm({ customer, onClose, onSaved }) {
         </Notice>
       )}
 
-      {error && (
-        <Notice tone="danger">
-          <p>{error.message}</p>
-          {error.details?.map((detail) => (
-            <p key={detail.field} className="text-xs">{detail.field}: {detail.message}</p>
-          ))}
-        </Notice>
-      )}
+      <FormError error={error} />
 
       <div className="flex justify-end gap-2">
         <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>

@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { production as productionApi } from '../api/endpoints.js';
-import { Badge, Field, Modal, Notice } from './ui.jsx';
+import { Badge, Field, FormError, Modal, Notice } from './ui.jsx';
 import { formatNumber } from '../utils/format.js';
 import {
   HELD_PRODUCTION_STAGES, PRODUCTION_STAGES, numeric, productionStageLabel, text,
@@ -169,14 +169,7 @@ export default function ProductionLineForm({ order, line, onClose, onSaved, init
         </Notice>
       )}
 
-      {error && (
-        <Notice tone="danger">
-          <p>{error.message}</p>
-          {error.details?.map((detail) => (
-            <p key={detail.field} className="text-xs">{detail.field}: {detail.message}</p>
-          ))}
-        </Notice>
-      )}
+      <FormError error={error} />
 
       <div className="flex justify-end gap-2 border-t border-line/[0.06] pt-4">
         <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>

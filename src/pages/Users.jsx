@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { users as usersApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
-import { Badge, ConfirmDialog, Field, Modal, Notice, PageHeader, Spinner } from '../components/ui.jsx';
+import {
+  Badge, ConfirmDialog, Field, FormError, Modal, Notice, PageHeader, Spinner,
+} from '../components/ui.jsx';
 import { formatDate, humanise } from '../utils/format.js';
 import { SortHeader, useSort } from '../components/SortHeader.jsx';
 
@@ -202,16 +204,7 @@ function UserForm({ catalogue, onClose, onSaved }) {
         </div>
       )}
 
-      {error && (
-        <Notice tone="danger">
-          <p>{error.message}</p>
-          {error.details?.map((detail) => (
-            <p key={detail.field} className="text-xs">
-              {detail.field}: {detail.message}
-            </p>
-          ))}
-        </Notice>
-      )}
+      <FormError error={error} />
 
       <div className="flex justify-end gap-2">
         <button type="button" className="btn-secondary" onClick={onClose}>

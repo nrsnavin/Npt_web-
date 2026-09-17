@@ -26,7 +26,7 @@
  * an internal error message nobody could act on. It read like a bug in the dialog and was never
  * in the dialog.
  */
-const fieldErrors = (details) => (Array.isArray(details) ? details : []);
+export const fieldErrors = (details) => (Array.isArray(details) ? details : []);
 
 /**
  * The field, said out loud.

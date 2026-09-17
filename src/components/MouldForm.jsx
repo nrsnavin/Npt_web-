@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { moulds as mouldsApi } from '../api/endpoints.js';
-import { Field, Notice } from './ui.jsx';
+import { Field, FormError } from './ui.jsx';
 import { CustomerSelect } from './pickers.jsx';
 import { MouldPhotoField } from './MouldPhoto.jsx';
 import { formatCurrency, formatNumber } from '../utils/format.js';
@@ -434,14 +434,7 @@ export default function MouldForm({ mould, onClose, onSaved }) {
         <textarea rows={2} className="input" placeholder="Cavity 4 blocked — core pin sheared" {...register('notes')} />
       </Field>
 
-      {error && (
-        <Notice tone="danger">
-          <p>{error.message}</p>
-          {error.details?.map((detail) => (
-            <p key={detail.field} className="text-xs">{detail.field}: {detail.message}</p>
-          ))}
-        </Notice>
-      )}
+      <FormError error={error} />
 
       <div className="flex justify-end gap-2">
         <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>

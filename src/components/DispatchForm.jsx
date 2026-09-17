@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { dispatches as dispatchApi } from '../api/endpoints.js';
-import { Field, Modal, Notice } from './ui.jsx';
+import { Field, FormError, Modal, Notice } from './ui.jsx';
 import { formatNumber } from '../utils/format.js';
 import { numeric, text } from '../utils/pipeline.js';
 
@@ -240,14 +240,7 @@ export default function DispatchForm({ order, stock, onClose, onRaised }) {
         </p>
       )}
 
-      {error && (
-        <Notice tone="danger">
-          <p>{error.message}</p>
-          {error.details?.map((detail) => (
-            <p key={detail.field} className="text-xs">{detail.field}: {detail.message}</p>
-          ))}
-        </Notice>
-      )}
+      <FormError error={error} />
 
       <div className="flex justify-end gap-2 border-t border-line/[0.06] pt-4">
         <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>

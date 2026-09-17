@@ -4,7 +4,7 @@ import { dispatches as dispatchApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useRecord } from '../hooks/useRecords.js';
 import {
-  Badge, ErrorState, Facts, Field, Modal, Notice, PageHeader, Section, Spinner,
+  Badge, ErrorState, Facts, Field, FormError, Modal, Notice, PageHeader, Section, Spinner,
 } from '../components/ui.jsx';
 import HistoryPanel from '../components/HistoryPanel.jsx';
 import { DispatchActionsPanel } from '../components/DispatchStatus.jsx';
@@ -189,14 +189,7 @@ function Paperwork({ dispatch, outstanding, onSaved, mayWrite }) {
           </Field>
         </div>
 
-        {error && (
-          <Notice tone="danger">
-            <p>{error.message}</p>
-            {error.details?.map((detail) => (
-              <p key={detail.field} className="text-xs">{detail.field}: {detail.message}</p>
-            ))}
-          </Notice>
-        )}
+        <FormError error={error} />
 
         <div className="flex justify-end border-t border-line/[0.06] pt-4">
           <button type="submit" className="btn-secondary" disabled={busy}>

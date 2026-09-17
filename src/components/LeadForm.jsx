@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { leads as leadsApi } from '../api/endpoints.js';
-import { Field, Notice } from './ui.jsx';
+import { Field, FormError } from './ui.jsx';
 import PlaceInput from './PlaceInput.jsx';
 import { SOURCES } from '../utils/pipeline.js';
 
@@ -141,14 +141,7 @@ export default function LeadForm({ lead, onClose, onSaved }) {
         </Field>
       </div>
 
-      {error && (
-        <Notice tone="danger">
-          <p>{error.message}</p>
-          {error.details?.map((detail) => (
-            <p key={detail.field} className="text-xs">{detail.field}: {detail.message}</p>
-          ))}
-        </Notice>
-      )}
+      <FormError error={error} />
 
       <div className="flex justify-end gap-2">
         <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>

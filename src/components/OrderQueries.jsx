@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { dispatches as dispatchApi, orderQueries as queriesApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
-import { Field, Modal, Notice, Section } from './ui.jsx';
+import { Field, FormError, Modal, Notice, Section } from './ui.jsx';
 import { formatDate, humanise } from '../utils/format.js';
 
 /**
@@ -280,14 +280,7 @@ function AskForm({ order, onClose, onAsked, departments }) {
         </select>
       </Field>
 
-      {error && (
-        <Notice tone="danger">
-          <p>{error.message}</p>
-          {error.details?.map((detail) => (
-            <p key={detail.field} className="text-xs">{detail.field}: {detail.message}</p>
-          ))}
-        </Notice>
-      )}
+      <FormError error={error} />
 
       <div className="flex justify-end gap-2 border-t border-line/[0.06] pt-4">
         <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>

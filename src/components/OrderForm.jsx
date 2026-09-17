@@ -1,6 +1,7 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { orders as ordersApi } from '../api/endpoints.js';
-import { Field, Notice } from './ui.jsx';
+import { Field, FormError, Notice } from './ui.jsx';
 import {
   ColourInput, CustomerSelect, MaterialSelect, MouldSelect, PartSelect,
 } from './pickers.jsx';
@@ -334,16 +335,35 @@ export default function OrderForm({ order, onClose, onSaved }) {
         </Field>
       </div>
 
-      {error && (
-        <Notice tone="danger">
-          <p>{error.message}</p>
-          {error.details?.map((detail) => (
-            <p key={detail.field} className="text-xs">{detail.field}: {detail.message}</p>
-          ))}
-        </Notice>
-      )}
+      {/*
+        The refusal, turned into the action it advises.
 
-      <div className="flex justify-end gap-2 border-t border-line/[0.06] pt-4">
+        The server hands the clashing order back with the 409 — its number and where it has got
+        to — so this is a link rather than a sentence telling somebody to go and find it. It is
+        the whole point of recording the outside system's reference: the person meeting this is
+        usually typing an order the importer brought in an hour ago.
+      */}
+      <FormError error={error}>
+        {error?.details?.order?.id && (
+          <Link
+            to={`/orders/${error.details.order.id}`}
+            className="mt-2 inline-block font-semibold underline"
+          >
+            Open {error.details.order.number}
+          </Link>
+        )}
+      </FormError>
+
+      <div className="flex flex-wrap items-center justify-end gap-2 border-t border-line/[0.06] pt-4">
+        {/*
+          Said, rather than left to be worked out from a grey button. The customer is the first
+          field on the form and the only one that has to be filled before anything can be
+          booked; without this line the button is simply dead, and the usual response to a dead
+          button is to press it again.
+        */}
+        {!editing && !customer && (
+          <p className="mr-auto text-xs text-steel-500">Choose the customer first.</p>
+        )}
         <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
         <button type="submit" className="btn-primary" disabled={busy || (!editing && !customer)}>
           {busy ? 'Saving…' : editing ? 'Save changes' : 'Book the order'}
