@@ -157,9 +157,11 @@ function ReadyQueue({ mayWrite }) {
                 <tbody className="divide-y divide-line/[0.04]">
                   {rows.map((row) => (
                     <tr key={String(row.orderLine)} className="row-hover">
+                      {/* `whitespace-nowrap`: these are identifiers, and a column of "NPT-" over
+                          "400S" is one nobody can scan. */}
                       <td className="px-4 py-3.5">
-                        <p className="font-semibold text-steel-100">{row.modelNumber || '—'}</p>
-                        <p className="text-xs text-steel-400">
+                        <p className="whitespace-nowrap font-semibold text-steel-100">{row.modelNumber || '—'}</p>
+                        <p className="whitespace-nowrap text-xs text-steel-400">
                           {[row.colour, row.mould?.mouldCode].filter(Boolean).join(' · ') || '—'}
                         </p>
                       </td>
@@ -181,8 +183,18 @@ function ReadyQueue({ mayWrite }) {
                       <td className="px-4 py-3.5 text-right tabular-nums font-semibold text-flame-400">
                         {formatNumber(row.available)}
                       </td>
-                      <td className="px-4 py-3.5 text-steel-300">
+                      {/*
+                        The date the buyer is owed, which is the re-agreed one where marketing has
+                        recorded one. Said so on the row, because a date here that does not match
+                        the purchase order in somebody's hand is a figure they will ring to query.
+                      */}
+                      <td className="whitespace-nowrap px-4 py-3.5 text-steel-300">
                         {row.deliveryDate ? formatDate(row.deliveryDate) : '—'}
+                        {row.promisedDate && row.poDeliveryDate && (
+                          <p className="text-xs text-steel-500">
+                            re-agreed from {formatDate(row.poDeliveryDate)}
+                          </p>
+                        )}
                       </td>
                       {mayWrite && (
                         <td className="px-4 py-3.5">
@@ -349,7 +361,20 @@ function Consignments({ mayWrite }) {
                     <th className="px-4 py-3 text-right">Pieces</th>
                     <SortHeader field="destination.city" label="Going to" sort={sort} onToggle={sortBy} className="px-4" />
                     {/* The ordering §19 is about: the day somebody gave a buyer. */}
-                    <SortHeader field="expectedDeliveryDate" label="Wanted by" sort={sort} onToggle={sortBy} className="px-4" />
+                    {/*
+                      Plain, and that is the honest answer rather than an oversight.
+
+                      The cell now draws `dueDate` — the promise where there is one, the estimate
+                      otherwise — which is a **virtual**: the record stores the two dates and
+                      chooses between them on the way out, so Mongo has nothing to rank. Offering
+                      a sort arrow here would draw a control that returns an error, which reads
+                      as the software being broken rather than as the column being unsortable.
+
+                      It used to offer `expectedDeliveryDate`, which did sort — and ranked the
+                      list by a date the cell had stopped showing. The "Past their delivery date"
+                      tile above is the reliable way to ask this question.
+                    */}
+                    <th className="px-4 py-3">Wanted by</th>
                     <th className="px-4 py-3">Paperwork</th>
                     <SortHeader field="status" label="Stage" sort={sort} onToggle={sortBy} className="px-4" />
                   </tr>
@@ -380,11 +405,37 @@ function Consignments({ mayWrite }) {
                       {/* The promised date has a column of its own now rather than sitting
                           under the destination, so a board can be ranked by it — which is the
                           ordering despatch actually works from. */}
+                      {/*
+                        The date this row is actually judged against, which is what the model
+                        calls `dueDate`: the promise to the buyer when marketing has recorded
+                        one, the plant's own estimate otherwise.
+
+                        It used to draw `expectedDeliveryDate` and colour it by `isOverdue` —
+                        and `isOverdue` is measured against the promise. So a consignment
+                        promised for the 30th with an estimate of the 20th showed "20 Sept" with
+                        no warning on the 25th, because it was not late against the promise: a
+                        date five days gone and nothing flagged, which reads as the badge being
+                        broken. The tile above counted a third thing again.
+
+                        Whose date it is now says so, because "the buyer was told this" and "we
+                        think this" are different facts to act on.
+                      */}
                       <td className="whitespace-nowrap px-4 py-3.5 text-xs">
-                        {row.expectedDeliveryDate ? (
+                        {row.dueDate ? (
                           <span className={row.isOverdue ? 'font-semibold text-danger-400' : 'text-steel-300'}>
-                            {formatDate(row.expectedDeliveryDate)}
+                            {formatDate(row.dueDate)}
                             {row.isOverdue && <p className="text-danger-400">Past its date</p>}
+                            <p className="font-normal text-steel-500">
+                              {row.dueDateIsPromise ? 'promised to the buyer' : 'our estimate'}
+                            </p>
+                            {/* Both, when they differ — a clerk reading the row should not have
+                                to open the record to find the estimate the promise replaced. */}
+                            {row.dueDateIsPromise && row.expectedDeliveryDate &&
+                              formatDate(row.expectedDeliveryDate) !== formatDate(row.dueDate) && (
+                                <p className="font-normal text-steel-600">
+                                  est. {formatDate(row.expectedDeliveryDate)}
+                                </p>
+                              )}
                           </span>
                         ) : (
                           <span className="text-steel-600">&mdash;</span>

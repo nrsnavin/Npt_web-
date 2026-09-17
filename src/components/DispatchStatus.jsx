@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { dispatches as dispatchApi } from '../api/endpoints.js';
 import { Badge, Field, Modal, Notice, Section } from './ui.jsx';
 import { CLOSED_DISPATCH_STAGES, dispatchStageLabel } from '../utils/pipeline.js';
+import { ANSWERABLE, MIN_REASON, answerableField } from '../utils/answerable.js';
 
 /**
  * Moving a consignment [BLUEPRINT §18–19].
@@ -27,9 +28,11 @@ import { CLOSED_DISPATCH_STAGES, dispatchStageLabel } from '../utils/pipeline.js
  * exist. Listed disabled with the reason rather than hidden, because hiding the button hides
  * the thing the person is working towards.
  *
- * **The 409** is quality's soft gate [§15]: a first attempt to dispatch something unchecked or
- * failed comes back asking for a reason, not refusing. It is answerable, so it opens its own
- * dialog rather than showing a red error nobody can act on.
+ * **The 409** is a soft gate rather than a refusal — quality's [§15] on dispatching an unchecked
+ * or failed load, and the POD's [§19] on closing a consignment nobody has proof was delivered.
+ * Both come back asking for a reason, so both open their own dialog rather than showing a red
+ * error nobody can act on. `utils/answerable.js` is the list of them, and every word of that
+ * dialog comes from there rather than from this file.
  */
 
 /** What the two fields any action asks for are actually called, in the yard's words. */
@@ -78,9 +81,16 @@ export function useDispatchActions(dispatch, onDone) {
     try {
       onDone(await dispatchApi.act({ id: dispatch._id, expectedUpdatedAt: dispatch.updatedAt, action: action.action }));
     } catch (actError) {
-      /* The quality concern, which is answerable — everything else is an error to read. */
-      if (actError.status === 409 && actError.details?.needs === 'qualityOverrideReason') {
-        setOverride({ action: action.action, label: action.label, concern: actError.details.concern });
+      /* An answerable refusal — everything else is an error to read. */
+      const field = answerableField(actError);
+      if (field) {
+        setOverride({
+          action: action.action, label: action.label, field,
+          /* Quality sends the concern it found. Where a case has nothing to quote the dialog
+             uses its own subtitle rather than repeating the refusal, which is the same
+             sentence as the notice underneath it. */
+          concern: actError.details.concern || null,
+        });
         setOverrideReason('');
       } else {
         setError(actError);
@@ -98,10 +108,14 @@ export function useDispatchActions(dispatch, onDone) {
       onDone(await dispatchApi.act({ id: dispatch._id, expectedUpdatedAt: dispatch.updatedAt, action: chosen.action, ...values }));
       setChosen(null);
     } catch (actError) {
-      /* The gate can bite here too — cancelling asks for a reason, dispatching from a form
-         does not, but an action that grows a `needs` later must not lose the override. */
-      if (actError.status === 409 && actError.details?.needs === 'qualityOverrideReason') {
-        setOverride({ action: chosen.action, label: chosen.label, concern: actError.details.concern });
+      /* A gate can bite here too — cancelling asks for a reason, closing does not, but an
+         action that grows a `needs` later must not lose the question. */
+      const field = answerableField(actError);
+      if (field) {
+        setOverride({
+          action: chosen.action, label: chosen.label, field,
+          concern: actError.details.concern || null,
+        });
         setOverrideReason('');
         setChosen(null);
       } else {
@@ -121,11 +135,13 @@ export function useDispatchActions(dispatch, onDone) {
         await dispatchApi.act({
           id: dispatch._id, expectedUpdatedAt: dispatch.updatedAt,
           action: override.action,
-          qualityOverrideReason: overrideReason,
+          /* Whichever sentence this refusal asked for. */
+          [override.field]: overrideReason,
         })
       );
-      /* Named as an override rather than as an ordinary dispatch, because it is one and it
-         goes into the monthly list under the presser's name. */
+      /* Sent under the name of the field that was asked for rather than as an ordinary action,
+         because that is what makes the server record it as a decision somebody took — with the
+         reason, and under the presser's name. */
       setOverride(null);
     } catch (actError) {
       setError(actError);
@@ -142,7 +158,7 @@ export function useDispatchActions(dispatch, onDone) {
 }
 
 /**
- * The two dialogs every caller needs: what an action asks for, and quality's question.
+ * The two dialogs every caller needs: what an action asks for, and the answerable refusals.
  *
  * Rendered by whoever holds the hook's state, so a picker inside a table row and a panel on the
  * consignment page put up exactly the same forms.
@@ -154,34 +170,39 @@ export function DispatchActionForms({ state }) {
     busy, error,
   } = state;
 
+  /* Every word of the override dialog comes from the table, so a new answerable refusal is a
+     new entry there and nothing here. The fallback keeps the hooks-free render safe while the
+     dialog is closed and `override` is null. */
+  const answer = ANSWERABLE[override?.field] || {};
+
   return (
     <>
       {/*
         The override. A separate dialog from the ordinary action form because it asks a different
-        kind of question: not "what is the lorry number" but "you are overruling quality, on the
+        kind of question: not "what is the lorry number" but "you are going past a check, on the
         record". The wording says where the answer ends up, because a person who knows their
         reason will be read writes a different sentence from one who thinks it vanishes.
       */}
       <Modal
         open={Boolean(override)}
-        title="Quality has not cleared this"
-        description={override?.concern}
+        title={answer.title || 'This needs a reason'}
+        description={override?.concern || answer.subtitle || undefined}
         onClose={() => setOverride(null)}
       >
         <form onSubmit={sendOverride} className="space-y-4">
           <Notice tone="warn">
-            <p>
-              It can still go. The reason below is kept against this consignment with your name on
-              it, and appears in the monthly list of consignments sent despite a quality warning.
-            </p>
+            <p>{answer.consequence}</p>
           </Notice>
 
-          <Field label="Why is it going anyway?" hint="A sentence — enough for somebody reading it next month">
+          <Field
+            label={answer.ask || 'Why?'}
+            hint="A sentence — enough for somebody reading it next month"
+          >
             <textarea
               rows={3}
               className="input"
               autoFocus
-              placeholder="Buyer inspected at our gate and accepted the lot themselves"
+              placeholder={answer.placeholder}
               value={overrideReason}
               onChange={(event) => setOverrideReason(event.target.value)}
             />
@@ -191,10 +212,14 @@ export function DispatchActionForms({ state }) {
 
           <div className="flex justify-end gap-2 border-t border-line/[0.06] pt-4">
             <button type="button" className="btn-secondary" onClick={() => setOverride(null)}>
-              Do not send it
+              {answer.decline || 'Leave it'}
             </button>
-            <button type="submit" className="btn-primary" disabled={busy || overrideReason.trim().length < 10}>
-              {busy ? 'Saving…' : `${override?.label} anyway`}
+            <button
+              type="submit"
+              className="btn-primary"
+              disabled={busy || overrideReason.trim().length < MIN_REASON}
+            >
+              {busy ? 'Saving…' : answer.confirm?.(override?.label) || override?.label}
             </button>
           </div>
         </form>

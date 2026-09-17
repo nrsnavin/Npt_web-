@@ -116,9 +116,14 @@ function Consignment({ dispatch }) {
         </p>
       )}
 
+      {/* `dueDate` and not `expectedDeliveryDate`, because `isOverdue` is measured against the
+          former: a consignment promised for the 20th and estimated for the 25th goes red on the
+          21st, and printing the estimate here read "Was due 25 Sep" on the 21st — a date in the
+          future, next to the word "was", on the screen marketing answers the buyer from. */}
       {dispatch.isOverdue && (
         <p className="mt-1 text-xs font-semibold text-danger-400">
-          Was due {formatDate(dispatch.expectedDeliveryDate)}
+          Was due {formatDate(dispatch.dueDate || dispatch.expectedDeliveryDate)}
+          {dispatch.dueDateIsPromise ? ' — promised to the buyer' : ''}
         </p>
       )}
 
@@ -184,8 +189,19 @@ function Consignment({ dispatch }) {
               { label: 'Carrier', value: carrier },
               { label: 'Left on', value: dispatch.dispatchDate && formatDate(dispatch.dispatchDate) },
               {
-                label: 'Due to arrive',
-                value: dispatch.expectedDeliveryDate && formatDate(dispatch.expectedDeliveryDate),
+                /* Both dates when they differ, and labelled: the promise is what the buyer was
+                   told and the estimate is what the yard worked to, and a screen showing one
+                   number cannot be read by both of them. */
+                label: dispatch.dueDateIsPromise ? 'Promised for' : 'Due to arrive',
+                value:
+                  dispatch.dueDate &&
+                  `${formatDate(dispatch.dueDate)}${
+                    dispatch.dueDateIsPromise &&
+                    dispatch.expectedDeliveryDate &&
+                    dispatch.expectedDeliveryDate !== dispatch.dueDate
+                      ? ` · our estimate ${formatDate(dispatch.expectedDeliveryDate)}`
+                      : ''
+                  }`,
               },
               { label: 'Delivered', value: dispatch.deliveredAt && formatDate(dispatch.deliveredAt) },
               { label: 'Raised by', value: dispatch.raisedBy?.name },
@@ -220,6 +236,20 @@ function Consignment({ dispatch }) {
                 {dispatch.qualityOverride.by?.name ? ` by ${dispatch.qualityOverride.by.name}` : ''}
                 {dispatch.qualityOverride.at ? ` on ${formatDate(dispatch.qualityOverride.at)}` : ''}:{' '}
                 {dispatch.qualityOverride.reason}
+              </p>
+            </Notice>
+          )}
+
+          {/* Closed with nobody's signature against it. Kept next to the quality override rather
+              than hidden on the despatch screen, because the person who has to answer "prove
+              they received it" is whoever is looking at this order. */}
+          {dispatch.closedWithoutPod?.reason && (
+            <Notice tone="warn">
+              <p>
+                <span className="font-bold">Closed with no proof of delivery</span>
+                {dispatch.closedWithoutPod.by?.name ? ` by ${dispatch.closedWithoutPod.by.name}` : ''}
+                {dispatch.closedWithoutPod.at ? ` on ${formatDate(dispatch.closedWithoutPod.at)}` : ''}:{' '}
+                {dispatch.closedWithoutPod.reason}
               </p>
             </Notice>
           )}

@@ -32,8 +32,28 @@ export function beginFeedback(config) {
   pending.set(config.feedbackId, true);
   emit({});
 }
+/**
+ * A refusal that is a question is not a failure [BLUEPRINT §15, §19].
+ *
+ * Some of the server's gates are deliberately soft: dispatching a load quality has not cleared,
+ * closing a consignment with no proof of delivery. Each replies 409 with `details.needs` naming
+ * the one field it wants, and the screen answers by putting up a dialog asking for it.
+ *
+ * Read as an error, that put a red "Action could not be completed" toast over the dialog that
+ * had just opened — telling somebody their action failed at the moment the app was asking them a
+ * question about it, and contradicting the dialog's own "it can still go". Nothing failed and
+ * nothing was refused.
+ *
+ * Recognised by the shape rather than by a list of endpoints, because that is what the shape is
+ * for: a 409 carrying `needs` is the server asking for one more thing, wherever it comes from.
+ */
+const isAQuestion = (response) =>
+  response?.status === 409 && typeof response?.data?.details?.needs === 'string';
+
 export function finishFeedback(config, response, error) {
   if (!config?.feedbackId || !pending.delete(config.feedbackId)) return;
+  /* Still emitted, so the pending count drops and the spinner stops — just with nothing said. */
+  if (error && isAQuestion(response)) { emit({}); return; }
   emit({ message: error ? 'Action could not be completed' : response.status === 202 ? 'Saved — completion pending' : actionLabel(config),
     detail: error?.message || (response.status === 202 ? response.data?.message || 'The app will retry the remaining steps. Refresh to check progress.' : [response.data?.data?.number, response.data?.data?.status?.replaceAll('_', ' ')].filter(Boolean).join(' · ') || undefined),
     tone: error ? 'danger' : response.status === 202 ? 'info' : 'success' });

@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { beginFeedback, finishFeedback } from './feedback.js';
+import { failureFrom } from './failure.js';
 
 const TOKEN_KEY = 'npt.token';
 
@@ -57,39 +58,12 @@ api.interceptors.response.use(
       }
     }
 
-    const base = payload?.message || error.message || 'Something went wrong. Please try again.';
+    /* The sentence and the error the screens read, worked out in `failure.js` — it is the part
+       with a rule in it, and the only part of this interceptor a test can reach. */
+    const failure = failureFrom(payload, error.response?.status, error.message);
 
-    /*
-     * The field, said out loud.
-     *
-     * A refused save reported the server's headline and nothing else, and for a validation
-     * failure that headline is the words "Validation failed" — true, and useless. The reply
-     * already carries which field and why, so a person staring at a form with twenty boxes was
-     * being told to find the wrong one themselves. Folded into the message here rather than into
-     * each form, because every form makes the same mistake and none of them can fix it alone.
-     */
-    const named = (payload?.details || [])
-      .filter((detail) => detail?.message)
-      .slice(0, 3)
-      .map((detail) => {
-        /* `lines.0.quantity` is a path through the payload, not a name anybody typed. The last
-           segment is the field; the digits in between are a row, which is worth saying. */
-        const parts = String(detail.field || '').split('.');
-        const field = parts.filter((part) => !/^\d+$/.test(part)).pop();
-        const row = parts.find((part) => /^\d+$/.test(part));
-        const label = (field || '')
-          .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
-          .replace(/^./, (c) => c.toUpperCase());
-        const where = row !== undefined ? `${label} on line ${Number(row) + 1}` : label;
-        return where ? `${where}: ${detail.message}` : detail.message;
-      });
-
-    const message = named.length ? `${base} — ${named.join('; ')}` : base;
-
-    finishFeedback(error.config, error.response, { message });
-    return Promise.reject(
-      Object.assign(new Error(message), { details: payload?.details, status: error.response?.status })
-    );
+    finishFeedback(error.config, error.response, { message: failure.message });
+    return Promise.reject(failure);
   }
 );
 

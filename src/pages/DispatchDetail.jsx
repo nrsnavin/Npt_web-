@@ -316,6 +316,46 @@ export default function DispatchDetail() {
         actions={<Badge status={dispatch.status}>{dispatchStageLabel(dispatch.status)}</Badge>}
       />
 
+      {/*
+        The two decisions somebody took against a warning, at the top of the consignment they
+        were taken on [§15, §19].
+
+        They were on the order screen's tracker and nowhere here, which is the wrong way round:
+        the order screen is where one gets noticed, and this is the screen somebody opens once
+        they have been asked about it. Each carries the reason and the name, because that is the
+        entire point of recording it — a warning nobody can be asked about is decoration.
+      */}
+      {(dispatch.qualityOverride?.reason || dispatch.closedWithoutPod?.reason) && (
+        <div className="mb-5 space-y-2">
+          {dispatch.qualityOverride?.reason && (
+            <Notice tone="danger">
+              <p>
+                <span className="font-bold">Sent past a quality warning</span>
+                {dispatch.qualityOverride.by?.name ? ` by ${dispatch.qualityOverride.by.name}` : ''}
+                {dispatch.qualityOverride.at ? ` on ${formatDate(dispatch.qualityOverride.at)}` : ''}:{' '}
+                {dispatch.qualityOverride.reason}
+              </p>
+              {dispatch.qualityOverride.concern && (
+                <p className="mt-1 text-xs">
+                  The concern at the time: {dispatch.qualityOverride.concern}
+                </p>
+              )}
+            </Notice>
+          )}
+
+          {dispatch.closedWithoutPod?.reason && (
+            <Notice tone="warn">
+              <p>
+                <span className="font-bold">Closed with no proof of delivery</span>
+                {dispatch.closedWithoutPod.by?.name ? ` by ${dispatch.closedWithoutPod.by.name}` : ''}
+                {dispatch.closedWithoutPod.at ? ` on ${formatDate(dispatch.closedWithoutPod.at)}` : ''}:{' '}
+                {dispatch.closedWithoutPod.reason}
+              </p>
+            </Notice>
+          )}
+        </div>
+      )}
+
       {(dispatch.accountingPending || dispatch.orderSyncPending) && <div className="mb-5"><Notice tone="warn">This consignment is saved. Accounting or order totals are still being completed. Refresh to check progress.</Notice><button type="button" className="btn-secondary mt-2" onClick={reload}>Refresh status</button></div>}
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
         <div className="space-y-5">
@@ -413,6 +453,25 @@ export default function DispatchDetail() {
                   },
                   { label: 'Contact', value: dispatch.destination?.contactMobile },
                   { label: 'Left', value: dispatch.dispatchDate && formatDate(dispatch.dispatchDate) },
+                  /*
+                   * When it is owed. It was missing from this panel altogether, which made the
+                   * consignment's own page the one place that could not answer the question the
+                   * yard opens it to ask — and the red notice below quoted a date the page never
+                   * showed. Labelled by which kind of date it is, because a promise somebody made
+                   * on the phone and an estimate the yard typed are not the same commitment.
+                   */
+                  {
+                    label: dispatch.dueDateIsPromise ? 'Promised for' : 'Due to arrive',
+                    value: dispatch.dueDate && formatDate(dispatch.dueDate),
+                  },
+                  ...(dispatch.dueDateIsPromise &&
+                  dispatch.expectedDeliveryDate &&
+                  dispatch.expectedDeliveryDate !== dispatch.dueDate
+                    ? [{
+                        label: 'Our estimate',
+                        value: formatDate(dispatch.expectedDeliveryDate),
+                      }]
+                    : []),
                   {
                     label: 'Delivered',
                     value: dispatch.deliveredAt && formatDate(dispatch.deliveredAt),
@@ -422,9 +481,22 @@ export default function DispatchDetail() {
               />
             </dl>
 
+            {/* Whose date it was, when it was a promise: "we said the 20th" is a different
+                conversation from "we thought the 20th", and the difference is a name. */}
+            {dispatch.promise?.date && (
+              <p className="mt-2 text-xs text-steel-500">
+                Promised by {dispatch.promise.by?.name || 'marketing'}
+                {dispatch.promise.at ? ` on ${formatDate(dispatch.promise.at)}` : ''}
+                {dispatch.promise.note ? ` · ${dispatch.promise.note}` : ''}
+              </p>
+            )}
+
+            {/* `dueDate`, the date `isOverdue` is actually measured against — the estimate read
+                as a date in the future next to the words "past its delivery date". */}
             {dispatch.isOverdue && (
               <Notice tone="danger">
-                Past its delivery date of {formatDate(dispatch.expectedDeliveryDate)} and not
+                Past {dispatch.dueDateIsPromise ? 'the date promised to the buyer' : 'its delivery date'}
+                {' '}of {formatDate(dispatch.dueDate || dispatch.expectedDeliveryDate)} and not
                 acknowledged as delivered.
               </Notice>
             )}
