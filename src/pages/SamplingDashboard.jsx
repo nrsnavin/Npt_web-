@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { samples as samplesApi } from '../api/endpoints.js';
 import { useRecord } from '../hooks/useRecords.js';
 import { Badge, ErrorState, PageHeader, Section, Spinner } from '../components/ui.jsx';
+import EscalatedTasks from '../components/EscalatedTasks.jsx';
 import { formatNumber } from '../utils/format.js';
 import { SAMPLE_PURPOSES, optionLabel, sampleStageLabel } from '../utils/pipeline.js';
 
@@ -142,6 +143,10 @@ export default function SamplingDashboard() {
         title="Sampling dashboard"
         subtitle="Where the bench is, what is late, and whether samples are going out right"
       />
+
+      {/* Above the figures: a job another department has handed the bench this morning is a
+          thing to do, and the tiles are a thing to read. */}
+      <EscalatedTasks />
 
       <div className="mb-5 grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
         <Tile label="Open" value={tiles.openTotal} to="/samples" />

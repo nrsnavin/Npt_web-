@@ -5,6 +5,7 @@ import { useRecord } from '../hooks/useRecords.js';
 import { Badge, ErrorState, PageHeader, Section, Spinner } from '../components/ui.jsx';
 import TodoBoard from '../components/TodoBoard.jsx';
 import EscalationFeed from '../components/EscalationFeed.jsx';
+import EscalatedTasks from '../components/EscalatedTasks.jsx';
 import { formatCompactCurrency, formatDate, humanise } from '../utils/format.js';
 import { LOST_REASONS, SOURCES, optionLabel, sampleStageLabel, stageLabel } from '../utils/pipeline.js';
 
@@ -127,6 +128,7 @@ export default function MarketingDashboard() {
         applying because the record is an alarm.
       */}
       <div className="mb-5">
+        <EscalatedTasks />
         <EscalationFeed title="Orders the floor has stopped on" />
       </div>
 

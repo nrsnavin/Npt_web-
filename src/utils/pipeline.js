@@ -583,7 +583,7 @@ const ownerId = (value) => String(value?._id ?? value ?? '');
  * an id — so the costings register told Nandhini that her own buyers were somebody else's, by
  * name, which is a worse failure than the missing rule it was written to fix.
  */
-const selfId = (user) => String(user?._id ?? user?.id ?? '');
+export const selfId = (user) => String(user?._id ?? user?.id ?? '');
 
 export const ownsRecord = (user, record, field = 'assignedTo') => {
   if (!isOwnershipScoped(user)) return true;
@@ -592,3 +592,27 @@ export const ownsRecord = (user, record, field = 'assignedTo') => {
   const mine = selfId(user);
   return Boolean(mine) && ownerId(record?.[field]) === mine;
 };
+
+/* -------------------------------- Departments -------------------------------- */
+
+/**
+ * The eight departments, as the server knows them and as a person reads them.
+ *
+ * `sampling` belongs on this list and was missing from the two ad-hoc copies elsewhere in the
+ * app — which is exactly what happens to a list written out wherever it is needed. Anything new
+ * that offers a department to choose from reads this one.
+ */
+export const DEPARTMENTS = [
+  { key: 'marketing', label: 'Marketing' },
+  { key: 'sampling', label: 'Sampling' },
+  { key: 'order_confirmation', label: 'Order confirmation' },
+  { key: 'production', label: 'Production' },
+  { key: 'quality', label: 'Quality' },
+  { key: 'despatch', label: 'Despatch' },
+  { key: 'accounts', label: 'Accounts' },
+  { key: 'management', label: 'Management' },
+];
+
+export const departmentLabel = (key) =>
+  DEPARTMENTS.find((department) => department.key === key)?.label ||
+  String(key || '').replace(/_/g, ' ');

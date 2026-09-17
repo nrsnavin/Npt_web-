@@ -7,6 +7,7 @@ import QueryAnswer from '../components/QueryAnswer.jsx';
 import { ProductionLineDialog, ProductionStatusPicker } from '../components/ProductionLine.jsx';
 import UrgentOrder from '../components/UrgentOrder.jsx';
 import EscalationFeed from '../components/EscalationFeed.jsx';
+import EscalatedTasks from '../components/EscalatedTasks.jsx';
 import { formatNumber } from '../utils/format.js';
 
 /**
@@ -331,6 +332,7 @@ export default function ProductionHome() {
         because an order nobody can run outranks one somebody wants sooner, and because this is
         where a supervisor sees whether the resin they escalated on Tuesday has been chased.
       */}
+      <EscalatedTasks />
       <EscalationFeed />
 
       {/*

@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { useWorkspace } from './dock/WorkspaceContext.jsx';
-import { TodoRow, dueLabel } from './dock/TodoPanel.jsx';
+import { ScopeTabs, TodoRow, dueLabel } from './dock/TodoPanel.jsx';
+import { EscalateTaskDialog } from './TaskEscalation.jsx';
 import { Notice, Section } from './ui.jsx';
+import { departmentLabel } from '../utils/pipeline.js';
 
 /**
  * The day's tasks, on the dashboard rather than behind a dock icon.
@@ -42,7 +44,10 @@ const GROUPS = [
 ];
 
 export default function TodoBoard() {
-  const { todos, addTodo, saveTodo, removeTodo } = useWorkspace();
+  const {
+    todos, todoMeta, scope, setScope, addTodo, saveTodo, removeTodo, escalateTodo,
+  } = useWorkspace();
+  const [escalating, setEscalating] = useState(null);
   const [title, setTitle] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [priority, setPriority] = useState('normal');
@@ -83,10 +88,35 @@ export default function TodoBoard() {
   };
 
   const toggle = (todo) => saveTodo({ id: todo._id, completed: !todo.completed });
+  const claim = (todo, take) => saveTodo({ id: todo._id, claim: take });
+
+  /* Marketing's window on a buyer's work is read-only [§29]. */
+  const readOnly = scope === 'customers';
+
+  /* Each list is empty for a different reason, and "your list is clear" on the customers tab
+     reads as though the buyer has nothing outstanding rather than as though nothing is stuck. */
+  const emptyLine = {
+    mine: 'Your list is clear.',
+    department: 'Nothing on the queue. The whole department is clear.',
+    customers: 'Nothing outstanding on your customers, in any department.',
+  }[scope];
+
+  /** The row's props, identical in all three places it is drawn. */
+  const rowProps = {
+    readOnly,
+    showDepartment: scope !== 'department',
+    onToggle: toggle,
+    onDelete: removeTodo,
+    onClaim: claim,
+    onEscalate: setEscalating,
+  };
 
   return (
     <Section
-      title="Your tasks"
+      title={
+        { mine: 'Your tasks', department: `${departmentLabel(todoMeta?.department)} queue`,
+          customers: 'Your customers' }[scope] || 'Tasks'
+      }
       actions={
         <div className="flex items-center gap-1">
           <button
@@ -110,11 +140,15 @@ export default function TodoBoard() {
         </div>
       }
     >
+      {/* Whose list is being read. The default is `mine`, because this is the screen somebody
+          plans their own morning from — the queue is one press away, not in the way. */}
+      <ScopeTabs scope={scope} setScope={setScope} meta={todoMeta} className="mb-3" />
+
       {/*
         * The headline, before the list. Somebody scanning this at nine o'clock wants to know
         * whether they are behind, which "nine tasks" does not tell them.
         */}
-      {!showDone && (
+      {!showDone && scope !== 'customers' && (
         <p className="mb-3 text-xs leading-relaxed text-steel-400">
           {open.length === 0
             ? 'Nothing on your list. Anything the plant hands you will land here.'
@@ -129,7 +163,18 @@ export default function TodoBoard() {
         </p>
       )}
 
-      {/* Quick capture, in the place the list is read. */}
+      {/* A line for the window rather than the headline: what marketing wants here is not "am I
+          behind" but "what is standing between my buyer and their delivery". */}
+      {!showDone && scope === 'customers' && (
+        <p className="mb-3 text-xs leading-relaxed text-steel-400">
+          Every task on the buyers you own, whichever department is holding it. Read-only — hand
+          one on if it needs doing sooner.
+        </p>
+      )}
+
+      {/* Quick capture, in the place the list is read. Not on the customers tab: a task typed
+          there would land on marketing's own queue, which is not what the tab is about. */}
+      {!readOnly && (
       <form onSubmit={submit} className="mb-4 flex flex-wrap gap-2">
         <input
           className="input min-w-[12rem] flex-1 py-1.5 text-xs"
@@ -158,6 +203,7 @@ export default function TodoBoard() {
           Add
         </button>
       </form>
+      )}
 
       {error && <div className="mb-3"><Notice tone="danger">{error}</Notice></div>}
 
@@ -165,7 +211,7 @@ export default function TodoBoard() {
         done.length ? (
           <ul className="divide-y divide-line/[0.04]">
             {done.slice(0, 20).map((todo) => (
-              <TodoRow key={todo._id} todo={todo} onToggle={toggle} onDelete={removeTodo} />
+              <TodoRow key={todo._id} todo={todo} {...rowProps} />
             ))}
           </ul>
         ) : (
@@ -180,19 +226,24 @@ export default function TodoBoard() {
               </p>
               <ul className="divide-y divide-line/[0.04]">
                 {buckets[group.key].map((todo) => (
-                  <TodoRow key={todo._id} todo={todo} onToggle={toggle} onDelete={removeTodo} />
+                  <TodoRow key={todo._id} todo={todo} {...rowProps} />
                 ))}
               </ul>
             </div>
           ))}
 
           {!open.length && (
-            <p className="py-6 text-center text-sm text-steel-500">
-              Your list is clear.
-            </p>
+            <p className="py-6 text-center text-sm text-steel-500">{emptyLine}</p>
           )}
         </div>
       )}
+
+      <EscalateTaskDialog
+        task={escalating}
+        open={Boolean(escalating)}
+        onClose={() => setEscalating(null)}
+        onEscalated={escalateTodo}
+      />
     </Section>
   );
 }

@@ -4,11 +4,24 @@ const unwrap = (response) => response.data.data;
 
 /** The bottom-right dock: personal tasks and notes, plus plant-wide announcements. */
 export const workspace = {
+  /**
+   * Tasks [§35]. `scope` picks which question is being asked: `mine` (the default) is what I am
+   * holding, `department` is my department's queue, `customers` is marketing's view across every
+   * department's work on the buyers they own.
+   *
+   * `list` keeps the whole envelope rather than unwrapping to `data`, because the reply carries
+   * which scope answered and whether this person has a customer view at all — the screen cannot
+   * draw the tabs without it.
+   */
   todos: {
-    list: (params) => api.get('/workspace/todos', { params }).then(unwrap),
+    list: (params) => api.get('/workspace/todos', { params }).then((response) => response.data),
     reminders: () => api.get('/workspace/todos/reminders').then(unwrap),
+    /** What another department has handed us and nobody here has picked up yet. */
+    escalated: () => api.get('/workspace/todos/escalated').then((response) => response.data),
     create: (payload) => api.post('/workspace/todos', payload).then(unwrap),
     update: ({ id, ...payload }) => api.patch(`/workspace/todos/${id}`, payload).then(unwrap),
+    escalate: ({ id, ...payload }) =>
+      api.post(`/workspace/todos/${id}/escalate`, payload).then(unwrap),
     remove: (id) => api.delete(`/workspace/todos/${id}`).then(unwrap),
   },
   notes: {

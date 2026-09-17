@@ -13,6 +13,7 @@ import { Badge, ErrorState, Modal, Notice, PageHeader, Spinner } from '../compon
 import PricingDecision from '../components/PricingDecision.jsx';
 import UrgentOrder from '../components/UrgentOrder.jsx';
 import EscalationFeed from '../components/EscalationFeed.jsx';
+import EscalatedTasks from '../components/EscalatedTasks.jsx';
 import { formatCompactCurrency, formatDate, formatNumber, humanise } from '../utils/format.js';
 
 /**
@@ -367,6 +368,7 @@ export default function ManagementHome() {
       </div>
 
       {/* Stopped orders. Draws nothing when nothing is stopped, so a calm morning stays calm. */}
+      <EscalatedTasks />
       {canRead('orders') && <EscalationFeed />}
 
       {/*

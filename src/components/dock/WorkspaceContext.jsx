@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { workspace } from '../../api/endpoints.js';
 import { useAuth } from '../../context/AuthContext.jsx';
+import { selfId } from '../../utils/pipeline.js';
 
 const WorkspaceContext = createContext(null);
 
@@ -9,10 +10,21 @@ const WorkspaceContext = createContext(null);
  * panel never disagree — opening a panel does not refetch what the badge already knows.
  */
 export function WorkspaceProvider({ children }) {
-  const { isAuthenticated, canRead } = useAuth();
+  const { isAuthenticated, canRead, user } = useAuth();
   const mayReadAnnouncements = canRead('announcements');
+  const me = selfId(user);
 
   const [todos, setTodos] = useState([]);
+  /**
+   * Which question the list is currently answering [§35].
+   *
+   * `mine` is what I am holding — and it is the default deliberately, because the dock is the
+   * list somebody works from and a queue they share with four colleagues is not that. The other
+   * two are asked for: `department`, the queue proper, and `customers`, marketing's view across
+   * every department's work on the buyers they own.
+   */
+  const [scope, setScope] = useState('mine');
+  const [todoMeta, setTodoMeta] = useState({ scope: 'mine', department: null, mayReadCustomers: false });
   const [reminders, setReminders] = useState(null);
   const [notes, setNotes] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
@@ -27,12 +39,13 @@ export function WorkspaceProvider({ children }) {
     if (!isAuthenticated) return;
     setLoading(true);
     try {
-      const [todoList, reminderData, noteList] = await Promise.all([
-        workspace.todos.list(),
+      const [todoResponse, reminderData, noteList] = await Promise.all([
+        workspace.todos.list({ scope }),
         workspace.todos.reminders(),
         workspace.notes.list(),
       ]);
-      setTodos(todoList);
+      setTodos(todoResponse.data);
+      setTodoMeta(todoResponse.meta || {});
       setReminders(reminderData);
       setNotes(noteList);
 
@@ -44,7 +57,7 @@ export function WorkspaceProvider({ children }) {
     } finally {
       setLoading(false);
     }
-  }, [isAuthenticated, mayReadAnnouncements]);
+  }, [isAuthenticated, mayReadAnnouncements, scope]);
 
   useEffect(() => {
     load();
@@ -54,6 +67,9 @@ export function WorkspaceProvider({ children }) {
     () => ({
       loading,
       todos,
+      todoMeta,
+      scope,
+      setScope,
       reminders,
       notes,
       announcements,
@@ -68,9 +84,37 @@ export function WorkspaceProvider({ children }) {
       },
       async saveTodo(payload) {
         const updated = await workspace.todos.update(payload);
-        setTodos((current) => current.map((todo) => (todo._id === updated._id ? updated : todo)));
+        /*
+         * Handing a job back to the department removes it from the `mine` list rather than
+         * leaving a row that claims to be yours — the reply says who holds it now, so the list
+         * follows rather than waiting for a refresh somebody has to know to do.
+         */
+        const stillHere =
+          scope !== 'mine' || String(updated.user?._id || updated.user || '') === me;
+        setTodos((current) =>
+          stillHere
+            ? current.map((todo) => (todo._id === updated._id ? updated : todo))
+            : current.filter((todo) => todo._id !== updated._id)
+        );
         await refreshReminders();
         return updated;
+      },
+      /**
+       * Handing a task to another department [§25].
+       *
+       * It leaves this department's queue, so on the queue view the row goes. On `mine` it
+       * stays: the person who escalated keeps watching whether anybody picked it up, which is
+       * the difference between a handover and a disposal.
+       */
+      async escalateTodo(payload) {
+        const moved = await workspace.todos.escalate(payload);
+        setTodos((current) =>
+          scope === 'department'
+            ? current.filter((todo) => todo._id !== moved._id)
+            : current.map((todo) => (todo._id === moved._id ? moved : todo))
+        );
+        await refreshReminders();
+        return moved;
       },
       async removeTodo(id) {
         await workspace.todos.remove(id);
@@ -118,7 +162,10 @@ export function WorkspaceProvider({ children }) {
         setAnnouncements((current) => current.filter((item) => item.id !== id));
       },
     }),
-    [loading, todos, reminders, notes, announcements, announcementMeta, load, refreshReminders]
+    [
+      loading, todos, todoMeta, scope, me, reminders, notes, announcements, announcementMeta,
+      load, refreshReminders,
+    ]
   );
 
   return <WorkspaceContext.Provider value={value}>{children}</WorkspaceContext.Provider>;
