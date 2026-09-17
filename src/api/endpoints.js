@@ -16,8 +16,21 @@ export const workspace = {
   todos: {
     list: (params) => api.get('/workspace/todos', { params }).then((response) => response.data),
     reminders: () => api.get('/workspace/todos/reminders').then(unwrap),
-    /** What another department has handed us and nobody here has picked up yet. */
-    escalated: () => api.get('/workspace/todos/escalated').then((response) => response.data),
+    /**
+     * What needs somebody in this department today: `{ handedOver, urgent }`.
+     *
+     * Two groups from one call, because they are drawn in one card and a second request would
+     * let the halves of one block arrive at different times.
+     */
+    needsMe: () => api.get('/workspace/todos/needs-me').then((response) => response.data),
+    /**
+     * Whose job this looks like, and whether anything is waiting on it.
+     *
+     * A GET, because it proposes and moves nothing — the escalation below still needs its own
+     * press. Being a GET is also what keeps it quiet: the toast layer only announces writes, so
+     * a dropdown filling itself in does not raise "Record updated" at somebody.
+     */
+    suggest: (id) => api.get(`/workspace/todos/${id}/suggest`).then(unwrap),
     create: (payload) => api.post('/workspace/todos', payload).then(unwrap),
     update: ({ id, ...payload }) => api.patch(`/workspace/todos/${id}`, payload).then(unwrap),
     escalate: ({ id, ...payload }) =>

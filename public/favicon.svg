@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!--
+    A hanger, because that is what the plant makes.
+
+    Drawn as a path rather than shipped as a bitmap so it stays sharp at every tab size and
+    costs under a kilobyte. `currentColor` is deliberately not used: a favicon is rendered
+    outside the page, so it has no colour to inherit — the flame of the app's own palette is
+    written in, and it reads on a light and a dark tab strip alike.
+  -->
+  <g fill="none" stroke="#E4572E" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M16 6.5a3 3 0 0 1 3 3c0 1.6-1.3 2.4-3 3.2" />
+    <path d="M16 12.7 4.5 21.5a1.4 1.4 0 0 0 .85 2.5h21.3a1.4 1.4 0 0 0 .85-2.5L16 12.7Z" />
+  </g>
+</svg>

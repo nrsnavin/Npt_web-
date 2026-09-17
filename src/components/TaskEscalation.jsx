@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { workspace } from '../api/endpoints.js';
 import { Field, FormError, Modal, Notice } from './ui.jsx';
 import { DEPARTMENTS, departmentLabel } from '../utils/pipeline.js';
 import { formatDate } from '../utils/format.js';
@@ -18,22 +19,82 @@ import { formatDate } from '../utils/format.js';
 export function EscalateTaskDialog({ task, open, onClose, onEscalated }) {
   const [department, setDepartment] = useState('');
   const [reason, setReason] = useState('');
+  const [urgent, setUrgent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  /** What was proposed, kept so the record can say the priority was a suggestion. */
+  const [suggestion, setSuggestion] = useState(null);
+  const [asking, setAsking] = useState(false);
+
+  /*
+   * Asked as the dialog opens, and never waited for.
+   *
+   * The dropdown and the box are usable from the first frame; when the answer arrives it fills
+   * in whatever the person has not already typed. That ordering is the whole point — a form
+   * that greys itself out for a second while something thinks is a form that is slower than the
+   * dropdown it was meant to replace, and on a Tiruppur line that second is sometimes ten.
+   *
+   * `live` guards the late arrival: open the dialog, close it, open it on another task, and the
+   * first answer must not land in the second task's form.
+   */
+  useEffect(() => {
+    if (!open || !task?._id) return undefined;
+    let live = true;
+    setAsking(true);
+    setSuggestion(null);
+
+    workspace.todos
+      .suggest(task._id)
+      .then((answer) => {
+        if (!live) return;
+        setSuggestion(answer);
+        /* Only ever fills a blank. Somebody who has started typing is not overruled by this. */
+        if (answer?.department) setDepartment((current) => current || answer.department);
+        if (answer?.reason) setReason((current) => current || answer.reason);
+        if (answer?.priority === 'high') setUrgent(true);
+      })
+      .catch(() => {
+        /* Swallowed on purpose: the form works without it, and an error box about a suggestion
+           nobody asked for is worse than no suggestion. */
+      })
+      .finally(() => {
+        if (live) setAsking(false);
+      });
+
+    return () => {
+      live = false;
+    };
+  }, [open, task?._id]);
 
   const close = () => {
     setDepartment('');
     setReason('');
+    setUrgent(false);
+    setSuggestion(null);
     setError(null);
     onClose();
   };
+
+  /* True while the two fields still hold exactly what was proposed — which is what makes the
+     priority a suggestion rather than a decision. Edit either and it becomes yours. */
+  const untouched =
+    suggestion?.department === department && suggestion?.reason === reason;
 
   const submit = async (event) => {
     event.preventDefault();
     setBusy(true);
     setError(null);
     try {
-      await onEscalated({ id: task._id, department, reason: reason.trim() });
+      await onEscalated({
+        id: task._id,
+        department,
+        reason: reason.trim(),
+        ...(urgent && { priority: 'high' }),
+        /* Attributed only where it really came from the suggestion and was not edited. */
+        ...(urgent && untouched && suggestion?.priority === 'high' && suggestion?.from
+          ? { suggestedBy: suggestion.from, suggestedReason: suggestion.reason || undefined }
+          : {}),
+      });
       close();
     } catch (failure) {
       setError(failure);
@@ -58,7 +119,16 @@ export function EscalateTaskDialog({ task, open, onClose, onEscalated }) {
           </p>
         </Notice>
 
-        <Field label="Who has to do it">
+        <Field
+          label="Who has to do it"
+          hint={
+            asking
+              ? 'Reading the task…'
+              : suggestion?.department
+                ? `Suggested${suggestion.from === 'model' ? '' : ' from the wording'} — change it if it is wrong`
+                : undefined
+          }
+        >
           <select
             className="input"
             autoFocus
@@ -86,6 +156,44 @@ export function EscalateTaskDialog({ task, open, onClose, onEscalated }) {
             onChange={(event) => setReason(event.target.value)}
           />
         </Field>
+
+        {/*
+          Urgency, ticked rather than assumed.
+
+          The suggestion pre-ticks this where something is waiting on the job, and the label says
+          it was suggested — so the person either agrees by leaving it or disagrees by clearing
+          it, and either way somebody has looked. A card headed "urgent" filled by a model that
+          nobody checked is a card people stop reading the second time it is wrong.
+        */}
+        <label className="flex cursor-pointer items-start gap-2.5">
+          <input
+            type="checkbox"
+            className="mt-0.5 h-4 w-4 shrink-0 rounded border-line/25"
+            checked={urgent}
+            onChange={(event) => setUrgent(event.target.checked)}
+          />
+          <span className="text-sm">
+            <span className="font-semibold text-steel-100">Something is waiting on this</span>
+            <span className="block text-xs text-steel-400">
+              Puts it at the top of their card as urgent.
+              {urgent && suggestion?.priority === 'high' && untouched
+                ? ' Suggested — untick it if nothing is actually held up.'
+                : ''}
+            </span>
+          </span>
+        </label>
+
+        {/* What it thought, in its own words. A suggestion somebody can check is one they can
+            reasonably trust; one that only shows its conclusion has to be taken on faith. */}
+        {suggestion?.reason && suggestion.department && (
+          <p className="rounded-md bg-line/[0.04] px-3 py-2 text-xs text-steel-400">
+            {suggestion.from === 'model' ? 'Read as' : 'Matched as'}{' '}
+            <span className="font-semibold text-steel-300">
+              {departmentLabel(suggestion.department)}
+            </span>
+            : {suggestion.reason}
+          </p>
+        )}
 
         <FormError error={error} />
 

@@ -136,17 +136,115 @@ test('a task handed away leaves the queue it came from', () => {
   assert.match(escalate[0], /map\(/, 'and updating it in place elsewhere');
 });
 
-test('the escalated card empties as work is picked up, not as it is read', () => {
+test('the card empties as work is picked up, not as it is read', () => {
   /*
    * There is no "mark as seen", deliberately: that is a button people press to clear a badge.
    * Taking the job is the acknowledgement, so the card is what is *unanswered* rather than a
    * second copy of the queue.
    */
-  const card = read('components/EscalatedTasks.jsx');
+  const card = read('components/NeedsYouToday.jsx');
   assert.match(card, /claim: true/, 'taking it is the only action on the card');
   assert.ok(!/acknowledge/i.test(card.replace(/\/\*[\s\S]*?\*\//g, '')),
     'and nothing on the card merely acknowledges');
-  /* Drawn as nothing when nothing has been handed over — a card that says "none" every morning
-     is a card people stop reading. */
-  assert.match(card, /if \(!rows\?\.length\) return null;/);
+  /* Drawn as nothing when there is nothing — a card that says "none" every morning is a card
+     people stop reading, and then miss on the morning it is not empty. */
+  assert.match(card, /if \(!total\) return null;/);
+});
+
+test('the card is one block with two groups, not two cards', () => {
+  /*
+   * A dashboard that answers "what now" in four warning-coloured cards answers it in none.
+   * Both groups are unanswered work on the same queue wanting the same response, so they sit
+   * inside one bordered block with a heading each.
+   */
+  const card = read('components/NeedsYouToday.jsx');
+  assert.equal(
+    (card.match(/rounded-xl border border-warn-500\/30/g) || []).length,
+    1,
+    'one warning-toned container'
+  );
+  assert.match(card, /handed over/i, 'the handover group is labelled');
+  assert.match(card, /urgent or late on your own queue/i, 'and so is the urgent one');
+});
+
+test('a suggested priority is never drawn as somebody\'s decision', () => {
+  /*
+   * The distinction the whole feature rests on. A model may flag a task urgent — that is what
+   * was asked for — but a card headed "urgent" is only worth reading if a guess can be told
+   * apart from a decision. "Suggested urgent" in the quieter colour is that difference; without
+   * it, the second wrong flag costs the card its readers.
+   */
+  const card = read('components/NeedsYouToday.jsx');
+  assert.match(card, /task\.prioritySuggested\?\.by/, 'the row reads where the priority came from');
+  assert.match(card, /suggested \? 'Suggested urgent' : 'Urgent'/, 'and says which it was');
+  assert.match(card, /suggested \? 'font-semibold text-steel-400' : 'text-warn-400'/,
+    'in a quieter colour, so a suggestion does not shout as loudly as a decision');
+});
+
+/* ------------------------- The suggestion, and its limits ------------------------- */
+
+const DIALOG = read('components/TaskEscalation.jsx');
+
+test('the suggestion never blocks the form', () => {
+  /*
+   * The dropdown and the box are usable from the first frame; the answer fills in whatever has
+   * not been typed when it arrives. A form that greys itself out while something thinks is
+   * slower than the dropdown it was meant to replace — and on a domestic line in Tiruppur that
+   * pause is sometimes ten seconds.
+   */
+  assert.ok(!/disabled=\{asking/.test(DIALOG), 'nothing is disabled while it is asking');
+  assert.match(DIALOG, /setAsking\(true\)/, 'it only records that it is asking');
+  assert.match(DIALOG, /Reading the task…/, 'and says so in the hint, where it costs nothing');
+});
+
+test('it only ever fills a blank', () => {
+  /*
+   * A late answer must not overwrite what somebody has started typing. `setX((current) =>
+   * current || answer)` is the whole guard, and it is easy to lose in a refactor to a plain set.
+   */
+  assert.match(DIALOG, /setDepartment\(\(current\) => current \|\| answer\.department\)/);
+  assert.match(DIALOG, /setReason\(\(current\) => current \|\| answer\.reason\)/);
+});
+
+test('a late answer cannot land in a different task\'s form', () => {
+  /* Open the dialog, close it, open it on another task: the first answer is in flight and must
+     not arrive in the second form. */
+  assert.match(DIALOG, /let live = true;/);
+  assert.match(DIALOG, /if \(!live\) return;/);
+});
+
+test('a failed suggestion is silent', () => {
+  /*
+   * The form works without it. An error box about something nobody asked for is worse than no
+   * suggestion at all — and this runs on every dialog open.
+   */
+  assert.match(DIALOG, /\.catch\(\(\) => \{/, 'the failure is swallowed deliberately');
+});
+
+test('urgency is a tick somebody can clear, not an assumption', () => {
+  /*
+   * The model may pre-tick it; a person either agrees by leaving it or disagrees by clearing
+   * it. Either way somebody has looked at it before the receiving department's card says
+   * "urgent".
+   */
+  assert.match(DIALOG, /type="checkbox"/);
+  assert.match(DIALOG, /Something is waiting on this/);
+  assert.match(DIALOG, /onChange=\{\(event\) => setUrgent\(event\.target\.checked\)\}/);
+});
+
+test('the priority is credited to the model only while it is untouched', () => {
+  /*
+   * Editing the department or the reason makes the decision yours, and the record should stop
+   * crediting a suggestion for it. Without `untouched` the row would keep saying "suggested"
+   * after somebody had overruled the suggestion, which is the wrong way round.
+   */
+  assert.match(DIALOG, /const untouched =/);
+  assert.match(DIALOG, /urgent && untouched && suggestion\?\.priority === 'high'/);
+});
+
+test('it shows its reasoning, not only its conclusion', () => {
+  /* A suggestion somebody can check is one they can reasonably come to trust; one that shows
+     only its answer has to be taken on faith, and is discarded the first time it is wrong. */
+  assert.match(DIALOG, /suggestion\?\.reason && suggestion\.department/);
+  assert.match(DIALOG, /'Read as' : 'Matched as'/, 'and says whether a model or the rules read it');
 });

@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { ErrorState, PageHeader, Spinner } from '../components/ui.jsx';
 import FollowUpForm from '../components/FollowUp.jsx';
 import EscalationFeed from '../components/EscalationFeed.jsx';
-import EscalatedTasks from '../components/EscalatedTasks.jsx';
+import NeedsYouToday from '../components/NeedsYouToday.jsx';
 import { formatCurrency, formatDate, plural } from '../utils/format.js';
 
 /**
@@ -341,7 +341,7 @@ export default function PaymentsHome() {
         expects — an e-way bill not raised holds a loaded lorry at the gate, and until now the
         only way the yard could say so was to ring somebody.
       */}
-      <EscalatedTasks />
+      <NeedsYouToday />
       {canRead('orders') && <EscalationFeed />}
 
       {GROUPS.map((group) => (

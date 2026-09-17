@@ -10,7 +10,7 @@ import {
   FillPaperwork, PriorityFlag, PromisedDate, TellMarketing,
 } from '../components/DispatchUrgency.jsx';
 import EscalationFeed from '../components/EscalationFeed.jsx';
-import EscalatedTasks from '../components/EscalatedTasks.jsx';
+import NeedsYouToday from '../components/NeedsYouToday.jsx';
 import { formatDate, formatNumber } from '../utils/format.js';
 
 /**
@@ -398,7 +398,7 @@ export default function DispatchHome() {
         screen: a lorry that cannot be loaded outranks the queue of ones that can, and this is
         where somebody sees whether the e-way bill they escalated this morning has been raised.
       */}
-      <EscalatedTasks />
+      <NeedsYouToday />
       <EscalationFeed />
 
       {/*
