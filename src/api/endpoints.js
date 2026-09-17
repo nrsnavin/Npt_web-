@@ -37,6 +37,18 @@ export const workspace = {
       api.post(`/workspace/todos/${id}/escalate`, payload).then(unwrap),
     remove: (id) => api.delete(`/workspace/todos/${id}`).then(unwrap),
   },
+  /**
+   * The review [§25]: what matters now, ranked.
+   *
+   * Keeps the whole envelope, because the reply carries which scope answered, whether a model
+   * or the plant's own severity arithmetic ordered it, and when — all of which the panel says
+   * out loud, since a ranking nobody can attribute is one nobody can argue with.
+   */
+  review: {
+    read: (params) => api.get('/workspace/review', { params }).then((response) => response.data),
+    /** Handing one finding to the department that can clear it. A task, raised by the presser. */
+    raise: (payload) => api.post('/workspace/review/raise', payload).then(unwrap),
+  },
   notes: {
     list: () => api.get('/workspace/notes').then(unwrap),
     create: (payload) => api.post('/workspace/notes', payload).then(unwrap),

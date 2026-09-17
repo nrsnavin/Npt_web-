@@ -11,6 +11,7 @@ import {
 } from '../components/DispatchUrgency.jsx';
 import EscalationFeed from '../components/EscalationFeed.jsx';
 import NeedsYouToday from '../components/NeedsYouToday.jsx';
+import WhatMattersNow from '../components/WhatMattersNow.jsx';
 import { formatDate, formatNumber } from '../utils/format.js';
 
 /**
@@ -399,6 +400,7 @@ export default function DispatchHome() {
         where somebody sees whether the e-way bill they escalated this morning has been raised.
       */}
       <NeedsYouToday />
+      <WhatMattersNow />
       <EscalationFeed />
 
       {/*

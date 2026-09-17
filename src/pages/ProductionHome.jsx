@@ -8,6 +8,7 @@ import { ProductionLineDialog, ProductionStatusPicker } from '../components/Prod
 import UrgentOrder from '../components/UrgentOrder.jsx';
 import EscalationFeed from '../components/EscalationFeed.jsx';
 import NeedsYouToday from '../components/NeedsYouToday.jsx';
+import WhatMattersNow from '../components/WhatMattersNow.jsx';
 import { formatNumber } from '../utils/format.js';
 
 /**
@@ -333,6 +334,7 @@ export default function ProductionHome() {
         where a supervisor sees whether the resin they escalated on Tuesday has been chased.
       */}
       <NeedsYouToday />
+      <WhatMattersNow />
       <EscalationFeed />
 
       {/*

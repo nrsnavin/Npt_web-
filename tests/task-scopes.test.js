@@ -248,3 +248,67 @@ test('it shows its reasoning, not only its conclusion', () => {
   assert.match(DIALOG, /suggestion\?\.reason && suggestion\.department/);
   assert.match(DIALOG, /'Read as' : 'Matched as'/, 'and says whether a model or the rules read it');
 });
+
+/* ------------------------- The review, and what it may say ------------------------- */
+
+const REVIEW = read('components/WhatMattersNow.jsx');
+
+test('the finding\'s own words are the headline, the review\'s are commentary', () => {
+  /*
+   * The division the whole feature rests on. `headline` and `detail` are written in the findings
+   * service from real quantities and real names; `why` is the model's sentence about the
+   * *ordering*. Drawn together with no distinction, a rephrased fact would reach the screen
+   * looking exactly like a record — and a plausible wrong number is the one failure nobody
+   * reading the sentence can catch.
+   */
+  assert.match(REVIEW, /\{finding\.headline\}/, 'the headline comes from the finding');
+  assert.match(REVIEW, /\{finding\.detail\}/, 'and so does the detail');
+  /* The model's sentence is set apart: quieter, italic, and behind a rule. */
+  const commentary = REVIEW.match(/\{why && \([\s\S]{0,400}?\{why\}/);
+  assert.ok(commentary, 'the review\'s sentence is drawn');
+  assert.match(commentary[0], /italic/, 'in a different voice');
+  assert.match(commentary[0], /border-l-2/, 'and visually separated from the facts');
+});
+
+test('the panel says who ranked it', () => {
+  /*
+   * Most days, with no API key configured, it is the plant's own arithmetic. A ranking nobody
+   * can attribute is one nobody can argue with.
+   */
+  assert.match(REVIEW, /meta\.from === 'model' \? 'Ordered by the review' : 'Ordered by severity'/);
+});
+
+test('nothing is raised without a press', () => {
+  /*
+   * Six sweeps already write to real queues. A seventh writing on a model's judgement is how a
+   * queue becomes something people stop reading — so every row offers the press and none of
+   * them takes it.
+   */
+  assert.match(REVIEW, /Raise to \$\{departmentLabel\(finding\.department\)/);
+  assert.match(REVIEW, /workspace\.review\.raise\(\{ kind: finding\.kind, department: finding\.department \}\)/,
+    'and sends only which finding, never its text');
+});
+
+test('a raised finding is marked, not removed', () => {
+  /* It has not gone away — it is now somebody's job. Taking the row off would read as "fixed". */
+  assert.match(REVIEW, /setRaised\(\(current\) => \(\{ \.\.\.current, \[finding\.id\]: true \}\)\)/);
+  /* JSX interpolation rather than a template literal, so match the rendered wording either
+     side of the expression. */
+  assert.match(REVIEW, /On the \{departmentLabel\(finding\.department\)\.toLowerCase\(\)\} queue/);
+  assert.ok(!/setReview\([^)]*filter/.test(REVIEW), 'the row is not filtered out of the list');
+});
+
+test('what the review left out is still reachable', () => {
+  /*
+   * A ranking somebody cannot check is one they have to take on faith, and the second time it
+   * buries something obvious they stop reading it. So the unranked findings are one press away.
+   */
+  assert.match(REVIEW, /Show the other \$\{plural\(rest\.length/);
+  assert.match(REVIEW, /const rest = findings\.filter/);
+});
+
+test('an empty plant draws no panel at all', () => {
+  /* A panel that says "nothing wrong" every morning is a panel people scroll past, and then
+     miss on the morning it is not empty. */
+  assert.match(REVIEW, /if \(!findings\.length\) return null;/);
+});

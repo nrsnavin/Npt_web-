@@ -14,6 +14,7 @@ import PricingDecision from '../components/PricingDecision.jsx';
 import UrgentOrder from '../components/UrgentOrder.jsx';
 import EscalationFeed from '../components/EscalationFeed.jsx';
 import NeedsYouToday from '../components/NeedsYouToday.jsx';
+import WhatMattersNow from '../components/WhatMattersNow.jsx';
 import { formatCompactCurrency, formatDate, formatNumber, humanise } from '../utils/format.js';
 
 /**
@@ -369,6 +370,7 @@ export default function ManagementHome() {
 
       {/* Stopped orders. Draws nothing when nothing is stopped, so a calm morning stays calm. */}
       <NeedsYouToday />
+      <WhatMattersNow />
       {canRead('orders') && <EscalationFeed />}
 
       {/*
