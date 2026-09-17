@@ -55,6 +55,7 @@ export default function Production() {
     status: status || undefined,
     open: only === 'open' ? 'true' : undefined,
     overdue: only === 'overdue' ? 'true' : undefined,
+    willMiss: only === 'willMiss' ? 'true' : undefined,
     held: only === 'held' ? 'true' : undefined,
   };
 
@@ -119,6 +120,22 @@ export default function Production() {
             lit: Boolean(meta.overdue),
           },
           {
+            /*
+             * The lines heading for trouble rather than already in it.
+             *
+             * The plant's home screen has counted these under "Will miss — not enough days left
+             * to make it" for a while, and the register had no way to open them: a figure with
+             * nowhere to go. These are the rows still worth acting on, because nothing has been
+             * broken yet.
+             */
+            label: 'Will miss',
+            figure: formatNumber(meta.willMiss || 0),
+            value: 'willMiss',
+            clear: 'open',
+            hint: 'The plant’s own date is past the buyer’s',
+            lit: Boolean(meta.willMiss),
+          },
+          {
             label: 'Stopped',
             figure: formatNumber(meta.held || 0),
             value: 'held',
@@ -145,6 +162,7 @@ export default function Production() {
         <select className="input w-44" value={only} onChange={narrow(setOnly)} aria-label="Narrow to">
           <option value="open">Everything open</option>
           <option value="overdue">Past their date</option>
+          <option value="willMiss">Will miss the buyer’s date</option>
           <option value="held">Stopped</option>
           <option value="">Including finished</option>
         </select>
@@ -182,7 +200,9 @@ export default function Production() {
                     <SortHeader field="quantity" label="Ordered" sort={sort} onToggle={sortBy} align="right" className="px-4" />
                     <SortHeader field="madePercent" label="Made" sort={sort} onToggle={sortBy} className="px-4" />
                     <SortHeader field="production.readyQty" label="Packed" sort={sort} onToggle={sortBy} align="right" className="px-4" />
-                    <SortHeader field="deliveryDate" label="Due" sort={sort} onToggle={sortBy} className="px-4" />
+                    {/* Sorts by the buyer's date, which is now also the date the cell leads with — the column
+    used to rank on `deliveryDate` while drawing `expectedCompletion`. */}
+                    <SortHeader field="dueToBuyer" label="Due to buyer" sort={sort} onToggle={sortBy} className="px-4" />
                     <SortHeader field="production.status" label="Stage" sort={sort} onToggle={sortBy} className="px-4" />
                     {mayWrite && <th className="px-4 py-3" />}
                   </tr>
@@ -190,16 +210,22 @@ export default function Production() {
                 <tbody className="divide-y divide-line/[0.04]">
                   {rows.map((row) => (
                     <tr key={row.lineId} className="row-hover">
+                      {/* `whitespace-nowrap` on both: these are identifiers, and "NPT-" on one
+                          line with "400S" on the next is a model number nobody can scan a column
+                          of. The customer name below is allowed to wrap — it is prose. */}
                       <td className="px-4 py-3.5">
-                        <p className="font-semibold text-steel-100">
+                        <p className="whitespace-nowrap font-semibold text-steel-100">
                           {row.modelNumber || row.mould?.mouldCode || '—'}
                         </p>
-                        <p className="text-xs text-steel-400">
+                        <p className="whitespace-nowrap text-xs text-steel-400">
                           {[row.colour, row.mould?.mouldCode].filter(Boolean).join(' · ') || '—'}
                         </p>
                       </td>
                       <td className="px-4 py-3.5">
-                        <Link to={`/orders/${row.order._id}`} className="text-steel-300 hover:text-accent">
+                        <Link
+                          to={`/orders/${row.order._id}`}
+                          className="whitespace-nowrap text-steel-300 hover:text-accent"
+                        >
                           {row.order.number}
                         </Link>
                         <p className="text-xs text-steel-500">{row.order.customer?.name}</p>
@@ -220,12 +246,16 @@ export default function Production() {
                               style={{ width: `${row.madePercent}%` }}
                             />
                           </div>
-                          <span className="tabular-nums text-xs text-steel-300">
+                          <span className="whitespace-nowrap tabular-nums text-xs text-steel-300">
+                            {/* The percentage beside the count, because the bar shows a
+                                proportion and the number shows pieces — and "24,000" against an
+                                order of 60,000 is 40% only after somebody does the division. */}
                             {formatNumber(row.production?.producedQty || 0)}
+                            <span className="ml-1 text-steel-500">· {row.madePercent}%</span>
                           </span>
                         </div>
                         {row.toMakeQty > 0 && (
-                          <p className="mt-0.5 text-xs text-steel-500">
+                          <p className="mt-0.5 whitespace-nowrap text-xs text-steel-500">
                             {formatNumber(row.toMakeQty)} to go
                           </p>
                         )}
@@ -233,17 +263,49 @@ export default function Production() {
                       <td className="px-4 py-3.5 text-right tabular-nums text-steel-200">
                         {formatNumber(row.production?.readyQty || 0)}
                       </td>
-                      <td className="px-4 py-3.5">
-                        <span className={row.isOverdue ? 'text-danger-400' : 'text-steel-300'}>
-                          {row.production?.expectedCompletion
-                            ? formatDate(row.production.expectedCompletion)
-                            : row.deliveryDate
-                              ? formatDate(row.deliveryDate)
-                              : '—'}
+                      {/*
+                        Two dates, named.
+
+                        This column drew one and said nothing about which: it preferred the
+                        plant's `expectedCompletion` and fell back to the buyer's date, under a
+                        heading that read "Due". So a supervisor could not tell whether the date
+                        in front of them was a promise to a customer or the plant's own guess —
+                        and those are the two facts this screen exists to hold apart. The server
+                        used to conflate them too, which is how a forecast came to clear a
+                        promise; see the note on `isOverdue`.
+
+                        The buyer's date leads, because it is the one somebody made. The plant's
+                        appears under it only when the two differ, which keeps the ordinary row
+                        to one line and makes a disagreement impossible to read past.
+                      */}
+                      <td className="whitespace-nowrap px-4 py-3.5">
+                        <span className={row.isOverdue ? 'font-semibold text-danger-400' : 'text-steel-200'}>
+                          {row.dueToBuyer ? formatDate(row.dueToBuyer) : '—'}
                         </span>
+                        {/* Said when it has been re-agreed, because "due 21 Oct" on a PO that
+                            says 7 Oct is a figure somebody will query. */}
+                        {row.promisedDate && (
+                          <p className="text-xs text-steel-500" title={row.promisedReason || undefined}>
+                            re-agreed{row.deliveryDate ? ` from ${formatDate(row.deliveryDate)}` : ''}
+                          </p>
+                        )}
                         {row.isOverdue && (
                           <p className="text-xs font-semibold text-danger-400">Late</p>
                         )}
+                        {/*
+                          The plant's own forecast, and whether it lands past the promise. This
+                          is the warning that arrives while there is still time to act — the
+                          Late flag above cannot appear until a date has actually gone.
+                        */}
+                        {row.production?.expectedCompletion &&
+                          formatDate(row.production.expectedCompletion) !== formatDate(row.dueToBuyer) && (
+                            <p
+                              className={`text-xs ${row.willMissPromise ? 'font-semibold text-warn-400' : 'text-steel-500'}`}
+                            >
+                              plant: {formatDate(row.production.expectedCompletion)}
+                              {row.willMissPromise ? ' — will miss' : ''}
+                            </p>
+                          )}
                       </td>
                       <td className="px-4 py-3.5">
                         {/* The badge is the control: one tap moves the line. */}
@@ -261,8 +323,14 @@ export default function Production() {
                           onSaved={load}
                         />
                         {/* A hold with a reason on the row, so nobody has to open it to ask. */}
+                        {/* Truncated to keep the row one line, with the whole sentence on hover
+                            and on focus — a reason cut off at "rejected 900 of ..." is a reason
+                            somebody has to open the line to finish reading. */}
                         {row.production?.holdReason && (
-                          <p className="mt-1 max-w-[14rem] truncate text-xs text-danger-400">
+                          <p
+                            className="mt-1 max-w-[14rem] truncate text-xs text-danger-400"
+                            title={row.production.holdReason}
+                          >
                             {row.production.holdReason}
                           </p>
                         )}

@@ -290,6 +290,113 @@ function OrderActions({ order, onDone, mayWrite }) {
 
 /* ------------------------------- The PO upload ------------------------------- */
 
+/**
+ * A new delivery date the buyer has agreed to [§25].
+ *
+ * The only thing that may move a line's deadline, and deliberately not the plant's to do.
+ * Production records `expectedCompletion` — its own forecast — and that used to be what lateness
+ * was measured against, so the plant could clear a broken promise by revising its own estimate.
+ * This is the honest version: what the buyer actually said, with a name and a reason on it.
+ *
+ * The PO's own date is shown and never overwritten, because "what did we promise originally" has
+ * to stay answerable when somebody asks six months later why an order ran late.
+ */
+function RePromiseDialog({ order, line, onClose, onSaved }) {
+  const standing = line?.promisedDate || line?.deliveryDate;
+  const [promisedDate, setPromisedDate] = useState('');
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+
+  /* A fresh open is a fresh question: a dialog reopening with the last line's answer still in it
+     is how one buyer's grace gets recorded against another's order. */
+  useEffect(() => {
+    setPromisedDate('');
+    setReason('');
+    setError(null);
+  }, [line?._id]);
+
+  const submit = async (event) => {
+    event.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      onSaved(
+        await ordersApi.rePromise({
+          id: order._id,
+          lineId: line._id,
+          promisedDate,
+          reason,
+          expectedUpdatedAt: order.updatedAt,
+        })
+      );
+    } catch (failure) {
+      setError(failure.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /* Later than what is currently owed, which is what the server enforces — a picker offering
+     earlier dates is one that invites the refusal. `min` is the day after the standing date. */
+  const earliest = standing
+    ? new Date(new Date(standing).getTime() + 86400000).toISOString().slice(0, 10)
+    : new Date().toISOString().slice(0, 10);
+
+  return (
+    <Modal
+      open={Boolean(line)}
+      title={`New date for ${line?.modelNumber || 'this line'}`}
+      description="What the buyer has agreed to — not what the plant hopes for"
+      onClose={onClose}
+    >
+      {line && (
+        <form onSubmit={submit} className="space-y-4">
+          <Notice tone="info">
+            The purchase order still says{' '}
+            <span className="font-semibold">
+              {line.deliveryDate ? formatDate(line.deliveryDate) : 'no date'}
+            </span>
+            {line.promisedDate ? `, re-agreed to ${formatDate(line.promisedDate)}` : ''}. That
+            stays on the record; this is the date the plant is now held to.
+          </Notice>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="New date" hint="Later than what is owed now">
+              <input
+                type="date"
+                className="input"
+                min={earliest}
+                required
+                value={promisedDate}
+                onChange={(event) => setPromisedDate(event.target.value)}
+              />
+            </Field>
+          </div>
+
+          <Field label="What the buyer agreed" hint="A sentence — this is the promise the plant is held to">
+            <input
+              className="input"
+              placeholder="Buyer agreed a fortnight for the resin delay"
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+            />
+          </Field>
+
+          {error && <Notice tone="danger">{error}</Notice>}
+
+          <div className="flex justify-end gap-2">
+            <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
+            <button type="submit" className="btn-primary" disabled={busy || !promisedDate}>
+              {busy ? 'Recording…' : 'Record the new date'}
+            </button>
+          </div>
+        </form>
+      )}
+    </Modal>
+  );
+}
+
 function PurchaseOrder({ order, onSaved, mayWrite }) {
   const input = useRef(null);
   const [busy, setBusy] = useState(false);
@@ -377,6 +484,7 @@ export default function OrderDetail() {
   const { data, setData, loading, error, reload } = useRecord(fetch, id);
   /** Which line the plant is recording against, if any. */
   const [recording, setRecording] = useState(null);
+  const [rePromising, setRePromising] = useState(null);
   const [editing, setEditing] = useState(false);
 
   if (loading) return <Spinner label="Loading the order" />;
@@ -387,6 +495,15 @@ export default function OrderDetail() {
   const checks = data.checks || [];
   const mayWrite = canWrite('orders');
   const mayRecord = canWrite('production');
+  /*
+   * Who may record that the buyer agreed a new date [§25].
+   *
+   * `customers` at write, which is the same line the server draws and for the same reason: only
+   * somebody who talks to buyers can say a buyer agreed. Production holds `orders` at read and
+   * `customers` at read, so they see the date and cannot move it — the plant's forecast is
+   * theirs to set and the promise is not.
+   */
+  const mayRePromise = canWrite('customers');
   /*
    * Who may ask the plant to move this job: the marketing person who owns it, or management.
    * Not everybody who can read the order — the plant can read every order, and a flag the plant
@@ -399,6 +516,8 @@ export default function OrderDetail() {
     user?.department === 'management';
   /* The plant only exists on this screen once the order has passed the §13 gate. */
   const released = !PRE_RELEASE_STAGES.includes(order.status) && order.status !== 'cancelled';
+  /* A settled order has nothing left to re-promise — the server says so too. */
+  const closed = CLOSED_ORDER_STAGES.includes(order.status);
   /* The parts column earns its width only where something is actually fitted [§28]. */
   const hasParts = order.lines.some((line) => line.hookRef || line.clipRef || line.printRef);
 
@@ -538,7 +657,10 @@ export default function OrderDetail() {
                             <p className="mt-1 text-xs font-semibold text-danger-400">Late</p>
                           )}
                           {line.production?.holdReason && (
-                            <p className="mt-1 max-w-[12rem] truncate text-xs text-danger-400">
+                            <p
+                              className="mt-1 max-w-[12rem] truncate text-xs text-danger-400"
+                              title={line.production.holdReason}
+                            >
                               {line.production.holdReason}
                             </p>
                           )}
@@ -549,8 +671,42 @@ export default function OrderDetail() {
                           {rupees(line.unitPrice)}
                         </td>
                       )}
-                      <td className="px-3 py-3 text-steel-300">
-                        {line.deliveryDate ? formatDate(line.deliveryDate) : '—'}
+                      {/*
+                        What the buyer is owed, and the plant's own forecast under it when the
+                        two differ. This drew only the PO's date, so a line the buyer had agreed
+                        to move still showed the original — and a forecast landing a fortnight
+                        past the promise was invisible here entirely.
+                      */}
+                      <td className="whitespace-nowrap px-3 py-3 text-steel-300">
+                        {line.dueToBuyer ? formatDate(line.dueToBuyer) : '—'}
+                        {line.promisedDate && (
+                          <p className="text-xs text-steel-500" title={line.promisedReason || undefined}>
+                            re-agreed{line.deliveryDate ? ` from ${formatDate(line.deliveryDate)}` : ''}
+                          </p>
+                        )}
+                        {line.production?.expectedCompletion &&
+                          formatDate(line.production.expectedCompletion) !== formatDate(line.dueToBuyer) && (
+                            <p className={`text-xs ${line.willMissPromise ? 'font-semibold text-warn-400' : 'text-steel-500'}`}>
+                              plant: {formatDate(line.production.expectedCompletion)}
+                              {line.willMissPromise ? ' — will miss' : ''}
+                            </p>
+                          )}
+                        {/*
+                          The only door that moves a deadline, on the row the deadline belongs
+                          to. Offered on a released line, because before release the date is
+                          still editable through the order form — and offered to whoever may
+                          write customers, which is the same line the server draws: the
+                          departments that talk to buyers.
+                        */}
+                        {released && mayRePromise && !closed && (
+                          <button
+                            type="button"
+                            className="mt-1 text-xs font-semibold text-accent hover:underline"
+                            onClick={() => setRePromising(line)}
+                          >
+                            Buyer agreed a new date
+                          </button>
+                        )}
                       </td>
                       {released && mayRecord && (
                         <td className="px-3 py-3">
@@ -687,6 +843,16 @@ export default function OrderDetail() {
         onSaved={(next) => {
           setRecording(null);
           /* The reply carries the whole order back, roll-up and all. */
+          absorb(next);
+        }}
+      />
+
+      <RePromiseDialog
+        order={order}
+        line={rePromising}
+        onClose={() => setRePromising(null)}
+        onSaved={(next) => {
+          setRePromising(null);
           absorb(next);
         }}
       />

@@ -231,6 +231,15 @@ export const orders = {
    * released and this matters most after — when the job is on a press and the buyer has rung.
    */
   setPriority: ({ id, ...payload }) => api.post(`/orders/${id}/priority`, payload).then(unwrap),
+  /**
+   * A new delivery date the buyer has agreed to [§25].
+   *
+   * Per line, because two models on one PO are promised separately. The only thing that may move
+   * a line's deadline — the plant's own `expectedCompletion` is a forecast and deliberately
+   * cannot, which is the whole point of this door existing.
+   */
+  rePromise: ({ id, lineId, ...payload }) =>
+    api.post(`/orders/${id}/lines/${lineId}/promise`, payload).then(unwrap),
   /** An accepted quotation becoming an order. Nothing is retyped — see the controller. */
   fromQuotation: ({ id, ...payload }) => api.post(`/quotations/${id}/order`, payload).then(unwrap),
   board: (params) => api.get('/orders/board', { params }).then(boarded),

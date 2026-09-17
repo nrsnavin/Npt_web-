@@ -17,8 +17,22 @@
  * than going anywhere. A screen reader gets "Past their date, 4, pressed"; the eye gets a ring.
  */
 export default function FilterTiles({ tiles, value, onPick, className = '' }) {
+  /*
+   * The column count follows the number of tiles rather than being pinned at three.
+   *
+   * Production grew a fourth — the lines heading past a promise, as distinct from the ones
+   * already past it — and a hard `sm:grid-cols-3` put it on a second row with one tile beside
+   * three gaps, which reads as a tile that failed to load. Four sit in a row on a desktop and
+   * two-by-two on a tablet; three keep the layout they had.
+   */
+  const columns = tiles.length === 4
+    ? 'sm:grid-cols-2 lg:grid-cols-4'
+    : tiles.length === 2
+      ? 'sm:grid-cols-2'
+      : 'sm:grid-cols-3';
+
   return (
-    <div className={`mb-5 grid gap-3 sm:grid-cols-3 ${className}`}>
+    <div className={`mb-5 grid gap-3 ${columns} ${className}`}>
       {tiles.map((tile) => {
         const active = value === tile.value;
         /* Lit means "this figure is not zero and somebody should look at it" — a standing
