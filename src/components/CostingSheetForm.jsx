@@ -67,24 +67,46 @@ export default function CostingSheetForm({ pricing, onClose, onSaved }) {
    * handled. It has, on save — but the sheet would be showing them a total that is 18% light in
    * the meantime, which is exactly the number they are about to make a decision on.
    *
-   * Skipped on the first render, so opening an existing sheet does not quietly overwrite the
-   * figures it was saved with. Only a *change* of tool or resin refills.
+   * **Only a genuine change of selection refills, and only the lines that selection owns.**
+   *
+   * This used to skip the first effect run and treat every run after it as a change. That is
+   * counting invocations, and the count is not something a component gets to rely on: React runs
+   * effects twice on mount under StrictMode precisely to catch code that does. Measured on a
+   * saved sheet, simply pressing "Re-cost" fired six register fetches and rewrote every derived
+   * figure from the registers — so a grammage somebody had typed for this particular job was
+   * replaced by the tool's own, and the sheet opened showing the weight for the resin the *mould*
+   * is set up for rather than the one the sheet was saved with. The guard was doing nothing.
+   *
+   * So the question is not "has this effect run before" but "is this selection different from
+   * the one already applied". `applied` starts as whatever the sheet was opened with, which makes
+   * the whole thing idempotent: any number of runs with an unchanged selection does nothing, and
+   * opening a sheet cannot disturb it.
+   *
+   * Scoped per source for the same reason. Changing the hook used to re-derive the grammage and
+   * the job-work lines from the mould, which is the same overwrite arriving by a different door.
+   * The grammage depends on the tool *and* the resin, so it refills when either moves; everything
+   * else refills only from its own register.
    */
-  const settled = useRef(false);
+  const applied = useRef({ mould, materialRef, hookRef, clipRef, printRef });
   useEffect(() => {
-    if (!settled.current) {
-      settled.current = true;
-      return;
-    }
-    if (!mould && !materialRef && !hookRef && !clipRef && !printRef) return;
+    const selection = { mould, materialRef, hookRef, clipRef, printRef };
+    const moved = new Set(
+      Object.keys(selection).filter((key) => selection[key] !== applied.current[key])
+    );
+    if (!moved.size) return;
+    /* Marked before the fetch, so a second run for the same selection is already a no-op. */
+    applied.current = selection;
+
+    const partMoved = moved.has('mould') || moved.has('materialRef');
 
     let live = true;
     Promise.all([
-      mould ? mouldsApi.get(mould) : null,
-      materialRef ? materialsApi.get(materialRef) : null,
-      hookRef ? componentsApi.get(hookRef) : null,
-      clipRef ? componentsApi.get(clipRef) : null,
-      printRef ? componentsApi.get(printRef) : null,
+      /* Both, whenever either moved: the grammage is the tool's figure in the chosen resin. */
+      mould && partMoved ? mouldsApi.get(mould) : null,
+      materialRef && partMoved ? materialsApi.get(materialRef) : null,
+      hookRef && moved.has('hookRef') ? componentsApi.get(hookRef) : null,
+      clipRef && moved.has('clipRef') ? componentsApi.get(clipRef) : null,
+      printRef && moved.has('printRef') ? componentsApi.get(printRef) : null,
     ])
       .then(([tool, resin, hook, clip, print]) => {
         if (!live) return;
@@ -98,14 +120,20 @@ export default function CostingSheetForm({ pricing, onClose, onSaved }) {
                       (1 + (resin?.grammageFactorPercent || 0) / 100) *
                       1000
                   ) / 1000,
-                jobWorkCost: tool.jobWorkCost ?? current.jobWorkCost,
-                hookCost: tool.hookCost ?? current.hookCost,
-                metalClipsCost: tool.clipsCost ?? current.metalClipsCost,
-                printingCost: tool.printingCost ?? current.printingCost,
-                packingCost: tool.packingCost ?? current.packingCost,
+                /* The tool's own cost lines, only when the tool itself changed. A different
+                   resin does not change what the job work on this mould costs. */
+                ...(moved.has('mould')
+                  ? {
+                      jobWorkCost: tool.jobWorkCost ?? current.jobWorkCost,
+                      hookCost: tool.hookCost ?? current.hookCost,
+                      metalClipsCost: tool.clipsCost ?? current.metalClipsCost,
+                      printingCost: tool.printingCost ?? current.printingCost,
+                      packingCost: tool.packingCost ?? current.packingCost,
+                    }
+                  : {}),
               }
             : {}),
-          ...(resin ? { rawMaterialRate: resin.ratePerKg } : {}),
+          ...(resin && moved.has('materialRef') ? { rawMaterialRate: resin.ratePerKg } : {}),
           /*
            * After the mould, deliberately. The tool says the piece takes a hook — a fact about
            * the part — and the register says what a hook costs this week. When both have an
