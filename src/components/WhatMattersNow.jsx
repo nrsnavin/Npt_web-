@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { workspace } from '../api/endpoints.js';
 import { Notice } from './ui.jsx';
+import { failureMessage } from '../api/failure.js';
 import { departmentLabel } from '../utils/pipeline.js';
 import { plural } from '../utils/format.js';
 
@@ -41,7 +42,7 @@ const band = (severity) => {
   return { label: 'This week', tone: 'text-steel-400' };
 };
 
-function Finding({ finding, why, rank, onRaise, busy, raised }) {
+function Finding({ finding, why, rank, onRaise, busy, raised, refused }) {
   const urgency = band(finding.severity);
 
   return (
@@ -104,6 +105,19 @@ function Finding({ finding, why, rank, onRaise, busy, raised }) {
               </button>
             )}
           </div>
+
+          {/*
+            Why this row's press did not work, on this row.
+
+            It used to replace the whole panel with "Could not work out what matters — …", which
+            was wrong about both halves: the brief had been worked out fine and was on screen, and
+            the commonest reason to land here is the least alarming one — somebody filed the last
+            POD while this was open, so the problem is *gone*. Losing eleven problems to a message
+            saying one of them no longer exists is the worst possible trade.
+          */}
+          {refused && (
+            <p className="mt-2 text-xs leading-relaxed text-warn-400">{refused}</p>
+          )}
         </div>
       </div>
     </li>
@@ -116,6 +130,7 @@ export default function WhatMattersNow() {
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(null);
   const [raised, setRaised] = useState({});
+  const [refused, setRefused] = useState({});
   const [showRest, setShowRest] = useState(false);
 
   const load = useCallback(async () => {
@@ -140,13 +155,17 @@ export default function WhatMattersNow() {
 
   const raise = async (finding) => {
     setBusy(finding.id);
+    setRefused((current) => ({ ...current, [finding.id]: null }));
     try {
       await workspace.review.raise({ kind: finding.kind, department: finding.department });
       /* Marked in place rather than removed: the problem has not gone away, it is now somebody's
          job. Taking the row off would read as "fixed", which it is not. */
       setRaised((current) => ({ ...current, [finding.id]: true }));
     } catch (failure) {
-      setError(failure);
+      /* On the row, not over the panel. The server's own sentence, because it is written to say
+         what to do about it — "it cleared between the brief and this press", or which department
+         this one belongs to and who can hand it to them. */
+      setRefused((current) => ({ ...current, [finding.id]: failureMessage(failure) }));
     } finally {
       setBusy(null);
     }
@@ -201,6 +220,7 @@ export default function WhatMattersNow() {
               onRaise={raise}
               busy={busy === pick.id}
               raised={raised[pick.id]}
+              refused={refused[pick.id]}
             />
           ))}
         </ul>
@@ -234,6 +254,7 @@ export default function WhatMattersNow() {
                     onRaise={raise}
                     busy={busy === finding.id}
                     raised={raised[finding.id]}
+                    refused={refused[finding.id]}
                   />
                 ))}
               </ul>

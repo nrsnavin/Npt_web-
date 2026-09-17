@@ -312,3 +312,33 @@ test('an empty plant draws no panel at all', () => {
      miss on the morning it is not empty. */
   assert.match(REVIEW, /if \(!findings\.length\) return null;/);
 });
+
+test('a press that is refused says so on its row, not over the brief', () => {
+  /*
+   * The load error and a press failure used to share one `error` state, and the panel replaced
+   * itself with "Could not work out what matters — …" for either. Wrong about both halves: the
+   * brief had been worked out fine and was on screen, and the commonest reason a press fails is
+   * the least alarming one — somebody filed the last POD while the panel was open, so that
+   * problem is gone. Losing eleven problems to a message saying one of them no longer exists is
+   * the worst trade available.
+   */
+  assert.match(REVIEW, /setRefused\(\(current\) => \(\{ \.\.\.current, \[finding\.id\]: failureMessage\(failure\) \}\)\)/);
+  /* The server's own sentence, which is written to say what to do about it. */
+  assert.match(REVIEW, /import \{ failureMessage \}/);
+  /* And the panel-wide notice is now reachable only from the load. */
+  const raising = REVIEW.match(/const raise = async[\s\S]*?\n  \};/);
+  assert.ok(raising, 'the raise handler is there');
+  assert.ok(!/setError/.test(raising[0]), 'raising never blanks the panel');
+  assert.match(REVIEW, /refused=\{refused\[pick\.id\]\}/, 'the ranked rows carry it');
+  assert.match(REVIEW, /refused=\{refused\[finding\.id\]\}/, 'and so do the rest');
+});
+
+test('a fresh press clears the last refusal on that row', () => {
+  /* Otherwise "it cleared between the brief and this press" sits under a row that has since
+     been raised successfully, which reads as though the raise failed. */
+  const raising = REVIEW.match(/const raise = async[\s\S]*?\n  \};/)[0];
+  const clears = raising.indexOf('[finding.id]: null');
+  const sends = raising.indexOf('workspace.review.raise');
+  assert.ok(clears > -1, 'it is cleared');
+  assert.ok(clears < sends, 'before the call, not after it');
+});
