@@ -12,6 +12,9 @@ import QuotationPdf from '../components/QuotationPdf.jsx';
 import QuoteFromCosting from '../components/QuoteFromCosting.jsx';
 import { formatCompactCurrency, formatDate, formatNumber, humanise } from '../utils/format.js';
 import { HANGER_CATEGORIES, HOOK_TYPES, optionLabel } from '../utils/pipeline.js';
+/* The tiers and the floor as policy defines them, so the page and the sheet cannot disagree
+   about which columns there are — the figures themselves come from the server. */
+import { MINIMUM_TIER, STANDARD_TIERS } from '../utils/pricing.js';
 
 /**
  * One costing sheet, in full [BLUEPRINT §7, §8, §9].
@@ -260,15 +263,15 @@ export default function PricingDetail() {
                 <div className="mt-4">
                   <p className="eyebrow mb-2">Cost plus</p>
                   <div className="grid gap-3 sm:grid-cols-3">
-                    {[10, 15, 20].map((percent) => {
-                      const chosen = (pricing.markupPercent ?? 10) === percent;
+                    {STANDARD_TIERS.map((percent) => {
+                      const chosen = (pricing.markupPercent ?? MINIMUM_TIER) === percent;
                       return (
                         <div
                           key={percent}
                           className={`card px-4 py-3 ${chosen ? 'ring-1 ring-flame-500/50' : ''}`}
                         >
                           <p className="eyebrow">
-                            {percent}%{percent === 10 ? ' · floor' : ''}
+                            {percent}%{percent === MINIMUM_TIER ? ' · floor' : ''}
                           </p>
                           <p className={`stat-value mt-1 ${chosen ? 'text-flame-400' : 'text-steel-50'}`}>
                             {rupees(pricing.tiers?.[percent])}

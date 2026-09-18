@@ -28,11 +28,18 @@ import { ANSWERABLE, MIN_REASON, answerableField } from '../utils/answerable.js'
  * exist. Listed disabled with the reason rather than hidden, because hiding the button hides
  * the thing the person is working towards.
  *
+ * **`answerable`** is the other half of that gate and the opposite instruction: the consignment
+ * is short of something that can be *answered for* rather than fetched — a delivery address a
+ * buyer collecting at the gate cannot give. The button stays live and says what it will ask,
+ * because greying out the one button whose whole point is that it can be pressed is the worst
+ * reading of the same data.
+ *
  * **The 409** is a soft gate rather than a refusal — quality's [§15] on dispatching an unchecked
- * or failed load, and the POD's [§19] on closing a consignment nobody has proof was delivered.
- * Both come back asking for a reason, so both open their own dialog rather than showing a red
- * error nobody can act on. `utils/answerable.js` is the list of them, and every word of that
- * dialog comes from there rather than from this file.
+ * or failed load, the POD's [§19] on closing a consignment nobody has proof was delivered, and
+ * the address's [§19] on sending one with nowhere written on it. All three come back asking for
+ * a reason, so all three open their own dialog rather than showing a red error nobody can act
+ * on. `utils/answerable.js` is the list of them, and every word of that dialog comes from there
+ * rather than from this file.
  */
 
 /** What the two fields any action asks for are actually called, in the yard's words. */
@@ -40,6 +47,17 @@ const NEED_LABELS = {
   cancellationReason: 'Why is it cancelled?',
   vehicleNumber: 'Which lorry?',
 };
+
+/**
+ * What an answerable shortfall reads as on the button, before it is pressed.
+ *
+ * The server sends the label as the refusal says it — "a delivery address" — and that article
+ * is right in a sentence and wrong at the head of a line, so it comes off here. Said ahead of
+ * the press for the same reason a `needs` is: a dialog that opens is a consequence when it was
+ * announced and a surprise when it was not.
+ */
+const answerablePhrase = (answerable) =>
+  `No ${answerable.map((one) => one.missing.replace(/^an? /, '')).join(' or ')} — it will ask why`;
 
 /**
  * The actions for one consignment, and everything that happens when one is pressed.
@@ -316,6 +334,12 @@ export function DispatchActionsPanel({ dispatch, onDone, mayWrite }) {
               {action.blockedBy && (
                 <p className="mt-1.5 text-xs font-semibold text-warn-400">{action.blockedBy}</p>
               )}
+              {/* Not a blockage: the button works, and this says what pressing it will ask for. */}
+              {!action.blockedBy && action.answerable && (
+                <p className="mt-1.5 text-xs font-semibold text-warn-400">
+                  {answerablePhrase(action.answerable)}
+                </p>
+              )}
               {!action.blockedBy && action.raises && (
                 <p className="mt-1.5 text-xs font-semibold uppercase tracking-wide text-aqua-300">
                   → {action.raises}
@@ -455,6 +479,11 @@ export function DispatchStatusPicker({ dispatch, onDone, canAct = true }) {
                 {action.blockedBy && (
                   <span className="mt-0.5 block text-xs font-semibold text-warn-400">
                     {action.blockedBy}
+                  </span>
+                )}
+                {!action.blockedBy && action.answerable && (
+                  <span className="mt-0.5 block text-xs font-semibold text-warn-400">
+                    {answerablePhrase(action.answerable)}
                   </span>
                 )}
               </button>

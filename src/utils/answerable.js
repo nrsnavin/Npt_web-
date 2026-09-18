@@ -1,13 +1,14 @@
 /**
  * The refusals that are a question rather than an error [BLUEPRINT §15, §19].
  *
- * Two of the server's gates are deliberately soft. Dispatching a load quality has not cleared
- * comes back 409 asking for a reason; so does closing a consignment with no proof of delivery
- * on file. Neither is a refusal — the server will do it, on the record, once somebody says why.
+ * Three of the server's gates are deliberately soft. Dispatching a load quality has not cleared
+ * comes back 409 asking for a reason; so does closing a consignment with no proof of delivery on
+ * file, and dispatching one with no delivery address. None is a refusal — the server will do it,
+ * on the record, once somebody says why.
  *
- * Both are the same mechanic, so they are one table rather than a branch each. The first version
- * named `qualityOverrideReason` in three separate places and a second case would have made six;
- * a third would have made nine, and one of them would have been missed.
+ * All three are the same mechanic, so they are one table rather than a branch each. The first
+ * version named `qualityOverrideReason` in three separate places and a second case would have
+ * made six; the third arrived and cost one entry, which is the argument.
  *
  * Plain data in a plain module, away from the component that draws it, for two reasons. The
  * wording is the part that has to be got right and it is easier to read all of it side by side
@@ -55,6 +56,26 @@ export const ANSWERABLE = {
     placeholder: 'Own vehicle drop — buyer confirmed receipt by phone, no signed copy issued',
     decline: 'Leave it waiting',
     confirm: () => 'Close it anyway',
+  },
+  addressOverrideReason: {
+    title: 'No delivery address on this consignment',
+    /*
+     * Said here rather than left to the server's sentence, because this is the one of the three
+     * with an ordinary alternative: there is usually an address, and typing it is the right
+     * answer. The dialog points at it first and offers the reason second — the reverse order
+     * teaches people that the reason box is the way past the gate.
+     */
+    subtitle:
+      'Nothing on the delivery note says where it went. If there is an address, close this and ' +
+      'put it on the consignment instead — the panel is on this page.',
+    consequence:
+      'It can still go. The reason below is kept against this consignment with your name on it, ' +
+      'and it is what marketing reads when the buyer rings to ask where the load is — so write ' +
+      'where it actually went and who took it, not that there was no address.',
+    ask: 'Where is it going, and who is taking it?',
+    placeholder: "Buyer's own lorry collected at our gate — driver Selvam, 98400 11223",
+    decline: 'Do not send it yet',
+    confirm: (label) => `${label} without an address`,
   },
 };
 

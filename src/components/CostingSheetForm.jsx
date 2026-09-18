@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { components as componentsApi, materials as materialsApi, moulds as mouldsApi, pricings as pricingsApi } from '../api/endpoints.js';
 import { Field, Notice } from './ui.jsx';
 import Combobox from './Combobox.jsx';
+import { MINIMUM_TIER, STANDARD_TIERS, priceAt as priceFor } from '../utils/pricing.js';
 
 /**
  * The costing sheet, shared by the list and the costing's own page.
@@ -174,15 +175,20 @@ export default function CostingSheetForm({ pricing, onClose, onSaved }) {
     );
 
   /*
-   * Cost *plus* a markup, which is how the sheet works — not cost divided by one minus a
-   * margin. The two agree at 10% and diverge fast: at 20% they are ₹8.34 and ₹8.69 on the
-   * sheet's own first row.
+   * Cost plus a markup, rounded up to five paise — from `utils/pricing.js`, which mirrors the
+   * server's `priceAt` line for line.
+   *
+   * This used to be one expression here that rounded to the nearest *paisa*, so a ₹11.05 cost
+   * at 10% read ₹12.16 on the sheet and saved as ₹12.20. Worse than a display difference:
+   * pressing a tier fills the approved price with the number shown, and a price somebody has
+   * typed is deliberately not re-rounded by the server — so the sheet quietly talked people
+   * into approving five paise under the tier they had just pressed, and under the §9 floor.
    */
-  const priceAt = (percent) => Math.round(total * (1 + (Number(percent) || 0) / 100) * 100) / 100;
+  const priceAt = (percent) => priceFor(total, percent);
   const calculated = priceAt(markupPercent);
   /* The standing tiers, side by side, because choosing between them is the pricing decision. */
-  const tiers = [10, 15, 20];
-  const floor = minimumOverride === '' ? priceAt(10) : Number(minimumOverride);
+  const tiers = STANDARD_TIERS;
+  const floor = minimumOverride === '' ? priceAt(MINIMUM_TIER) : Number(minimumOverride);
 
   /*
    * A floor under the cost base is not a lower floor, it is no floor.
@@ -394,7 +400,7 @@ export default function CostingSheetForm({ pricing, onClose, onSaved }) {
                 }`}
               >
                 <p className="eyebrow">
-                  {percent}%{percent === 10 ? ' · floor' : ''}
+                  {percent}%{percent === MINIMUM_TIER ? ' · floor' : ''}
                 </p>
                 <p className={`stat-value mt-1 ${chosen ? 'text-flame-400' : 'text-steel-50'}`}>
                   {rupees(price)}
@@ -439,7 +445,7 @@ export default function CostingSheetForm({ pricing, onClose, onSaved }) {
         */}
         <Field
           label="Floor override"
-          hint={`Blank means the standing floor, ${rupees(priceAt(10))}`}
+          hint={`Blank means the standing floor, ${rupees(priceAt(MINIMUM_TIER))}`}
         >
           <input
             type="number"
@@ -448,7 +454,7 @@ export default function CostingSheetForm({ pricing, onClose, onSaved }) {
                the person reaching for a small number here actually wants. */
             min={total ? total.toFixed(2) : '0'}
             className="input"
-            placeholder={priceAt(10) ? priceAt(10).toFixed(2) : ''}
+            placeholder={priceAt(MINIMUM_TIER) ? priceAt(MINIMUM_TIER).toFixed(2) : ''}
             value={minimumOverride}
             onChange={(event) => setMinimumOverride(event.target.value)}
             aria-invalid={belowCost ? 'true' : undefined}

@@ -6,6 +6,7 @@ import { Badge, Facts, Notice, Section } from './ui.jsx';
 import { DispatchDialog } from './DispatchForm.jsx';
 import { formatCurrency, formatDate, formatNumber } from '../utils/format.js';
 import { dispatchStageLabel } from '../utils/pipeline.js';
+import OverrideNotices from './OverrideNotices.jsx';
 
 /**
  * Where this order's goods are [BLUEPRINT §19].
@@ -227,32 +228,13 @@ function Consignment({ dispatch }) {
             </Notice>
           )}
 
-          {/* A consignment sent past a quality warning. It is on the record for a reason, and
-              the order screen is where the person who has to answer for it will be looking. */}
-          {dispatch.qualityOverride?.reason && (
-            <Notice tone="danger">
-              <p>
-                <span className="font-bold">Sent past a quality warning</span>
-                {dispatch.qualityOverride.by?.name ? ` by ${dispatch.qualityOverride.by.name}` : ''}
-                {dispatch.qualityOverride.at ? ` on ${formatDate(dispatch.qualityOverride.at)}` : ''}:{' '}
-                {dispatch.qualityOverride.reason}
-              </p>
-            </Notice>
-          )}
-
-          {/* Closed with nobody's signature against it. Kept next to the quality override rather
-              than hidden on the despatch screen, because the person who has to answer "prove
-              they received it" is whoever is looking at this order. */}
-          {dispatch.closedWithoutPod?.reason && (
-            <Notice tone="warn">
-              <p>
-                <span className="font-bold">Closed with no proof of delivery</span>
-                {dispatch.closedWithoutPod.by?.name ? ` by ${dispatch.closedWithoutPod.by.name}` : ''}
-                {dispatch.closedWithoutPod.at ? ` on ${formatDate(dispatch.closedWithoutPod.at)}` : ''}:{' '}
-                {dispatch.closedWithoutPod.reason}
-              </p>
-            </Notice>
-          )}
+          {/*
+            Every decision taken against a warning, from the shared table [§15, §19]. Kept on
+            the order screen rather than only on the despatch one, because the person who has to
+            answer "prove they received it" or "where did this one go" is whoever is looking at
+            this order.
+          */}
+          <OverrideNotices dispatch={dispatch} />
 
           {dispatch.cancellationReason && (
             <Notice tone="danger">

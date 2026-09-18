@@ -1,10 +1,11 @@
 /**
  * The refusals a screen can answer [BLUEPRINT §15, §19].
  *
- * Two of the server's gates reply 409 with `details.needs` naming the one field they want: a
- * reason for dispatching past quality, a reason for closing with no proof of delivery. Both are
- * soft on purpose, and both are only safe because the answer is recorded — so the dialog that
- * collects it has to say where it ends up, in that case's own words.
+ * Three of the server's gates reply 409 with `details.needs` naming the one field they want: a
+ * reason for dispatching past quality, a reason for closing with no proof of delivery, and a
+ * reason for sending a consignment with no delivery address. All three are soft on purpose, and
+ * all three are only safe because the answer is recorded — so the dialog that collects it has to
+ * say where it ends up, in that case's own words.
  *
  * What this file is really guarding is the shape rather than the strings. The first version of
  * the dialog was written for quality alone, with the heading, the notice, the question, the
@@ -23,9 +24,9 @@ import { ANSWERABLE, MIN_REASON, answerableField } from '../src/utils/answerable
 
 const CASES = Object.keys(ANSWERABLE);
 
-test('both soft gates the server has are answerable here', () => {
+test('every soft gate the server has is answerable here', () => {
   /* Named rather than counted: a table that had lost one of them would still have a length. */
-  assert.deepEqual(CASES.sort(), ['noPodReason', 'qualityOverrideReason']);
+  assert.deepEqual(CASES.sort(), ['addressOverrideReason', 'noPodReason', 'qualityOverrideReason']);
 });
 
 test('every case can fill the whole dialog', () => {
@@ -54,11 +55,13 @@ test('each case says where the answer ends up, and who reads it', () => {
   /*
    * The point of the sentence, not decoration. A dialog that asks "why?" and nothing else gets
    * "asked to" typed into it; one that says the reason appears in a monthly list under your name
-   * gets an account of what happened. Both consequences here name a reader — the monthly list,
-   * or accounts on the day a buyer disputes a delivery.
+   * gets an account of what happened. All three consequences here name a reader — the monthly
+   * list, accounts on the day a buyer disputes a delivery, marketing on the day one rings to ask
+   * where the load is.
    */
   assert.match(ANSWERABLE.qualityOverrideReason.consequence, /monthly list/i);
   assert.match(ANSWERABLE.noPodReason.consequence, /accounts/i);
+  assert.match(ANSWERABLE.addressOverrideReason.consequence, /marketing/i);
   for (const field of CASES) {
     assert.match(
       ANSWERABLE[field].consequence,
@@ -84,6 +87,7 @@ const refusal = (status, needs) => ({ status, details: needs ? { needs } : undef
 test('a 409 naming one of these fields opens its dialog', () => {
   assert.equal(answerableField(refusal(409, 'qualityOverrideReason')), 'qualityOverrideReason');
   assert.equal(answerableField(refusal(409, 'noPodReason')), 'noPodReason');
+  assert.equal(answerableField(refusal(409, 'addressOverrideReason')), 'addressOverrideReason');
 });
 
 test('everything else is an error to read', () => {
@@ -131,6 +135,11 @@ test('no case is hardcoded into the component that draws the dialog', () => {
     'Leave it waiting',
     'Close it anyway',
     'anyway`',
+    'No delivery address on this consignment',
+    'Where is it going, and who is taking it?',
+    "Buyer's own lorry collected at our gate",
+    'Do not send it yet',
+    'without an address',
   ];
 
   for (const phrase of owned) {

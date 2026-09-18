@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { dispatches as dispatchApi } from '../api/endpoints.js';
 import { Facts, Field, FormError, Notice } from './ui.jsx';
+import { GONE_DISPATCH_STAGES } from '../utils/pipeline.js';
 
 /**
  * Where the lorry is going, on the consignment's own page [BLUEPRINT §19].
@@ -75,6 +76,19 @@ export default function DeliveryAddress({ dispatch, customer, editable, onSaved 
   };
 
   const missing = !dispatch.destination?.address;
+  /* Already answered for, so this is not an outstanding job — see `addressOverride` on the
+     model. The notice below would otherwise keep asking for something somebody has settled. */
+  const answered = Boolean(dispatch.addressOverride?.reason);
+  /*
+   * And a consignment that has already gone is not waiting on anything.
+   *
+   * "This cannot be despatched" over a load that left last Tuesday is the panel arguing with
+   * the badge at the top of the same page. Found by driving it: the address was cleared on a
+   * consignment already on the road, and the warning came back as though the lorry were still
+   * in the yard. The address is still *editable* — the record of where it went may need
+   * correcting — so only the §19 warning goes away, not the button.
+   */
+  const gone = GONE_DISPATCH_STAGES.includes(dispatch.status);
 
   if (!open) {
     return (
@@ -101,13 +115,22 @@ export default function DeliveryAddress({ dispatch, customer, editable, onSaved 
           Said here rather than only in the red gate notice further down the page. Somebody
           reading this panel is already looking at where the load is going; telling them the
           address is missing anywhere else is telling them in the wrong place.
+
+          And the way past is named, second. There is usually an address and typing it is the
+          right answer, so the notice says that first — but a buyer collecting at the gate has
+          none to type, and a person who does not know the exception exists either leaves the
+          consignment sitting or types a town nobody sent anything to.
         */}
-        {missing && editable && (
+        {missing && !answered && !gone && editable && (
           <div className="mt-3">
             <Notice tone="warn">
               <p>
                 No delivery address yet, so this cannot be despatched [§19].
                 {onRecord ? ' The buyer has one on record.' : ' The buyer has none on record either.'}
+              </p>
+              <p className="mt-1 text-xs">
+                If there genuinely is none — a buyer collecting at our gate — pressing Dispatched
+                will ask where it is going instead, and keep the answer against this consignment.
               </p>
             </Notice>
           </div>

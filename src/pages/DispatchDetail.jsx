@@ -7,6 +7,7 @@ import {
   Badge, ErrorState, Facts, Field, FormError, Modal, Notice, PageHeader, Section, Spinner,
 } from '../components/ui.jsx';
 import DeliveryAddress from '../components/DeliveryAddress.jsx';
+import OverrideNotices from '../components/OverrideNotices.jsx';
 import HistoryPanel from '../components/HistoryPanel.jsx';
 import { DispatchActionsPanel } from '../components/DispatchStatus.jsx';
 import { formatCurrency, formatDate, formatNumber } from '../utils/format.js';
@@ -311,44 +312,13 @@ export default function DispatchDetail() {
       />
 
       {/*
-        The two decisions somebody took against a warning, at the top of the consignment they
-        were taken on [§15, §19].
-
-        They were on the order screen's tracker and nowhere here, which is the wrong way round:
-        the order screen is where one gets noticed, and this is the screen somebody opens once
-        they have been asked about it. Each carries the reason and the name, because that is the
-        entire point of recording it — a warning nobody can be asked about is decoration.
+        The decisions somebody took against a warning, at the top of the consignment they were
+        taken on [§15, §19]. They were on the order screen's tracker and nowhere here, which is
+        the wrong way round: the order screen is where one gets noticed, and this is the screen
+        somebody opens once they have been asked about it. Drawn from the shared table in
+        `OverrideNotices`, so a fourth one cannot appear on one screen and not the other.
       */}
-      {(dispatch.qualityOverride?.reason || dispatch.closedWithoutPod?.reason) && (
-        <div className="mb-5 space-y-2">
-          {dispatch.qualityOverride?.reason && (
-            <Notice tone="danger">
-              <p>
-                <span className="font-bold">Sent past a quality warning</span>
-                {dispatch.qualityOverride.by?.name ? ` by ${dispatch.qualityOverride.by.name}` : ''}
-                {dispatch.qualityOverride.at ? ` on ${formatDate(dispatch.qualityOverride.at)}` : ''}:{' '}
-                {dispatch.qualityOverride.reason}
-              </p>
-              {dispatch.qualityOverride.concern && (
-                <p className="mt-1 text-xs">
-                  The concern at the time: {dispatch.qualityOverride.concern}
-                </p>
-              )}
-            </Notice>
-          )}
-
-          {dispatch.closedWithoutPod?.reason && (
-            <Notice tone="warn">
-              <p>
-                <span className="font-bold">Closed with no proof of delivery</span>
-                {dispatch.closedWithoutPod.by?.name ? ` by ${dispatch.closedWithoutPod.by.name}` : ''}
-                {dispatch.closedWithoutPod.at ? ` on ${formatDate(dispatch.closedWithoutPod.at)}` : ''}:{' '}
-                {dispatch.closedWithoutPod.reason}
-              </p>
-            </Notice>
-          )}
-        </div>
-      )}
+      <OverrideNotices dispatch={dispatch} className="mb-5" />
 
       {(dispatch.accountingPending || dispatch.orderSyncPending) && <div className="mb-5"><Notice tone="warn">This consignment is saved. Accounting or order totals are still being completed. Refresh to check progress.</Notice><button type="button" className="btn-secondary mt-2" onClick={reload}>Refresh status</button></div>}
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
