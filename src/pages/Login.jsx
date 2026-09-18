@@ -56,7 +56,7 @@ function PasswordForm({ onError }) {
 
   return (
     <form onSubmit={handleSubmit(submit)} className="space-y-4">
-      <Field label="Email" error={errors.email}>
+      <Field label="Email" error={errors.email} required>
         <input
           type="email"
           autoComplete="email"
@@ -65,7 +65,7 @@ function PasswordForm({ onError }) {
         />
       </Field>
 
-      <Field label="Password" error={errors.password}>
+      <Field label="Password" error={errors.password} required>
         <input
           type="password"
           autoComplete="current-password"
@@ -146,7 +146,7 @@ function OtpForm({ onError }) {
         <Field
           label="Email or phone number"
           hint="We'll text or email you a code — no password needed"
-        >
+        required>
           <input
             className="input"
             autoComplete="username"
@@ -171,7 +171,7 @@ function OtpForm({ onError }) {
         <span className="font-semibold text-steel-50">{sent?.maskedIdentifier || identifier}</span>.
       </p>
 
-      <Field label="Verification code">
+      <Field label="Verification code" required>
         <input
           ref={codeInput}
           className="input py-3 text-center font-mono text-xl font-bold tracking-[0.5em] text-steel-50"
@@ -247,14 +247,14 @@ function RegisterForm({ onError }) {
 
   return (
     <form onSubmit={handleSubmit(submit)} className="space-y-4">
-      <Field label="Full name" error={errors.name}>
+      <Field label="Full name" error={errors.name} required>
         <input
           className="input"
           {...register('name', { required: 'Name is required', minLength: { value: 2, message: 'Too short' } })}
         />
       </Field>
 
-      <Field label="Email" error={errors.email}>
+      <Field label="Email" error={errors.email} required>
         <input
           type="email"
           autoComplete="email"
@@ -267,7 +267,7 @@ function RegisterForm({ onError }) {
         <input type="tel" autoComplete="tel" className="input" {...register('phone')} />
       </Field>
 
-      <Field label="Password" error={errors.password} hint="At least 8 characters">
+      <Field label="Password" error={errors.password} hint="At least 8 characters" required>
         <input
           type="password"
           autoComplete="new-password"

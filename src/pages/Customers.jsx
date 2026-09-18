@@ -93,7 +93,7 @@ export function CustomerForm({ customer, onClose, onSaved }) {
   return (
     <form onSubmit={handleSubmit(submit)} className="space-y-5">
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Company name" error={errors.name} className="sm:col-span-2">
+        <Field label="Company name" error={errors.name} className="sm:col-span-2" required>
           <input className="input" {...register('name', { required: 'Company name is required' })} />
         </Field>
         <Field label="Customer type">

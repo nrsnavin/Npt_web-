@@ -80,7 +80,7 @@ function ActionForm({ enquiry, action, onClose, onSaved }) {
       )}
 
       {needs('value') && (
-        <Field label="Confirmed value (₹)" hint="Required — this is the figure the month is counted in">
+        <Field label="Confirmed value (₹)" hint="Required — this is the figure the month is counted in" required>
           <input
             type="number"
             className="input"
@@ -109,7 +109,7 @@ function ActionForm({ enquiry, action, onClose, onSaved }) {
       )}
 
       {needs('holdReason') && (
-        <Field label="What is it waiting on" hint="Required — this is what somebody will look for later">
+        <Field label="What is it waiting on" hint="Required — this is what somebody will look for later" required>
           <input
             className="input"
             required
@@ -128,7 +128,7 @@ function ActionForm({ enquiry, action, onClose, onSaved }) {
         */}
       {!closes && (
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Then" hint="Written from the action — change it if your case is unusual">
+          <Field label="Then" hint="Written from the action — change it if your case is unusual" required>
             <input
               className="input"
               required
@@ -136,7 +136,7 @@ function ActionForm({ enquiry, action, onClose, onSaved }) {
               onChange={(event) => setNextAction(event.target.value)}
             />
           </Field>
-          <Field label="Come back to it on">
+          <Field label="Come back to it on" required>
             <input
               type="date"
               className="input"

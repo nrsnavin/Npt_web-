@@ -99,7 +99,7 @@ function MoveDialog({ open, card, to, label, needs, noteField, onClose, onConfir
           /* A required note posts under whatever key this record keeps its notes in. */
           const key = name === 'note' ? noteField || 'note' : name;
           return (
-            <Field key={name} label={field.label} hint={field.hint}>
+            <Field key={name} label={field.label} hint={field.hint} required>
               {field.type === 'select' && (
                 <select className="input" value={values[key] || ''} onChange={set(key)} required>
                   <option value="">Choose one…</option>

@@ -72,7 +72,7 @@ export default function FollowUpForm({ receivable, onClose, onSaved }) {
     >
       {receivable && (
         <form onSubmit={submit} className="space-y-4">
-          <Field label="What they said" hint="A sentence. The next person to ring will read this first">
+          <Field label="What they said" hint="A sentence. The next person to ring will read this first" required>
             <textarea
               rows={3}
               className="input"

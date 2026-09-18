@@ -89,7 +89,7 @@ export default function RaiseConcern({ order, onClose, onRaised }) {
             </select>
           </Field>
 
-          <Field label="What do you need from them?" hint="The owner of this order is told as well as the department">
+          <Field label="What do you need from them?" hint="The owner of this order is told as well as the department" required>
             <textarea
               rows={3}
               className="input"

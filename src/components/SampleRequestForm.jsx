@@ -260,7 +260,7 @@ export default function SampleRequestForm({ lead, sample, onClose, onSaved }) {
       )}
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Pieces to make" error={errors.quantity} hint="What goes in the courier bag">
+        <Field label="Pieces to make" error={errors.quantity} hint="What goes in the courier bag" required>
           <input type="number" className="input" {...register('quantity', { required: 'How many?' })} />
         </Field>
         <Field label="Purpose">

@@ -73,7 +73,7 @@ export default function LeadForm({ lead, onClose, onSaved }) {
   return (
     <form onSubmit={handleSubmit(submit)} className="space-y-5">
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Company" error={errors.company} className="sm:col-span-2">
+        <Field label="Company" error={errors.company} className="sm:col-span-2" required>
           <input className="input" {...register('company', { required: 'Company is required' })} />
         </Field>
         <Field label="Contact name">

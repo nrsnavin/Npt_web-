@@ -128,6 +128,7 @@ export function EscalateTaskDialog({ task, open, onClose, onEscalated }) {
                 ? `Suggested${suggestion.from === 'model' ? '' : ' from the wording'} — change it if it is wrong`
                 : undefined
           }
+          required
         >
           <select
             className="input"
@@ -146,8 +147,7 @@ export function EscalateTaskDialog({ task, open, onClose, onEscalated }) {
 
         <Field
           label="Why it is going to them"
-          hint="They have not seen the record — a sentence they can act on"
-        >
+          hint="They have not seen the record — a sentence they can act on" required>
           <textarea
             rows={3}
             className="input"

@@ -125,6 +125,7 @@ export default function RaiseEscalation({ order, line, dispatch, onClose, onRais
         <Field
           label="What is actually wrong"
           hint="Name the supplier, the tool, the missing paper — whatever the next person needs to ring about"
+          required
         >
           <textarea
             rows={3}

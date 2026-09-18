@@ -205,7 +205,7 @@ export default function MouldForm({ mould, onClose, onSaved }) {
   return (
     <form onSubmit={handleSubmit(submit)} className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Mould number" error={errors.mouldCode} hint={editing ? 'Stamped on the tool — not editable' : 'e.g. M-142'}>
+        <Field label="Mould number" error={errors.mouldCode} hint={editing ? 'Stamped on the tool — not editable' : 'e.g. M-142'} required>
           <input
             className="input uppercase"
             disabled={editing}
@@ -227,7 +227,7 @@ export default function MouldForm({ mould, onClose, onSaved }) {
           </div>
         </div>
 
-        <Field label="What it makes" error={errors.name}>
+        <Field label="What it makes" error={errors.name} required>
           <input className="input" placeholder="400mm shirt hanger" {...register('name', { required: 'A name is required' })} />
         </Field>
       </div>
@@ -275,7 +275,7 @@ export default function MouldForm({ mould, onClose, onSaved }) {
       <div>
         <p className="eyebrow mb-2">Measured at the press</p>
         <div className="grid gap-4 sm:grid-cols-3">
-          <Field label="Cavities" error={errors.cavities} hint="As cut">
+          <Field label="Cavities" error={errors.cavities} hint="As cut" required>
             <input type="number" min="1" className="input" {...register('cavities', { required: 'A mould has cavities' })} />
           </Field>
           <Field label="Running" hint="Blank means all of them">
@@ -288,7 +288,7 @@ export default function MouldForm({ mould, onClose, onSaved }) {
               ))}
             </select>
           </Field>
-          <Field label="Part weight (g)" error={errors.partWeightGrams} hint="One moulded piece">
+          <Field label="Part weight (g)" error={errors.partWeightGrams} hint="One moulded piece" required>
             <input type="number" step="0.01" className="input" {...register('partWeightGrams', { required: 'A piece has a weight' })} />
           </Field>
           <Field label="Runner weight (g)" hint="The whole system, per shot">
@@ -297,7 +297,7 @@ export default function MouldForm({ mould, onClose, onSaved }) {
           <Field label="Regrind recovery (%)" hint="How much of the runner goes back in">
             <input type="number" step="1" min="0" max="100" className="input" {...register('regrindRecoveryPercent')} />
           </Field>
-          <Field label="Cycle time (s)" error={errors.cycleTimeSeconds} hint="One shot, door to door">
+          <Field label="Cycle time (s)" error={errors.cycleTimeSeconds} hint="One shot, door to door" required>
             <input type="number" step="0.1" className="input" {...register('cycleTimeSeconds', { required: 'A cycle takes time' })} />
           </Field>
           <Field label="Achieved (%)" hint="Against the nameplate cycle — nothing runs at 100">

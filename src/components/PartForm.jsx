@@ -85,7 +85,7 @@ export default function PartForm({ kind, part, onClose, onSaved }) {
   return (
     <form onSubmit={handleSubmit(submit)} className="space-y-5">
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Name" error={errors.name}>
+        <Field label="Name" error={errors.name} required>
           <input
             className="input"
             placeholder={copy.placeholder}
@@ -108,7 +108,7 @@ export default function PartForm({ kind, part, onClose, onSaved }) {
           <input className="input" {...register('colour')} />
         </Field>
         {/* The unit is in the label, not implied by the column it sits under. */}
-        <Field label="Rate (₹ per piece)" error={errors.ratePerPiece}>
+        <Field label="Rate (₹ per piece)" error={errors.ratePerPiece} required>
           <input
             type="number"
             step="0.01"

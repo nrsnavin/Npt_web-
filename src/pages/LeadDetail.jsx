@@ -232,7 +232,7 @@ function ConvertForm({ lead, onClose, onConverted, startWithEnquiry = true }) {
       <div>
         <p className="eyebrow mb-3">The customer</p>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Company name" error={errors.customer?.name} className="sm:col-span-2">
+          <Field label="Company name" error={errors.customer?.name} className="sm:col-span-2" required>
             <input className="input" {...register('customer.name', { required: 'Company name is required' })} />
           </Field>
           <Field label="Customer type">
@@ -383,7 +383,7 @@ function ReviveForm({ lead, onClose, onSaved }) {
       <Field
         label="Why is it worth working again"
         hint="Required — it goes into the log beside the write-off"
-      >
+      required>
         <textarea
           rows={3}
           className="input"

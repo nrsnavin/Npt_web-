@@ -85,7 +85,7 @@ export default function OwnerPicker({ register, error, watch, load, label = 'Who
 
   return (
     <>
-      <Field label={label} error={error} className="sm:col-span-2">
+      <Field label={label} error={error} className="sm:col-span-2" required>
         <select
           className="input"
           disabled={!team}

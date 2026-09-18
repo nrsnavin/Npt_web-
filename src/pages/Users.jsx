@@ -146,10 +146,10 @@ function UserForm({ catalogue, onClose, onSaved }) {
   return (
     <form onSubmit={handleSubmit(submit)} className="space-y-5">
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Full name" error={errors.name}>
+        <Field label="Full name" error={errors.name} required>
           <input className="input" {...register('name', { required: 'Name is required' })} />
         </Field>
-        <Field label="Email" error={errors.email}>
+        <Field label="Email" error={errors.email} required>
           <input
             type="email"
             className="input"
@@ -163,7 +163,7 @@ function UserForm({ catalogue, onClose, onSaved }) {
           label="Temporary password"
           hint="At least 8 characters"
           error={errors.password}
-        >
+        required>
           <input
             type="text"
             className="input"
@@ -581,7 +581,7 @@ function OffboardUser({ user, onClose, onSaved }) {
       <p className="text-sm text-steel-300">Deactivate sign-in and hand over their work. Existing records and history are retained.</p>
       {!workload && !error && <Spinner label="Checking assigned work" />}
       {workload && <><p className="text-sm">{workload.open} records need a new owner.</p>
-        {workload.open > 0 && <Field label="Transfer work to"><select className="input" required value={transferTo} onChange={(event) => setTransferTo(event.target.value)}><option value="">Choose an active colleague</option>{colleagues.map((row) => <option key={row.id} value={row.id}>{row.name} · {row.email}</option>)}</select></Field>}</>}
+        {workload.open > 0 && <Field label="Transfer work to" required><select className="input" required value={transferTo} onChange={(event) => setTransferTo(event.target.value)}><option value="">Choose an active colleague</option>{colleagues.map((row) => <option key={row.id} value={row.id}>{row.name} · {row.email}</option>)}</select></Field>}</>}
       {error && <Notice>{error.message}</Notice>}
       {!workload && error && <button type="button" className="btn-secondary" onClick={load}>Try again</button>}
       <div className="flex justify-end gap-2"><button type="button" className="btn-secondary" onClick={onClose} disabled={busy}>Cancel</button><button className="btn-danger" disabled={busy || !workload || (workload.open > 0 && !transferTo)}>{busy ? 'Transferring…' : 'Offboard user'}</button></div>

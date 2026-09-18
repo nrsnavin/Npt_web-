@@ -108,8 +108,7 @@ function ReceiptForm({ receivable, onClose, onSaved }) {
           <div className="grid gap-4 sm:grid-cols-2">
             <Field
               label="How much"
-              error={tooMuch ? 'More than is owed on this one' : undefined}
-            >
+              error={tooMuch ? 'More than is owed on this one' : undefined} required>
               <input
                 type="number"
                 min="0"

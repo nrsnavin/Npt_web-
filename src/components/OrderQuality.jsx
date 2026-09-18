@@ -176,7 +176,7 @@ function InspectionForm({ order, options, onClose, onRecorded }) {
           </select>
         </Field>
 
-        <Field label="How many checked">
+        <Field label="How many checked" required>
           <input
             type="number" min="1" className="input" required
             value={values.quantityInspected} onChange={set('quantityInspected')}

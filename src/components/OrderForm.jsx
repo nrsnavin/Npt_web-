@@ -145,7 +145,7 @@ export default function OrderForm({ order, onClose, onSaved }) {
       </Notice>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Customer">
+        <Field label="Customer" required>
           <CustomerSelect value={customer} onChange={setCustomer} aria-label="Customer" />
         </Field>
         <Field label="Their PO number" hint="What the buyer calls this order">

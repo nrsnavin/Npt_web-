@@ -111,8 +111,7 @@ export default function EnquiryForm({ enquiry, onClose, onSaved }) {
             editing
               ? 'Fixed — an enquiry for a different buyer is a different enquiry'
               : 'Not a customer yet? Start it as a lead instead.'
-          }
-        >
+          } required>
           <CustomerSelect
             value={customer}
             onChange={setCustomer}

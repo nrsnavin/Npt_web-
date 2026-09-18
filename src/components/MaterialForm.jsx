@@ -67,7 +67,7 @@ export default function MaterialForm({ material, onClose, onSaved }) {
   return (
     <form onSubmit={handleSubmit(submit)} className="space-y-5">
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Name" error={errors.name} hint="What the store calls it">
+        <Field label="Name" error={errors.name} hint="What the store calls it" required>
           <input className="input" placeholder="HIPS Natural" {...register('name', { required: 'A name is required' })} />
         </Field>
         <Field label="Code" hint={editing ? 'Fixed — costings point at it' : 'Optional, e.g. HIPS-NAT'}>
@@ -88,7 +88,7 @@ export default function MaterialForm({ material, onClose, onSaved }) {
         <Field label="Colour" hint="The same resin at a different rate">
           <input className="input" placeholder="Natural" {...register('colour')} />
         </Field>
-        <Field label="Rate (₹ per kg)" error={errors.ratePerKg}>
+        <Field label="Rate (₹ per kg)" error={errors.ratePerKg} required>
           <input
             type="number"
             step="0.01"

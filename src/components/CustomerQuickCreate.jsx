@@ -81,7 +81,7 @@ export default function CustomerQuickCreate({ open, initialName = '', onClose, o
           the customer&rsquo;s own screen whenever someone gets to them.
         </p>
 
-        <Field label="Name" error={errors.name?.message}>
+        <Field label="Name" error={errors.name?.message} required>
           <input
             className="input"
             autoFocus

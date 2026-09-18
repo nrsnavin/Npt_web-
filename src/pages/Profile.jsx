@@ -91,7 +91,7 @@ function EditProfile({ user, onClose, onSaved }) {
 
   return (
     <form onSubmit={handleSubmit(submit)} className="space-y-4">
-      <Field label="Full name" error={errors.name}>
+      <Field label="Full name" error={errors.name} required>
         <input
           className="input"
           {...register('name', {

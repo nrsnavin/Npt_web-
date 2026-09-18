@@ -116,13 +116,38 @@ export function PageHeader({ title, subtitle, actions }) {
  * implicitly associated with it — clicking the text focuses the input, and screen
  * readers announce the two together without needing matching id attributes.
  */
-export function Field({ label, error, hint, children, className = '' }) {
+/**
+ * A labelled control, and whether the form will refuse without it.
+ *
+ * `required` marks the ones somebody has to fill in. It is one prop rather than a convention
+ * each form spells out for itself, because the alternative — a hand-written "(required)" here
+ * and a red label there — is how a form ends up marking four of its six compulsory fields and
+ * teaching people that the marking means nothing.
+ *
+ * **The marker has to agree with what the form actually does.** A star on a field that saves
+ * fine without it is noise; a field with no star that bounces the save is worse, because the
+ * person filled the form in the order the screen implied. So `required` goes on beside a rule
+ * that refuses — the `register` validation on a react-hook-form field, or the control's own
+ * `required` attribute — and never on its own.
+ *
+ * Spelled twice, for two audiences. The asterisk is hidden from screen readers, which would
+ * otherwise read "star" in the middle of the label, and `aria-required` on the control says the
+ * same thing in the way assistive technology expects to hear it.
+ */
+export function Field({ label, error, hint, required = false, children, className = '' }) {
   const descriptionId = useId();
   const controls = Children.map(children, (child) => isValidElement(child) && ['input', 'select', 'textarea'].includes(child.type)
-    ? cloneElement(child, { 'aria-invalid': error ? true : undefined, 'aria-describedby': [child.props['aria-describedby'], (error || hint) && descriptionId].filter(Boolean).join(' ') || undefined }) : child);
+    ? cloneElement(child, { 'aria-invalid': error ? true : undefined, 'aria-required': required || undefined, 'aria-describedby': [child.props['aria-describedby'], (error || hint) && descriptionId].filter(Boolean).join(' ') || undefined }) : child);
   return (
     <label className={`block ${className}`}>
-      <span className="label">{label}</span>
+      <span className="label">
+        {label}
+        {required && (
+          <span aria-hidden="true" className="ml-1 font-semibold text-danger-400" title="Required">
+            *
+          </span>
+        )}
+      </span>
       {controls}
       {hint && !error && <p id={descriptionId} className="mt-1.5 text-xs text-steel-500">{hint}</p>}
       {error && (

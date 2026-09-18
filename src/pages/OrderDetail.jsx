@@ -362,7 +362,7 @@ function RePromiseDialog({ order, line, onClose, onSaved }) {
           </Notice>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="New date" hint="Later than what is owed now">
+            <Field label="New date" hint="Later than what is owed now" required>
               <input
                 type="date"
                 className="input"

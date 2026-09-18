@@ -102,7 +102,7 @@ export default function MouldQuickCreate({ open, initialName = '', onClose, onCr
         </p>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Mould code" error={errors.mouldCode?.message} hint="What is stamped on the tool, e.g. M-102">
+          <Field label="Mould code" error={errors.mouldCode?.message} hint="What is stamped on the tool, e.g. M-102" required>
             <input
               className="input uppercase"
               placeholder="M-102"
@@ -113,7 +113,7 @@ export default function MouldQuickCreate({ open, initialName = '', onClose, onCr
               })}
             />
           </Field>
-          <Field label="Name" error={errors.name?.message}>
+          <Field label="Name" error={errors.name?.message} required>
             <input
               className="input"
               autoFocus
@@ -138,7 +138,7 @@ export default function MouldQuickCreate({ open, initialName = '', onClose, onCr
               ))}
             </select>
           </Field>
-          <Field label="Size (mm)" error={errors.sizeMm?.message}>
+          <Field label="Size (mm)" error={errors.sizeMm?.message} required>
             <input
               type="number"
               className="input"
@@ -167,7 +167,7 @@ export default function MouldQuickCreate({ open, initialName = '', onClose, onCr
             label="Part weight (g)"
             error={errors.partWeightGrams?.message}
             hint="One moulded piece, on a PP basis"
-          >
+          required>
             <input
               type="number"
               step="0.01"
@@ -179,7 +179,7 @@ export default function MouldQuickCreate({ open, initialName = '', onClose, onCr
               })}
             />
           </Field>
-          <Field label="Cycle (seconds)" error={errors.cycleTimeSeconds?.message} hint="Door close to door close">
+          <Field label="Cycle (seconds)" error={errors.cycleTimeSeconds?.message} hint="Door close to door close" required>
             <input
               type="number"
               step="0.1"

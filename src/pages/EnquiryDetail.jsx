@@ -114,7 +114,7 @@ function StageForm({ enquiry, onClose, onSaved }) {
       {/* Required, for the same reason losing one is: an enquiry parked with no reason is
           invisible — nobody can tell what would have to change for it to move again. */}
       {status === 'hold' && (
-        <Field label="What is it waiting on" hint="Required — this is what somebody will look for later">
+        <Field label="What is it waiting on" hint="Required — this is what somebody will look for later" required>
           <input
             className="input"
             required
@@ -128,7 +128,7 @@ function StageForm({ enquiry, onClose, onSaved }) {
       {/* Asked at the moment it is known. Won with this empty, the enquiry drops out of the
           confirmed-order figure the weekly review exists for, and nothing says it did. */}
       {status === 'won' && (
-        <Field label="Confirmed value (₹)" hint="Required — this is the figure the month is counted in">
+        <Field label="Confirmed value (₹)" hint="Required — this is the figure the month is counted in" required>
           <input
             type="number"
             className="input"
@@ -145,7 +145,7 @@ function StageForm({ enquiry, onClose, onSaved }) {
           is the worst place to learn it. */}
       {!closing && (
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Next action" hint="Required while the enquiry is open">
+          <Field label="Next action" hint="Required while the enquiry is open" required>
             <input
               className="input"
               required
@@ -154,7 +154,7 @@ function StageForm({ enquiry, onClose, onSaved }) {
               onChange={(event) => setNextAction(event.target.value)}
             />
           </Field>
-          <Field label="Follow up on">
+          <Field label="Follow up on" required>
             <input
               type="date"
               className="input"
@@ -263,10 +263,10 @@ function PromoteForm({ enquiry, onClose, onSaved }) {
       </Notice>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Mould number" error={errors.mouldCode} hint="Stamped on the tool, e.g. M-142">
+        <Field label="Mould number" error={errors.mouldCode} hint="Stamped on the tool, e.g. M-142" required>
           <input className="input uppercase" {...register('mouldCode', { required: 'The mould number is required' })} />
         </Field>
-        <Field label="Name" error={errors.name}>
+        <Field label="Name" error={errors.name} required>
           <input className="input" {...register('name', { required: 'Name is required' })} />
         </Field>
         <Field label="Category">
@@ -298,7 +298,7 @@ function PromoteForm({ enquiry, onClose, onSaved }) {
           label="Part weight (g)"
           error={errors.partWeightGrams}
           hint="One moulded piece, on a PP basis"
-        >
+        required>
           <input
             type="number"
             step="0.01"
@@ -306,7 +306,7 @@ function PromoteForm({ enquiry, onClose, onSaved }) {
             {...register('partWeightGrams', { required: 'A moulded piece has a weight' })}
           />
         </Field>
-        <Field label="Cycle (seconds)" error={errors.cycleTimeSeconds} hint="Door close to door close">
+        <Field label="Cycle (seconds)" error={errors.cycleTimeSeconds} hint="Door close to door close" required>
           <input
             type="number"
             step="0.1"

@@ -262,7 +262,7 @@ function AskForm({ order, onClose, onAsked, departments }) {
         </Field>
       )}
 
-      <Field label="What do you need to know?">
+      <Field label="What do you need to know?" required>
         <textarea
           rows={3}
           className="input"

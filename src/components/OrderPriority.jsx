@@ -105,8 +105,7 @@ export function PriorityForm({ order, onClose, onSaved }) {
 
       <Field
         label="Why"
-        hint="A supervisor reads this before moving a job. Say what happens if it slips."
-      >
+        hint="A supervisor reads this before moving a job. Say what happens if it slips." required>
         <textarea
           className="input min-h-[5rem]"
           value={reason}
