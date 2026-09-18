@@ -465,8 +465,13 @@ function DisqualifyForm({ lead, onClose, onSaved }) {
  * customer or an enquiry — so the request has to be visible from the only record that exists at
  * that point. Without this the sample was raised somewhere else and the lead gave no sign it
  * had ever been sent, which is how the same one gets promised twice.
+ *
+ * Raising one now converts the lead [§5] — an enquiry needs a customer — so `onLeadChanged`
+ * reloads the record this whole page is drawn from. Without it the header would still read
+ * "New" over a lead that had just become a customer, and every action on the page would be one
+ * the server has stopped accepting.
  */
-function LeadSamples({ lead, mayWrite }) {
+function LeadSamples({ lead, mayWrite, onLeadChanged }) {
   const [asking, setAsking] = useState(false);
   const { data, loading, error, reload } = useRecordList(samplesApi.list, {
     lead: lead._id,
@@ -543,7 +548,12 @@ function LeadSamples({ lead, mayWrite }) {
         * twice. The form carries it because it is true wherever the form is used.
         */}
       <Modal open={asking} title="Request a sample" size="lg" onClose={() => setAsking(false)}>
-        <SampleRequestForm lead={lead} onClose={() => setAsking(false)} onSaved={reload} />
+        <SampleRequestForm
+          lead={lead}
+          onClose={() => setAsking(false)}
+          onSaved={reload}
+          onConverted={onLeadChanged}
+        />
       </Modal>
     </Section>
   );
@@ -744,7 +754,7 @@ export default function LeadDetail() {
 
           <LeadLog lead={lead} onSaved={setData} />
 
-          <LeadSamples lead={lead} mayWrite={mayWrite} />
+          <LeadSamples lead={lead} mayWrite={mayWrite} onLeadChanged={reload} />
 
           {/* The activity log above is what was said; this is what was changed. */}
           <HistoryPanel model="Lead" id={lead._id} refreshKey={lead.updatedAt} />

@@ -535,6 +535,15 @@ export const samples = {
   day: () => api.get('/samples/day').then((response) => response.data),
   get: (id) => api.get(`/samples/${id}`).then(unwrap),
   create: (payload) => api.post('/samples', payload).then(unwrap),
+  /**
+   * The whole envelope, for the one case where the sample is not all that happened.
+   *
+   * A request raised for a lead converts that lead — an enquiry needs a customer — and the
+   * answer names the customer and the enquiry that came into being beside `data`. Unwrapping
+   * to the sample alone would throw the only record of a consequence nobody asked for, and
+   * the screen has to be able to say what it did.
+   */
+  createForLead: (payload) => api.post('/samples', payload).then((response) => response.data),
   update: ({ id, ...payload }) => api.patch(`/samples/${id}`, payload).then(unwrap),
   assign: ({ id, ...payload }) => api.post(`/samples/${id}/assign`, payload).then(unwrap),
   setStatus: ({ id, ...payload }) => api.post(`/samples/${id}/status`, payload).then(unwrap),

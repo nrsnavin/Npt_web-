@@ -1,7 +1,8 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { samples as samplesApi } from '../api/endpoints.js';
-import { Field, FormError } from './ui.jsx';
+import { Field, FormError, Notice } from './ui.jsx';
 import {
   ColourInput, CustomerSelect, EnquirySelect, MaterialSelect, MouldSelect, PartSelect,
 } from './pickers.jsx';
@@ -19,7 +20,7 @@ import { HANGER_CATEGORIES, SAMPLE_PURPOSES, numeric, text } from '../utils/pipe
  * so the block asking what to make is shown for it too. That is the only thing the bench
  * actually needs; who asked is a link, not a specification.
  */
-export default function SampleRequestForm({ lead, sample, onClose, onSaved }) {
+export default function SampleRequestForm({ lead, sample, onClose, onSaved, onConverted }) {
   /*
    * The same form raises a request and corrects one.
    *
@@ -53,6 +54,8 @@ export default function SampleRequestForm({ lead, sample, onClose, onSaved }) {
   );
   const setPick = (key) => (value) => setSpec((current) => ({ ...current, [key]: value }));
   const [error, setError] = useState(null);
+  /* What the request turned this lead into, once it has. See the panel below the submit. */
+  const [made, setMade] = useState(null);
 
   const {
     register,
@@ -134,6 +137,23 @@ export default function SampleRequestForm({ lead, sample, onClose, onSaved }) {
     };
 
     try {
+      /*
+       * A lead's request is the one that does more than it says, so it is the one whose whole
+       * answer is read — see `samples.createForLead`. The lists are refreshed straight away and
+       * the form then stays open to report the conversion rather than vanishing: the records
+       * that came into being are named here, once, where the person can follow them.
+       */
+      if (!editing && forLead) {
+        const answer = await samplesApi.createForLead(payload);
+        onSaved(answer.data);
+        if (answer.converted) {
+          setMade(answer.converted);
+          return;
+        }
+        onClose();
+        return;
+      }
+
       onSaved(
         editing
           ? await samplesApi.update({ id: sample._id, ...payload })
@@ -145,13 +165,81 @@ export default function SampleRequestForm({ lead, sample, onClose, onSaved }) {
     }
   };
 
+  /*
+   * Said afterwards, because it was not asked for. The customer and the enquiry are named and
+   * linked rather than described: "the lead was converted" leaves somebody hunting for what it
+   * became, and the two records are the whole of what there is to check.
+   */
+  if (made) {
+    return (
+      <div className="space-y-4">
+        <Notice tone="success">
+          <p className="font-semibold">Request raised — and {lead.company} is now a customer.</p>
+          <p className="mt-1">
+            An enquiry needs a buyer, so raising this lead&rsquo;s first enquiry put them on the
+            customer list{made.attached ? ' — against the record that was already there' : ''}.
+          </p>
+        </Notice>
+
+        <dl className="divide-y divide-line/[0.06] rounded-lg border border-line/[0.06]">
+          <div className="flex items-baseline justify-between gap-3 px-3 py-2.5">
+            <dt className="text-xs uppercase tracking-wide text-steel-500">Customer</dt>
+            <dd className="text-sm">
+              <Link to={`/customers/${made.customer.id}`} className="font-semibold text-steel-100 hover:text-accent">
+                {made.customer.code} · {made.customer.name}
+              </Link>
+            </dd>
+          </div>
+          <div className="flex items-baseline justify-between gap-3 px-3 py-2.5">
+            <dt className="text-xs uppercase tracking-wide text-steel-500">Enquiry</dt>
+            <dd className="text-sm">
+              <Link to={`/enquiries/${made.enquiry.id}`} className="font-semibold text-steel-100 hover:text-accent">
+                {made.enquiry.number}
+              </Link>
+            </dd>
+          </div>
+        </dl>
+
+        {/*
+          * The lead is reloaded on the way out, not on the way in.
+          *
+          * The page this dialog sits on is redrawn from that record, and it shows a spinner
+          * while it reloads — which takes this panel down with it before anybody has read it.
+          * So the refresh waits for the dismissal, which is also the better order: the two
+          * records are named here, and the page behind is correct by the time it is seen.
+          */}
+        <div className="flex justify-end gap-2 border-t border-line/[0.06] pt-4">
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={() => { onClose(); onConverted?.(made); }}
+          >
+            Done
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <form onSubmit={handleSubmit(submit)} className="space-y-5">
+      {/*
+        * What raising this does, before it is raised.
+        *
+        * Asking for a sample for a lead converts that lead: an enquiry needs a customer, so
+        * raising the buyer's first enquiry is the same act as putting them on the master. That
+        * is the right behaviour and it is more than the button says, so the form says it — a
+        * consequence read for the first time in the confirmation afterwards is one that felt
+        * like a mistake.
+        */}
       {forLead && (
         <p className="rounded-lg border border-line/[0.06] bg-ink-800/40 p-3 text-sm text-steel-300">
           For <span className="font-semibold text-steel-100">{lead.company}</span> — a lead, so
-          there is no enquiry to take the specification from. It moves onto the customer when
-          this lead is converted.
+          there is no enquiry to take the specification from.
+          <span className="mt-1.5 block text-steel-400">
+            Raising this makes them a customer and opens their first enquiry, from what you
+            fill in below. If they are already on the customer list, the enquiry goes there.
+          </span>
         </p>
       )}
 
