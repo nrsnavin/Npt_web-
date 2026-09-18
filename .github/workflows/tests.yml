@@ -4,6 +4,9 @@ on:
     branches: [main]
   push:
     branches: [main]
+  # The button on the Actions tab. A box that was down when something merged needs a way to
+  # catch up that is not "commit something to trigger a deploy".
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
@@ -19,3 +22,29 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm test
       - run: npm run build
+
+  # ---------------------------------------------------------------------------
+  # Build it on the box, once the checks above have gone green [DEPLOY-AWS.md §11].
+  #
+  # The checks already ran `npm run build` on GitHub, which proves the build *works*. It cannot
+  # produce the artefact this box needs: `VITE_API_URL` is baked in at build time and lives only
+  # in `.env.production` on the server, so the build that gets served has to happen there.
+  #
+  # Separate from the API's deploy on purpose. A change to the web repo has no business
+  # reloading the API, and the two are almost never released together.
+  # ---------------------------------------------------------------------------
+  deploy:
+    needs: test
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, npt]
+    timeout-minutes: 15
+    # A Vite build on a 2 GB box with MongoDB beside it is the heaviest thing that happens here.
+    # Two at once is what the swap file was protecting against, and cancelling one mid-rename is
+    # how `dist` ends up missing.
+    concurrency:
+      group: deploy-web
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy
+        run: bash deploy/on-box.sh
