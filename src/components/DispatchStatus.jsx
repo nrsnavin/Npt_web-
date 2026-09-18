@@ -74,6 +74,17 @@ export function useDispatchActions(dispatch, onDone) {
   const [error, setError] = useState(null);
   const [override, setOverride] = useState(null);
   const [overrideReason, setOverrideReason] = useState('');
+  /*
+   * Every answer given for *this* press, kept across dialogs.
+   *
+   * One action can trip more than one soft gate — a consignment with no delivery address that
+   * nobody inspected trips two — and each request is atomic on the server, so an answer that is
+   * not resent is an answer that was never given. Sending only the field last asked for made the
+   * two gates ask for each other forever: address, quality, address, quality, with the load on
+   * the lorry and the record unable to say so. So they accumulate, and every retry carries the
+   * lot.
+   */
+  const [answers, setAnswers] = useState({});
 
   /* Re-loaded whenever the status moves: what can be done from `packing` is not what can be
      done from `dispatched`, and a stale list offers an action the server will refuse. */
@@ -88,7 +99,33 @@ export function useDispatchActions(dispatch, onDone) {
     };
   }, [dispatch._id, dispatch.status, dispatch.outstandingPaperwork?.length]);
 
+  /*
+   * An answerable refusal becomes the next question. `needsAll` is how many this press still
+   * wants in total, so the dialog can say another is coming rather than springing it — a second
+   * dialog appearing unannounced reads as the first one having failed.
+   */
+  const ask = (actError, action, label) => {
+    const field = answerableField(actError);
+    if (!field) {
+      setError(actError);
+      return false;
+    }
+    setOverride({
+      action, label, field,
+      /* Quality sends the concern it found. Where a case has nothing to quote the dialog
+         uses its own subtitle rather than repeating the refusal, which is the same
+         sentence as the notice underneath it. */
+      concern: actError.details.concern || null,
+      remaining: (actError.details.needsAll || [field]).length,
+    });
+    setOverrideReason('');
+    return true;
+  };
+
   const run = async (action) => {
+    /* A fresh press starts a fresh set of answers: the reasons given for the last consignment,
+       or the last attempt, are not evidence about this one. */
+    setAnswers({});
     if (action.needs.length) {
       setChosen(action);
       setValues({});
@@ -99,20 +136,7 @@ export function useDispatchActions(dispatch, onDone) {
     try {
       onDone(await dispatchApi.act({ id: dispatch._id, expectedUpdatedAt: dispatch.updatedAt, action: action.action }));
     } catch (actError) {
-      /* An answerable refusal — everything else is an error to read. */
-      const field = answerableField(actError);
-      if (field) {
-        setOverride({
-          action: action.action, label: action.label, field,
-          /* Quality sends the concern it found. Where a case has nothing to quote the dialog
-             uses its own subtitle rather than repeating the refusal, which is the same
-             sentence as the notice underneath it. */
-          concern: actError.details.concern || null,
-        });
-        setOverrideReason('');
-      } else {
-        setError(actError);
-      }
+      ask(actError, action.action, action.label);
     } finally {
       setBusy(false);
     }
@@ -128,17 +152,7 @@ export function useDispatchActions(dispatch, onDone) {
     } catch (actError) {
       /* A gate can bite here too — cancelling asks for a reason, closing does not, but an
          action that grows a `needs` later must not lose the question. */
-      const field = answerableField(actError);
-      if (field) {
-        setOverride({
-          action: chosen.action, label: chosen.label, field,
-          concern: actError.details.concern || null,
-        });
-        setOverrideReason('');
-        setChosen(null);
-      } else {
-        setError(actError);
-      }
+      if (ask(actError, chosen.action, chosen.label)) setChosen(null);
     } finally {
       setBusy(false);
     }
@@ -148,21 +162,28 @@ export function useDispatchActions(dispatch, onDone) {
     event.preventDefault();
     setBusy(true);
     setError(null);
+
+    /*
+     * This answer and every earlier one, under the names the refusals asked for rather than as
+     * ordinary action fields — that is what makes the server record each as a decision somebody
+     * took, with the reason and under the presser's name. Carrying the earlier ones is what
+     * stops two gates asking for each other in a circle; see `answers`.
+     */
+    const carried = { ...answers, [override.field]: overrideReason };
+    setAnswers(carried);
+
     try {
       onDone(
         await dispatchApi.act({
           id: dispatch._id, expectedUpdatedAt: dispatch.updatedAt,
           action: override.action,
-          /* Whichever sentence this refusal asked for. */
-          [override.field]: overrideReason,
+          ...carried,
         })
       );
-      /* Sent under the name of the field that was asked for rather than as an ordinary action,
-         because that is what makes the server record it as a decision somebody took — with the
-         reason, and under the presser's name. */
       setOverride(null);
     } catch (actError) {
-      setError(actError);
+      /* Another gate, not a failure: the same press has more to answer for. */
+      ask(actError, override.action, override.label);
     } finally {
       setBusy(false);
     }
@@ -210,6 +231,17 @@ export function DispatchActionForms({ state }) {
         <form onSubmit={sendOverride} className="space-y-4">
           <Notice tone="warn">
             <p>{answer.consequence}</p>
+            {/*
+              One press can trip more than one soft gate, and the second dialog appearing
+              unannounced reads as the first one having failed. The server says how many it
+              still wants; this says so before the next one opens.
+            */}
+            {override?.remaining > 1 && (
+              <p className="mt-1 text-xs">
+                One more thing to answer after this — {override.remaining} in total for this
+                consignment.
+              </p>
+            )}
           </Notice>
 
           <Field
