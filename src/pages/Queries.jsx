@@ -6,6 +6,9 @@ import {
   Badge, EmptyState, ErrorState, Notice, PageHeader, Pagination, TableSkeleton,
 } from '../components/ui.jsx';
 import RaiseQuery from '../components/RaiseQuery.jsx';
+import PeopleQueryMap from '../components/PeopleQueryMap.jsx';
+import ViewSwitch from '../components/ViewSwitch.jsx';
+import { useViewMode } from '../hooks/useBoard.js';
 import { useParticipantOptions } from '../components/ParticipantPicker.jsx';
 import { formatDate, plural } from '../utils/format.js';
 
@@ -52,6 +55,12 @@ export default function Queries() {
    * the same way again — `ai=false` is what the server takes to mean "do not read this".
    */
   const [wordsOnly, setWordsOnly] = useState(false);
+  /*
+   * List or map. The list is the default and answers "what is open"; the map answers the other
+   * question — who is carrying it — which a list ordered by when a thread last moved cannot
+   * show at all.
+   */
+  const [mode, setMode] = useViewMode('queries');
 
   const { options } = useParticipantOptions();
   const term = useDebounced(search);
@@ -63,14 +72,19 @@ export default function Queries() {
   const params = useMemo(
     () => ({
       page,
-      limit: 20,
+      /*
+       * A page of twenty is right for a table somebody reads a row at a time. A map of twenty
+       * out of sixty is a picture of a third of the department's load, which is worse than no
+       * picture — so the map asks for the lot, under the same filters.
+       */
+      limit: mode === 'map' ? 100 : 20,
       search: term || undefined,
       status: status || undefined,
       department: department || undefined,
       customer,
       ai: wordsOnly ? 'false' : undefined,
     }),
-    [page, term, status, department, customer, wordsOnly]
+    [page, term, status, department, customer, wordsOnly, mode]
   );
 
   const { data, pagination, meta, loading, error, reload } = useRecordList(queriesApi.list, params);
@@ -87,9 +101,16 @@ export default function Queries() {
         title="Queries"
         subtitle="Questions about a buyer, and everybody pulled in to answer them"
         actions={
-          <button type="button" className="btn-primary" onClick={() => setAsking(true)}>
-            + Ask a question
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <ViewSwitch
+              mode={mode}
+              onChange={setMode}
+              options={[{ value: 'list', label: 'List' }, { value: 'map', label: 'Map' }]}
+            />
+            <button type="button" className="btn-primary" onClick={() => setAsking(true)}>
+              + Ask a question
+            </button>
+          </div>
         }
       />
 
@@ -193,6 +214,14 @@ export default function Queries() {
             </button>
           }
         />
+      ) : mode === 'map' ? (
+        <div className="card p-4">
+          <PeopleQueryMap
+            queries={data}
+            options={options}
+            scope={department ? departmentLabel(department) : 'Who owes an answer'}
+          />
+        </div>
       ) : (
         <div className="card overflow-hidden">
           <div className="overflow-x-auto">
@@ -259,7 +288,9 @@ export default function Queries() {
         </div>
       )}
 
-      <Pagination pagination={pagination} onChange={setPage} />
+      {/* Paging belongs to the table. The map asked for everything the filters matched, so a
+          pager under it would offer to show a second picture of the same question. */}
+      {mode !== 'map' && <Pagination pagination={pagination} onChange={setPage} />}
 
       <RaiseQuery
         open={asking}
