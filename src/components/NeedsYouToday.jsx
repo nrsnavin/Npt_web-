@@ -104,10 +104,11 @@ function Row({ task, onTake, busy }) {
             {task.customer.name}
           </Link>
         )}
+        {/* The order number, as text. A task can still carry one — the server keeps sales
+            orders — but this application has no screen to open, and a link to a route that
+            does not exist is worse than a plain number. */}
         {task.order?.number && (
-          <Link to={`/orders/${task.order._id}`} className="transition-colors hover:text-accent">
-            {task.order.number}
-          </Link>
+          <span className="text-steel-500">{task.order.number}</span>
         )}
 
         {!task.user && (

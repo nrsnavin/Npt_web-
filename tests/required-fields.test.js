@@ -123,14 +123,7 @@ test('the fields the server insists on are marked', () => {
     'components/LeadForm.jsx': ['Company'],
     'components/OwnerPicker.jsx': [],           // its label is passed in; checked below
     'components/EnquiryForm.jsx': ['Customer'],
-    'components/OrderForm.jsx': ['Customer'],
-    'components/OrderQueries.jsx': ['What do you need to know?'],
-    'components/OrderPriority.jsx': ['Why'],
-    'components/RaiseEscalation.jsx': ['What is actually wrong'],
-    'components/RaiseConcern.jsx': ['What do you need from them?'],
     'components/TaskEscalation.jsx': ['Who has to do it', 'Why it is going to them'],
-    'components/FollowUp.jsx': ['What they said'],
-    'pages/PaymentDetail.jsx': ['How much'],
     'components/MaterialForm.jsx': ['Name'],
   };
 

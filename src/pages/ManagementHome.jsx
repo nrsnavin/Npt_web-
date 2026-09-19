@@ -1,51 +1,47 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  dispatches as dispatchesApi,
   enquiries as enquiriesApi,
-  payments as paymentsApi,
+  leads as leadsApi,
   pricings as pricingsApi,
-  production as productionApi,
+  queries as queriesApi,
   quotations as quotationsApi,
+  samples as samplesApi,
 } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { Badge, ErrorState, Modal, Notice, PageHeader, Spinner } from '../components/ui.jsx';
 import PricingDecision from '../components/PricingDecision.jsx';
-import UrgentOrder from '../components/UrgentOrder.jsx';
-import EscalationFeed from '../components/EscalationFeed.jsx';
 import NeedsYouToday from '../components/NeedsYouToday.jsx';
 import WhatMattersNow from '../components/WhatMattersNow.jsx';
-import { formatCompactCurrency, formatDate, formatNumber, humanise } from '../utils/format.js';
+import { formatCompactCurrency, formatDate, formatNumber } from '../utils/format.js';
 
 /**
  * What management opens the app to find out [BLUEPRINT §21–24].
  *
- * Management was the last department still falling through to *My day*, and My day is — in its
- * own file's words — a marketing screen wearing a neutral name. Its four tiles count overdue
- * tasks, tasks due today, tasks due tomorrow and open tasks. Those are facts about one person's
- * to-do list. A managing director does not open a CRM to be told they have three to-dos; they
- * open it to find out whether the plant is all right this morning, and what will not move
- * without them.
- *
- * So this screen answers one question — **is the plant OK, and what needs me?** — in that order
- * of priority:
+ * A managing director does not open a CRM to be told they have three to-dos. They open it to
+ * find out whether the business is all right this morning, and what will not move without them.
+ * So this screen answers one question — **is it all right, and what needs me?** — in that order:
  *
  *   1. What cannot move without a signature. §9 floor approvals are the only action in this
  *      application that nobody else can take, so they come first and are decided *in place*.
- *   2. Four numbers about the plant, not about the reader. Money overdue, lines past their date,
- *      consignments to chase, prices waiting. Every one clicks through to exactly those rows.
- *   3. What is stuck, and whose it is — with the department that can clear it named.
- *   4. The money and the funnel, side by side.
+ *   2. Four numbers about the business, not about the reader. Every one clicks through to
+ *      exactly those rows.
+ *   3. What is stuck, and whose it is.
+ *   4. The funnel, stage by stage.
  *
- * **Every figure is a link.** That is the whole of the interaction design: a dashboard number
- * that cannot be opened is a number somebody has to go and look up, which means they stop
- * trusting the dashboard and go straight to the register. The tiles carry a filter with them,
- * so clicking "3 past their date" lands on the three, not on all four hundred.
+ * **Every figure is a link.** A dashboard number that cannot be opened is a number somebody has
+ * to go and look up, which means they stop trusting the dashboard and go to the register
+ * instead. The tiles carry their filter with them, so "6 out with buyers" lands on the six.
  *
- * Composed from the screens' own endpoints rather than a new management-only aggregate. That is
- * deliberate: each of those already scopes and redacts for the reader [§8, §29], so a manager
- * who is not an admin sees exactly what their grants allow, and a figure here can never disagree
- * with the screen it links to. A bespoke endpoint would be a second implementation of "late".
+ * Composed from the screens' own endpoints rather than a management-only aggregate, so each one
+ * already scopes and redacts for the reader [§8, §29] and a figure here can never disagree with
+ * the screen it links to.
+ *
+ * **This screen used to run to the far end of the plant** — money overdue, lines past their
+ * date, consignments to chase — and those four numbers were the first three quarters of it.
+ * Sales orders, production, quality, despatch and payments are no longer part of this
+ * application, so the question it answers is now a narrower one: the business up to the point a
+ * buyer says yes. It is a smaller screen, honestly, rather than the same screen with holes in.
  */
 
 /* ------------------------------------ pieces ------------------------------------ */
@@ -61,8 +57,8 @@ const TONES = {
  * One headline number, and the sentence that says what it means.
  *
  * The sentence changes with the value rather than being a static caption, because "0" under a
- * label reading "Past their date" is ambiguous — it could equally mean nothing is late or
- * nothing is loaded. "Nothing is late" cannot be misread.
+ * label reading "Waiting on a signature" is ambiguous — it could equally mean nothing is waiting
+ * or nothing has loaded. "Nothing is held up on you" cannot be misread.
  */
 function Figure({ label, value, hint, tone = 'neutral', to }) {
   const t = TONES[tone] || TONES.neutral;
@@ -102,23 +98,20 @@ function Panel({ title, subtitle, action, children, className = '' }) {
 /**
  * A row of the funnel, drawn as a proportional bar.
  *
- * The bar is against the largest stage rather than against the total, because the useful read
- * is "where does the work pile up" and a share-of-total bar makes every stage look small once
- * there are eight of them.
+ * The bar is against the largest stage rather than against the total, because the useful read is
+ * "where does the work pile up" and a share-of-total bar makes every stage look small once there
+ * are eight of them.
  */
-function FunnelRow({ label, count, value, widest, to }) {
+function FunnelRow({ label, count, widest, to }) {
   /* A stage with nothing in it draws no bar at all. The minimum width is there so that one
-     order behind a hundred is still visible, not so that zero looks like something. */
+     enquiry behind a hundred is still visible, not so that zero looks like something. */
   const width = count && widest ? Math.max(4, Math.round((count / widest) * 100)) : 0;
 
   return (
     <Link to={to} className="group block">
       <div className="flex items-baseline justify-between gap-3">
         <p className="text-xs font-semibold text-steel-200 group-hover:text-accent">{label}</p>
-        <p className="shrink-0 text-xs tabular-nums text-steel-300">
-          {count}
-          {value ? <span className="ml-1.5 text-steel-500">{formatCompactCurrency(value)}</span> : null}
-        </p>
+        <p className="shrink-0 text-xs tabular-nums text-steel-300">{count}</p>
       </div>
       <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-line/[0.07]">
         <div
@@ -130,10 +123,26 @@ function FunnelRow({ label, count, value, widest, to }) {
   );
 }
 
-/* ------------------------------------ screen ------------------------------------ */
+/* The stages worth drawing, in the order the work moves through them. */
+const FUNNEL = [
+  ['new', 'New'],
+  ['requirement_clarification', 'Clarifying'],
+  ['sample_required', 'Sample needed'],
+  ['pricing_required', 'Pricing'],
+  ['quote_submitted', 'Quoted'],
+  ['negotiation', 'Negotiating'],
+  ['customer_decision_pending', 'With the buyer'],
+];
 
-/** Everything this screen reads, fetched together so one slow call cannot half-render it. */
-const EMPTY = { approvals: [], money: null, plant: null, yard: null, funnel: {}, sent: 0 };
+const EMPTY = {
+  approvals: [],
+  funnel: {},
+  sent: 0,
+  won: { count: 0, value: 0 },
+  openQueries: 0,
+  openLeads: 0,
+  openSamples: 0,
+};
 
 export default function ManagementHome() {
   const { user, canRead, canWrite } = useAuth();
@@ -142,49 +151,54 @@ export default function ManagementHome() {
   const [error, setError] = useState(null);
   const [deciding, setDeciding] = useState(null);
 
-  const seesMoney = canRead('payments');
-  const seesPlant = canRead('production');
-  const seesYard = canRead('dispatch');
   const seesPricing = canRead('pricing');
+  const seesQueries = canRead('queries');
   const mayDecide = canWrite('pricing');
 
   /**
    * One pass, in parallel, and every call is allowed to fail on its own.
    *
-   * A manager whose grants do not cover payments should still get the rest of the screen rather
+   * A manager whose grants do not cover pricing should still get the rest of the screen rather
    * than an error page — and a module that is down should cost its own panel, not the morning's
-   * only view of the plant.
+   * only view of the business.
    */
   const load = useCallback(async () => {
     setError(null);
     const safe = (promise, fallback) => promise.then((value) => value).catch(() => fallback);
 
     try {
-      const [approvals, money, plant, yard, enquiries, sent] = await Promise.all([
-        seesPricing
-          ? safe(pricingsApi.list({ awaitingApproval: 'true', limit: 10 }), { data: [] })
-          : { data: [] },
-        seesMoney ? safe(paymentsApi.day(), null) : null,
-        seesPlant ? safe(productionApi.day(), null) : null,
-        seesYard ? safe(dispatchesApi.day(), null) : null,
-        safe(enquiriesApi.list({ limit: 1 }), { stageCounts: {} }),
-        safe(quotationsApi.list({ sent: 'true', limit: 1 }), { pagination: { total: 0 } }),
-      ]);
+      const [approvals, enquiries, sent, won, openQueries, openLeads, openSamples] =
+        await Promise.all([
+          seesPricing
+            ? safe(pricingsApi.list({ awaitingApproval: 'true', limit: 10 }), { data: [] })
+            : { data: [] },
+          safe(enquiriesApi.list({ limit: 1 }), { stageCounts: {} }),
+          safe(quotationsApi.list({ sent: 'true', limit: 1 }), { pagination: { total: 0 } }),
+          safe(quotationsApi.list({ status: 'accepted', limit: 1 }), { pagination: { total: 0 } }),
+          seesQueries
+            ? safe(queriesApi.list({ status: 'open', limit: 1 }), { pagination: { total: 0 } })
+            : { pagination: { total: 0 } },
+          safe(leadsApi.list({ open: 'true', limit: 1 }), { pagination: { total: 0 } }),
+          safe(samplesApi.list({ open: 'true', limit: 1 }), { pagination: { total: 0 } }),
+        ]);
 
       setData({
         approvals: approvals?.data || [],
-        money,
-        plant,
-        yard,
         funnel: enquiries?.stageCounts || {},
         sent: sent?.pagination?.total || 0,
+        /* What has actually been won. `wonTotal` rides on the list reply beside the page — see
+           the quotations controller; a count of accepted quotes is not a figure anybody quotes. */
+        won: { count: won?.pagination?.total || 0, value: won?.wonTotal || 0 },
+        openQueries: openQueries?.pagination?.total || 0,
+        openLeads: openLeads?.pagination?.total || 0,
+        openSamples: openSamples?.pagination?.total || 0,
       });
     } catch (loadError) {
       setError(loadError);
     } finally {
       setLoading(false);
     }
-  }, [seesMoney, seesPlant, seesYard, seesPricing]);
+  }, [seesPricing, seesQueries]);
 
   useEffect(() => {
     load();
@@ -197,40 +211,18 @@ export default function ManagementHome() {
     return 'Good evening';
   }, []);
 
-  if (loading) return <Spinner label="Reading the plant" />;
+  if (loading) return <Spinner label="Reading the business" />;
   if (error) return <ErrorState error={error} onRetry={load} />;
 
-  const { approvals, money, plant, yard, funnel, sent } = data;
-  const moneyMeta = money?.meta || {};
-  const plantMeta = plant?.meta || {};
-  const yardMeta = yard?.meta || {};
-
-  /*
-   * The escalated orders from both ends, de-duplicated. The plant and the yard each carry the
-   * same order when it is urgent, and management reading it twice under two headings would
-   * suggest two problems where there is one.
-   */
-  const stuck = [];
-  const seen = new Set();
-  for (const row of [...(plant?.data?.urgent || []), ...(yard?.data?.urgent || [])]) {
-    if (seen.has(String(row._id))) continue;
-    seen.add(String(row._id));
-    stuck.push(row);
-  }
-
-  const funnelRows = Object.entries(funnel)
-    .filter(([, row]) => row.leads > 0)
-    .map(([key, row]) => ({ key, label: humanise(key), count: row.leads, value: row.value }))
-    .sort((a, b) => b.count - a.count);
-  const widest = funnelRows[0]?.count || 0;
-
-  const nothingNeedsYou = !approvals.length && !stuck.length;
+  const { approvals, funnel, sent, won, openQueries, openLeads, openSamples } = data;
+  const widest = Math.max(1, ...FUNNEL.map(([key]) => funnel[key] || 0));
+  const inFunnel = FUNNEL.reduce((sum, [key]) => sum + (funnel[key] || 0), 0);
 
   return (
     <div className="mx-auto max-w-6xl">
       <PageHeader
         title={`${greeting}, ${user?.name?.split(' ')[0] || ''}`}
-        subtitle="The whole plant, and what will not move without you"
+        subtitle="What is in the pipeline, and what will not move without you"
         actions={
           <div className="flex flex-wrap gap-2">
             <button type="button" className="btn-secondary" onClick={load}>
@@ -312,177 +304,86 @@ export default function ManagementHome() {
         </Panel>
       )}
 
-      {/* The plant in four numbers, every one of them a door. */}
+      {/* The business in four numbers, every one of them a door. */}
       <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {seesMoney && (
+        <Figure
+          label="Won"
+          value={won.value ? formatCompactCurrency(won.value) : won.count}
+          hint={
+            won.count
+              ? `${won.count} ${won.count === 1 ? 'quotation the buyer has' : 'quotations buyers have'} accepted`
+              : 'Nothing accepted yet'
+          }
+          tone={won.count ? 'good' : 'neutral'}
+          to="/quotations?status=accepted"
+        />
+        <Figure
+          label="Out with buyers"
+          value={sent}
+          hint={sent ? 'Quoted and waiting on an answer' : 'Nothing is out with a buyer'}
+          tone={sent ? 'neutral' : 'warn'}
+          to="/quotations/sent"
+        />
+        <Figure
+          label="In the funnel"
+          value={inFunnel}
+          hint={inFunnel ? 'Enquiries still being worked' : 'The funnel is empty'}
+          tone={inFunnel ? 'neutral' : 'warn'}
+          to="/enquiries"
+        />
+        {seesQueries && (
           <Figure
-            label="Overdue money"
-            value={formatCompactCurrency(moneyMeta.overdueValue || 0)}
+            label="Unanswered questions"
+            value={openQueries}
             hint={
-              moneyMeta.overdue
-                ? `${moneyMeta.overdue} ${moneyMeta.overdue === 1 ? 'invoice is' : 'invoices are'} past their day`
-                : 'Nothing is past its day'
+              openQueries
+                ? 'Nobody has replied to these yet'
+                : 'Every question has been answered'
             }
-            tone={moneyMeta.overdue ? 'bad' : 'good'}
-            to="/payments?overdue=true"
-          />
-        )}
-        {seesPlant && (
-          <Figure
-            label="Late in production"
-            value={plantMeta.late || 0}
-            hint={
-              plantMeta.late
-                ? 'Lines that have already broken a promise'
-                : plantMeta.atRisk
-                  ? `Nothing late, but ${plantMeta.atRisk} will miss`
-                  : 'Nothing is late'
-            }
-            tone={plantMeta.late ? 'bad' : plantMeta.atRisk ? 'warn' : 'good'}
-            to="/production"
-          />
-        )}
-        {seesYard && (
-          <Figure
-            label="Consignments to chase"
-            value={yardMeta.chase || 0}
-            hint={
-              yardMeta.chase
-                ? 'Past the day a buyer was promised'
-                : yardMeta.load
-                  ? `${yardMeta.load} ready to load`
-                  : 'Nothing is behind'
-            }
-            tone={yardMeta.chase ? 'bad' : 'good'}
-            to="/dispatches"
-          />
-        )}
-        {seesPricing && (
-          <Figure
-            label="Prices with buyers"
-            value={sent}
-            hint={sent ? 'Quotations sent and not yet answered' : 'Nothing is out with a buyer'}
-            tone="neutral"
-            to="/quotations/sent"
+            tone={openQueries ? 'warn' : 'good'}
+            to="/queries?status=open"
           />
         )}
       </div>
 
-      {/* Stopped orders. Draws nothing when nothing is stopped, so a calm morning stays calm. */}
+      {/* What needs somebody today, and what the plant's own alarms have raised [§25, §35]. */}
       <NeedsYouToday />
       <WhatMattersNow />
-      {canRead('orders') && <EscalationFeed />}
-
-      {/*
-        What is stuck and whose it is. The card is the same one the plant and the yard read, so
-        the three screens cannot describe one order three ways — `mine` only changes whose angle
-        the sentence is written from, and management's angle is nobody's: it names the department.
-      */}
-      {stuck.length > 0 && (
-        <div className="mt-4">
-          <Panel
-            title="Escalated and not moving"
-            subtitle="What is holding each one, and who can clear it"
-            action={<Badge tone="danger">{stuck.length}</Badge>}
-          >
-            {/* UrgentOrder renders an <li>, so the wrapper has to be a list or the browser
-                draws a stray marker beside each card. */}
-            <ul className="space-y-3">
-              {stuck.map((row) => (
-                <UrgentOrder key={row._id} row={row} mine="management" onAnswered={load} />
-              ))}
-            </ul>
-          </Panel>
-        </div>
-      )}
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
-        {/* Money, aged. The buckets are the conversation accounts actually has. */}
-        {seesMoney && (
-          <Panel
-            title="What is owed"
-            subtitle={`${formatCompactCurrency(moneyMeta.outstanding || 0)} outstanding across ${moneyMeta.open || 0} ${moneyMeta.open === 1 ? 'invoice' : 'invoices'}`}
-            action={
-              <Link to="/payments" className="row-action text-xs">
-                All receivables
-              </Link>
-            }
-          >
-            {(moneyMeta.ageing || []).some((bucket) => bucket.count > 0) ? (
-              <ul className="space-y-2.5">
-                {(moneyMeta.ageing || []).map((bucket) => (
-                  <li key={bucket.key}>
-                    <FunnelRow
-                      label={bucket.label}
-                      count={bucket.count}
-                      value={bucket.value}
-                      widest={Math.max(...(moneyMeta.ageing || []).map((b) => b.count), 1)}
-                      to={`/payments?ageing=${bucket.key}`}
-                    />
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="py-6 text-center text-sm text-steel-400">
-                Nothing outstanding. Every invoice raised has been settled.
-              </p>
-            )}
-
-            {moneyMeta.broken > 0 && (
-              <div className="mt-4">
-                <Notice tone="warn">
-                  {moneyMeta.broken === 1
-                    ? 'One buyer has broken a payment promise.'
-                    : `${moneyMeta.broken} buyers have broken a payment promise.`}{' '}
-                  A promise that was missed is the one worth ringing about.
-                </Notice>
-              </div>
-            )}
-          </Panel>
-        )}
-
-        {/* The funnel, by where the work has piled up rather than by pipeline order. */}
-        <Panel
-          title="Where the work is"
-          subtitle="Open enquiries by stage, biggest first"
-          action={
-            <Link to="/enquiries" className="row-action text-xs">
-              All enquiries
-            </Link>
-          }
-        >
-          {funnelRows.length ? (
-            <ul className="space-y-3">
-              {funnelRows.map((row) => (
-                <li key={row.key}>
-                  <FunnelRow
-                    label={row.label}
-                    count={row.count}
-                    value={row.value}
-                    widest={widest}
-                    to={`/enquiries?status=${row.key}`}
-                  />
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="py-6 text-center text-sm text-steel-400">
-              No open enquiries. Everything raised has been settled one way or the other.
+        <Panel title="The funnel" subtitle="Where the work is piling up">
+          {inFunnel === 0 ? (
+            <p className="py-5 text-center text-sm text-steel-400">
+              No enquiry is open. Everything has been quoted, won or closed.
             </p>
+          ) : (
+            <div className="space-y-3">
+              {FUNNEL.map(([key, label]) => (
+                <FunnelRow
+                  key={key}
+                  label={label}
+                  count={funnel[key] || 0}
+                  widest={widest}
+                  to={`/enquiries?status=${key}`}
+                />
+              ))}
+            </div>
+          )}
+        </Panel>
+
+        <Panel title="The two registers behind it" subtitle="What marketing and the bench hold">
+          <div className="space-y-3">
+            <FunnelRow label="Leads still being worked" count={openLeads} widest={Math.max(1, openLeads, openSamples)} to="/leads" />
+            <FunnelRow label="Samples on the bench" count={openSamples} widest={Math.max(1, openLeads, openSamples)} to="/samples" />
+          </div>
+          {openLeads === 0 && openSamples === 0 && (
+            <Notice tone="warn">
+              Nothing is being worked in either register. That is worth a look rather than a
+              celebration — it usually means nobody is filling the top of the funnel.
+            </Notice>
           )}
         </Panel>
       </div>
-
-      {/* Said only when it is true, and said plainly. A screen that reassures has to be a screen
-          that would have told you otherwise. */}
-      {nothingNeedsYou && (
-        <div className="mt-4">
-          <Notice tone="success">
-            Nothing is waiting on you and nothing is escalated. The numbers above are the plant
-            running itself — open any of them to look closer.
-          </Notice>
-        </div>
-      )}
 
       <p className="mt-4 text-center text-xs text-steel-600">
         Read {formatDate(new Date())} · every figure links to the rows behind it

@@ -179,7 +179,22 @@ export default function WhatMattersNow() {
     );
   }
 
-  const findings = review?.findings || [];
+  /*
+   * Findings whose record this application can still open.
+   *
+   * The plant raises its alarms on a timer, server-side, and it still watches production,
+   * despatch and the money because the API still holds all three — but this app no longer has
+   * screens for them, so a row reading "DSP-2026-0004 has no proof of delivery" would offer a
+   * link to a route that does not exist and an action nobody here can take.
+   *
+   * Filtered on the *link* rather than on a list of finding kinds, so a kind added server-side
+   * later cannot quietly reappear here by not being on a list this file forgot to update. A
+   * finding with no link at all is about the queue rather than a record, and stays.
+   */
+  const GONE = ['/orders', '/production', '/dispatches', '/quality', '/payments'];
+  const findings = (review?.findings || []).filter(
+    (finding) => !finding.link || !GONE.some((prefix) => finding.link.startsWith(prefix))
+  );
   if (!findings.length) return null;
 
   const byId = new Map(findings.map((finding) => [finding.id, finding]));

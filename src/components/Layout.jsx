@@ -41,10 +41,6 @@ import { humanise } from '../utils/format.js';
 const HOME_LABELS = {
   management: 'The plant today',
   sampling: 'The bench today',
-  production: 'The plant floor',
-  despatch: 'The yard today',
-  quality: 'On hold',
-  accounts: 'The chase',
 };
 
 const MODULES = [
@@ -131,41 +127,6 @@ const MODULES = [
          be buried among — and carrying the costing each price was worked out from. */
       { to: '/quotations/sent', label: 'Sent quotations' },
     ],
-  },
-  {
-    key: 'orders',
-    label: 'Sales orders',
-    module: 'orders',
-    features: [{ to: '/orders', label: 'All sales orders' }],
-  },
-  {
-    key: 'production',
-    label: 'Production',
-    module: 'production',
-    features: [{ to: '/production', label: 'Production status' }],
-  },
-  {
-    key: 'quality',
-    label: 'Quality',
-    module: 'quality',
-    features: [
-      {
-        to: '/quality', label: 'Inspections', end: true,
-        children: [{ to: '/quality/report', label: 'Quality report' }],
-      },
-    ],
-  },
-  {
-    key: 'dispatch',
-    label: 'Dispatch',
-    module: 'dispatch',
-    features: [{ to: '/dispatches', label: 'Consignments' }],
-  },
-  {
-    key: 'payments',
-    label: 'Payments',
-    module: 'payments',
-    features: [{ to: '/payments', label: 'What is owed' }],
   },
   {
     key: 'customers',

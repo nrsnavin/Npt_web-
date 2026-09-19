@@ -4,7 +4,6 @@ import { dashboards } from '../api/endpoints.js';
 import { useRecord } from '../hooks/useRecords.js';
 import { Badge, ErrorState, PageHeader, Section, Spinner } from '../components/ui.jsx';
 import TodoBoard from '../components/TodoBoard.jsx';
-import EscalationFeed from '../components/EscalationFeed.jsx';
 import NeedsYouToday from '../components/NeedsYouToday.jsx';
 import { formatCompactCurrency, formatDate, humanise } from '../utils/format.js';
 import { LOST_REASONS, SOURCES, optionLabel, sampleStageLabel, stageLabel } from '../utils/pipeline.js';
@@ -22,7 +21,7 @@ import { LOST_REASONS, SOURCES, optionLabel, sampleStageLabel, stageLabel } from
  * a link — a number nobody can open is a number nobody trusts.
  *
  * The rows §21 asks for span every module. These are the ones the built modules can answer;
- * pricing, quotations, orders and payments join as they land.
+ * pricing and quotations join as they land.
  */
 
 const Tile = ({ label, value, hint, tone = 'neutral', to }) => {
@@ -103,7 +102,6 @@ export default function MarketingDashboard() {
 
   const { today, performance, dormantCustomers } = data;
   /* Absent on a server that has not been redeployed yet, so the screen must not assume it. */
-  const concerns = data.concernsRaised || { count: 0, rows: [] };
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -129,22 +127,10 @@ export default function MarketingDashboard() {
       */}
       <div className="mb-5">
         <NeedsYouToday />
-        <EscalationFeed title="Orders the floor has stopped on" />
       </div>
 
       {/* §37: action required today, before any analysis. */}
       <div className="mb-5 grid gap-2 sm:grid-cols-3 lg:grid-cols-5">
-        {/*
-          Raised *at* me, not by me. Somebody else has found a problem on an order of mine and
-          the buyer does not know yet — which is the one thing on this screen where the cost of
-          not seeing it lands on a customer rather than on a pipeline number.
-        */}
-        <Tile
-          label="Concerns on your orders"
-          value={concerns.count}
-          hint={concerns.count ? 'Raised by another department' : 'Nobody has flagged anything'}
-          tone={concerns.count ? 'danger' : 'neutral'}
-        />
         <Tile
           label="Follow-ups overdue"
           value={today.overdueFollowUps.count}
@@ -248,51 +234,6 @@ export default function MarketingDashboard() {
           />
         )}
 
-        {/*
-          The whole point of the chain: despatch finds an urgent order blocked, raises it with
-          production, and the person who has to ring the buyer sees both the concern and the
-          answer — without being party to a conversation held between two other departments.
-        */}
-        <Ranked
-          title="Concerns raised on your orders"
-          blurb="Another department has flagged something on an order of yours."
-          rows={concerns.rows}
-          count={concerns.count}
-          empty="Nobody has raised anything on your orders."
-          render={(row) => (
-            <li key={row._id} className="py-2.5">
-              <div className="flex items-baseline justify-between gap-3">
-                <Link
-                  to={`/orders/${row.orderId}`}
-                  className="text-sm font-semibold text-steel-100 hover:text-accent"
-                >
-                  {row.order || row.number}
-                </Link>
-                <span
-                  className={`shrink-0 text-xs font-semibold ${
-                    row.overdue ? 'text-danger-400' : 'text-steel-400'
-                  }`}
-                >
-                  {row.overdue ? 'Past its promise' : humanise(row.status)}
-                </span>
-              </div>
-              <p className="mt-0.5 text-xs text-steel-400">
-                {row.by || 'Somebody'}
-                {row.byDepartment ? ` (${humanise(row.byDepartment)})` : ''} → {humanise(row.askedOf)}
-                {row.priority !== 'normal' ? ` · ${row.priority}` : ''}
-              </p>
-              <p className="mt-1 text-sm text-steel-200">{row.question}</p>
-              {/* The answer, where there is one — otherwise the owner opens the order to find
-                  out whether the thing they were told about has moved. */}
-              {row.latestAnswer && (
-                <p className="mt-1 rounded-lg border border-line/[0.08] bg-line/[0.03] px-2.5 py-1.5 text-xs text-steel-200">
-                  <span className="font-bold">{row.latestAnswer.by || 'Answered'}:</span>{' '}
-                  {row.latestAnswer.body}
-                </p>
-              )}
-            </li>
-          )}
-        />
 
         <Ranked
           title="Samples overdue"

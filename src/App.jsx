@@ -19,18 +19,9 @@ import Home from './pages/Home.jsx';
 const Profile = lazy(() => import('./pages/Profile.jsx'));
 const Users = lazy(() => import('./pages/Users.jsx'));
 const Integrations = lazy(() => import('./pages/Integrations.jsx'));
-const Orders = lazy(() => import('./pages/Orders.jsx'));
-const OrderDetail = lazy(() => import('./pages/OrderDetail.jsx'));
-const Production = lazy(() => import('./pages/Production.jsx'));
-const Dispatches = lazy(() => import('./pages/Dispatches.jsx'));
-const DispatchDetail = lazy(() => import('./pages/DispatchDetail.jsx'));
-const Quality = lazy(() => import('./pages/Quality.jsx'));
 const WhatsappInbox = lazy(() => import('./pages/WhatsappInbox.jsx'));
 const Queries = lazy(() => import('./pages/Queries.jsx'));
 const QueryDetail = lazy(() => import('./pages/QueryDetail.jsx'));
-const QualityReport = lazy(() => import('./pages/QualityReport.jsx'));
-const Payments = lazy(() => import('./pages/Payments.jsx'));
-const PaymentDetail = lazy(() => import('./pages/PaymentDetail.jsx'));
 const Moulds = lazy(() => import('./pages/Moulds.jsx'));
 const Materials = lazy(() => import('./pages/Materials.jsx'));
 const PartsRegister = lazy(() => import('./pages/PartsRegister.jsx'));
@@ -252,46 +243,6 @@ export default function App() {
               </RequireModule>
             }
           />
-          <Route
-            path="orders"
-            element={
-              <RequireModule moduleKey="orders">
-                <Orders />
-              </RequireModule>
-            }
-          />
-          <Route
-            path="orders/:id"
-            element={
-              <RequireModule moduleKey="orders">
-                <OrderDetail />
-              </RequireModule>
-            }
-          />
-          <Route
-            path="production"
-            element={
-              <RequireModule moduleKey="production">
-                <Production />
-              </RequireModule>
-            }
-          />
-          <Route
-            path="dispatches"
-            element={
-              <RequireModule moduleKey="dispatch">
-                <Dispatches />
-              </RequireModule>
-            }
-          />
-          <Route
-            path="dispatches/:id"
-            element={
-              <RequireModule moduleKey="dispatch">
-                <DispatchDetail />
-              </RequireModule>
-            }
-          />
           {/*
             The WhatsApp inbox [§41]. On the read grant rather than write, because reading the
             front door and working it are different jobs: management reads the queue to see what
@@ -329,52 +280,6 @@ export default function App() {
             element={
               <RequireModule moduleKey="queries">
                 <QueryDetail />
-              </RequireModule>
-            }
-          />
-          {/*
-            Quality [§15]. On the read grant, which production, despatch and marketing all hold:
-            an inspection is a fact about goods that four departments have to act on, and a
-            verdict only the quality team can see is a verdict that stops nothing. Recording one
-            needs write, and that gate is on the order screen where it is recorded.
-
-            The report sits above the register so its literal path is matched first.
-          */}
-          <Route
-            path="quality/report"
-            element={
-              <RequireModule moduleKey="quality">
-                <QualityReport />
-              </RequireModule>
-            }
-          />
-          <Route
-            path="quality"
-            element={
-              <RequireModule moduleKey="quality">
-                <Quality />
-              </RequireModule>
-            }
-          />
-          {/*
-            Payments [§20]. On the read grant, which the follow-up team and marketing both hold:
-            the buyer knows their marketing person and takes their call, so a chase only accounts
-            could open is a chase where marketing rings anyway and nobody records it. What needs
-            write — a receipt, a dispute — is gated inside the screen.
-          */}
-          <Route
-            path="payments"
-            element={
-              <RequireModule moduleKey="payments">
-                <Payments />
-              </RequireModule>
-            }
-          />
-          <Route
-            path="payments/:id"
-            element={
-              <RequireModule moduleKey="payments">
-                <PaymentDetail />
               </RequireModule>
             }
           />

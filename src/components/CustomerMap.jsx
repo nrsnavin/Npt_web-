@@ -10,15 +10,14 @@ import { humanise, plural } from '../utils/format.js';
  * One buyer's whole relationship as a map [§2].
  *
  * The question this answers and the tables below it cannot: **where has this buyer got to.**
- * Every fact is already on the customer screen — three enquiries, one quoted, the quotation
- * became an order, the order is half despatched and unpaid — but as six separate tables, so the
- * reader assembles the shape in their head every time. That is the work the picture does.
+ * Every fact is already on the customer screen — two enquiries, one of them sampled, the sample
+ * approved, a costing raised and a quotation sent — but as separate tables, so the reader
+ * assembles the shape in their head every time. That is the work the picture does.
  *
  * The branches are in the order the work actually happens, left to right through the business:
  * where they came from, what they asked for, what was made for them to look at, what we quoted,
- * what they ordered, what went out, what is owed, and what is being asked about them. A reader
- * scanning for "how far did this get" is scanning down that order, so the map should not
- * reorder itself by count or by recency.
+ * and what is being asked about them. A reader scanning for "how far did this get" is scanning
+ * down that order, so the map should not reorder itself by count or by recency.
  *
  * **A branch the reader has no grant for is simply absent.** The server sends no rows and no
  * count, and this draws nothing — not a greyed node, because a node saying "8 receivables you
@@ -37,11 +36,18 @@ const STRANDS = [
   { key: 'enquiries', label: 'Enquiries', tone: 'info', at: (id) => `/enquiries/${id}`, list: '/enquiries' },
   { key: 'samples', label: 'Samples', tone: 'progress', at: (id) => `/samples/${id}`, list: '/samples' },
   { key: 'quotations', label: 'Quotations', tone: 'info', at: (id) => `/quotations/${id}`, list: '/quotations' },
-  { key: 'orders', label: 'Sales orders', tone: 'success', at: (id) => `/orders/${id}`, list: '/orders' },
-  { key: 'consignments', label: 'Consignments', tone: 'progress', at: (id) => `/dispatches/${id}`, list: '/dispatches' },
-  { key: 'receivables', label: 'What is owed', tone: 'danger', at: (id) => `/payments/${id}`, list: '/payments' },
   { key: 'queries', label: 'Queries', tone: 'accent', at: (id) => `/queries/${id}`, list: '/queries' },
 ];
+
+/*
+ * Orders, consignments and receivables are deliberately not on that list any more.
+ *
+ * The server still gathers them — the API keeps all three, and a reader with those grants still
+ * gets the rows — but this application has no screens for them, so a node reading "SO-2026-0006"
+ * would be a link to a route that does not exist. Dropping them here rather than asking the
+ * server to stop sending them keeps the two decisions separate: what the business records, and
+ * what this app shows.
+ */
 
 export default function CustomerMap({ customer, name }) {
   const fetch = useCallback((id) => customersApi.map(id), []);
@@ -100,7 +106,7 @@ export default function CustomerMap({ customer, name }) {
     <MindMap
       root={{ label: name, sublabel: 'Everything on this buyer', to: undefined }}
       branches={branches}
-      emptyLabel={`Nothing has happened on ${name} yet — no enquiries, samples or orders.`}
+      emptyLabel={`Nothing has happened on ${name} yet — no enquiries, samples or quotations.`}
     />
   );
 }

@@ -3,10 +3,6 @@ import { useAuth } from '../context/AuthContext.jsx';
 import Dashboard from './Dashboard.jsx';
 
 const SampleHome = lazy(() => import('./SampleHome.jsx'));
-const ProductionHome = lazy(() => import('./ProductionHome.jsx'));
-const DispatchHome = lazy(() => import('./DispatchHome.jsx'));
-const QualityHome = lazy(() => import('./QualityHome.jsx'));
-const PaymentsHome = lazy(() => import('./PaymentsHome.jsx'));
 const ManagementHome = lazy(() => import('./ManagementHome.jsx'));
 
 /**
@@ -49,15 +45,11 @@ const ManagementHome = lazy(() => import('./ManagementHome.jsx'));
  */
 const HOME_BY_DEPARTMENT = {
   sampling: () => <SampleHome />,
-  production: () => <ProductionHome />,
-  despatch: () => <DispatchHome />,
   /* The bench opens on what is held, because a held lot is the only thing on this
      module that stops somebody else working. */
-  quality: () => <QualityHome />,
   /* The follow-up team's whole job is the chase, so it is their front page rather than a
      screen they navigate to. Marketing keeps the general dashboard and reaches payments from
      the nav — chasing is part of their day, not the whole of it. */
-  accounts: () => <PaymentsHome />,
   /*
    * And management, which was the last department still falling through to My day.
    *
