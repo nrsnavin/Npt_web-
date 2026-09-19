@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { useRecord } from '../hooks/useRecords.js';
 import { Badge, ErrorState, Facts, Modal, PageHeader, Section, Spinner } from '../components/ui.jsx';
 import Documents from '../components/Documents.jsx';
+import CustomerQueries from '../components/CustomerQueries.jsx';
 import HistoryPanel from '../components/HistoryPanel.jsx';
 import { formatCompactCurrency, formatCurrency, formatDate, formatNumber } from '../utils/format.js';
 import {
@@ -32,7 +33,7 @@ function ContactCard({ contact }) {
 
 export default function CustomerDetail() {
   const { id } = useParams();
-  const { canWrite } = useAuth();
+  const { canRead, canWrite } = useAuth();
   const [editing, setEditing] = useState(false);
 
   const fetch = useCallback((customerId) => customersApi.get(customerId), []);
@@ -81,6 +82,13 @@ export default function CustomerDetail() {
               ]}
             />
           </Section>
+
+          {/*
+            Where a question about this buyer actually starts — somebody is on this screen
+            because the buyer has rung. Gated on the module rather than drawn and refused: a
+            department without the grant should not be shown a panel that answers 403.
+          */}
+          {canRead('queries') && <CustomerQueries customer={customer._id} name={customer.name} />}
 
           {/* The count is the customer's whole history; the table is the most recent page of
               it. Saying "10" when they have sixty is the screen disagreeing with the books. */}

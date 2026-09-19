@@ -135,7 +135,7 @@ export default function NeedsYouToday() {
   const load = useCallback(async () => {
     try {
       const response = await workspace.todos.needsMe();
-      setGroups(response.data || { handedOver: [], urgent: [] });
+      setGroups(response.data || { handedOver: [], urgent: [], asked: [] });
       setMeta(response.meta || {});
       setError(null);
     } catch (failure) {
@@ -145,7 +145,7 @@ export default function NeedsYouToday() {
        * exactly like a morning with nothing waiting.
        */
       if (failure?.status === 403 || failure?.status === 401) {
-        setGroups({ handedOver: [], urgent: [] });
+        setGroups({ handedOver: [], urgent: [], asked: [] });
       } else setError(failure);
     }
   }, []);
@@ -160,6 +160,7 @@ export default function NeedsYouToday() {
     try {
       await workspace.todos.update({ id: task._id, claim: true });
       setGroups((current) => ({
+        ...current,
         handedOver: current.handedOver.filter((row) => row._id !== task._id),
         urgent: current.urgent.filter((row) => row._id !== task._id),
       }));
@@ -182,7 +183,8 @@ export default function NeedsYouToday() {
 
   const handedOver = groups?.handedOver || [];
   const urgent = groups?.urgent || [];
-  const total = handedOver.length + urgent.length;
+  const asked = groups?.asked || [];
+  const total = handedOver.length + urgent.length + asked.length;
   if (!total) return null;
 
   return (
@@ -223,6 +225,50 @@ export default function NeedsYouToday() {
             <ul className="mt-1.5 space-y-2.5">
               {urgent.map((task) => (
                 <Row key={task._id} task={task} onTake={take} busy={busy === task._id} />
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/*
+          Questions put to this department that nobody has answered [queries]. On this card
+          rather than on one of their own, because they are the same kind of thing as the rows
+          above: work sitting here that somebody outside is waiting on. A thread addressed to
+          despatch and read by nobody in despatch is exactly the failure the module was built to
+          end, and it would survive intact if the only way to find it were the Queries screen.
+
+          No "take" button: a query is answered by replying to it, which needs the thread. The
+          row is a way in, and it leaves this card the moment anybody replies.
+        */}
+        {asked.length > 0 && (
+          <div className="mt-4">
+            {/*
+              "Query about a buyer", not "question": the despatch and production homes already
+              have a Questions tile counting the questions put against a sales order, and two
+              different things wearing the same word on one screen is a count nobody can read.
+              This is the wording the module's own screen uses.
+            */}
+            <p className="eyebrow text-warn-400/80">
+              {plural(asked.length, 'query about a buyer', 'queries about a buyer')} nobody has
+              answered
+            </p>
+            <ul className="mt-1.5 space-y-2.5">
+              {asked.map((query) => (
+                <li
+                  key={query._id}
+                  className="rounded-lg border border-line/[0.08] bg-ink-900/40 px-3.5 py-3"
+                >
+                  <Link
+                    to={`/queries/${query._id}`}
+                    className="text-sm font-semibold text-steel-100 hover:text-accent"
+                  >
+                    {query.subject}
+                  </Link>
+                  <p className="mt-0.5 text-xs text-steel-400">
+                    {query.customer?.name ? `${query.customer.name} · ` : ''}
+                    asked by {query.raisedBy?.name || 'somebody'} on {formatDate(query.createdAt)}
+                  </p>
+                </li>
               ))}
             </ul>
           </div>
