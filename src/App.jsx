@@ -19,7 +19,6 @@ import Home from './pages/Home.jsx';
 const Profile = lazy(() => import('./pages/Profile.jsx'));
 const Users = lazy(() => import('./pages/Users.jsx'));
 const Integrations = lazy(() => import('./pages/Integrations.jsx'));
-const WhatsappInbox = lazy(() => import('./pages/WhatsappInbox.jsx'));
 const Queries = lazy(() => import('./pages/Queries.jsx'));
 const QueryDetail = lazy(() => import('./pages/QueryDetail.jsx'));
 const Moulds = lazy(() => import('./pages/Moulds.jsx'));
@@ -60,6 +59,19 @@ function RequireAdmin({ children }) {
   return children;
 }
 
+/**
+ * Where `/` goes: the queries list, for anybody who may open it.
+ *
+ * Guarded on the grant rather than redirecting unconditionally, because `/queries` is itself
+ * gated — an administrator who has taken the module off somebody would otherwise send them
+ * bouncing between the two routes forever, which is a blank screen and a spinning tab. Without
+ * the grant they get the day screen, which is what the front door used to be.
+ */
+function Landing() {
+  const { canRead } = useAuth();
+  return canRead('queries') ? <Navigate to="/queries" replace /> : <Home />;
+}
+
 /** Blocks a route unless the user may read the module behind it. */
 function RequireModule({ moduleKey, children }) {
   const { canRead } = useAuth();
@@ -94,8 +106,20 @@ export default function App() {
             </RequireAuth>
           }
         >
-          {/* Home is chosen by department — see pages/Home.jsx for why it is not one screen. */}
-          <Route index element={<Home />} />
+          {/*
+            Queries is the front door.
+
+            Opening the app puts you in the questions people are waiting on, because that is now
+            what this application is for — a CRM with a conversation running through it, rather
+            than a plant system with a message board attached. A redirect rather than drawing
+            the list at `/`, so that screen has one address: two routes rendering the same thing
+            means a link somebody sends and a link somebody bookmarks are different strings, and
+            the nav can only light one of them.
+
+            The day screens are not lost, they have moved down a level: `/dashboard` is still
+            Home, still chosen by department [pages/Home.jsx], and still in the nav.
+          */}
+          <Route index element={<Landing />} />
           <Route path="dashboard" element={<Home />} />
           <Route path="profile" element={<Profile />} />
 
@@ -240,22 +264,6 @@ export default function App() {
             element={
               <RequireModule moduleKey="customers">
                 <CustomerDetail />
-              </RequireModule>
-            }
-          />
-          {/*
-            The WhatsApp inbox [§41]. On the read grant rather than write, because reading the
-            front door and working it are different jobs: management reads the queue to see what
-            is arriving and going unanswered, marketing works it. Every control inside the screen
-            is gated on write, and converting needs the enquiry grant on top — which the server
-            enforces, since the grant that governs a thing is the grant for that thing wherever
-            the button happens to live.
-          */}
-          <Route
-            path="whatsapp"
-            element={
-              <RequireModule moduleKey="whatsapp">
-                <WhatsappInbox />
               </RequireModule>
             }
           />

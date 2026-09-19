@@ -763,37 +763,6 @@ export const downloads = {
   components: (params) => save('/components/export', params, `${params?.kind || 'parts'}s.csv`),
 };
 
-/**
- * The WhatsApp inbox [§41] — the front door, where an enquiry arrives before it is one.
- *
- * `list` keeps the whole envelope because the queue tallies travel with the rows: a count
- * fetched separately disagrees with the list under it the moment anything else moves, and the
- * chips on this screen are the navigation.
- *
- * `read` is a POST of its own rather than something `get` does on the way past. Marking a
- * conversation read is a write, and a GET that writes is one nobody expects — a retry or a link
- * preview would silently clear somebody's unread flag.
- */
-export const whatsapp = {
-  list: (params) => api.get('/whatsapp/threads', { params }).then(listed),
-  owners: () => api.get('/whatsapp/threads/owners').then((response) => response.data),
-  get: (id) => api.get(`/whatsapp/threads/${id}`).then(unwrap),
-  /*
-   * `feedback: false` because this is not something a person did — it fires on opening a
-   * conversation, and a toast saying "Conversation marked as read" over every one somebody
-   * clicks is the interface congratulating itself for a side effect. The toasts are for writes
-   * a reader chose to make and might need to see fail.
-   */
-  read: (id) => api.post(`/whatsapp/threads/${id}/read`, undefined, { feedback: false }).then(unwrap),
-  update: ({ id, ...payload }) => api.patch(`/whatsapp/threads/${id}`, payload).then(unwrap),
-  /* Answers with the enquiry, and the thread beside it — the screen needs both, because the
-     row it was launched from has just changed queue. */
-  convert: ({ id, ...payload }) =>
-    api.post(`/whatsapp/threads/${id}/enquiry`, payload).then((response) => ({
-      enquiry: response.data.data,
-      thread: response.data.thread,
-    })),
-};
 
 export const auth = {
   login: (payload) => api.post('/auth/login', payload).then(unwrap),

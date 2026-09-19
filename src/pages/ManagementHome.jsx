@@ -102,7 +102,7 @@ function Panel({ title, subtitle, action, children, className = '' }) {
  * "where does the work pile up" and a share-of-total bar makes every stage look small once there
  * are eight of them.
  */
-function FunnelRow({ label, count, widest, to }) {
+function FunnelRow({ label, count, value, widest, to }) {
   /* A stage with nothing in it draws no bar at all. The minimum width is there so that one
      enquiry behind a hundred is still visible, not so that zero looks like something. */
   const width = count && widest ? Math.max(4, Math.round((count / widest) * 100)) : 0;
@@ -111,7 +111,10 @@ function FunnelRow({ label, count, widest, to }) {
     <Link to={to} className="group block">
       <div className="flex items-baseline justify-between gap-3">
         <p className="text-xs font-semibold text-steel-200 group-hover:text-accent">{label}</p>
-        <p className="shrink-0 text-xs tabular-nums text-steel-300">{count}</p>
+        <p className="shrink-0 text-xs tabular-nums text-steel-300">
+          {count}
+          {value ? <span className="ml-1.5 text-steel-500">{formatCompactCurrency(value)}</span> : null}
+        </p>
       </div>
       <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-line/[0.07]">
         <div
@@ -215,8 +218,20 @@ export default function ManagementHome() {
   if (error) return <ErrorState error={error} onRetry={load} />;
 
   const { approvals, funnel, sent, won, openQueries, openLeads, openSamples } = data;
-  const widest = Math.max(1, ...FUNNEL.map(([key]) => funnel[key] || 0));
-  const inFunnel = FUNNEL.reduce((sum, [key]) => sum + (funnel[key] || 0), 0);
+
+  /*
+   * A stage is `{ leads, value }`, not a number.
+   *
+   * Read as a number this rendered an object into a `<p>`, which React refuses — and the whole
+   * screen went to the error boundary. It only showed up when somebody opened it as an admin,
+   * because a marketing reader's funnel came back empty and an empty object is falsy. Written
+   * as accessors so there is one place that knows the shape.
+   */
+  const stageCount = (key) => funnel[key]?.leads ?? 0;
+  const stageValue = (key) => funnel[key]?.value ?? 0;
+
+  const widest = Math.max(1, ...FUNNEL.map(([key]) => stageCount(key)));
+  const inFunnel = FUNNEL.reduce((sum, [key]) => sum + stageCount(key), 0);
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -362,7 +377,8 @@ export default function ManagementHome() {
                 <FunnelRow
                   key={key}
                   label={label}
-                  count={funnel[key] || 0}
+                  count={stageCount(key)}
+                  value={stageValue(key)}
                   widest={widest}
                   to={`/enquiries?status=${key}`}
                 />

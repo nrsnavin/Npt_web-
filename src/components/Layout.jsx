@@ -44,42 +44,39 @@ const HOME_LABELS = {
 };
 
 const MODULES = [
-  {
-    key: 'home',
-    label: 'Home',
-    features: [
-      /* Labelled by what the screen actually is for this reader — see HOME_LABELS. Home is
-         chosen by department [pages/Home.jsx], and a link reading "My day" over a screen of
-         plant figures is the nav describing somebody else's morning. */
-      { to: '/', label: 'My day', end: true, home: true },
-      /* "How am I doing", where My day answers "what needs me now" — the same question at two
-         ranges, and both are why somebody opens the app rather than navigates to it mid-task. */
-      { to: '/dashboard/marketing', label: 'My dashboard', module: 'enquiries' },
-      { to: '/profile', label: 'Profile and access' },
-    ],
-  },
   /*
-   * The front door sits above the pipeline it feeds, because that is the order the work arrives
-   * in: a message becomes an enquiry becomes a quotation. A nav that put the inbox after the
-   * registers would describe the data model rather than the morning.
-   */
-  {
-    key: 'whatsapp',
-    label: 'WhatsApp',
-    module: 'whatsapp',
-    features: [{ to: '/whatsapp', label: 'Inbox' }],
-  },
-  /*
-   * Queries sit beside the inbox rather than under any one department, because they belong to
-   * none: a thread about a disputed invoice needs accounts, despatch and marketing at once, and
-   * filing it under the department that happened to raise it would hide it from the two that
-   * have to answer. Every department holds the grant for the same reason.
+   * First on the strip, because it is the front door: `/` redirects here [App.jsx].
+   *
+   * Queries belong to no one department — a thread about a disputed invoice needs accounts,
+   * despatch and marketing at once, and filing it under whoever raised it would hide it from
+   * the two who have to answer. Every department holds the grant for the same reason, which is
+   * also what makes it a reasonable thing to open the application on.
    */
   {
     key: 'queries',
     label: 'Queries',
     module: 'queries',
     features: [{ to: '/queries', label: 'Questions & answers' }],
+  },
+  {
+    key: 'home',
+    label: 'Home',
+    features: [
+      /*
+       * `/dashboard`, not `/` — the front door is the queries list now, and `/` only redirects
+       * there. A nav entry pointing at a route that redirects can never be the current page, so
+       * it would sit unlit while the reader was plainly looking at the screen it names.
+       *
+       * Labelled by what the screen actually is for this reader — see HOME_LABELS. Home is
+       * chosen by department [pages/Home.jsx], and a link reading "My day" over a screen of
+       * plant figures is the nav describing somebody else's morning.
+       */
+      { to: '/dashboard', label: 'My day', end: true, home: true },
+      /* "How am I doing", where My day answers "what needs me now" — the same question at two
+         ranges, and both are why somebody opens the app rather than navigates to it mid-task. */
+      { to: '/dashboard/marketing', label: 'My dashboard', module: 'enquiries' },
+      { to: '/profile', label: 'Profile and access' },
+    ],
   },
   {
     key: 'enquiries',
