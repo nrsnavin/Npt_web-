@@ -6,6 +6,9 @@ import { useRecord } from '../hooks/useRecords.js';
 import { Badge, ErrorState, Facts, Modal, PageHeader, Section, Spinner } from '../components/ui.jsx';
 import Documents from '../components/Documents.jsx';
 import CustomerQueries from '../components/CustomerQueries.jsx';
+import CustomerMap from '../components/CustomerMap.jsx';
+import ViewSwitch from '../components/ViewSwitch.jsx';
+import { useViewMode } from '../hooks/useBoard.js';
 import HistoryPanel from '../components/HistoryPanel.jsx';
 import { formatCompactCurrency, formatCurrency, formatDate, formatNumber } from '../utils/format.js';
 import {
@@ -35,6 +38,13 @@ export default function CustomerDetail() {
   const { id } = useParams();
   const { canRead, canWrite } = useAuth();
   const [editing, setEditing] = useState(false);
+  /*
+   * List or map, remembered per person. The list stays the default and stays complete: exact
+   * figures, sorting and copying a number out are what the tables are for, and they are also
+   * what a keyboard and a screen reader can work with. The map answers the other question —
+   * where has this buyer got to — which no single table can.
+   */
+  const [mode, setMode] = useViewMode('customer-detail');
 
   const fetch = useCallback((customerId) => customersApi.get(customerId), []);
   const { data, loading, error, reload } = useRecord(fetch, id);
@@ -54,6 +64,11 @@ export default function CustomerDetail() {
         actions={
           <div className="flex items-center gap-2">
             <Badge status={customer.status} />
+            <ViewSwitch
+              mode={mode}
+              onChange={setMode}
+              options={[{ value: 'list', label: 'List' }, { value: 'map', label: 'Map' }]}
+            />
             {mayWrite && (
               <button type="button" className="btn-secondary" onClick={() => setEditing(true)}>
                 Edit
@@ -63,7 +78,16 @@ export default function CustomerDetail() {
         }
       />
 
-      <div className="grid gap-5 lg:grid-cols-3">
+      {/* The map replaces the columns rather than sitting above them: a picture of the whole
+          relationship and then the same records again as tables is one screen saying everything
+          twice, and the reader has just chosen which of the two they wanted. */}
+      {mode === 'map' && (
+        <div className="card p-4">
+          <CustomerMap customer={customer._id} name={customer.name} />
+        </div>
+      )}
+
+      <div className={`grid gap-5 lg:grid-cols-3 ${mode === 'map' ? 'hidden' : ''}`}>
         <div className="min-w-0 space-y-5 lg:col-span-2">
           <Section title="Details">
             <Facts

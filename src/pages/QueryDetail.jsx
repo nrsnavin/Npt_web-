@@ -7,6 +7,9 @@ import {
   Badge, ErrorState, Facts, FormError, Modal, Notice, PageHeader, Section, Spinner,
 } from '../components/ui.jsx';
 import ParticipantPicker, { describeParticipant, useParticipantOptions } from '../components/ParticipantPicker.jsx';
+import QueryRoomMap from '../components/QueryRoomMap.jsx';
+import ViewSwitch from '../components/ViewSwitch.jsx';
+import { useViewMode } from '../hooks/useBoard.js';
 import { formatDate, plural } from '../utils/format.js';
 import { selfId } from '../utils/pipeline.js';
 
@@ -49,6 +52,12 @@ export default function QueryDetail() {
   const [granted, setGranted] = useState(null);
 
   const { options, loading: loadingOptions } = useParticipantOptions();
+  /*
+   * Thread or room. The thread is the default and always will be — it is what somebody opened
+   * this screen to read. The room answers the other question, the one the participant rows can
+   * state but not show: who pulled whom in, which is the audit trail on an access grant.
+   */
+  const [mode, setMode] = useViewMode('query-detail', 'thread');
 
   /* The reply carries the thread and the gist side by side, so both arrive at the same moment —
      a summary that lands a beat after the messages it describes reads as a second opinion. */
@@ -105,8 +114,13 @@ export default function QueryDetail() {
           </>
         }
         actions={
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Badge status={query.status} />
+            <ViewSwitch
+              mode={mode}
+              onChange={setMode}
+              options={[{ value: 'thread', label: 'Thread' }, { value: 'room', label: 'Room' }]}
+            />
             {/*
               Closing is the asker's, never the answerer's: an answer that did not answer is the
               common case, and letting whoever replied close it is letting them mark their own
@@ -161,7 +175,16 @@ export default function QueryDetail() {
         </Section>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-[2fr,1fr]">
+      {/* The room, when asked for. It replaces the columns rather than joining them: the
+          participants appear in both, and one screen showing the same list twice is the reader
+          wondering which of the two is the real one. */}
+      {mode === 'room' && (
+        <Section title="How this room grew">
+          <QueryRoomMap query={query} options={options} />
+        </Section>
+      )}
+
+      <div className={`grid gap-6 lg:grid-cols-[2fr,1fr] ${mode === 'room' ? 'hidden' : ''}`}>
         <div className="space-y-6">
           <Section title="The question">
             <p className="whitespace-pre-wrap text-sm leading-relaxed text-steel-200">

@@ -10,8 +10,14 @@
  * this size to anybody who has not already learnt them, and this control appears on three
  * screens that people use all day.
  */
-export default function ViewSwitch({ mode, onChange, boardLabel = 'Board' }) {
-  const options = [
+export default function ViewSwitch({ mode, onChange, boardLabel = 'Board', options: given }) {
+  /*
+   * List and board by default, because that is what three screens wanted and naming it in each
+   * of them would be three copies of the same two words. `options` is for the screens that
+   * arrange their records some other way — a customer's map, say — and it keeps them on this
+   * control rather than each growing its own pair of buttons that behave almost the same.
+   */
+  const options = given || [
     { value: 'list', label: 'List' },
     { value: 'board', label: boardLabel },
   ];

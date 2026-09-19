@@ -205,6 +205,14 @@ export const queries = {
 export const customers = {
   list: (params) => api.get('/customers', { params }).then(listed),
   get: (id) => api.get(`/customers/${id}`).then(unwrap),
+  /**
+   * Everything hanging off one buyer, for the map view.
+   *
+   * Its own request rather than part of `get`, because it reaches eight collections and most
+   * visits to a customer never switch to the map — paying for it on every open would slow the
+   * screen everybody uses to serve the one they sometimes want.
+   */
+  map: (id) => api.get(`/customers/${id}/map`).then(unwrap),
   create: (payload) => api.post('/customers', payload).then(unwrap),
   update: ({ id, ...payload }) => api.patch(`/customers/${id}`, payload).then(unwrap),
   /** Warns before submitting, on the same GST-then-number rule the server enforces. */
