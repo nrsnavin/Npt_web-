@@ -26,6 +26,8 @@ const Dispatches = lazy(() => import('./pages/Dispatches.jsx'));
 const DispatchDetail = lazy(() => import('./pages/DispatchDetail.jsx'));
 const Quality = lazy(() => import('./pages/Quality.jsx'));
 const WhatsappInbox = lazy(() => import('./pages/WhatsappInbox.jsx'));
+const Queries = lazy(() => import('./pages/Queries.jsx'));
+const QueryDetail = lazy(() => import('./pages/QueryDetail.jsx'));
 const QualityReport = lazy(() => import('./pages/QualityReport.jsx'));
 const Payments = lazy(() => import('./pages/Payments.jsx'));
 const PaymentDetail = lazy(() => import('./pages/PaymentDetail.jsx'));
@@ -303,6 +305,30 @@ export default function App() {
             element={
               <RequireModule moduleKey="whatsapp">
                 <WhatsappInbox />
+              </RequireModule>
+            }
+          />
+          {/*
+            Queries [queries]. Read is the only grant either screen asks for, and that is
+            deliberate: a query is a conversation rather than a record anybody owns — the whole
+            point is that despatch, accounts and marketing are in the same thread — so gating
+            replies on write would mean the departments a question is *for* could not answer it.
+            What protects a thread is membership, which the server enforces on every read: not
+            being in the room is a 404, not a hidden button.
+          */}
+          <Route
+            path="queries"
+            element={
+              <RequireModule moduleKey="queries">
+                <Queries />
+              </RequireModule>
+            }
+          />
+          <Route
+            path="queries/:id"
+            element={
+              <RequireModule moduleKey="queries">
+                <QueryDetail />
               </RequireModule>
             }
           />

@@ -109,6 +109,18 @@ const STATUS_TONES = {
   printing_material_pending: 'danger',
   production_hold: 'danger',
   quality_hold: 'danger',
+
+  /*
+   * A query thread. `open` is amber rather than neutral because it means nobody has answered
+   * yet — it is somebody's job, and the whole point of the list is that an unanswered thread
+   * should be visible from across the screen. `answered` is green: the plant has done its part.
+   * `closed` is already neutral above, which is right — the asker has finished with it.
+   *
+   * Deliberately not `danger`, at any age: a question waiting two days is ordinary, and a list
+   * where everything is red is a list nobody reads.
+   */
+  open: 'progress',
+  answered: 'success',
 };
 
 const TONE_CLASSES = {

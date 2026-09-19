@@ -168,6 +168,40 @@ export const components = {
     })),
 };
 
+/**
+ * Queries: a threaded question about a buyer, and everybody pulled in to answer it.
+ *
+ * Two calls here keep their whole envelope rather than unwrapping to `data`, and in both cases
+ * it is because the extra half is the point:
+ *
+ *   `list` carries `read` — what a typed phrase was taken to mean, when the model read one. The
+ *   screen shows those filters so the reader can see what narrowed their list and drop it. A
+ *   list that has been quietly filtered by a guess is the failure this feature has to avoid.
+ *
+ *   `get` carries `gist` — the thread in a sentence, and `gist.writtenBy` saying whether a model
+ *   or the thread's own words wrote it. Never stored anywhere, regenerated on every read, so
+ *   there is no version of this the screen could fetch later.
+ */
+export const queries = {
+  list: (params) => api.get('/queries', { params }).then((response) => response.data),
+  get: (id) => api.get(`/queries/${id}`).then((response) => response.data),
+  options: () => api.get('/queries/options').then(unwrap),
+  create: (payload) => api.post('/queries', payload).then(unwrap),
+  say: ({ id, ...payload }) => api.post(`/queries/${id}/messages`, payload).then(unwrap),
+  /**
+   * Pulling somebody else in. Keeps the envelope, because the reply says what the press actually
+   * granted — adding a participant also lets them open the buyer, and a consequence nobody is
+   * told about is one they meet later as a colleague who knows something they should not.
+   */
+  addParticipant: ({ id, ...payload }) =>
+    api.post(`/queries/${id}/participants`, payload).then((response) => ({
+      query: response.data.data,
+      granted: response.data.granted,
+    })),
+  close: (id) => api.post(`/queries/${id}/close`).then(unwrap),
+  reopen: (id) => api.post(`/queries/${id}/reopen`).then(unwrap),
+};
+
 export const customers = {
   list: (params) => api.get('/customers', { params }).then(listed),
   get: (id) => api.get(`/customers/${id}`).then(unwrap),

@@ -73,6 +73,18 @@ const MODULES = [
     module: 'whatsapp',
     features: [{ to: '/whatsapp', label: 'Inbox' }],
   },
+  /*
+   * Queries sit beside the inbox rather than under any one department, because they belong to
+   * none: a thread about a disputed invoice needs accounts, despatch and marketing at once, and
+   * filing it under the department that happened to raise it would hide it from the two that
+   * have to answer. Every department holds the grant for the same reason.
+   */
+  {
+    key: 'queries',
+    label: 'Queries',
+    module: 'queries',
+    features: [{ to: '/queries', label: 'Questions & answers' }],
+  },
   {
     key: 'enquiries',
     label: 'Leads & enquiries',
