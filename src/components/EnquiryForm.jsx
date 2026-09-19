@@ -4,6 +4,7 @@ import { enquiries as enquiriesApi } from '../api/endpoints.js';
 import { Field, FormError } from './ui.jsx';
 import { CustomerSelect } from './pickers.jsx';
 import EnquiryFields from './EnquiryFields.jsx';
+import ItemRows, { itemsForSave } from './ItemRows.jsx';
 import { SOURCES, buildEnquiryPayload } from '../utils/pipeline.js';
 
 /**
@@ -28,6 +29,27 @@ export default function EnquiryForm({ enquiry, onClose, onSaved }) {
   );
   const [mould, setMould] = useState(enquiry?.mould?._id ?? enquiry?.mould ?? undefined);
   const [isNewDevelopment, setNewDevelopment] = useState(Boolean(enquiry?.isNewDevelopment));
+  /*
+   * The other things the buyer asked about, beyond the first.
+   *
+   * Held from index 1 rather than including the primary, because the primary is the block
+   * below — with the mould and the new-development tick on it — and having the same item in two
+   * places on one form is how the two come to disagree while somebody is typing. The payload
+   * builder puts them back together.
+   */
+  const [extras, setExtras] = useState(() => (enquiry?.items || []).slice(1).map((item) => ({
+    modelNumber: item.modelNumber || '',
+    category: item.category || '',
+    sizeMm: item.sizeMm ?? '',
+    materialRef: item.materialRef?._id ?? item.materialRef ?? '',
+    colour: item.colour || '',
+    hookRef: item.hookRef?._id ?? item.hookRef ?? '',
+    clipRef: item.clipRef?._id ?? item.clipRef ?? '',
+    printRef: item.printRef?._id ?? item.printRef ?? '',
+    printing: item.printing || '',
+    packing: item.packing || '',
+  })));
+
   /* The register picks, held here like the mould: they are controlled selects, not inputs. */
   const [spec, setSpec] = useState(
     editing
@@ -86,7 +108,9 @@ export default function EnquiryForm({ enquiry, onClose, onSaved }) {
     }
 
     try {
-      const payload = buildEnquiryPayload(values, { mould, isNewDevelopment, spec });
+      const payload = buildEnquiryPayload(values, {
+        mould, isNewDevelopment, spec, extraItems: itemsForSave(extras),
+      });
 
       onSaved(
         editing
@@ -138,6 +162,10 @@ export default function EnquiryForm({ enquiry, onClose, onSaved }) {
         newDevelopment={isNewDevelopment}
         onNewDevelopmentChange={setNewDevelopment}
       />
+
+      {/* Below the first item, because that is the order the conversation went in and the one
+          the record keeps: the first thing they asked about is what a sample is raised for. */}
+      <ItemRows items={extras} onChange={setExtras} disabled={isSubmitting} />
 
       <FormError error={error} />
 

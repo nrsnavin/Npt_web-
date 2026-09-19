@@ -745,6 +745,46 @@ export default function EnquiryDetail() {
                 { label: 'Remarks', value: enquiry.remarks, wide: true },
               ]}
             />
+
+            {/*
+              The rest of what the conversation covered.
+              
+              Below the first item rather than beside it, because the first one is not merely
+              first — it is what a sample is raised for, what a costing is built on and what
+              every screen upstream reads. Drawn only when there is more than one, so a
+              single-item enquiry looks exactly as it always did.
+            */}
+            {enquiry.items?.length > 1 && (
+              <div className="mt-5 border-t border-line/[0.06] pt-4">
+                <p className="eyebrow">
+                  Also asked about ({enquiry.items.length - 1})
+                </p>
+                <ul className="mt-2 space-y-2">
+                  {enquiry.items.slice(1).map((item, index) => (
+                    <li
+                      key={item._id || index}
+                      className="rounded-lg bg-line/[0.03] px-3.5 py-2.5 text-sm"
+                    >
+                      <p className="font-semibold text-steel-100">
+                        {item.modelNumber || 'No model named'}
+                      </p>
+                      <p className="text-xs text-steel-400">
+                        {[
+                          optionLabel(HANGER_CATEGORIES, item.category),
+                          item.sizeMm && `${item.sizeMm} mm`,
+                          item.materialRef?.name || optionLabel(MATERIALS, item.material),
+                          item.colour,
+                          item.hookRef?.name,
+                          item.clipRef?.name,
+                          item.printRef?.name || item.printing,
+                          item.packing,
+                        ].filter(Boolean).join(' · ') || 'Nothing else recorded'}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </Section>
 
           {mayReadSamples && <EnquirySamples enquiryId={enquiry._id} />}

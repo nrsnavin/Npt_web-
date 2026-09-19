@@ -495,7 +495,7 @@ export const text = (value) => (value === '' || value === null ? undefined : val
  * omitted entirely, and the requirement nested. Shared by the enquiry form and by lead
  * conversion, which posts the same shape one level down.
  */
-export function buildEnquiryPayload(values, { mould, isNewDevelopment, spec = {} }) {
+export function buildEnquiryPayload(values, { mould, isNewDevelopment, spec = {}, extraItems = [] }) {
   const requirement = values.requirement || {};
 
   return {
@@ -527,6 +527,33 @@ export function buildEnquiryPayload(values, { mould, isNewDevelopment, spec = {}
       colourMandatory: Boolean(spec.colourMandatory),
       packing: text(requirement.packing),
     },
+
+    /*
+     * The whole list, first row included.
+     *
+     * Sent only when there is more than one thing, because the server treats a list as the
+     * truth and copies its first row over `requirement` — for the ordinary single-item enquiry
+     * that is the same values twice on the wire and one more thing to keep in step. The first
+     * row repeats the requirement above deliberately: the two are one fact, and a list whose
+     * first row was *missing* would put item two in the position the sample is raised for.
+     */
+    items: extraItems.length
+      ? [
+        {
+          modelNumber: text(requirement.modelNumber),
+          category: text(requirement.category),
+          sizeMm: numeric(requirement.sizeMm),
+          materialRef: spec.materialRef || undefined,
+          hookRef: spec.hookRef || undefined,
+          clipRef: spec.clipRef || undefined,
+          printRef: spec.printRef || undefined,
+          colour: text(spec.colour),
+          colourMandatory: Boolean(spec.colourMandatory),
+          packing: text(requirement.packing),
+        },
+        ...extraItems,
+      ]
+      : undefined,
     targetPrice: numeric(values.targetPrice),
     estimatedValue: numeric(values.estimatedValue),
     requiredDeliveryDate: text(values.requiredDeliveryDate),

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { leads as leadsApi } from '../api/endpoints.js';
 import { Field, FormError } from './ui.jsx';
+import ItemRows, { itemsForSave } from './ItemRows.jsx';
 import OwnerPicker from './OwnerPicker.jsx';
 import PlaceInput from './PlaceInput.jsx';
 import { SOURCES } from '../utils/pipeline.js';
@@ -18,6 +19,25 @@ import { SOURCES } from '../utils/pipeline.js';
 export default function LeadForm({ lead, onClose, onSaved }) {
   const editing = Boolean(lead);
   const [error, setError] = useState(null);
+  /*
+   * What they said they want, when the call went far enough to write it down.
+   *
+   * A lead has no primary item the way an enquiry does — there is no mould and no requirement
+   * block — so every row is an ordinary row and the list starts empty. Most leads will stay
+   * that way; the free-text line below is what a first call usually produces.
+   */
+  const [items, setItems] = useState(() => (lead?.items || []).map((item) => ({
+    modelNumber: item.modelNumber || '',
+    category: item.category || '',
+    sizeMm: item.sizeMm ?? '',
+    materialRef: item.materialRef?._id ?? item.materialRef ?? '',
+    colour: item.colour || '',
+    hookRef: item.hookRef?._id ?? item.hookRef ?? '',
+    clipRef: item.clipRef?._id ?? item.clipRef ?? '',
+    printRef: item.printRef?._id ?? item.printRef ?? '',
+    printing: item.printing || '',
+    packing: item.packing || '',
+  })));
   const {
     register,
     handleSubmit,
@@ -57,6 +77,9 @@ export default function LeadForm({ lead, onClose, onSaved }) {
         email: values.email || undefined,
         estimatedValue: numeric(values.estimatedValue),
         nextFollowUpDate: values.nextFollowUpDate || undefined,
+        /* Always sent when editing, so clearing the last row actually clears it — an absent
+           key would read as "no opinion" and leave the old rows in place. */
+        items: itemsForSave(items),
       };
 
       onSaved(
@@ -139,6 +162,15 @@ export default function LeadForm({ lead, onClose, onSaved }) {
       <Field label="What are they after" hint="Free text — a lead rarely names a model yet">
         <textarea rows={2} className="input" {...register('productInterest')} />
       </Field>
+
+      {/* And the detail, when the call went further. Carried straight onto the enquiry on
+          conversion, which is what stops somebody who was not on the call retyping it. */}
+      <ItemRows
+        items={items}
+        onChange={setItems}
+        title="Models they named"
+        hint="Only if they got specific. These come across to the enquiry when the lead converts."
+      />
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Next action">
