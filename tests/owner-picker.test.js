@@ -106,3 +106,51 @@ test('the owner is asked on create and never on edit', () => {
     assert.ok(mounted, `${name} only offers it on create`);
   }
 });
+
+
+/* ------------------- Keeping a buyer yourself ------------------- */
+
+test('the reader\'s own name is drawn apart, not slipped in among marketing', () => {
+  /*
+   * An administrator or a manager may hold a buyer — `assertCanOwnBuyer` has always accepted
+   * them — but they are not on the marketing roster, so the list had no entry for them and the
+   * field is required. The one person allowed to keep a buyer themselves was the one who could
+   * not say so: a screen contradicting its own server.
+   *
+   * The server sends them back flagged, and the flag is why they are drawn apart. Assigning a
+   * buyer to a colleague and keeping one yourself are two decisions, and a list that mixes them
+   * makes the second look like the first.
+   */
+  assert.match(PICKER, /const marketing = roster\.filter\(\(person\) => !person\.self\)/);
+  assert.match(PICKER, /const yourself = roster\.find\(\(person\) => person\.self\)/);
+  assert.match(PICKER, /<optgroup label="Marketing">/);
+  assert.match(PICKER, /<optgroup label="Keep it yourself">/);
+});
+
+test('the grouping only appears when there are two kinds of answer', () => {
+  /* A lone `<optgroup>` over the only list there is, is a heading for nothing — so a marketing
+     person, who is offered marketing and nothing else, still sees a plain list. */
+  assert.match(PICKER, /\{yourself \? \(/, 'the groups are conditional on a self entry existing');
+  assert.match(PICKER, /Boolean\(marketing\.length\) && \(/, 'and an empty team draws no heading');
+});
+
+test('keeping it yourself says what that costs, as plainly as handing it over', () => {
+  /*
+   * §3 and §29 assume a marketing person is chasing the relationship: the follow-up reminders,
+   * the scoreboard and the untouched-leads count all read from the owner. Keeping a buyer is a
+   * legitimate thing to do and it takes them off all of that — worth knowing before pressing
+   * save rather than after wondering why nobody rang them.
+   */
+  assert.match(PICKER, /const keepingIt = yourself && chosen && String\(chosen\) === String\(yourself\._id\)/);
+  assert.match(PICKER, /Yours to chase, not marketing/);
+  assert.match(PICKER, /be reminded to follow it up/);
+
+  /* And the hand-over warning is still its own, separate case. */
+  assert.match(PICKER, /This will be theirs to chase/);
+});
+
+test('the placeholder stops saying "somebody in marketing" when that is not the only option', () => {
+  /* A required field whose prompt names a group the reader is not in, offering an entry that is
+     not in that group, is the small lie that makes people distrust the rest of the form. */
+  assert.match(PICKER, /yourself \? 'Choose an owner…' : 'Choose somebody in marketing…'/);
+});
