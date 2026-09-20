@@ -94,6 +94,14 @@ export default function PricingDetail() {
    */
   const [previewing, setPreviewing] = useState(null);
   const [quoting, setQuoting] = useState(false);
+  /*
+   * Which model on the sheet is being read.
+   *
+   * By index rather than by id, because the record is reloaded after every save and an id held
+   * across a reload points at a line the new document does not have to contain. The index is
+   * clamped below, so a sheet that loses a line falls back to its first rather than to nothing.
+   */
+  const [active, setActive] = useState(0);
 
   if (loading) return <Spinner label="Loading the costing" />;
   if (error) return <ErrorState error={error} onRetry={reload} />;
@@ -101,14 +109,52 @@ export default function PricingDetail() {
 
   const pricing = data.data;
   const quotations = data.quotations || [];
-  const cost = pricing.cost || {};
 
-  const total = pricing.totalCost || 0;
+  /*
+   * The sheet holds a line per model [§7], and every figure below belongs to one of them: the
+   * cost, the tiers, the floor, the margin, §9's decision. The page reads the chosen line and
+   * says which it is — the alternative, adding the lines up, would produce totals that mean
+   * nothing: two hangers priced per piece do not have a combined cost per piece.
+   */
+  const lines = pricing.lines?.length ? pricing.lines : [pricing];
+  const line = lines[Math.min(active, lines.length - 1)] || lines[0];
+  const several = lines.length > 1;
+
+  /*
+   * What can actually go on a quotation.
+   *
+   * Per line, not off the sheet's roll-up: four models settled and one still waiting used to
+   * hide the button entirely, because the sheet read `approval_pending`. The four are offerable
+   * and the fifth is simply left off the document until it is signed.
+   */
+  const approvedLines = lines.filter((row) => row.status === 'approved' && row.approvedSellingPrice);
+
+  /*
+   * And of those, the ones not already on an offer the buyer has not answered.
+   *
+   * The server refuses a second live quotation for a model it has already quoted, so a button
+   * offering one is a button that fails. A quote the customer answered is not in the way: they
+   * said no to that price, and re-costing and re-quoting is the ordinary next move.
+   */
+  const settled = ['accepted', 'rejected'];
+  const live = quotations.filter((quote) => !settled.includes(quote.status));
+  const alreadyOut = new Set(
+    live.flatMap((quote) =>
+      (quote.lines || [])
+        .filter((row) => String(row.pricing?._id ?? row.pricing) === String(pricing._id))
+        .map((row) => String(row.pricingLine || lines[0]?._id || ''))
+    )
+  );
+  const quotable = approvedLines.filter((row) => !alreadyOut.has(String(row._id)));
+
+  const cost = line.cost || {};
+
+  const total = line.totalCost || 0;
   const share = (value) => (total ? ((Number(value) || 0) / total) * 100 : 0);
 
   /* What the buyer wanted against what they will be offered — the gap that decides the job. */
   const target = pricing.enquiry?.targetPrice ?? pricing.targetPrice;
-  const asking = pricing.approvedSellingPrice;
+  const asking = line.approvedSellingPrice;
   const gap = target && asking ? ((asking - target) / target) * 100 : null;
 
   /*
@@ -119,7 +165,7 @@ export default function PricingDetail() {
    * Without this, the first person to compare the two assumes the sheet is wrong and corrects
    * it downwards, which is the error the register exists to prevent.
    */
-  const mould = pricing.mould;
+  const mould = line.mould;
   const fromTool =
     mould && cost.gramWeight
       ? `${mould.mouldCode} — ${mould.partWeightGrams}g part + ${(
@@ -127,14 +173,14 @@ export default function PricingDetail() {
         ).toFixed(2)}g runner share, ${mould.runningCavities ?? mould.cavities} up`
       : null;
 
-  const lines = [
+  const costLines = [
     {
       label: 'Raw material',
       hint:
         cost.gramWeight && cost.rawMaterialRate
           ? `${cost.gramWeight}g × ₹${cost.rawMaterialRate}/kg ÷ 1000`
           : 'Not entered',
-      value: pricing.materialCost,
+      value: line.materialCost,
       note: fromTool,
     },
     { label: 'Job work', value: cost.jobWorkCost },
@@ -154,7 +200,11 @@ export default function PricingDetail() {
             {/* No lot size: the sheet prices one piece, and how many is the purchase order's
                 answer. What identifies a costing is the buyer and the model. */}
             {pricing.customer?.name}
-            {pricing.modelNumber ? ` · ${pricing.modelNumber}` : ''}
+            {several
+              ? ` · ${lines.length} models`
+              : line.modelNumber
+                ? ` · ${line.modelNumber}`
+                : ''}
           </>
         }
         actions={
@@ -167,9 +217,14 @@ export default function PricingDetail() {
               could not offer from. `canQuote`, not `canWrite`: marketing turns an approved
               price into a document without ever being shown the cost above it.
             */}
-            {mayQuote && pricing.status === 'approved' && (
+            {/*
+              Reads the *sheet*, not the line being looked at: quoting takes every approved model
+              on it onto one document, which is what a quotation is. A sheet with four approved
+              prices and one still waiting offers the four.
+            */}
+            {mayQuote && quotable.length > 0 && (
               <button type="button" className="btn-primary" onClick={() => setQuoting(true)}>
-                Quote this price
+                {several ? `Quote ${quotable.length} approved` : 'Quote this price'}
               </button>
             )}
             {/*
@@ -180,7 +235,7 @@ export default function PricingDetail() {
               decision they are all for. Whoever opened a sheet to think about it had to go back
               to a table of numbers to say yes.
             */}
-            {mayCost && pricing.status === 'approval_pending' && (
+            {mayCost && line.status === 'approval_pending' && (
               <button type="button" className="btn-primary" onClick={() => setEditing('decision')}>
                 Approve or refuse
               </button>
@@ -200,31 +255,73 @@ export default function PricingDetail() {
                   beats abandoning it for a second one nobody can tell apart. §9 re-runs on
                   save, so a price that no longer clears the floor goes back for signature.
                 */}
-                {pricing.status !== 'approval_pending' && (
+                {line.status !== 'approval_pending' && (
                   <button
                     type="button"
                     className="btn-secondary"
                     onClick={() => setEditing('sheet')}
                   >
-                    {pricing.status === 'requested' ? 'Build the costing' : 'Re-cost'}
+                    {line.status === 'requested' ? 'Build the costing' : 'Re-cost'}
                   </button>
                 )}
               </>
             )}
+            {/* The sheet's own state, which is a roll-up of the lines — the line being read
+                carries its own badge on the switcher below. */}
             <Badge status={pricing.status}>{humanise(pricing.status)}</Badge>
           </div>
         }
       />
 
-      {pricing.needsApproval && (
+      {line.needsApproval && (
         <Notice tone="warn">
-          This price is below the approved minimum. Nothing can be quoted from it until
-          management signs it off [§9].
+          {several ? `${line.modelNumber || 'This model'} is` : 'This price is'} below the approved
+          minimum. Nothing can be quoted from it until management signs it off [§9]
+          {several ? ' — the other models on this sheet are not held by it' : ''}.
         </Notice>
       )}
 
-      {pricing.status === 'rejected' && pricing.rejectionNote && (
-        <Notice tone="danger">Refused: {pricing.rejectionNote}</Notice>
+      {line.status === 'rejected' && line.rejectionNote && (
+        <Notice tone="danger">Refused: {line.rejectionNote}</Notice>
+      )}
+
+      {/*
+        The models on this sheet, and the one being read.
+
+        Not a table of all of them, because what a costing is *for* is the build-up of one price
+        — seven cost lines, three tiers, a floor and a margin — and five of those side by side is
+        a spreadsheet nobody can check. A switcher keeps the sheet readable and makes the choice
+        of model explicit, which matters most where the figures are: every number below belongs
+        to whichever of these is lit.
+      */}
+      {several && (
+        <div className="mb-5 flex flex-wrap gap-2">
+          {lines.map((row, index) => {
+            const chosen = row === line;
+            return (
+              <button
+                key={row._id || index}
+                type="button"
+                onClick={() => setActive(index)}
+                aria-current={chosen ? 'true' : undefined}
+                className={`flex items-baseline gap-2.5 rounded-lg border px-3.5 py-2 text-left transition-colors ${
+                  chosen
+                    ? 'border-flame-500/50 bg-flame-500/[0.08]'
+                    : 'border-line/[0.08] hover:bg-line/[0.04]'
+                }`}
+              >
+                <span className={`text-sm font-semibold ${chosen ? 'text-flame-400' : 'text-steel-200'}`}>
+                  {row.modelNumber || `Model ${index + 1}`}
+                </span>
+                <span className="text-xs tabular-nums text-steel-400">
+                  {rupees(row.approvedSellingPrice)}
+                </span>
+                {/* The one fact everybody needs off a model they are not reading: is it settled. */}
+                <Badge status={row.status}>{humanise(row.status)}</Badge>
+              </button>
+            );
+          })}
+        </div>
       )}
 
       <div className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
@@ -234,14 +331,14 @@ export default function PricingDetail() {
             {mayCost ? (
               <>
                 <div className="divide-y divide-line/[0.04]">
-                  {lines.map((line) => (
+                  {costLines.map((row) => (
                     <CostLine
-                      key={line.label}
-                      label={line.label}
-                      hint={line.hint}
-                      note={line.note}
-                      value={paise(line.value)}
-                      share={share(line.value)}
+                      key={row.label}
+                      label={row.label}
+                      hint={row.hint}
+                      note={row.note}
+                      value={paise(row.value)}
+                      share={share(row.value)}
                     />
                   ))}
                 </div>
@@ -264,7 +361,7 @@ export default function PricingDetail() {
                   <p className="eyebrow mb-2">Cost plus</p>
                   <div className="grid gap-3 sm:grid-cols-3">
                     {STANDARD_TIERS.map((percent) => {
-                      const chosen = (pricing.markupPercent ?? MINIMUM_TIER) === percent;
+                      const chosen = (line.markupPercent ?? MINIMUM_TIER) === percent;
                       return (
                         <div
                           key={percent}
@@ -274,7 +371,7 @@ export default function PricingDetail() {
                             {percent}%{percent === MINIMUM_TIER ? ' · floor' : ''}
                           </p>
                           <p className={`stat-value mt-1 ${chosen ? 'text-flame-400' : 'text-steel-50'}`}>
-                            {rupees(pricing.tiers?.[percent])}
+                            {rupees(line.tiers?.[percent])}
                           </p>
                         </div>
                       );
@@ -287,19 +384,19 @@ export default function PricingDetail() {
                     <p className="eyebrow">Approved</p>
                     <p className="stat-value mt-1 text-steel-50">{rupees(asking)}</p>
                     <p className="mt-0.5 text-xs text-steel-500">
-                      {pricing.effectiveMarkupPercent === null ||
-                      pricing.effectiveMarkupPercent === undefined
+                      {line.effectiveMarkupPercent === null ||
+                      line.effectiveMarkupPercent === undefined
                         ? 'What marketing may quote'
-                        : `Cost plus ${pricing.effectiveMarkupPercent}% — what marketing may quote`}
+                        : `Cost plus ${line.effectiveMarkupPercent}% — what marketing may quote`}
                     </p>
                   </div>
                   <div className="card px-4 py-3">
                     <p className="eyebrow">Lowest we may sell at</p>
                     <p className="stat-value mt-1 text-steel-50">
-                      {rupees(pricing.minimumSellingPrice)}
+                      {rupees(line.minimumSellingPrice)}
                     </p>
                     <p className="mt-0.5 text-xs text-steel-500">
-                      {pricing.minimumOverride == null
+                      {line.minimumOverride == null
                         ? 'The 10% tier, by standing policy'
                         : 'Set for this job'}
                     </p>
@@ -310,18 +407,18 @@ export default function PricingDetail() {
                   <div className="card px-4 py-3">
                     <p className="eyebrow">Margin on the approved price</p>
                     <p className="stat-value mt-1 text-steel-50">
-                      {pricing.grossMarginPercent === null ||
-                      pricing.grossMarginPercent === undefined
+                      {line.grossMarginPercent === null ||
+                      line.grossMarginPercent === undefined
                         ? '—'
-                        : `${pricing.grossMarginPercent}%`}
+                        : `${line.grossMarginPercent}%`}
                     </p>
                   </div>
                   <div className="card px-4 py-3">
                     <p className="eyebrow">Margin per piece</p>
                     <p className="stat-value mt-1 text-steel-50">
-                      {pricing.totalCost === undefined || asking === undefined
+                      {line.totalCost === undefined || asking === undefined
                         ? '—'
-                        : rupees(Math.round((asking - pricing.totalCost) * 100) / 100)}
+                        : rupees(Math.round((asking - line.totalCost) * 100) / 100)}
                     </p>
                     {/*
                       Per piece, because that is the only figure this sheet has ever computed.
@@ -329,7 +426,7 @@ export default function PricingDetail() {
                       number nobody had agreed to — and print it as the value of the job.
                     */}
                     <p className="mt-0.5 text-xs text-steel-500">
-                      {rupees(asking)} less {rupees(pricing.totalCost)} to make
+                      {rupees(asking)} less {rupees(line.totalCost)} to make
                     </p>
                   </div>
                 </div>
@@ -400,9 +497,9 @@ export default function PricingDetail() {
                 </p>
                 {/* The next step, where the absence of it is noticed. An empty panel that only
                     states the emptiness sends the reader back to the list to do the thing. */}
-                {mayQuote && pricing.status === 'approved' && (
+                {mayQuote && quotable.length > 0 && (
                   <button type="button" className="btn-secondary" onClick={() => setQuoting(true)}>
-                    Quote this price
+                    {several ? `Quote ${quotable.length} approved` : 'Quote this price'}
                   </button>
                 )}
               </div>
@@ -422,29 +519,37 @@ export default function PricingDetail() {
                       </Link>
                       <p className="text-xs text-steel-400">
                         {/*
-                          The line off *this* costing, not the document total. A quotation can
-                          carry eight models and only one of them was priced here — showing the
-                          document's value against this sheet would read as a costing that
-                          produced eight times the business it did.
+                          The line off *this model*, not the document total and no longer the
+                          sheet's first. A sheet prices several and a quotation can carry eight —
+                          matching on the sheet alone put another model's rate beside the one
+                          being read, which is a discount that was never given.
                         */}
                         Rev {quote.revision ?? 0} ·{' '}
                         {(() => {
-                          const line =
-                            (quote.lines || []).find(
-                              (row) => String(row.pricing) === String(pricing._id)
-                            ) || quote.lines?.[0];
-                          if (!line) return '—';
-                          return `${formatNumber(line.quantity)} pcs · ${rupees(line.unitPrice)}${
-                            line.moq ? ` · min ${formatNumber(line.moq)}` : ''
+                          const rows = (quote.lines || []).filter(
+                            (row) => String(row.pricing) === String(pricing._id)
+                          );
+                          const quoted =
+                            rows.find(
+                              (row) => String(row.pricingLine || '') === String(line._id || '')
+                            )
+                            /* Raised before a quotation line named its costing line, and those
+                               sheets priced one model — so the sheet's own row is the answer. */
+                            || (several ? undefined : rows[0]);
+                          if (!quoted) return 'another model on this sheet';
+                          return `${rupees(quoted.unitPrice)}${
+                            quoted.moq ? ` · min ${formatNumber(quoted.moq)}` : ''
                           }`;
                         })()}
                         {quote.lines?.length > 1 ? ` · with ${quote.lines.length - 1} other model(s)` : ''}
-                        {/* Worth surfacing: a quote below the sheet's own approved price is a
+                        {/* Worth surfacing: a quote below this model's own approved price is a
                             discount somebody gave, and it is invisible on the quotation. */}
                         {asking &&
                         (quote.lines || []).some(
                           (row) =>
-                            String(row.pricing) === String(pricing._id) && row.unitPrice < asking
+                            String(row.pricing) === String(pricing._id)
+                            && (!several || String(row.pricingLine || '') === String(line._id || ''))
+                            && row.unitPrice < asking
                         )
                           ? ' · under the approved price'
                           : ''}
@@ -499,6 +604,8 @@ export default function PricingDetail() {
           >
             <QuoteFromCosting
               pricing={pricing}
+              /* What is left to offer — this page already knows what has gone out. */
+              lines={quotable}
               onClose={() => setQuoting(false)}
               /*
                 Straight into the document, as on the costings screen. The question after
@@ -521,7 +628,7 @@ export default function PricingDetail() {
           <Section title="This costing">
             <dl className="space-y-3 text-sm">
               <Fact label="Customer" value={pricing.customer?.name} />
-              <Fact label="Model" value={pricing.modelNumber} />
+              <Fact label="Model" value={line.modelNumber} />
               <Fact
                 label="Enquiry"
                 value={
@@ -537,22 +644,22 @@ export default function PricingDetail() {
                   )
                 }
               />
-              <Fact label="Material" value={pricing.materialRef?.name || pricing.material?.toUpperCase()} />
-              <Fact label="Hook" value={pricing.hookRef?.name} />
-              <Fact label="Clip" value={pricing.clipRef?.name} />
+              <Fact label="Material" value={line.materialRef?.name || line.material?.toUpperCase()} />
+              <Fact label="Hook" value={line.hookRef?.name} />
+              <Fact label="Clip" value={line.clipRef?.name} />
               <Fact
                 label="Trade or manufacture"
-                value={pricing.procurement && humanise(pricing.procurement)}
+                value={line.procurement && humanise(line.procurement)}
               />
-              <Fact label="Printing" value={pricing.printing} />
+              <Fact label="Printing" value={line.printing} />
               <Fact label="Asked by" value={pricing.requestedBy?.name} />
               <Fact label="Asked on" value={formatDate(pricing.requestedAt)} />
               <Fact label="Costed by" value={pricing.costedBy?.name} />
               <Fact
                 label="Signed off"
                 value={
-                  pricing.approvedAt
-                    ? `${pricing.approvedBy?.name || '—'} · ${formatDate(pricing.approvedAt)}`
+                  line.approvedAt
+                    ? `${line.approvedBy?.name || '—'} · ${formatDate(line.approvedAt)}`
                     : null
                 }
               />
@@ -631,6 +738,7 @@ export default function PricingDetail() {
       >
         <CostingDetailsForm
           pricing={pricing}
+          line={line}
           onClose={() => setEditing(null)}
           onSaved={reload}
         />
@@ -644,6 +752,7 @@ export default function PricingDetail() {
       >
         <PricingDecision
           pricing={pricing}
+          line={line}
           onClose={() => setEditing(null)}
           onSaved={reload}
         />
@@ -658,6 +767,7 @@ export default function PricingDetail() {
       >
         <CostingSheetForm
           pricing={pricing}
+          line={line}
           onClose={() => setEditing(null)}
           onSaved={reload}
         />

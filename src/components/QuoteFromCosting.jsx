@@ -33,10 +33,31 @@ const rupees = (value) =>
  * costings produced eight quotation numbers and the person quoting had to pick between the real
  * document and the system's idea of one.
  */
-export default function QuoteFromCosting({ pricing, onClose, onQuoted }) {
-  const standard = pricing.mould?.moq || 0;
+export default function QuoteFromCosting({ pricing, lines, onClose, onQuoted }) {
+  /*
+   * What is actually going onto the document [§7].
+   *
+   * A sheet prices several models; only the approved ones may be offered, and only those not
+   * already on a live quotation — the server takes exactly that view, so a list built any other
+   * way here would show somebody a model that is not going to appear. `lines` is that list when
+   * the screen already worked it out (it knows what has been quoted); the fallback is every
+   * approved line, which is right wherever nothing has gone out.
+   *
+   * The rate and the minimum below apply to a single model — on a sheet of five, "offer all
+   * five at this price" is not something anybody means, so those are edited on the quotation
+   * afterwards, model by model.
+   */
+  const quotable =
+    lines
+    || (pricing.lines || []).filter((row) => row.status === 'approved' && row.approvedSellingPrice);
+  const only = quotable.length === 1 ? quotable[0] : null;
+  const single = quotable.length <= 1;
+
+  const standard = (only?.mould || pricing.mould)?.moq || 0;
   const [moq, setMoq] = useState(standard || '');
-  const [unitPrice, setUnitPrice] = useState(pricing.approvedSellingPrice ?? '');
+  const [unitPrice, setUnitPrice] = useState(
+    (only?.approvedSellingPrice ?? pricing.approvedSellingPrice) ?? ''
+  );
   const [gstPercent, setGst] = useState(18);
   const [isExport, setExport] = useState(false);
   const [paymentTerms, setPayment] = useState('');
@@ -71,15 +92,27 @@ export default function QuoteFromCosting({ pricing, onClose, onQuoted }) {
       .list({ customer: customerId, status: 'draft', limit: 20 })
       .then((response) => {
         if (cancelled) return;
-        /* One already carrying this costing cannot take it twice — the server refuses it, and
-           offering the option would be inviting an error we already know the answer to. */
+        /*
+         * A draft already carrying *every* model this sheet can offer cannot take it again —
+         * the server refuses that, and offering it would be inviting an error we already know
+         * the answer to. One carrying some of them is still a valid target: the rest go onto
+         * the same document, which is the whole point of the choice.
+         */
+        const offerable = (pricing.lines || [])
+          .filter((row) => row.status === 'approved' && row.approvedSellingPrice)
+          .map((row) => String(row._id));
+
         setDrafts(
-          (response.data || []).filter(
-            (quote) =>
-              !(quote.lines || []).some(
-                (line) => String(line.pricing?._id ?? line.pricing) === String(pricing._id)
-              )
-          )
+          (response.data || []).filter((quote) => {
+            const on = new Set(
+              (quote.lines || [])
+                .filter((row) => String(row.pricing?._id ?? row.pricing) === String(pricing._id))
+                .map((row) => String(row.pricingLine || 'sheet'))
+            );
+            if (!on.size) return true;
+            if (on.has('sheet')) return false;
+            return offerable.some((id) => !on.has(id));
+          })
         );
       })
       .catch(() => !cancelled && setDrafts([]));
@@ -96,8 +129,10 @@ export default function QuoteFromCosting({ pricing, onClose, onQuoted }) {
     try {
       const quote = await pricingsApi.quote({
         id: pricing._id,
-        moq: moq === '' ? undefined : Number(moq),
-        unitPrice: unitPrice === '' ? undefined : Number(unitPrice),
+        /* Only where there is one model to apply them to — the server takes the same view, and
+           on a sheet of several each line keeps the rate and the minimum it was priced at. */
+        moq: single && moq !== '' ? Number(moq) : undefined,
+        unitPrice: single && unitPrice !== '' ? Number(unitPrice) : undefined,
         /* The terms belong to the document, so a draft keeps its own: one validity and one set
            of payment terms for every model on it, which is what makes it one offer. */
         ...(target
@@ -148,52 +183,96 @@ export default function QuoteFromCosting({ pricing, onClose, onQuoted }) {
         </Field>
       )}
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="card px-4 py-3">
-          <p className="eyebrow">Approved price</p>
-          <p className="stat-value mt-1 text-steel-50">{rupees(pricing.approvedSellingPrice)}</p>
-          <p className="mt-0.5 text-xs text-steel-500">Per piece, which is what a quote states</p>
-        </div>
-        <div className="card px-4 py-3">
-          <p className="eyebrow">Minimum being offered</p>
-          <p className="stat-value mt-1 text-steel-50">
-            {moq ? formatNumber(Number(moq)) : '—'}
+      {single ? (
+        <>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="card px-4 py-3">
+              <p className="eyebrow">Approved price</p>
+              <p className="stat-value mt-1 text-steel-50">
+                {rupees(only?.approvedSellingPrice ?? pricing.approvedSellingPrice)}
+              </p>
+              <p className="mt-0.5 text-xs text-steel-500">Per piece, which is what a quote states</p>
+            </div>
+            <div className="card px-4 py-3">
+              <p className="eyebrow">Minimum being offered</p>
+              <p className="stat-value mt-1 text-steel-50">
+                {moq ? formatNumber(Number(moq)) : '—'}
+              </p>
+              <p className="mt-0.5 text-xs text-steel-500">The smallest lot this rate holds for</p>
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Unit price" hint="From the costing. Change it and the floor is re-checked">
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                className="input"
+                value={unitPrice}
+                onChange={(event) => setUnitPrice(event.target.value)}
+              />
+            </Field>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field
+              label="Minimum order quantity"
+              hint={
+                standard
+                  ? `The register's standard is ${formatNumber(standard)}. This buyer may be offered another`
+                  : 'The smallest lot this price is offered at. Printed on the quotation'
+              }
+            >
+              <input
+                type="number"
+                min="0"
+                className="input"
+                value={moq}
+                onChange={(event) => setMoq(event.target.value)}
+              />
+            </Field>
+          </div>
+        </>
+      ) : (
+        /*
+          Several models, so the rates are shown rather than asked for: each carries the price
+          it was approved at and the minimum off its own tool. A single box here would be one
+          number standing for five different hangers, and whichever of them it fits, it is
+          wrong for the other four. They are editable on the quotation, line by line.
+        */
+        <div className="rounded-lg border border-line/[0.06] bg-line/[0.02] px-3.5 py-3">
+          <p className="eyebrow mb-2">Going on the quotation</p>
+          <ul className="space-y-1.5">
+            {quotable.map((row) => (
+              <li key={row._id} className="flex items-baseline justify-between gap-4 text-sm">
+                <span className="min-w-0 truncate text-steel-200">
+                  {row.modelNumber || 'Unnamed model'}
+                </span>
+                <span className="shrink-0 tabular-nums text-steel-100">
+                  {rupees(row.approvedSellingPrice)}
+                  {row.mould?.moq ? (
+                    <span className="ml-2 text-xs text-steel-500">
+                      min {formatNumber(row.mould.moq)}
+                    </span>
+                  ) : null}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2.5 text-xs text-steel-500">
+            Each rate is the price it was approved at, and each minimum is its own tool&rsquo;s.
+            Change either on the quotation once it is raised.
+            {(() => {
+              const held = (pricing.lines?.length || 0) - quotable.length;
+              if (held <= 0) return '';
+              return held === 1
+                ? ' One other model on this sheet is not ready to offer, and is left off.'
+                : ` ${held} other models on this sheet are not ready to offer, and are left off.`;
+            })()}
           </p>
-          <p className="mt-0.5 text-xs text-steel-500">The smallest lot this rate holds for</p>
         </div>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Unit price" hint="From the costing. Change it and the floor is re-checked">
-          <input
-            type="number"
-            step="0.01"
-            min="0"
-            className="input"
-            value={unitPrice}
-            onChange={(event) => setUnitPrice(event.target.value)}
-          />
-        </Field>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field
-          label="Minimum order quantity"
-          hint={
-            standard
-              ? `The register's standard is ${formatNumber(standard)}. This buyer may be offered another`
-              : 'The smallest lot this price is offered at. Printed on the quotation'
-          }
-        >
-          <input
-            type="number"
-            min="0"
-            className="input"
-            value={moq}
-            onChange={(event) => setMoq(event.target.value)}
-          />
-        </Field>
-      </div>
+      )}
 
       {/*
         The terms belong to the document, not to the model — so when this price is going onto a

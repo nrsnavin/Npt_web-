@@ -27,33 +27,41 @@ const partOption = (row) => ({
 });
 
 /**
- * The sheet, built.
+ * The sheet, built — one model of it.
  *
  * The calculated price is shown but never typed: it is arithmetic over the lines above it, and
  * an input that can disagree with its own inputs is worse than no input.
+ *
+ * **One model, not one sheet.** A costing prices several now, each with its own cost, its own
+ * price and its own floor [§7, §9], so this form is opened against a line and says which line it
+ * is saving. Left out, the server builds the first — which is the whole of a one-model sheet and
+ * what every caller written before the lines existed meant.
  */
-export default function CostingSheetForm({ pricing, onClose, onSaved }) {
+export default function CostingSheetForm({ pricing, line, onClose, onSaved }) {
+  /* The model being costed. The sheet itself is the fallback for a record with no lines yet. */
+  const row = line || pricing.lines?.[0] || pricing;
+
   const [cost, setCost] = useState({
-    gramWeight: pricing.cost?.gramWeight ?? '',
-    rawMaterialRate: pricing.cost?.rawMaterialRate ?? '',
-    jobWorkCost: pricing.cost?.jobWorkCost ?? '',
-    hookCost: pricing.cost?.hookCost ?? '',
-    metalClipsCost: pricing.cost?.metalClipsCost ?? '',
-    printingCost: pricing.cost?.printingCost ?? '',
-    packingCost: pricing.cost?.packingCost ?? '',
-    otherCost: pricing.cost?.otherCost ?? '',
+    gramWeight: row.cost?.gramWeight ?? '',
+    rawMaterialRate: row.cost?.rawMaterialRate ?? '',
+    jobWorkCost: row.cost?.jobWorkCost ?? '',
+    hookCost: row.cost?.hookCost ?? '',
+    metalClipsCost: row.cost?.metalClipsCost ?? '',
+    printingCost: row.cost?.printingCost ?? '',
+    packingCost: row.cost?.packingCost ?? '',
+    otherCost: row.cost?.otherCost ?? '',
   });
-  const [mould, setMould] = useState(pricing.mould?._id ?? pricing.mould ?? '');
-  const [materialRef, setMaterialRef] = useState(pricing.materialRef?._id ?? pricing.materialRef ?? '');
-  const [hookRef, setHookRef] = useState(pricing.hookRef?._id ?? pricing.hookRef ?? '');
-  const [clipRef, setClipRef] = useState(pricing.clipRef?._id ?? pricing.clipRef ?? '');
-  const [printRef, setPrintRef] = useState(pricing.printRef?._id ?? pricing.printRef ?? '');
-  const [markupPercent, setMarkup] = useState(pricing.markupPercent ?? 10);
-  const [printing, setPrinting] = useState(pricing.printing ?? '');
-  const [procurement, setProcurement] = useState(pricing.procurement ?? 'manufacture');
+  const [mould, setMould] = useState(row.mould?._id ?? row.mould ?? '');
+  const [materialRef, setMaterialRef] = useState(row.materialRef?._id ?? row.materialRef ?? '');
+  const [hookRef, setHookRef] = useState(row.hookRef?._id ?? row.hookRef ?? '');
+  const [clipRef, setClipRef] = useState(row.clipRef?._id ?? row.clipRef ?? '');
+  const [printRef, setPrintRef] = useState(row.printRef?._id ?? row.printRef ?? '');
+  const [markupPercent, setMarkup] = useState(row.markupPercent ?? 10);
+  const [printing, setPrinting] = useState(row.printing ?? '');
+  const [procurement, setProcurement] = useState(row.procurement ?? 'manufacture');
   /* Blank means "the standing floor" — the 10% tier. Only a job with its own floor fills it. */
-  const [minimumOverride, setMinimumOverride] = useState(pricing.minimumOverride ?? '');
-  const [approved, setApproved] = useState(pricing.approvedSellingPrice ?? '');
+  const [minimumOverride, setMinimumOverride] = useState(row.minimumOverride ?? '');
+  const [approved, setApproved] = useState(row.approvedSellingPrice ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
@@ -208,6 +216,9 @@ export default function CostingSheetForm({ pricing, onClose, onSaved }) {
       onSaved(
         await pricingsApi.cost({
           id: pricing._id, expectedUpdatedAt: pricing.updatedAt,
+          /* Which model on the sheet this is. Undefined on a record with no lines, where the
+             server builds the first and there is only one. */
+          line: row._id === pricing._id ? undefined : row._id,
           cost: Object.fromEntries(
             Object.entries(cost).map(([key, value]) => [key, number(value)])
           ),
@@ -226,7 +237,8 @@ export default function CostingSheetForm({ pricing, onClose, onSaved }) {
     }
   };
 
-  const line = (key, label, hint) => (
+  /* One cost line's input. Named `costField` rather than `line`, which is now the model. */
+  const costField = (key, label, hint) => (
     <Field label={label} hint={hint}>
       <input
         type="number"
@@ -241,6 +253,22 @@ export default function CostingSheetForm({ pricing, onClose, onSaved }) {
 
   return (
     <form onSubmit={submit} className="space-y-5">
+      {/*
+        Which model is being priced, where there is more than one. Without it the sheet opens on
+        a set of numbers with nothing saying whose they are, and the first person to re-cost a
+        five-model sheet would reasonably believe they were editing all of it.
+      */}
+      {pricing.lines?.length > 1 && (
+        <div className="rounded-lg border border-flame-500/20 bg-flame-500/[0.06] px-3.5 py-2.5">
+          <p className="text-xs text-steel-300">
+            Pricing{' '}
+            <span className="font-semibold text-steel-100">{row.modelNumber || 'this model'}</span>
+            {' '}— one of {pricing.lines.length} on {pricing.number}. Each has its own cost and its
+            own floor, so the rest are untouched by what is saved here.
+          </p>
+        </div>
+      )}
+
       {/*
         The two registers first, because they fill most of the sheet below. Picking a tool sets
         the grammage to what a piece actually consumes — part plus its share of the runner —
@@ -280,8 +308,8 @@ export default function CostingSheetForm({ pricing, onClose, onSaved }) {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        {line('gramWeight', 'Gram weight', 'Grams a piece consumes, in this resin')}
-        {line('rawMaterialRate', 'Raw material rate', '₹ per kilo, as the market quotes it')}
+        {costField('gramWeight', 'Gram weight', 'Grams a piece consumes, in this resin')}
+        {costField('rawMaterialRate', 'Raw material rate', '₹ per kilo, as the market quotes it')}
       </div>
 
       {/* The derived line, in the middle of the sheet where it is checked rather than at the
@@ -342,12 +370,12 @@ export default function CostingSheetForm({ pricing, onClose, onSaved }) {
 
       {/* Named as the sheet names them, and in the sheet's order. */}
       <div className="grid gap-4 sm:grid-cols-2">
-        {line('jobWorkCost', 'Job work', 'Per piece')}
-        {line('hookCost', 'Hook', 'Per piece')}
-        {line('metalClipsCost', 'Metal clips', 'Per piece')}
-        {line('printingCost', 'Print price', 'Per piece')}
-        {line('packingCost', 'Packing', 'Per piece')}
-        {line('otherCost', 'Anything else', 'Per piece')}
+        {costField('jobWorkCost', 'Job work', 'Per piece')}
+        {costField('hookCost', 'Hook', 'Per piece')}
+        {costField('metalClipsCost', 'Metal clips', 'Per piece')}
+        {costField('printingCost', 'Print price', 'Per piece')}
+        {costField('packingCost', 'Packing', 'Per piece')}
+        {costField('otherCost', 'Anything else', 'Per piece')}
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">

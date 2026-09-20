@@ -52,18 +52,33 @@ const rupees = (value) =>
  */
 function NewCostingForm({ onClose, onSaved }) {
   const [customer, setCustomer] = useState('');
-  const [mould, setMould] = useState('');
-  const [modelNumber, setModel] = useState('');
-  const [quantity, setQuantity] = useState('');
+  /*
+   * The models this sheet is to price, a row each [§7].
+   *
+   * A conversation with a buyer is about four hangers rather than one, and raising four sheets
+   * for it gives the same job four numbers, four approvals and four quotations. One row is the
+   * ordinary case and stays a single line to fill in; the "Add another" is for the conversation
+   * that covered five.
+   */
+  const [rows, setRows] = useState([{ mould: '', modelNumber: '' }]);
   const [targetPrice, setTargetPrice] = useState('');
   const [remarks, setRemarks] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
+  const setRow = (index, patch) =>
+    setRows(rows.map((row, at) => (at === index ? { ...row, ...patch } : row)));
+
+  const addRow = () => setRows([...rows, { mould: '', modelNumber: '' }]);
+  const dropRow = (index) => setRows(rows.filter((_, at) => at !== index));
+
   const submit = async (event) => {
     event.preventDefault();
     if (!customer) return setError('Pick the customer this costing is for.');
-    if (!quantity) return setError('Say what quantity to cost.');
+
+    /* An empty row is somebody who pressed Add another and changed their mind, not a model. */
+    const models = rows.filter((row) => row.mould || row.modelNumber.trim());
+    if (!models.length) return setError('Name at least one model to cost.');
 
     setBusy(true);
     setError(null);
@@ -75,9 +90,10 @@ function NewCostingForm({ onClose, onSaved }) {
       onSaved(
         await pricingsApi.create({
           customer,
-          mould: mould || undefined,
-          modelNumber: modelNumber || undefined,
-          quantity: Number(quantity),
+          lines: models.map((row) => ({
+            mould: row.mould || undefined,
+            modelNumber: row.modelNumber.trim() || undefined,
+          })),
           targetPrice: targetPrice === '' ? undefined : Number(targetPrice),
           remarks: remarks || undefined,
         })
@@ -94,34 +110,13 @@ function NewCostingForm({ onClose, onSaved }) {
     <form onSubmit={submit} className="space-y-4">
       <Notice tone="info">
         No enquiry needed. Raise one here for a tender, a repeat job or a walk-in — it becomes
-        the same costing sheet either way.
+        the same costing sheet either way. One sheet holds every model the buyer asked about,
+        and each of them gets its own cost, price and floor.
       </Notice>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Customer">
           <CustomerSelect value={customer} onChange={setCustomer} aria-label="Customer" />
-        </Field>
-        <Field label="Model" hint="The tool it runs on — leave empty for a traded piece">
-          <MouldSelect value={mould} onChange={setMould} aria-label="Model" />
-        </Field>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Field label="Quantity to cost">
-          <input
-            type="number"
-            min="1"
-            className="input"
-            value={quantity}
-            onChange={(event) => setQuantity(event.target.value)}
-          />
-        </Field>
-        <Field label="Model number" hint="What the buyer calls it, or all of it if it is traded">
-          <input
-            className="input"
-            value={modelNumber}
-            onChange={(event) => setModel(event.target.value)}
-          />
         </Field>
         <Field label="Target price" hint="What the buyer wants to pay, if they said">
           <input
@@ -133,6 +128,48 @@ function NewCostingForm({ onClose, onSaved }) {
             onChange={(event) => setTargetPrice(event.target.value)}
           />
         </Field>
+      </div>
+
+      <div className="space-y-3">
+        <p className="eyebrow">Models to cost</p>
+        {rows.map((row, index) => (
+          <div key={index} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+            <Field label={index === 0 ? 'Model' : ''} hint={index === 0 ? 'The tool it runs on — empty for a traded piece' : ''}>
+              <MouldSelect
+                value={row.mould}
+                onChange={(mould) => setRow(index, { mould })}
+                aria-label={`Model ${index + 1}`}
+              />
+            </Field>
+            <Field
+              label={index === 0 ? 'Model number' : ''}
+              hint={index === 0 ? 'What the buyer calls it, or all of it if it is traded' : ''}
+            >
+              <input
+                className="input"
+                value={row.modelNumber}
+                onChange={(event) => setRow(index, { modelNumber: event.target.value })}
+                aria-label={`Model number ${index + 1}`}
+              />
+            </Field>
+            {/* No remove on the only row: a sheet with nothing on it is not a costing. */}
+            {rows.length > 1 ? (
+              <button
+                type="button"
+                className="row-action mb-1"
+                onClick={() => dropRow(index)}
+                aria-label={`Remove model ${index + 1}`}
+              >
+                Remove
+              </button>
+            ) : (
+              <span />
+            )}
+          </div>
+        ))}
+        <button type="button" className="btn-secondary px-3 py-1 text-xs" onClick={addRow}>
+          + Add another model
+        </button>
       </div>
 
       <Field label="Remarks">
@@ -170,6 +207,46 @@ function NewCostingForm({ onClose, onSaved }) {
  * at the document, is the difference between a rule and a button that fails.
  */
 function NextStep({ row, quoted, mayCost, mayQuote, mine, onDecide, onCost, onQuote }) {
+  /*
+   * A sheet of several models is worked on its own page, not in a modal from here.
+   *
+   * Costing and approving are per model now [§7, §9] — each line has its own cost, its own floor
+   * and its own signature — so a single button on a row of five would have to pick one of them
+   * for the reader, and the one it picked would be the first. The page shows which model is
+   * being read and lets them choose; the row's job is to say there is a choice to make.
+   */
+  if ((row.lines?.length || 0) > 1) {
+    const waiting = row.linesAwaitingApproval || 0;
+    const approved = row.lines.filter(
+      (entry) => entry.status === 'approved' && entry.approvedSellingPrice
+    ).length;
+
+    /*
+     * Something approved and nothing quoted yet is the one step that still belongs on the row:
+     * quoting takes every approved model onto one document, so it needs no choice made here.
+     * Four settled and one waiting is offerable — the fifth is simply left off.
+     */
+    if (approved && !waiting && mayQuote && mine && !quoted) {
+      return (
+        <button type="button" className="btn-primary px-3 py-1 text-xs" onClick={onQuote}>
+          Quote {approved}
+        </button>
+      );
+    }
+    if (quoted) {
+      return (
+        <Link to={`/quotations/${quoted._id}`} className="btn-secondary inline-block px-3 py-1 text-xs">
+          On {quoted.number}
+        </Link>
+      );
+    }
+    return (
+      <Link to={`/pricings/${row._id}`} className="btn-secondary inline-block px-3 py-1 text-xs">
+        {waiting ? `${waiting} to sign off` : `${row.lines.length} models`}
+      </Link>
+    );
+  }
+
   if (row.status === 'approval_pending') {
     return mayCost ? (
       <button type="button" className="btn-primary px-3 py-1 text-xs" onClick={onDecide}>
@@ -338,7 +415,7 @@ export default function Pricings() {
         />
       </div>
 
-      {loading && <TableSkeleton columns={mayCost ? 7 : 5} />}
+      {loading && <TableSkeleton columns={mayCost ? 6 : 4} />}
       {error && <ErrorState error={error} onRetry={reload} />}
 
       {!loading && !error && (data.length === 0 ? (
@@ -359,7 +436,12 @@ export default function Pricings() {
                         whichever buyer happened to be created first, which reads as random. */}
                     <th className="px-3 py-3">Customer</th>
                     <SortHeader field="modelNumber" label="Model" sort={sort} onToggle={sortBy} />
-                    <SortHeader field="quantity" label="Quantity" sort={sort} onToggle={sortBy} align="right" />
+                    {/*
+                      No quantity column. A costing prices one piece — see the model's own note —
+                      and the figure that used to sit here came off the enquiry, where nobody
+                      knows how many. On a sheet of five models it was the first model's legacy
+                      quantity standing for all of them, which is worse than the gap.
+                    */}
                     {/* Cost and margin are virtuals — worked out on the way out of the document,
                         so there is nothing stored for the database to order by. A heading that
                         offered it would draw an arrow and not sort. */}
@@ -385,29 +467,60 @@ export default function Pricings() {
                         <p className="text-xs text-steel-400">{formatDate(row.requestedAt)}</p>
                       </td>
                       <td className="px-3 py-3.5 text-steel-200">{row.customer?.name || '—'}</td>
-                      <td className="px-3 py-3.5 text-steel-300">{row.modelNumber || '—'}</td>
-                      <td className="whitespace-nowrap px-3 py-3.5 text-right tabular-nums text-steel-200">
-                        {formatNumber(row.quantity)}
+                      {/*
+                        The models on the sheet. A costing prices several now [§7], and naming
+                        only the first would let a five-model sheet read as a one-model one —
+                        which is how somebody prices four hangers and quotes none of them.
+                      */}
+                      <td className="px-3 py-3.5 text-steel-300">
+                        {row.lines?.[0]?.modelNumber || row.modelNumber || '—'}
+                        {row.lines?.length > 1 && (
+                          <span className="ml-1.5 text-xs text-steel-500">
+                            +{row.lines.length - 1} more
+                          </span>
+                        )}
                       </td>
                       {mayCost && (
                         <td className="whitespace-nowrap px-3 py-3.5 text-right tabular-nums text-steel-400">
-                          {rupees(row.totalCost)}
+                          {/*
+                            One model's cost, and only where the sheet holds one. Two hangers
+                            priced per piece have no combined cost per piece, so a figure in this
+                            column on a five-model sheet would be the first model's wearing the
+                            whole sheet's name. The page has them all, one at a time.
+                          */}
+                          {row.lines?.length > 1 ? (
+                            <span className="text-xs text-steel-500">per model</span>
+                          ) : (
+                            rupees(row.totalCost)
+                          )}
                         </td>
                       )}
                       <td className="whitespace-nowrap px-3 py-3.5 text-right tabular-nums text-steel-100">
-                        {rupees(row.approvedSellingPrice)}
+                        {row.lines?.length > 1 ? (
+                          <span className="text-xs text-steel-500">
+                            {row.lines.length} prices
+                          </span>
+                        ) : (
+                          rupees(row.approvedSellingPrice)
+                        )}
                         {/* Marketing's one fact about the floor: whether they may quote yet.
                             Not `belowMinimum` — a sheet MD has signed off is still under the
                             floor, and this hint beside an Approved badge reads as a block. */}
-                        {row.needsApproval && (
-                          <p className="text-xs font-semibold text-warn-400">Needs approval</p>
+                        {(row.needsApproval || row.linesAwaitingApproval > 0) && (
+                          <p className="text-xs font-semibold text-warn-400">
+                            {row.linesAwaitingApproval > 1
+                              ? `${row.linesAwaitingApproval} need approval`
+                              : 'Needs approval'}
+                          </p>
                         )}
                       </td>
                       {mayCost && (
                         <td className="whitespace-nowrap px-3 py-3.5 text-right tabular-nums text-steel-300">
-                          {row.grossMarginPercent === null || row.grossMarginPercent === undefined
+                          {row.lines?.length > 1
                             ? '—'
-                            : `${row.grossMarginPercent}%`}
+                            : row.grossMarginPercent === null || row.grossMarginPercent === undefined
+                              ? '—'
+                              : `${row.grossMarginPercent}%`}
                         </td>
                       )}
                       <td className="whitespace-nowrap px-3 py-3.5">

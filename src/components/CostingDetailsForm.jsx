@@ -21,10 +21,16 @@ import { MouldSelect } from './pickers.jsx';
  * The registers the sheet is costed against — the resin, the hook, the clip, the print — are on
  * the costing sheet rather than here, because each of them is an *input* to the price.
  */
-export default function CostingDetailsForm({ pricing, onClose, onSaved }) {
+export default function CostingDetailsForm({ pricing, line, onClose, onSaved }) {
+  /*
+   * The model and the tool belong to a line; the target price and the remarks belong to the
+   * sheet — the buyer named one figure for the conversation, not one per hanger on it.
+   */
+  const row = line || pricing.lines?.[0] || pricing;
+
   const [values, setValues] = useState({
-    mould: pricing.mould?._id || pricing.mould || '',
-    modelNumber: pricing.modelNumber ?? '',
+    mould: row.mould?._id || row.mould || '',
+    modelNumber: row.modelNumber ?? '',
     targetPrice: pricing.targetPrice ?? '',
     remarks: pricing.remarks ?? '',
   });
@@ -42,6 +48,7 @@ export default function CostingDetailsForm({ pricing, onClose, onSaved }) {
       onSaved(
         await pricingsApi.update({
           id: pricing._id, expectedUpdatedAt: pricing.updatedAt,
+          line: row._id === pricing._id ? undefined : row._id,
           mould: values.mould || undefined,
           modelNumber: values.modelNumber || undefined,
           targetPrice: number(values.targetPrice),
@@ -63,6 +70,10 @@ export default function CostingDetailsForm({ pricing, onClose, onSaved }) {
         costed against are on the sheet itself, so correcting a description here cannot re-open
         an approved price. The sheet prices one piece; how many is settled by the purchase
         order.
+        {pricing.lines?.length > 1
+          ? ` The model and the tool below belong to ${row.modelNumber || 'this line'}; the target
+              price and the remarks belong to the whole sheet.`
+          : ''}
       </Notice>
 
       <div className="grid gap-4 sm:grid-cols-2">
