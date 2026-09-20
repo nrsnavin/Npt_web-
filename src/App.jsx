@@ -64,8 +64,12 @@ function RequireAdmin({ children }) {
  *
  * Guarded on the grant rather than redirecting unconditionally, because `/queries` is itself
  * gated — an administrator who has taken the module off somebody would otherwise send them
- * bouncing between the two routes forever, which is a blank screen and a spinning tab. Without
- * the grant they get the day screen, which is what the front door used to be.
+ * bouncing between the two routes forever, which is a blank screen and a spinning tab.
+ *
+ * Without the grant they get the day screen, which is what the front door used to be. That is
+ * now the only way to reach it: it has no route and no tab, and it is kept here because a reader
+ * with no queries has to land on *something*, and a screen that was the front door for months is
+ * a better answer than an apology.
  */
 function Landing() {
   const { canRead } = useAuth();
@@ -116,11 +120,17 @@ export default function App() {
             means a link somebody sends and a link somebody bookmarks are different strings, and
             the nav can only light one of them.
 
-            The day screens are not lost, they have moved down a level: `/dashboard` is still
-            Home, still chosen by department [pages/Home.jsx], and still in the nav.
+            **And the day screen is gone with it.** `/dashboard` sat under a Home tab answering
+            "what needs me today" beside a queries list answering the same thing, so the strip
+            offered the same morning twice. The route is removed rather than left unlinked: an
+            address nobody can reach from the application still turns up in somebody's bookmarks
+            and renders a screen the nav says does not exist. It falls through to `*` below, so
+            an old bookmark lands on the front door.
+
+            `Home` stays for one case only — see `Landing`, where somebody without the queries
+            grant needs something at `/`.
           */}
           <Route index element={<Landing />} />
-          <Route path="dashboard" element={<Home />} />
           <Route path="profile" element={<Profile />} />
 
           {/* Phase 1: the pipeline that runs from a lead to a customer to an enquiry. */}

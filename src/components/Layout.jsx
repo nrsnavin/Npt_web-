@@ -32,17 +32,22 @@ import { humanise } from '../utils/format.js';
  * would mean an access list with an entry nobody knows how to reason about.
  */
 /**
- * What the Home link is called, per department.
+ * **There is no Home group, and that is deliberate.**
  *
- * Home is a different screen for each of them [pages/Home.jsx], so one label cannot be honest
- * for all: "My day" over management's plant figures describes somebody else's morning, and a
- * nav that mislabels the page you are on is the first thing a new user stops trusting.
+ * The day screen used to be the front door and then, when queries took that place, a tab of its
+ * own labelled by department — "My day", "The plant today", "The bench today". It is out of the
+ * strip entirely now: opening the application puts you in the questions people are waiting on,
+ * and a second screen answering "what needs me today" beside it was the same morning read twice.
+ * What the day screen actually carried is either on the queries list already or reachable from
+ * the register it is about.
+ *
+ * Two things that lived under it are kept, because neither of them was ever Home:
+ *
+ *   My dashboard        marketing's own figures, filed here under Leads & enquiries, which is
+ *                       the module it reports on.
+ *   Profile and access  in the header beside the name, and in the drawer on a phone where the
+ *                       header has no room for it.
  */
-const HOME_LABELS = {
-  management: 'The plant today',
-  sampling: 'The bench today',
-};
-
 const MODULES = [
   /*
    * First on the strip, because it is the front door: `/` redirects here [App.jsx].
@@ -59,26 +64,6 @@ const MODULES = [
     features: [{ to: '/queries', label: 'Questions & answers' }],
   },
   {
-    key: 'home',
-    label: 'Home',
-    features: [
-      /*
-       * `/dashboard`, not `/` — the front door is the queries list now, and `/` only redirects
-       * there. A nav entry pointing at a route that redirects can never be the current page, so
-       * it would sit unlit while the reader was plainly looking at the screen it names.
-       *
-       * Labelled by what the screen actually is for this reader — see HOME_LABELS. Home is
-       * chosen by department [pages/Home.jsx], and a link reading "My day" over a screen of
-       * plant figures is the nav describing somebody else's morning.
-       */
-      { to: '/dashboard', label: 'My day', end: true, home: true },
-      /* "How am I doing", where My day answers "what needs me now" — the same question at two
-         ranges, and both are why somebody opens the app rather than navigates to it mid-task. */
-      { to: '/dashboard/marketing', label: 'My dashboard', module: 'enquiries' },
-      { to: '/profile', label: 'Profile and access' },
-    ],
-  },
-  {
     key: 'enquiries',
     label: 'Leads & enquiries',
     module: 'enquiries',
@@ -90,6 +75,12 @@ const MODULES = [
         children: [{ to: '/leads/analytics', label: 'Lead analytics' }],
       },
       { to: '/enquiries', label: 'Enquiries' },
+      /*
+       * "How am I doing" — marketing's own figures over weeks rather than a day. It sat under
+       * Home, which is what made it hard to find: it is a report on this module, so it belongs
+       * beside the two registers it counts.
+       */
+      { to: '/dashboard/marketing', label: 'My dashboard' },
     ],
   },
   {
@@ -173,9 +164,13 @@ const covers = (pathname, to) =>
  * Longest match wins, so `/samples/analytics` resolves through its own entry rather than
  * stopping at `/samples` — and a detail route like `/orders/6aa2…` still lands on Sales orders,
  * which is what keeps the strip lit while somebody reads one record.
+ *
+ * Nothing, for a screen that belongs to no module: the profile page is the only one, now that
+ * the day screen is gone. Lighting the first tab there would be the strip claiming the reader
+ * is somewhere they are not, which is the first thing that makes a nav untrustworthy.
  */
 const moduleFor = (pathname) => {
-  let best = MODULES[0];
+  let best;
   let longest = -1;
 
   for (const entry of MODULES) {
@@ -349,8 +344,6 @@ export default function Layout() {
    * report on a module you cannot open is a screen you cannot open either.
    */
   const readable = useMemo(() => {
-    const homeLabel = HOME_LABELS[user?.department] || 'My day';
-
     const mayOpen = (feature, entry) => {
       if (feature.admin && !isAdmin) return false;
       const grant = feature.module ?? entry.module;
@@ -363,18 +356,20 @@ export default function Layout() {
         .filter((feature) => mayOpen(feature, entry))
         .map((feature) => ({
           ...feature,
-          label: feature.home ? homeLabel : feature.label,
           children: (feature.children || []).filter((child) => mayOpen(child, entry)),
         })),
     })).filter((entry) => entry.features.length);
-  }, [canRead, isAdmin, user?.department]);
+  }, [canRead, isAdmin]);
 
   /*
    * The module in view — and a fallback, because the one the route belongs to may be one this
-   * person cannot read. Landing on a screen with an empty sidebar would read as broken.
+   * person cannot read, or the screen may belong to no module at all. Landing on a screen with
+   * an empty sidebar would read as broken, so the sidebar falls back; the strip does not, and
+   * nothing is lit rather than something wrong.
    */
   const routed = moduleFor(location.pathname);
-  const active = readable.find((entry) => entry.key === routed.key) || readable[0];
+  const active = (routed && readable.find((entry) => entry.key === routed.key)) || readable[0];
+  const lit = routed ? active?.key : undefined;
 
   /* One titleless section: the module's name is already lit on the strip above, and repeating
      it as a heading over its own list is a row that says nothing new. */
@@ -406,7 +401,7 @@ export default function Layout() {
         {/* The modules. Hidden on a narrow screen, where the drawer carries them instead —
             a strip that has to be scrolled to find anything is worse than a list. */}
         <div className="hidden min-w-0 flex-1 lg:flex">
-          <ModuleTabs modules={readable} active={active?.key} />
+          <ModuleTabs modules={readable} active={lit} />
         </div>
 
         <div className="min-w-0 flex-1 lg:max-w-xs lg:flex-none"><GlobalSearch /></div>
@@ -478,7 +473,18 @@ export default function Layout() {
       */}
       <Modal open={menuOpen} title="Navigate" onClose={() => setMenuOpen(false)} size="sm">
         <SidebarNav
-          sections={readable.map((entry) => ({ title: entry.label, items: entry.features }))}
+          sections={[
+            ...readable.map((entry) => ({ title: entry.label, items: entry.features })),
+            /*
+              Profile last, and only here.
+
+              It sits in the header beside the name on a wide screen, and that link is hidden on
+              a phone for want of room — so with no Home group to carry it, the drawer is the
+              only way somebody on a phone reaches their own password. A section of its own
+              rather than tacked onto a module, because it belongs to none of them.
+            */
+            { title: 'Your account', items: [{ to: '/profile', label: 'Profile and access' }] },
+          ]}
           scope="drawer"
         />
       </Modal>
