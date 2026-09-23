@@ -1,9 +1,10 @@
-import { Suspense, lazy } from 'react';
+import { Suspense } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import Layout from './components/Layout.jsx';
 import { WorkspaceProvider } from './components/dock/WorkspaceContext.jsx';
 import { Spinner } from './components/ui.jsx';
 import { useAuth } from './context/AuthContext.jsx';
+import lazyPage from './utils/lazyPage.js';
 
 /**
  * Screens are split per route.
@@ -12,38 +13,43 @@ import { useAuth } from './context/AuthContext.jsx';
  * on the pipeline — but one bundle made everyone download all of them before the login screen
  * would paint. Login and the shell stay eager, since they are on the path to everything; the
  * rest arrive when the route is actually visited.
+ *
+ * `lazyPage` rather than React's `lazy`, because fetching a screen later means fetching it
+ * across a deploy: the file a tab was told about is renamed by the next release and the click
+ * 404s. See `utils/lazyPage.js` — a new screen added with the bare `lazy` loses that, so a test
+ * refuses it.
  */
 import Login from './pages/Login.jsx';
 import Home from './pages/Home.jsx';
 
-const Profile = lazy(() => import('./pages/Profile.jsx'));
-const Users = lazy(() => import('./pages/Users.jsx'));
-const Integrations = lazy(() => import('./pages/Integrations.jsx'));
-const Queries = lazy(() => import('./pages/Queries.jsx'));
-const QueryDetail = lazy(() => import('./pages/QueryDetail.jsx'));
-const Moulds = lazy(() => import('./pages/Moulds.jsx'));
-const Materials = lazy(() => import('./pages/Materials.jsx'));
-const PartsRegister = lazy(() => import('./pages/PartsRegister.jsx'));
-const MouldDetail = lazy(() => import('./pages/MouldDetail.jsx'));
-const MaterialDetail = lazy(() => import('./pages/MaterialDetail.jsx'));
-const PartDetail = lazy(() => import('./pages/PartDetail.jsx'));
-const Customers = lazy(() => import('./pages/Customers.jsx'));
-const CustomerDetail = lazy(() => import('./pages/CustomerDetail.jsx'));
-const Leads = lazy(() => import('./pages/Leads.jsx'));
-const LeadAnalytics = lazy(() => import('./pages/LeadAnalytics.jsx'));
-const Pricings = lazy(() => import('./pages/Pricings.jsx'));
-const PricingDetail = lazy(() => import('./pages/PricingDetail.jsx'));
-const Quotations = lazy(() => import('./pages/Quotations.jsx'));
-const SentQuotations = lazy(() => import('./pages/SentQuotations.jsx'));
-const QuotationDetail = lazy(() => import('./pages/QuotationDetail.jsx'));
-const LeadDetail = lazy(() => import('./pages/LeadDetail.jsx'));
-const Enquiries = lazy(() => import('./pages/Enquiries.jsx'));
-const EnquiryDetail = lazy(() => import('./pages/EnquiryDetail.jsx'));
-const Samples = lazy(() => import('./pages/Samples.jsx'));
-const SampleDetail = lazy(() => import('./pages/SampleDetail.jsx'));
-const SamplingDashboard = lazy(() => import('./pages/SamplingDashboard.jsx'));
-const SampleAnalytics = lazy(() => import('./pages/SampleAnalytics.jsx'));
-const MarketingDashboard = lazy(() => import('./pages/MarketingDashboard.jsx'));
+const Profile = lazyPage(() => import('./pages/Profile.jsx'));
+const Users = lazyPage(() => import('./pages/Users.jsx'));
+const Integrations = lazyPage(() => import('./pages/Integrations.jsx'));
+const Queries = lazyPage(() => import('./pages/Queries.jsx'));
+const QueryDetail = lazyPage(() => import('./pages/QueryDetail.jsx'));
+const Moulds = lazyPage(() => import('./pages/Moulds.jsx'));
+const Materials = lazyPage(() => import('./pages/Materials.jsx'));
+const PartsRegister = lazyPage(() => import('./pages/PartsRegister.jsx'));
+const MouldDetail = lazyPage(() => import('./pages/MouldDetail.jsx'));
+const MaterialDetail = lazyPage(() => import('./pages/MaterialDetail.jsx'));
+const PartDetail = lazyPage(() => import('./pages/PartDetail.jsx'));
+const Customers = lazyPage(() => import('./pages/Customers.jsx'));
+const CustomerDetail = lazyPage(() => import('./pages/CustomerDetail.jsx'));
+const Leads = lazyPage(() => import('./pages/Leads.jsx'));
+const LeadAnalytics = lazyPage(() => import('./pages/LeadAnalytics.jsx'));
+const Pricings = lazyPage(() => import('./pages/Pricings.jsx'));
+const PricingDetail = lazyPage(() => import('./pages/PricingDetail.jsx'));
+const Quotations = lazyPage(() => import('./pages/Quotations.jsx'));
+const SentQuotations = lazyPage(() => import('./pages/SentQuotations.jsx'));
+const QuotationDetail = lazyPage(() => import('./pages/QuotationDetail.jsx'));
+const LeadDetail = lazyPage(() => import('./pages/LeadDetail.jsx'));
+const Enquiries = lazyPage(() => import('./pages/Enquiries.jsx'));
+const EnquiryDetail = lazyPage(() => import('./pages/EnquiryDetail.jsx'));
+const Samples = lazyPage(() => import('./pages/Samples.jsx'));
+const SampleDetail = lazyPage(() => import('./pages/SampleDetail.jsx'));
+const SamplingDashboard = lazyPage(() => import('./pages/SamplingDashboard.jsx'));
+const SampleAnalytics = lazyPage(() => import('./pages/SampleAnalytics.jsx'));
+const MarketingDashboard = lazyPage(() => import('./pages/MarketingDashboard.jsx'));
 
 /**
  * Blocks a route unless the reader is an administrator.

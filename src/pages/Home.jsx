@@ -1,9 +1,9 @@
-import { lazy } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
+import lazyPage from '../utils/lazyPage.js';
 import Dashboard from './Dashboard.jsx';
 
-const SampleHome = lazy(() => import('./SampleHome.jsx'));
-const ManagementHome = lazy(() => import('./ManagementHome.jsx'));
+const SampleHome = lazyPage(() => import('./SampleHome.jsx'));
+const ManagementHome = lazyPage(() => import('./ManagementHome.jsx'));
 
 /**
  * What somebody sees when they open the app.
