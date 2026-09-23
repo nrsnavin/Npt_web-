@@ -10,11 +10,12 @@ import CostingDetailsForm from '../components/CostingDetailsForm.jsx';
 import PricingDecision from '../components/PricingDecision.jsx';
 import QuotationPdf from '../components/QuotationPdf.jsx';
 import QuoteFromCosting from '../components/QuoteFromCosting.jsx';
+import { StepFooter, StepReview, StepStrip } from '../components/CostingSteps.jsx';
 import { formatCompactCurrency, formatDate, formatNumber, humanise } from '../utils/format.js';
 import { HANGER_CATEGORIES, HOOK_TYPES, optionLabel } from '../utils/pipeline.js';
 /* The tiers and the floor as policy defines them, so the page and the sheet cannot disagree
    about which columns there are — the figures themselves come from the server. */
-import { MINIMUM_TIER, STANDARD_TIERS } from '../utils/pricing.js';
+import { MINIMUM_TIER, STANDARD_TIERS, rupees } from '../utils/pricing.js';
 
 /**
  * One costing sheet, in full [BLUEPRINT §7, §8, §9].
@@ -30,9 +31,6 @@ import { MINIMUM_TIER, STANDARD_TIERS } from '../utils/pricing.js';
  * rather than a broken one — and the page says why it is shorter, because a gap nobody
  * explains reads as a fault.
  */
-
-const rupees = (value) =>
-  value === undefined || value === null ? '—' : `₹${Number(value).toFixed(2)}`;
 
 const paise = (value) =>
   value === undefined || value === null ? '—' : `₹${Number(value).toFixed(3)}`;
@@ -119,6 +117,12 @@ export default function PricingDetail() {
   const lines = pricing.lines?.length ? pricing.lines : [pricing];
   const line = lines[Math.min(active, lines.length - 1)] || lines[0];
   const several = lines.length > 1;
+  /*
+   * Where in the sequence we are. `active === lines.length` is the review step — one number
+   * rather than an index plus a boolean, so there is no state in which the page believes it is
+   * reading a model *and* reviewing.
+   */
+  const reviewing = several && active >= lines.length;
 
   /*
    * What can actually go on a quotation.
@@ -286,46 +290,46 @@ export default function PricingDetail() {
       )}
 
       {/*
-        The models on this sheet, and the one being read.
+        The models on this sheet, as a sequence.
 
         Not a table of all of them, because what a costing is *for* is the build-up of one price
         — seven cost lines, three tiers, a floor and a margin — and five of those side by side is
-        a spreadsheet nobody can check. A switcher keeps the sheet readable and makes the choice
-        of model explicit, which matters most where the figures are: every number below belongs
-        to whichever of these is lit.
+        a spreadsheet nobody can check. So the sheet stays one model at a time, and this says
+        which one and how many are left. See `CostingSteps` for why it is ordered steps rather
+        than the jump list it was.
       */}
-      {several && (
-        <div className="mb-5 flex flex-wrap gap-2">
-          {lines.map((row, index) => {
-            const chosen = row === line;
-            return (
-              <button
-                key={row._id || index}
-                type="button"
-                onClick={() => setActive(index)}
-                aria-current={chosen ? 'true' : undefined}
-                className={`flex items-baseline gap-2.5 rounded-lg border px-3.5 py-2 text-left transition-colors ${
-                  chosen
-                    ? 'border-flame-500/50 bg-flame-500/[0.08]'
-                    : 'border-line/[0.08] hover:bg-line/[0.04]'
-                }`}
-              >
-                <span className={`text-sm font-semibold ${chosen ? 'text-flame-400' : 'text-steel-200'}`}>
-                  {row.modelNumber || `Model ${index + 1}`}
-                </span>
-                <span className="text-xs tabular-nums text-steel-400">
-                  {rupees(row.approvedSellingPrice)}
-                </span>
-                {/* The one fact everybody needs off a model they are not reading: is it settled. */}
-                <Badge status={row.status}>{humanise(row.status)}</Badge>
-              </button>
-            );
-          })}
-        </div>
-      )}
+      {several && <StepStrip lines={lines} active={active} onSelect={setActive} />}
 
       <div className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
         <div className="space-y-5">
+          {/*
+            The last step: every price this sheet arrived at, side by side.
+
+            The only place they are seen together — the sheet above is deliberately one model at
+            a time — and it is the right place, because what the buyer is sent is one document
+            covering all of them.
+          */}
+          {reviewing && (
+            <Section title="Every price on this sheet">
+              <StepReview
+                lines={lines}
+                quotable={quotable}
+                alreadyOut={alreadyOut.size > 0}
+                mayQuote={mayQuote}
+                onQuote={() => setQuoting(true)}
+              />
+              <div className="mt-4">
+                <StepFooter lines={lines} active={active} onSelect={setActive} />
+              </div>
+            </Section>
+          )}
+
+          {/*
+            The sheet for one model. Hidden on the review step, which is the same column
+            answering a different question — what may go out — rather than a panel beside it.
+          */}
+          {!reviewing && (
+            <>
           {/* ------------------------------ The unit price ------------------------------ */}
           <Section title="What one piece costs">
             {mayCost ? (
@@ -583,6 +587,10 @@ export default function PricingDetail() {
               </ul>
             )}
           </Section>
+
+          {several && <StepFooter lines={lines} active={active} onSelect={setActive} />}
+            </>
+          )}
 
           <QuotationPdf
             quotation={previewing}

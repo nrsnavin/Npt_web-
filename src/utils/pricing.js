@@ -29,6 +29,16 @@
  */
 export const PRICE_STEP = 0.05;
 
+/**
+ * Money, printed the one way this app prints it.
+ *
+ * Two decimals rather than the compact form used on dashboards: a hanger's price is a figure
+ * somebody reads off the screen and says down a phone to a buyer, and "₹7.2" for ₹7.20 is the
+ * kind of rounding that ends up on a purchase order.
+ */
+export const rupees = (value) =>
+  (value === undefined || value === null ? '—' : `₹${Number(value).toFixed(2)}`);
+
 /** The three standing tiers the sheet puts side by side. Matches `STANDARD_TIERS`. */
 export const STANDARD_TIERS = [10, 15, 20];
 
