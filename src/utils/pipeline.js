@@ -492,68 +492,27 @@ export const text = (value) => (value === '' || value === null ? undefined : val
 
 /**
  * Turns enquiry form values into the payload the API expects: numbers as numbers, blanks
- * omitted entirely, and the requirement nested. Shared by the enquiry form and by lead
- * conversion, which posts the same shape one level down.
+ * omitted entirely.
+ *
+ * **The list is the whole of what was asked for**, and there is no separate `requirement`,
+ * `mould` or spec beside it any more. There used to be: the first model was entered through the
+ * form's own fields and the rest were rows underneath, so this had to stitch the two back
+ * together and keep them agreeing while somebody typed. The server treats the list as the truth
+ * and copies its first row onto `requirement`, `mould` and `isNewDevelopment`, so sending the
+ * list alone says the same thing with one source instead of two.
+ *
+ * Shared by the enquiry form and by lead conversion, which posts the same shape one level down.
+ *
+ * `items` arrives already wire-shaped, from `itemsForSave` in the editor that collected it.
+ * This module has no imports on purpose — it is enum labels and pure functions that the forms,
+ * the tables and the boards all read — and reaching up into a component for a helper would make
+ * every screen that wants a stage label pull a picker and four registers in behind it.
  */
-export function buildEnquiryPayload(values, { mould, isNewDevelopment, spec = {}, extraItems = [] }) {
-  const requirement = values.requirement || {};
-
+export function buildEnquiryPayload(values, { items = [] } = {}) {
   return {
-    /*
-     * `|| undefined`, because an empty picker is "no tool" and `''` is not an id — the server
-     * refuses it as a malformed ObjectId rather than reading it as absent. Every caller that
-     * initialises its mould state to `''` rather than `undefined` would otherwise fail on the
-     * perfectly ordinary case this field's own hint invites: leave it empty for anything
-     * bought in.
-     */
-    mould: isNewDevelopment ? undefined : mould || undefined,
-    isNewDevelopment,
-    requirement: {
-      modelNumber: text(requirement.modelNumber),
-      category: text(requirement.category),
-      sizeMm: numeric(requirement.sizeMm),
-      /*
-       * The registers [§28], and no quantity. The resin fills the family and the colour on the
-       * server, so neither is asked for twice — and nothing before the purchase order knows how
-       * many, so the enquiry stopped pretending to.
-       */
-      materialRef: spec.materialRef || undefined,
-      hookRef: spec.hookRef || undefined,
-      clipRef: spec.clipRef || undefined,
-      printRef: spec.printRef || undefined,
-      colour: text(spec.colour),
-      /* Whether that colour binds the bench or merely guides it. Always sent, because false is
-         the answer "any colour will do" and dropping it would leave the bench guessing again. */
-      colourMandatory: Boolean(spec.colourMandatory),
-      packing: text(requirement.packing),
-    },
-
-    /*
-     * The whole list, first row included.
-     *
-     * Sent only when there is more than one thing, because the server treats a list as the
-     * truth and copies its first row over `requirement` — for the ordinary single-item enquiry
-     * that is the same values twice on the wire and one more thing to keep in step. The first
-     * row repeats the requirement above deliberately: the two are one fact, and a list whose
-     * first row was *missing* would put item two in the position the sample is raised for.
-     */
-    items: extraItems.length
-      ? [
-        {
-          modelNumber: text(requirement.modelNumber),
-          category: text(requirement.category),
-          sizeMm: numeric(requirement.sizeMm),
-          materialRef: spec.materialRef || undefined,
-          hookRef: spec.hookRef || undefined,
-          clipRef: spec.clipRef || undefined,
-          printRef: spec.printRef || undefined,
-          colour: text(spec.colour),
-          colourMandatory: Boolean(spec.colourMandatory),
-          packing: text(requirement.packing),
-        },
-        ...extraItems,
-      ]
-      : undefined,
+    /* Always sent, even for the ordinary one-model enquiry: the server takes the list as the
+       truth and copies its first row onto the flat fields. */
+    items,
     targetPrice: numeric(values.targetPrice),
     estimatedValue: numeric(values.estimatedValue),
     requiredDeliveryDate: text(values.requiredDeliveryDate),
@@ -563,6 +522,46 @@ export function buildEnquiryPayload(values, { mould, isNewDevelopment, spec = {}
     source: text(values.source),
   };
 }
+
+/**
+ * A stored item, as the editor wants it: ids unwrapped, nothing undefined.
+ *
+ * A populated record hands back `materialRef` as the whole material document; a controlled
+ * select needs its id. And `undefined` in a controlled input is React's uncontrolled warning
+ * followed by a field that will not accept typing.
+ */
+export const itemForEdit = (item = {}) => ({
+  mould: item.mould?._id ?? item.mould ?? '',
+  isNewDevelopment: Boolean(item.isNewDevelopment),
+  modelNumber: item.modelNumber || '',
+  category: item.category || '',
+  sizeMm: item.sizeMm ?? '',
+  materialRef: item.materialRef?._id ?? item.materialRef ?? '',
+  colour: item.colour || '',
+  colourMandatory: Boolean(item.colourMandatory),
+  hookRef: item.hookRef?._id ?? item.hookRef ?? '',
+  clipRef: item.clipRef?._id ?? item.clipRef ?? '',
+  printRef: item.printRef?._id ?? item.printRef ?? '',
+  printing: item.printing || '',
+  packing: item.packing || '',
+  ...(item.quantity === undefined ? {} : { quantity: item.quantity }),
+});
+
+/**
+ * The items a record should show in the editor — its list, or one built from its top line.
+ *
+ * Every record written before the list existed answers `items: []` and carries its model on the
+ * flat fields instead. Opening one of those in the editor has to show the model it names, not an
+ * empty item: the backfill fills the database, but a screen that depends on a script having been
+ * run is a screen that is blank for whoever runs it second.
+ */
+export const itemsForEdit = (record, top = {}) => {
+  const rows = record?.items?.length ? record.items : null;
+  if (rows) return rows.map(itemForEdit);
+
+  const first = itemForEdit({ ...top, mould: record?.mould, isNewDevelopment: record?.isNewDevelopment });
+  return [first];
+};
 
 /** How overdue a follow-up is, as a label the row can colour by. */
 export function followUpState(date) {

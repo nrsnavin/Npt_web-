@@ -11,11 +11,13 @@ import HistoryPanel from '../components/HistoryPanel.jsx';
 import LeadLog from '../components/LeadLog.jsx';
 import EnquiryFields from '../components/EnquiryFields.jsx';
 import SampleRequestForm from '../components/SampleRequestForm.jsx';
+import { itemsForSave } from '../components/ItemCards.jsx';
 import LeadForm from '../components/LeadForm.jsx';
 import { formatCompactCurrency, formatDate, formatNumber } from '../utils/format.js';
 import {
   ACTIVITY_TYPES, CUSTOMER_TYPES, DISQUALIFY_REASONS, SOURCES,
-  buildEnquiryPayload, followUpState, leadStageLabel, optionLabel, sampleStageLabel, text,
+  buildEnquiryPayload, followUpState, itemForEdit, leadStageLabel, optionLabel, sampleStageLabel,
+  text,
 } from '../utils/pipeline.js';
 
 const TONE_TEXT = {
@@ -83,10 +85,15 @@ function ActivityForm({ leadId, onSaved }) {
 function ConvertForm({ lead, onClose, onConverted, startWithEnquiry = true }) {
   const [error, setError] = useState(null);
   const [withEnquiry, setWithEnquiry] = useState(startWithEnquiry);
-  const [mould, setMould] = useState(undefined);
-  /* The register picks, held here like the mould: they are controlled selects, not inputs. */
-  const [spec, setSpec] = useState({});
-  const [isNewDevelopment, setNewDevelopment] = useState(false);
+  /*
+   * What the enquiry will be about, seeded from what the lead already recorded.
+   *
+   * A lead carries its own list of what was mentioned on the first call — no tools, because a
+   * lead names nothing on the register — so conversion starts from those and the person names
+   * the tool for each as they go. Starting empty would make them re-type a conversation the
+   * record already holds.
+   */
+  const [items, setItems] = useState(() => (lead.items || []).map(itemForEdit));
   /*
    * The customer this lead turned out to be, when it is one we already supply.
    *
@@ -151,7 +158,7 @@ function ConvertForm({ lead, onClose, onConverted, startWithEnquiry = true }) {
             },
           }),
       enquiry: withEnquiry
-        ? buildEnquiryPayload(values.enquiry, { mould, isNewDevelopment, spec })
+        ? buildEnquiryPayload(values.enquiry, { items: itemsForSave(items) })
         : undefined,
     };
 
@@ -292,12 +299,8 @@ function ConvertForm({ lead, onClose, onConverted, startWithEnquiry = true }) {
             register={register}
             prefix="enquiry."
             errors={errors.enquiry}
-            mould={mould}
-            onMouldChange={setMould}
-            spec={spec}
-            onSpecChange={setSpec}
-            newDevelopment={isNewDevelopment}
-            onNewDevelopmentChange={setNewDevelopment}
+            items={items}
+            onItemsChange={setItems}
           />
         )}
       </div>

@@ -11,7 +11,7 @@ import AuthedImage from '../components/AuthedImage.jsx';
 import { CustomerSelect, EnquirySelect } from '../components/pickers.jsx';
 import SampleLog from '../components/SampleLog.jsx';
 import SampleRequestForm from '../components/SampleRequestForm.jsx';
-import { MouldThumb } from '../components/MouldPhoto.jsx';
+import ItemList from '../components/ItemList.jsx';
 import { formatDate, formatNumber } from '../utils/format.js';
 import {
   CLOSED_SAMPLE_STAGES, HANGER_CATEGORIES, MATERIALS, MESSAGE_CHANNELS, MESSAGE_EVENTS,
@@ -1146,130 +1146,31 @@ export default function SampleDetail() {
 
       <div className="grid gap-5 lg:grid-cols-3">
         <div className="min-w-0 space-y-5 lg:col-span-2">
-          <Section title={bag.length > 1 ? 'What to make — the first model' : 'What to make'}>
-            <Facts
-              items={[
-                { label: 'Purpose', value: optionLabel(SAMPLE_PURPOSES, sample.purpose) },
-                {
-                  label: 'Model',
-                  /* The part, so the bench can see what it is making before reading what it
-                     is called. */
-                  value: sample.mould ? (
-                    <span className="flex items-center gap-2.5">
-                      <MouldThumb mould={sample.mould} />
-                      <span>{sample.mould.mouldCode} — {sample.mould.name}</span>
-                    </span>
-                  ) : (
-                    sample.modelNumber
-                  ),
-                },
-                { label: 'Category', value: optionLabel(HANGER_CATEGORIES, sample.category) },
-                {
-                  /* The register row's own name when there is one, because "HIPS" does not say
-                     which resin and the bench has to pick a drum. The family is the fallback for
-                     a request raised before the registers were filled. */
-                  label: 'Material',
-                  value: sample.materialRef?.name || optionLabel(MATERIALS, sample.material),
-                },
-                { label: 'Size', value: sample.sizeMm && `${sample.sizeMm} mm` },
-                {
-                  /*
-                    The colour and the licence to substitute it, together — because they are one
-                    fact and reading either alone gets it wrong. A bench told only "White" waits
-                    for the exact white it does not have, when the buyer would have taken ivory
-                    on Tuesday; a bench that assumes it may substitute sends the wrong shade to
-                    somebody matching a garment. Spelled out rather than shown as a chip: the
-                    reader is choosing a drum of resin, not decoding a convention.
-                  */
-                  label: 'Colour',
-                  value: sample.colour && (
-                    <>
-                      {sample.colour}
-                      <span
-                        className={`mt-0.5 block text-xs ${
-                          sample.colourMandatory ? 'font-bold text-danger-400' : 'text-steel-400'
-                        }`}
-                      >
-                        {sample.colourMandatory
-                          ? 'Must be this colour — do not send another shade'
-                          : 'Preferred — any available colour will do'}
-                      </span>
-                      {/* And what actually went, when it was not that. The register kept only
-                          what was asked for until now, so a substitution left no trace and the
-                          rejection three weeks later had no explanation in it. */}
-                      {sample.dispatchedColour &&
-                        sample.dispatchedColour.trim().toLowerCase() !==
-                          sample.colour.trim().toLowerCase() && (
-                          <span className="mt-1 block text-xs font-bold text-warn-400">
-                            Sent in {sample.dispatchedColour}
-                          </span>
-                        )}
-                    </>
-                  ),
-                },
-                { label: 'Hook', value: sample.hookRef?.name },
-                { label: 'Clip', value: sample.clipRef?.name },
-                {
-                  label: 'Quantity',
-                  /* This model's count, and the bag's, where they are not the same figure —
-                     the bench makes the first and the courier carries the second. */
-                  value: bag.length > 1
-                    ? `${formatNumber(sample.quantity)} pc · ${formatNumber(sample.piecesToMake)} in the bag`
-                    : `${formatNumber(sample.quantity)} pc`,
-                },
-                { label: 'Printing', value: sample.printRef?.name || sample.printing },
-                { label: 'Remarks', value: sample.remarks, wide: true },
-              ]}
-            />
-          </Section>
+          <Section
+            title={bag.length > 1 ? `What to make (${bag.length} models)` : 'What to make'}
+          >
+            {/*
+              Every model in the envelope as a peer.
 
-          {/*
-            The rest of the bag.
-            
-            A buyer comparing three hangers asks for one envelope, and the block above describes
-            the first of them. Listed rather than folded into that block, because each row is a
-            model in its own right — its own resin, its own parts, its own count — and merging
-            them would read as one hanger with three colours.
-          */}
-          {bag.length > 1 && (
-            <Section title={`Also in the bag (${bag.length - 1})`}>
-              <ul className="divide-y divide-line/[0.06]">
-                {bag.slice(1).map((item, index) => (
-                  <li key={item._id || index} className="flex flex-wrap items-baseline justify-between gap-3 py-3">
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-steel-100">
-                        {item.mould?.mouldCode || item.modelNumber || `Model ${index + 2}`}
-                      </p>
-                      <p className="mt-0.5 text-xs text-steel-400">
-                        {[
-                          item.materialRef?.name || optionLabel(MATERIALS, item.material),
-                          item.colour,
-                          item.sizeMm && `${item.sizeMm} mm`,
-                          item.hookRef?.name,
-                          item.clipRef?.name,
-                          item.printRef?.name || item.printing,
-                        /* `optionLabel` answers an em dash for a value nobody set, which read
-                           as a row describing itself as "—" rather than as one with nothing on
-                           it yet. */
-                        ].filter((part) => part && part !== '—').join(' · ') || 'Nothing else recorded yet'}
-                      </p>
-                      {/* The same licence the first model carries, said the same way. */}
-                      {item.colour && (
-                        <p className={`mt-0.5 text-xs ${item.colourMandatory ? 'font-bold text-danger-400' : 'text-steel-500'}`}>
-                          {item.colourMandatory
-                            ? 'Must be this colour — do not send another shade'
-                            : 'Preferred — any available colour will do'}
-                        </p>
-                      )}
-                    </div>
-                    <p className="shrink-0 text-sm tabular-nums text-steel-200">
-                      {formatNumber(item.quantity || 0)} pc
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            </Section>
-          )}
+              It used to be "What to make — the first model" here, with the rest under "Also in
+              the bag" as a line of run-together text each. A buyer comparing three hangers asks
+              for one envelope and each of those hangers is a model in its own right — its own
+              tool, its own resin, its own parts, its own count — so each gets the same card.
+              The old arrangement showed models two and three without their tool, which is the
+              one thing the bench most needs.
+            */}
+            <ItemList items={bag} withQuantity bagTotal={formatNumber(sample.piecesToMake)} />
+
+            {/* What belongs to the request rather than to any one model in it. */}
+            <div className="mt-5 border-t border-line/[0.06] pt-4">
+              <Facts
+                items={[
+                  { label: 'Purpose', value: optionLabel(SAMPLE_PURPOSES, sample.purpose) },
+                  { label: 'Remarks', value: sample.remarks, wide: true },
+                ]}
+              />
+            </div>
+          </Section>
 
           <ReferencePhoto sample={sample} mayEdit={maySample && !closed} onSaved={setData} />
 

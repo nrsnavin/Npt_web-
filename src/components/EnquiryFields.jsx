@@ -1,140 +1,42 @@
-import { Field, Notice } from './ui.jsx';
-import { ColourInput, MaterialSelect, MouldSelect, PartSelect } from './pickers.jsx';
-import { HANGER_CATEGORIES } from '../utils/pipeline.js';
+import { Field } from './ui.jsx';
+import ItemCards from './ItemCards.jsx';
 
 /**
  * The requirement half of an enquiry, shared by the enquiry form and by lead conversion.
  *
- * `prefix` lets the same fields sit at the root of one form and under `enquiry.` in
- * another, so conversion can post a nested enquiry without a second copy of this markup.
+ * `prefix` lets the same fields sit at the root of one form and under `enquiry.` in another, so
+ * conversion can post a nested enquiry without a second copy of this markup.
  *
- * **Everything that names a thing is a register pick** [§28] — the tool, the resin, the hook,
- * the clip, the print — so an enquiry describes the same job in the same words as the sample the
- * buyer approves and the order booked against it. That is what makes §13's "correct colour" a
- * comparison rather than two boxes of similar text.
+ * **What the buyer asked about is a list of items, and nothing on this form is above it.** It
+ * used to be: one model was entered here through the form's own fields — the tool, the resin,
+ * the hook, the colour and whether that colour binds the bench — and anything else the buyer
+ * mentioned went into a reduced panel underneath. That made every model after the first a lesser
+ * record, unable to name a tool [§28] and so unable to be costed against one, sampled from one,
+ * or quoted as the piece the buyer approved. The items are entered in `ItemCards` now, each with
+ * the same complete set of options, and the server keeps the first one and the enquiry's own flat
+ * fields in step.
  *
- * **And there is no quantity.** An enquiry used to require one, and it was the wrong question at
- * the wrong moment: nobody knows how many at this stage, so the polite figure a buyer gives on
- * the phone travelled the whole chain as though it were a commitment. What can honestly be said
- * about size is the estimated value below, which says on its face that it is an estimate.
- *
- * The five picks are held by the caller and passed in, exactly as the mould already is: they are
- * controlled selects rather than registered inputs, and threading them through react-hook-form
- * would be a `Controller` each for no gain.
+ * What is left here is what belongs to the enquiry rather than to any one model: the target
+ * price, the delivery date, the estimated value, the remarks and the next step. Asking those per
+ * item would be asking the wrong question — a buyer names one delivery date for the call.
  */
 export default function EnquiryFields({
   register,
   prefix = '',
-  mould,
-  onMouldChange,
-  spec = {},
-  onSpecChange = () => {},
-  newDevelopment,
-  onNewDevelopmentChange,
+  items = [],
+  onItemsChange = () => {},
+  disabled,
   errors = {},
 }) {
   const name = (field) => `${prefix}${field}`;
-  const set = (key) => (value) => onSpecChange({ ...spec, [key]: value });
 
   return (
     <div className="space-y-5">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field
-          label="Model"
-          className="sm:col-span-2"
-          hint={
-            newDevelopment
-              ? 'A new development has no tool yet'
-              : 'The mould that makes it — leave empty for anything bought in'
-          }
-        >
-          <MouldSelect
-            value={mould}
-            onChange={onMouldChange}
-            disabled={newDevelopment}
-            aria-label="Model"
-          />
-        </Field>
-      </div>
-
-      <label className="flex items-start gap-2.5 text-sm text-steel-200">
-        <input
-          type="checkbox"
-          className="mt-0.5 h-4 w-4 accent-flame-500"
-          checked={newDevelopment}
-          onChange={(event) => onNewDevelopmentChange(event.target.checked)}
-        />
-        <span>
-          New development
-          <span className="mt-0.5 block text-xs text-steel-500">
-            Nothing on the register matches and nothing is bought in. Describe it below; it
-            becomes a model on the register once the tool is cut.
-          </span>
-        </span>
-      </label>
+      <ItemCards items={items} onChange={onItemsChange} disabled={disabled} />
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field
-          label={newDevelopment ? 'Describe the model' : 'Model reference'}
-          className="sm:col-span-2"
-          hint="What the buyer asked for, in their words — the whole of it for anything bought in"
-        >
-          <input className="input" {...register(name('requirement.modelNumber'))} />
-        </Field>
-        <Field label="Category">
-          <select className="input" {...register(name('requirement.category'))}>
-            <option value="">—</option>
-            {HANGER_CATEGORIES.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Size (mm)">
-          <input type="number" className="input" {...register(name('requirement.sizeMm'))} />
-        </Field>
-        <Field label="Material" hint="From the register — brings its colour">
-          <MaterialSelect value={spec.materialRef} onChange={set('materialRef')} aria-label="Material" />
-        </Field>
-        <Field label="Colour" hint="The resin's, unless the buyer named a shade">
-          <ColourInput value={spec.colour} onChange={set('colour')} aria-label="Colour" />
-        </Field>
-        {/*
-          Beside the colour, because it is a fact about that colour and about nothing else.
-          Unticked is the ordinary case: most buyers asking for white want a white-ish hanger to
-          look at, and a bench that waits three weeks for the exact shade has answered a question
-          nobody asked. Ticked is the exception — a garment being matched, a shade already
-          approved — and it is the sample team's licence to substitute that it withdraws.
-        */}
-        <label className="flex items-start gap-2.5 self-end pb-2 text-sm text-steel-200 sm:col-span-2">
-          <input
-            type="checkbox"
-            className="mt-0.5 h-4 w-4 accent-flame-500"
-            checked={Boolean(spec.colourMandatory)}
-            onChange={(event) => set('colourMandatory')(event.target.checked)}
-            aria-label="Colour and model must match exactly"
-          />
-          <span>
-            This colour and model exactly — no substitute
-            <span className="mt-0.5 block text-xs text-steel-500">
-              Leave unticked and the bench may send the nearest colour it has, preferring the one
-              above. Tick it and the sample is only sent in this colour, on this model.
-            </span>
-          </span>
-        </label>
-        <Field label="Hook">
-          <PartSelect kind="hook" value={spec.hookRef} onChange={set('hookRef')} aria-label="Hook" />
-        </Field>
-        <Field label="Clip">
-          <PartSelect kind="clip" value={spec.clipRef} onChange={set('clipRef')} aria-label="Clip" />
-        </Field>
-        <Field label="Printing">
-          <PartSelect kind="print" value={spec.printRef} onChange={set('printRef')} aria-label="Printing" />
-        </Field>
-        <Field label="Target price (₹)">
+        <Field label="Target price (₹)" hint="What the buyer wants to pay, if they said">
           <input type="number" step="0.01" className="input" {...register(name('targetPrice'))} />
-        </Field>
-        <Field label="Packing">
-          <input className="input" placeholder="200 pcs per carton" {...register(name('requirement.packing'))} />
         </Field>
         <Field label="Required delivery date">
           <input type="date" className="input" {...register(name('requiredDeliveryDate'))} />
@@ -175,13 +77,6 @@ export default function EnquiryFields({
           </Field>
         </div>
       </div>
-
-      {!mould && !newDevelopment && (
-        <Notice tone="info">
-          Name the mould, or give the model number the buyer asked for — a piece we buy in and
-          resell has no tool of ours. Tick new development if it is neither.
-        </Notice>
-      )}
     </div>
   );
 }

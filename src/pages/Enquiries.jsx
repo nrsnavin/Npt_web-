@@ -365,7 +365,7 @@ export default function Enquiries() {
       <Modal
         open={creating}
         title="New enquiry"
-        description="One model per enquiry, so sample and price stay answerable per model"
+        description="Every model the buyer asked about, each with its own tool and specification"
         size="lg"
         onClose={() => setCreating(false)}
       >

@@ -6,8 +6,8 @@ import { Field, FormError, Notice } from './ui.jsx';
 import {
   ColourInput, CustomerSelect, EnquirySelect, MaterialSelect, MouldSelect, PartSelect,
 } from './pickers.jsx';
-import ItemRows, { itemsForSave } from './ItemRows.jsx';
-import { HANGER_CATEGORIES, SAMPLE_PURPOSES, numeric, text } from '../utils/pipeline.js';
+import ItemCards, { filledItem, itemsForSave } from './ItemCards.jsx';
+import { SAMPLE_PURPOSES, itemForEdit, numeric, text } from '../utils/pipeline.js';
 
 /**
  * Raising a sample request, from wherever it is being asked for.
@@ -63,19 +63,18 @@ export default function SampleRequestForm({ lead, sample, onClose, onSaved, onCo
    * asks for one envelope, and raising three requests for it gives the bench three jobs, three
    * required dates and three couriers for one padded bag.
    */
-  const [extras, setExtras] = useState(() => (sample?.items || []).slice(1).map((item) => ({
-    modelNumber: item.modelNumber || '',
-    category: item.category || '',
-    sizeMm: item.sizeMm ?? '',
-    materialRef: item.materialRef?._id ?? item.materialRef ?? '',
-    colour: item.colour || '',
-    hookRef: item.hookRef?._id ?? item.hookRef ?? '',
-    clipRef: item.clipRef?._id ?? item.clipRef ?? '',
-    printRef: item.printRef?._id ?? item.printRef ?? '',
-    printing: item.printing || '',
-    packing: item.packing || '',
-    quantity: item.quantity ?? '',
-  })));
+  /*
+   * The whole bag, as one list.
+   *
+   * It used to be "the first model" — entered through this form's own fields, with the mould
+   * and the colour rule on it — plus "the extras" in a panel called "Also in the bag". That
+   * made every model after the first a lesser thing: it could be described but could not name
+   * the tool it runs on, so the bench was told what made hanger one and nothing about hanger
+   * two. Now every model in the bag is entered the same way.
+   */
+  const [bag, setBag] = useState(() => (sample?.items?.length
+    ? sample.items.map(itemForEdit)
+    : (sample ? [itemForEdit(sample)] : [])));
   const [error, setError] = useState(null);
   /* What the request turned this lead into, once it has. See the panel below the submit. */
   const [made, setMade] = useState(null);
@@ -116,9 +115,17 @@ export default function SampleRequestForm({ lead, sample, onClose, onSaved, onCo
     setError(null);
 
     // With an enquiry the requirement comes from it; without one it has to be said here.
-    if (standalone && !mould && !modelNumber?.trim()) {
-      setError({ message: 'Pick a mould, or describe what to make.' });
-      return;
+    if (asksWhatToMake) {
+      const described = bag.filter(filledItem);
+      if (!described.length) {
+        setError({ message: 'Tell the bench what to make — fill in at least one item.' });
+        return;
+      }
+      const vague = described.findIndex((item) => !item.mould && !item.modelNumber?.trim());
+      if (vague >= 0) {
+        setError({ message: `Item ${vague + 1}: pick a mould, or describe what to make.` });
+        return;
+      }
     }
 
     /* The request it is *for* never moves. Re-pointing a sample at a different enquiry or buyer
@@ -133,53 +140,43 @@ export default function SampleRequestForm({ lead, sample, onClose, onSaved, onCo
           lead: lead?._id,
         };
 
+    /*
+     * The bag as it goes on the wire, and the top line taken from its first model.
+     *
+     * The server keeps `items[0]` and the request's own top line in step, so both are sent
+     * saying the same thing rather than the form being asked to choose which is senior.
+     */
+    const rows = asksWhatToMake ? itemsForSave(bag, { withQuantity: true }) : [];
+    const first = rows[0] || {};
+
     const payload = {
       ...fields,
-      mould,
-      modelNumber: text(values.modelNumber),
-      category: text(values.category),
-      sizeMm: numeric(values.sizeMm),
-      materialRef: spec.materialRef || undefined,
-      hookRef: spec.hookRef || undefined,
-      clipRef: spec.clipRef || undefined,
-      printRef: spec.printRef || undefined,
-      /* Left blank, the server fills it from the resin's own colour. */
-      colour: text(spec.colour),
-      /*
-       * Only when this form actually asked. Where the request has an enquiry behind it the
-       * tick box is not drawn — the specification is the enquiry's — and sending `false` for
-       * a box nobody was shown would silently overrule a buyer who *had* insisted on the
-       * shade. Undefined lets what the enquiry recorded stand; `false` here is a real answer.
-       */
-      colourMandatory: asksWhatToMake ? Boolean(spec.colourMandatory) : undefined,
+      /* With an enquiry behind it this form does not ask what to make — the specification is
+         the enquiry's, and so are its models — so nothing here may overwrite what it carried. */
+      ...(asksWhatToMake
+        ? {
+          mould: first.mould || undefined,
+          modelNumber: first.modelNumber,
+          category: first.category,
+          sizeMm: first.sizeMm,
+          materialRef: first.materialRef,
+          hookRef: first.hookRef,
+          clipRef: first.clipRef,
+          printRef: first.printRef,
+          /* Left blank, the server fills it from the resin's own colour. */
+          colour: first.colour,
+          /*
+           * A real answer, because this form asked. Where the request has an enquiry behind it
+           * the tick box is not drawn, and sending `false` for a box nobody was shown would
+           * silently overrule a buyer who *had* insisted on the shade.
+           */
+          colourMandatory: Boolean(first.colourMandatory),
+          items: rows,
+        }
+        : {}),
       /* How many pieces to put in the courier bag — a figure the requester actually knows,
          unlike the order quantity an enquiry used to be asked for. */
       quantity: numeric(values.quantity),
-      /*
-       * The whole bag: the fields above as the first row, then the rest. Sent as one list so
-       * the server is never asked to reconcile a top line against a list that disagrees with
-       * it — it keeps them in step, and this is the shape that gives it nothing to reconcile.
-       *
-       * Only from the form that asked what to make. With an enquiry behind it this block is
-       * not drawn at all — the specification is the enquiry's, and so are its models — so a
-       * list sent from here would be a blank first row overwriting what the enquiry carried.
-       */
-      items: !asksWhatToMake ? undefined : [
-        {
-          mould,
-          modelNumber: text(values.modelNumber),
-          category: text(values.category),
-          sizeMm: numeric(values.sizeMm),
-          materialRef: spec.materialRef || undefined,
-          hookRef: spec.hookRef || undefined,
-          clipRef: spec.clipRef || undefined,
-          printRef: spec.printRef || undefined,
-          colour: text(spec.colour),
-          colourMandatory: asksWhatToMake ? Boolean(spec.colourMandatory) : undefined,
-          quantity: numeric(values.quantity),
-        },
-        ...itemsForSave(extras, { withQuantity: true }),
-      ],
       purpose: values.purpose,
       requiredDate: text(values.requiredDate),
       remarks: text(values.remarks),
@@ -337,72 +334,13 @@ export default function SampleRequestForm({ lead, sample, onClose, onSaved, onCo
             With no enquiry to take it from, the bench needs to be told what to make.
           </p>
 
-          <Field label="Model" hint="The mould it is made on, or describe it below">
-            <MouldSelect value={mould} onChange={setMould} aria-label="Model" />
-          </Field>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Model reference" className="sm:col-span-2">
-              <input className="input" placeholder="Matte 400mm white" {...register('modelNumber')} />
-            </Field>
-            <Field label="Category">
-              <select className="input" {...register('category')}>
-                <option value="">—</option>
-                {HANGER_CATEGORIES.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Size (mm)">
-              <input type="number" className="input" {...register('sizeMm')} />
-            </Field>
-            <Field label="Material" hint="From the register — brings its colour">
-              <MaterialSelect value={spec.materialRef} onChange={setPick('materialRef')} aria-label="Material" />
-            </Field>
-            <Field label="Colour" hint="The resin's, unless the buyer named a shade">
-              <ColourInput value={spec.colour} onChange={setPick('colour')} aria-label="Colour" />
-            </Field>
-            {/*
-              Beside the colour, because it is a fact about that colour. Unticked is the ordinary
-              case — a buyer wanting a white hanger to look at is answered by the nearest white on
-              the rack, and waiting three weeks for an exact shade answers a question nobody
-              asked. Ticked withdraws that licence, for the buyer matching a garment.
-            */}
-            <label className="flex items-start gap-2.5 text-sm text-steel-200 sm:col-span-2">
-              <input
-                type="checkbox"
-                className="mt-0.5 h-4 w-4 accent-flame-500"
-                checked={Boolean(spec.colourMandatory)}
-                onChange={(event) => setPick('colourMandatory')(event.target.checked)}
-                aria-label="Colour and model must match exactly"
-              />
-              <span>
-                This colour and model exactly — no substitute
-                <span className="mt-0.5 block text-xs text-steel-500">
-                  Leave unticked and the bench may send the nearest colour it has, preferring the
-                  one above. Tick it and the sample is only sent in this colour, on this model.
-                </span>
-              </span>
-            </label>
-            <Field label="Hook">
-              <PartSelect kind="hook" value={spec.hookRef} onChange={setPick('hookRef')} aria-label="Hook" />
-            </Field>
-            <Field label="Clip">
-              <PartSelect kind="clip" value={spec.clipRef} onChange={setPick('clipRef')} aria-label="Clip" />
-            </Field>
-            <Field label="Printing" className="sm:col-span-2">
-              <PartSelect kind="print" value={spec.printRef} onChange={setPick('printRef')} aria-label="Printing" />
-            </Field>
-          </div>
-
-          {/* And the rest of the bag. The fields above are its first model. */}
-          <ItemRows
-            items={extras}
-            onChange={setExtras}
+          <ItemCards
+            items={bag}
+            onChange={setBag}
             disabled={isSubmitting}
             withQuantity
-            title="Also in the bag"
-            hint="Other models going in the same envelope. Leave empty if there is only one."
+            title="What to make"
+            hint="One item per model going in the envelope. Add another for anything else."
           />
         </div>
       )}

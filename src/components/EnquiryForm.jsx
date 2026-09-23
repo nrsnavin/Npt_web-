@@ -4,8 +4,8 @@ import { enquiries as enquiriesApi } from '../api/endpoints.js';
 import { Field, FormError } from './ui.jsx';
 import { CustomerSelect } from './pickers.jsx';
 import EnquiryFields from './EnquiryFields.jsx';
-import ItemRows, { itemsForSave } from './ItemRows.jsx';
-import { SOURCES, buildEnquiryPayload } from '../utils/pipeline.js';
+import { filledItem, itemsForSave } from './ItemCards.jsx';
+import { SOURCES, buildEnquiryPayload, itemsForEdit } from '../utils/pipeline.js';
 
 /**
  * Raising an enquiry, or correcting one.
@@ -21,48 +21,25 @@ import { SOURCES, buildEnquiryPayload } from '../utils/pipeline.js';
 
 export default function EnquiryForm({ enquiry, onClose, onSaved }) {
   const editing = Boolean(enquiry);
-  const requirement = enquiry?.requirement || {};
 
   const [error, setError] = useState(null);
   const [customer, setCustomer] = useState(
     enquiry?.customer?._id ?? enquiry?.customer ?? undefined
   );
-  const [mould, setMould] = useState(enquiry?.mould?._id ?? enquiry?.mould ?? undefined);
-  const [isNewDevelopment, setNewDevelopment] = useState(Boolean(enquiry?.isNewDevelopment));
-  /*
-   * The other things the buyer asked about, beyond the first.
-   *
-   * Held from index 1 rather than including the primary, because the primary is the block
-   * below — with the mould and the new-development tick on it — and having the same item in two
-   * places on one form is how the two come to disagree while somebody is typing. The payload
-   * builder puts them back together.
-   */
-  const [extras, setExtras] = useState(() => (enquiry?.items || []).slice(1).map((item) => ({
-    modelNumber: item.modelNumber || '',
-    category: item.category || '',
-    sizeMm: item.sizeMm ?? '',
-    materialRef: item.materialRef?._id ?? item.materialRef ?? '',
-    colour: item.colour || '',
-    hookRef: item.hookRef?._id ?? item.hookRef ?? '',
-    clipRef: item.clipRef?._id ?? item.clipRef ?? '',
-    printRef: item.printRef?._id ?? item.printRef ?? '',
-    printing: item.printing || '',
-    packing: item.packing || '',
-  })));
 
-  /* The register picks, held here like the mould: they are controlled selects, not inputs. */
-  const [spec, setSpec] = useState(
-    editing
-      ? {
-          materialRef: requirement.materialRef?._id ?? requirement.materialRef ?? undefined,
-          hookRef: requirement.hookRef?._id ?? requirement.hookRef ?? undefined,
-          clipRef: requirement.clipRef?._id ?? requirement.clipRef ?? undefined,
-          printRef: requirement.printRef?._id ?? requirement.printRef ?? undefined,
-          colour: requirement.colour || '',
-          colourMandatory: Boolean(requirement.colourMandatory),
-        }
-      : {}
-  );
+  /*
+   * Everything the buyer asked about, as one list.
+   *
+   * One piece of state rather than "the first model" plus "the others", which is what it was.
+   * Splitting them meant the same item lived in two places on one form and the two could differ
+   * while somebody typed — and it made the mould, the new-development tick and the colour rule
+   * belong to item one alone, which is the whole thing being fixed here.
+   *
+   * `itemsForEdit` builds the list from the enquiry's own top line when the record predates the
+   * field, so an old enquiry opens showing the model it names rather than an empty item.
+   */
+  const [items, setItems] = useState(() =>
+    (editing ? itemsForEdit(enquiry, enquiry?.requirement) : []));
 
   const {
     register,
@@ -82,12 +59,6 @@ export default function EnquiryForm({ enquiry, onClose, onSaved }) {
           nextFollowUpDate: enquiry.nextFollowUpDate
             ? enquiry.nextFollowUpDate.slice(0, 10)
             : '',
-          requirement: {
-            modelNumber: requirement.modelNumber || '',
-            category: requirement.category || '',
-            sizeMm: requirement.sizeMm ?? '',
-            packing: requirement.packing || '',
-          },
         }
       : { source: 'phone' },
   });
@@ -99,18 +70,31 @@ export default function EnquiryForm({ enquiry, onClose, onSaved }) {
       setError({ message: 'Pick the customer this enquiry belongs to.' });
       return;
     }
-    if (!mould && !isNewDevelopment && !values.requirement?.modelNumber?.trim()) {
+
+    /*
+     * Judged on the list, because the list is what is sent. The server asks the same question
+     * and would refuse it — this is here so the answer arrives as a sentence beside the form
+     * rather than as a refusal after a round trip, and so a person who filled in item 2 and
+     * left item 1 blank is told which one is the problem.
+     */
+    const described = items.filter(filledItem);
+    if (!described.length) {
+      setError({ message: 'Say what the buyer asked about — fill in at least one item.' });
+      return;
+    }
+    const vague = described.findIndex(
+      (item) => !item.mould && !item.isNewDevelopment && !item.modelNumber?.trim()
+    );
+    if (vague >= 0) {
       setError({
-        message:
-          'Name the mould, or give the model number the buyer asked for, or mark this as a new development.',
+        message: `Item ${vague + 1}: name the mould, or give the model number the buyer asked `
+          + 'for, or mark it as a new development.',
       });
       return;
     }
 
     try {
-      const payload = buildEnquiryPayload(values, {
-        mould, isNewDevelopment, spec, extraItems: itemsForSave(extras),
-      });
+      const payload = buildEnquiryPayload(values, { items: itemsForSave(items) });
 
       onSaved(
         editing
@@ -155,17 +139,10 @@ export default function EnquiryForm({ enquiry, onClose, onSaved }) {
       <EnquiryFields
         register={register}
         errors={errors}
-        mould={mould}
-        onMouldChange={setMould}
-        spec={spec}
-        onSpecChange={setSpec}
-        newDevelopment={isNewDevelopment}
-        onNewDevelopmentChange={setNewDevelopment}
+        items={items}
+        onItemsChange={setItems}
+        disabled={isSubmitting}
       />
-
-      {/* Below the first item, because that is the order the conversation went in and the one
-          the record keeps: the first thing they asked about is what a sample is raised for. */}
-      <ItemRows items={extras} onChange={setExtras} disabled={isSubmitting} />
 
       <FormError error={error} />
 

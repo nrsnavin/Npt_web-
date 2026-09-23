@@ -14,7 +14,7 @@ import Documents from '../components/Documents.jsx';
 import EnquiryActions from '../components/EnquiryActions.jsx';
 import HistoryPanel from '../components/HistoryPanel.jsx';
 import QuotationPdf from '../components/QuotationPdf.jsx';
-import { MouldThumb } from '../components/MouldPhoto.jsx';
+import ItemList from '../components/ItemList.jsx';
 import EnquiryForm from '../components/EnquiryForm.jsx';
 import { formatCurrency, formatDate, formatNumber, humanise } from '../utils/format.js';
 import {
@@ -576,6 +576,12 @@ export default function EnquiryDetail() {
   const open = !CLOSED_STAGES.includes(enquiry.status);
   const due = followUpState(enquiry.nextFollowUpDate);
   const stageIndex = ENQUIRY_STAGES.findIndex((stage) => stage.value === enquiry.status);
+  /* An enquiry raised before items existed, read as the one item it is — see the Section. */
+  const firstItem = {
+    ...enquiry.requirement,
+    mould: enquiry.mould,
+    isNewDevelopment: enquiry.isNewDevelopment,
+  };
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -669,122 +675,36 @@ export default function EnquiryDetail() {
             */}
           <EnquiryActions enquiry={enquiry} onSaved={setData} canWrite={mayWrite} />
 
-          <Section title="Requirement">
-            {enquiry.isNewDevelopment && (
-              <div className="mb-4">
-                <Badge tone="accent">New development — no tool cut yet</Badge>
-              </div>
-            )}
-            <Facts
-              items={[
-                {
-                  label: 'Model',
-                  value: enquiry.requirement?.modelNumber
-                    || (enquiry.mould && `${enquiry.mould.mouldCode} — ${enquiry.mould.name}`),
-                  wide: true,
-                },
-                {
-                  /*
-                   * Named separately from the model, because the two are different answers.
-                   * The model is what the buyer asked for; the mould is what we would run it
-                   * on — and an empty one here means a piece we buy in rather than make.
-                   */
-                  label: 'Mould',
-                  value: enquiry.mould ? (
-                    /* The part beside its code. What the buyer described is a shape, and this
-                       is the first screen where somebody can check the two agree. */
-                    <span className="flex items-center gap-2.5">
-                      <MouldThumb mould={enquiry.mould} />
-                      <span>{enquiry.mould.mouldCode} — {enquiry.mould.name}</span>
-                    </span>
-                  ) : enquiry.isNewDevelopment ? (
-                    'Not cut yet'
-                  ) : (
-                    'Bought in — no tool of ours'
-                  ),
-                },
-                { label: 'Category', value: optionLabel(HANGER_CATEGORIES, enquiry.requirement?.category) },
-                {
-                  label: 'Material',
-                  value:
-                    enquiry.requirement?.materialRef?.name ||
-                    optionLabel(MATERIALS, enquiry.requirement?.material),
-                },
-                { label: 'Size', value: enquiry.requirement?.sizeMm && `${enquiry.requirement.sizeMm} mm` },
-                {
-                  /* With the licence to substitute it, in the same words the sample shows — this
-                     is where the answer is recorded, and the sample it raises inherits it. */
-                  label: 'Colour',
-                  value: enquiry.requirement?.colour && (
-                    <>
-                      {enquiry.requirement.colour}
-                      <span
-                        className={`mt-0.5 block text-xs ${
-                          enquiry.requirement.colourMandatory
-                            ? 'font-bold text-danger-400'
-                            : 'text-steel-400'
-                        }`}
-                      >
-                        {enquiry.requirement.colourMandatory
-                          ? 'Must be this colour — do not send another shade'
-                          : 'Preferred — any available colour will do'}
-                      </span>
-                    </>
-                  ),
-                },
-                { label: 'Hook', value: enquiry.requirement?.hookRef?.name },
-                { label: 'Clip', value: enquiry.requirement?.clipRef?.name },
-                { label: 'Target price', value: enquiry.targetPrice && formatCurrency(enquiry.targetPrice) },
-                {
-                  label: 'Printing',
-                  value: enquiry.requirement?.printRef?.name || enquiry.requirement?.printing,
-                },
-                { label: 'Packing', value: enquiry.requirement?.packing },
-                { label: 'Required by', value: enquiry.requiredDeliveryDate && formatDate(enquiry.requiredDeliveryDate) },
-                { label: 'Estimated value', value: enquiry.estimatedValue && formatCurrency(enquiry.estimatedValue) },
-                { label: 'Remarks', value: enquiry.remarks, wide: true },
-              ]}
-            />
-
+          <Section
+            title={enquiry.items?.length > 1
+              ? `What was asked about (${enquiry.items.length})`
+              : 'What was asked about'}
+          >
             {/*
-              The rest of what the conversation covered.
-              
-              Below the first item rather than beside it, because the first one is not merely
-              first — it is what a sample is raised for, what a costing is built on and what
-              every screen upstream reads. Drawn only when there is more than one, so a
-              single-item enquiry looks exactly as it always did.
+              Every model as a peer. The first one used to be printed here as a block of
+              labelled facts with the rest listed underneath as run-together text, which said
+              on its face that models two and three were afterthoughts — and left out the one
+              field that changes what the bench may do, the colour rule.
+
+              An enquiry written before the list existed answers `items: []` and carries its
+              model on the flat fields, so it is shown as the one item it is. The backfill fills
+              the database; a screen that depends on a script having been run is a screen that
+              is blank for whoever runs it second.
             */}
-            {enquiry.items?.length > 1 && (
-              <div className="mt-5 border-t border-line/[0.06] pt-4">
-                <p className="eyebrow">
-                  Also asked about ({enquiry.items.length - 1})
-                </p>
-                <ul className="mt-2 space-y-2">
-                  {enquiry.items.slice(1).map((item, index) => (
-                    <li
-                      key={item._id || index}
-                      className="rounded-lg bg-line/[0.03] px-3.5 py-2.5 text-sm"
-                    >
-                      <p className="font-semibold text-steel-100">
-                        {item.modelNumber || 'No model named'}
-                      </p>
-                      <p className="text-xs text-steel-400">
-                        {[
-                          optionLabel(HANGER_CATEGORIES, item.category),
-                          item.sizeMm && `${item.sizeMm} mm`,
-                          item.materialRef?.name || optionLabel(MATERIALS, item.material),
-                          item.colour,
-                          item.hookRef?.name,
-                          item.clipRef?.name,
-                          item.printRef?.name || item.printing,
-                          item.packing,
-                        ].filter(Boolean).join(' · ') || 'Nothing else recorded'}
-                      </p>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+            <ItemList items={enquiry.items?.length ? enquiry.items : [firstItem]} />
+
+            {/* What belongs to the enquiry rather than to any one model. A buyer names one
+                delivery date for the call, not one per hanger. */}
+            <div className="mt-5 border-t border-line/[0.06] pt-4">
+              <Facts
+                items={[
+                  { label: 'Target price', value: enquiry.targetPrice && formatCurrency(enquiry.targetPrice) },
+                  { label: 'Required by', value: enquiry.requiredDeliveryDate && formatDate(enquiry.requiredDeliveryDate) },
+                  { label: 'Estimated value', value: enquiry.estimatedValue && formatCurrency(enquiry.estimatedValue) },
+                  { label: 'Remarks', value: enquiry.remarks, wide: true },
+                ]}
+              />
+            </div>
           </Section>
 
           {mayReadSamples && <EnquirySamples enquiryId={enquiry._id} />}
