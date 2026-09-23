@@ -45,9 +45,20 @@ export const filledItem = (item = {}) =>
     || item.hookRef || item.clipRef || item.printRef || item.printing || item.packing
   );
 
-/** What goes on the wire: the rows somebody filled in, with the empty strings taken out. */
-export const itemsForSave = (items = []) =>
+/**
+ * What goes on the wire: the rows somebody filled in, with the empty strings taken out.
+ *
+ * `withQuantity` is the sample's, and only the sample's. On a lead or an enquiry the quantity
+ * was a guess at how big an order might be and is no longer asked for anywhere; on a sample it
+ * is how many pieces of this model go in the courier bag, which the person raising it knows and
+ * the bench has to act on. Sending it from a form that never showed the field would put a
+ * number on a record nobody typed.
+ */
+export const itemsForSave = (items = [], { withQuantity = false } = {}) =>
   items.filter(filledItem).map((item) => ({
+    ...(withQuantity
+      ? { quantity: item.quantity === '' || item.quantity === undefined ? undefined : Number(item.quantity) }
+      : {}),
     modelNumber: item.modelNumber || undefined,
     category: item.category || undefined,
     sizeMm: item.sizeMm === '' || item.sizeMm === undefined ? undefined : Number(item.sizeMm),
@@ -70,6 +81,8 @@ export default function ItemRows({
   title = 'Also asked about',
   hint = 'Other models from the same conversation. Leave empty if there was only one.',
   disabled,
+  /** Shows "pieces" on each row. The sample's, and only the sample's — see `itemsForSave`. */
+  withQuantity = false,
 }) {
   const setRow = (index, patch) =>
     onChange(items.map((row, at) => (at === index ? { ...row, ...patch } : row)));
@@ -200,6 +213,19 @@ export default function ItemRows({
                     onChange={(event) => setRow(index, { packing: event.target.value })}
                   />
                 </Field>
+                {withQuantity && (
+                  <Field label="Pieces" hint="How many of this model go in the bag">
+                    <input
+                      type="number"
+                      min="1"
+                      className="input"
+                      value={row.quantity ?? ''}
+                      disabled={disabled}
+                      onChange={(event) => setRow(index, { quantity: event.target.value })}
+                      aria-label={`Pieces for item ${index + 2}`}
+                    />
+                  </Field>
+                )}
               </div>
             </li>
           ))}

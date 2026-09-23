@@ -6,6 +6,7 @@ import { Field, FormError, Notice } from './ui.jsx';
 import {
   ColourInput, CustomerSelect, EnquirySelect, MaterialSelect, MouldSelect, PartSelect,
 } from './pickers.jsx';
+import ItemRows, { itemsForSave } from './ItemRows.jsx';
 import { HANGER_CATEGORIES, SAMPLE_PURPOSES, numeric, text } from '../utils/pipeline.js';
 
 /**
@@ -53,6 +54,28 @@ export default function SampleRequestForm({ lead, sample, onClose, onSaved, onCo
       : {}
   );
   const setPick = (key) => (value) => setSpec((current) => ({ ...current, [key]: value }));
+
+  /*
+   * The other models going in the same bag.
+   *
+   * The fields above are the first of them — the server keeps the two in step — so this holds
+   * rows two onward, exactly as the lead and enquiry forms do. A buyer comparing three hangers
+   * asks for one envelope, and raising three requests for it gives the bench three jobs, three
+   * required dates and three couriers for one padded bag.
+   */
+  const [extras, setExtras] = useState(() => (sample?.items || []).slice(1).map((item) => ({
+    modelNumber: item.modelNumber || '',
+    category: item.category || '',
+    sizeMm: item.sizeMm ?? '',
+    materialRef: item.materialRef?._id ?? item.materialRef ?? '',
+    colour: item.colour || '',
+    hookRef: item.hookRef?._id ?? item.hookRef ?? '',
+    clipRef: item.clipRef?._id ?? item.clipRef ?? '',
+    printRef: item.printRef?._id ?? item.printRef ?? '',
+    printing: item.printing || '',
+    packing: item.packing || '',
+    quantity: item.quantity ?? '',
+  })));
   const [error, setError] = useState(null);
   /* What the request turned this lead into, once it has. See the panel below the submit. */
   const [made, setMade] = useState(null);
@@ -86,6 +109,8 @@ export default function SampleRequestForm({ lead, sample, onClose, onSaved, onCo
    */
   const standalone = !enquiry;
   const forLead = Boolean(lead);
+  /* Where the bench has to be told what to make — and so where a list of models belongs. */
+  const asksWhatToMake = standalone || forLead;
 
   const submit = async (values) => {
     setError(null);
@@ -126,10 +151,35 @@ export default function SampleRequestForm({ lead, sample, onClose, onSaved, onCo
        * a box nobody was shown would silently overrule a buyer who *had* insisted on the
        * shade. Undefined lets what the enquiry recorded stand; `false` here is a real answer.
        */
-      colourMandatory: standalone || forLead ? Boolean(spec.colourMandatory) : undefined,
+      colourMandatory: asksWhatToMake ? Boolean(spec.colourMandatory) : undefined,
       /* How many pieces to put in the courier bag — a figure the requester actually knows,
          unlike the order quantity an enquiry used to be asked for. */
       quantity: numeric(values.quantity),
+      /*
+       * The whole bag: the fields above as the first row, then the rest. Sent as one list so
+       * the server is never asked to reconcile a top line against a list that disagrees with
+       * it — it keeps them in step, and this is the shape that gives it nothing to reconcile.
+       *
+       * Only from the form that asked what to make. With an enquiry behind it this block is
+       * not drawn at all — the specification is the enquiry's, and so are its models — so a
+       * list sent from here would be a blank first row overwriting what the enquiry carried.
+       */
+      items: !asksWhatToMake ? undefined : [
+        {
+          mould,
+          modelNumber: text(values.modelNumber),
+          category: text(values.category),
+          sizeMm: numeric(values.sizeMm),
+          materialRef: spec.materialRef || undefined,
+          hookRef: spec.hookRef || undefined,
+          clipRef: spec.clipRef || undefined,
+          printRef: spec.printRef || undefined,
+          colour: text(spec.colour),
+          colourMandatory: asksWhatToMake ? Boolean(spec.colourMandatory) : undefined,
+          quantity: numeric(values.quantity),
+        },
+        ...itemsForSave(extras, { withQuantity: true }),
+      ],
       purpose: values.purpose,
       requiredDate: text(values.requiredDate),
       remarks: text(values.remarks),
@@ -281,7 +331,7 @@ export default function SampleRequestForm({ lead, sample, onClose, onSaved, onCo
       </div>
       )}
 
-      {(standalone || forLead) && (
+      {asksWhatToMake && (
         <div className="space-y-5 rounded-lg border border-line/[0.06] p-4">
           <p className="text-sm text-steel-400">
             With no enquiry to take it from, the bench needs to be told what to make.
@@ -344,6 +394,16 @@ export default function SampleRequestForm({ lead, sample, onClose, onSaved, onCo
               <PartSelect kind="print" value={spec.printRef} onChange={setPick('printRef')} aria-label="Printing" />
             </Field>
           </div>
+
+          {/* And the rest of the bag. The fields above are its first model. */}
+          <ItemRows
+            items={extras}
+            onChange={setExtras}
+            disabled={isSubmitting}
+            withQuantity
+            title="Also in the bag"
+            hint="Other models going in the same envelope. Leave empty if there is only one."
+          />
         </div>
       )}
 

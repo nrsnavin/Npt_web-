@@ -924,6 +924,12 @@ export default function SampleDetail() {
   // Only the stages §42.5 makes eligible have anything to say to a customer.
   const notifiable = NOTIFIABLE_STAGES[sample.status];
   const closed = CLOSED_SAMPLE_STAGES.includes(sample.status);
+  /*
+   * The models in the bag. The fields on the request itself are the first of them — the server
+   * keeps the two in step — so a request written before the list existed still reads as a bag
+   * of one rather than as a bag of none.
+   */
+  const bag = sample.items?.length ? sample.items : [sample];
   const withCustomer = WITH_CUSTOMER_STAGES.includes(sample.status);
   const due = followUpState(sample.requiredDate);
   const stageIndex = SAMPLE_STAGES.findIndex((stage) => stage.value === sample.status);
@@ -1140,7 +1146,7 @@ export default function SampleDetail() {
 
       <div className="grid gap-5 lg:grid-cols-3">
         <div className="min-w-0 space-y-5 lg:col-span-2">
-          <Section title="What to make">
+          <Section title={bag.length > 1 ? 'What to make — the first model' : 'What to make'}>
             <Facts
               items={[
                 { label: 'Purpose', value: optionLabel(SAMPLE_PURPOSES, sample.purpose) },
@@ -1203,12 +1209,67 @@ export default function SampleDetail() {
                 },
                 { label: 'Hook', value: sample.hookRef?.name },
                 { label: 'Clip', value: sample.clipRef?.name },
-                { label: 'Quantity', value: `${formatNumber(sample.quantity)} pc` },
+                {
+                  label: 'Quantity',
+                  /* This model's count, and the bag's, where they are not the same figure —
+                     the bench makes the first and the courier carries the second. */
+                  value: bag.length > 1
+                    ? `${formatNumber(sample.quantity)} pc · ${formatNumber(sample.piecesToMake)} in the bag`
+                    : `${formatNumber(sample.quantity)} pc`,
+                },
                 { label: 'Printing', value: sample.printRef?.name || sample.printing },
                 { label: 'Remarks', value: sample.remarks, wide: true },
               ]}
             />
           </Section>
+
+          {/*
+            The rest of the bag.
+            
+            A buyer comparing three hangers asks for one envelope, and the block above describes
+            the first of them. Listed rather than folded into that block, because each row is a
+            model in its own right — its own resin, its own parts, its own count — and merging
+            them would read as one hanger with three colours.
+          */}
+          {bag.length > 1 && (
+            <Section title={`Also in the bag (${bag.length - 1})`}>
+              <ul className="divide-y divide-line/[0.06]">
+                {bag.slice(1).map((item, index) => (
+                  <li key={item._id || index} className="flex flex-wrap items-baseline justify-between gap-3 py-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-steel-100">
+                        {item.mould?.mouldCode || item.modelNumber || `Model ${index + 2}`}
+                      </p>
+                      <p className="mt-0.5 text-xs text-steel-400">
+                        {[
+                          item.materialRef?.name || optionLabel(MATERIALS, item.material),
+                          item.colour,
+                          item.sizeMm && `${item.sizeMm} mm`,
+                          item.hookRef?.name,
+                          item.clipRef?.name,
+                          item.printRef?.name || item.printing,
+                        /* `optionLabel` answers an em dash for a value nobody set, which read
+                           as a row describing itself as "—" rather than as one with nothing on
+                           it yet. */
+                        ].filter((part) => part && part !== '—').join(' · ') || 'Nothing else recorded yet'}
+                      </p>
+                      {/* The same licence the first model carries, said the same way. */}
+                      {item.colour && (
+                        <p className={`mt-0.5 text-xs ${item.colourMandatory ? 'font-bold text-danger-400' : 'text-steel-500'}`}>
+                          {item.colourMandatory
+                            ? 'Must be this colour — do not send another shade'
+                            : 'Preferred — any available colour will do'}
+                        </p>
+                      )}
+                    </div>
+                    <p className="shrink-0 text-sm tabular-nums text-steel-200">
+                      {formatNumber(item.quantity || 0)} pc
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </Section>
+          )}
 
           <ReferencePhoto sample={sample} mayEdit={maySample && !closed} onSaved={setData} />
 
