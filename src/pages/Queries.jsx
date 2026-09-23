@@ -11,7 +11,9 @@ import ViewSwitch from '../components/ViewSwitch.jsx';
 import { useViewMode } from '../hooks/useBoard.js';
 import { useParticipantOptions } from '../components/ParticipantPicker.jsx';
 import { CustomerSelect } from '../components/pickers.jsx';
-import { formatDate, plural } from '../utils/format.js';
+import { useAuth } from '../context/AuthContext.jsx';
+import { selfId } from '../utils/pipeline.js';
+import { plural } from '../utils/format.js';
 
 /**
  * Every question this person is in.
@@ -35,12 +37,40 @@ const STATUSES = [
   { value: 'closed', label: 'Closed' },
 ];
 
-/** How long a thread has been sitting, in the words somebody would use. */
-const waitingFor = (hours) => {
-  if (hours === null || hours === undefined) return '—';
-  if (hours < 1) return 'Just now';
-  if (hours < 24) return plural(hours, 'hour', 'hours');
-  return plural(Math.floor(hours / 24), 'day', 'days');
+/** Two letters for the buyer's circle — "SCM Garments" is "SG". */
+const initialsOf = (name) =>
+  String(name || '?')
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('') || '?';
+
+/**
+ * When the last thing was said, the way a chat list says it.
+ *
+ * The clock time today, "Yesterday", the weekday within the week, the date after that. A full
+ * timestamp on every row is forty numbers to read; this is one glance, and the full time is on
+ * the element's title for anybody who needs it.
+ */
+const whenSaid = (value) => {
+  if (!value) return '';
+  const date = new Date(value);
+  const midnight = (moment) => new Date(moment).setHours(0, 0, 0, 0);
+  const days = Math.round((midnight(Date.now()) - midnight(date)) / 86400000);
+
+  if (days <= 0) return date.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' });
+  if (days === 1) return 'Yesterday';
+  if (days < 7) return date.toLocaleDateString('en-IN', { weekday: 'short' });
+  return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+};
+
+/** The preview line: who said the last thing, and the start of it. "You" when it was me. */
+const lastLine = (last = {}, me) => {
+  const author = String(last.by?._id ?? last.by ?? '') === String(me) ? 'You' : last.by?.name;
+  const text = last.text || '';
+  if (!author) return text;
+  return last.kind === 'question' ? `${author} asked: ${text}` : `${author}: ${text}`;
 };
 
 /** Three levels, three colours, and the words somebody would actually say. */
@@ -68,7 +98,7 @@ function Urgency({ reading }) {
   const shape = URGENCY[reading.level] || URGENCY.normal;
 
   return (
-    <div className="space-y-1">
+    <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
       <Badge tone={shape.tone}>{shape.label}</Badge>
       <p className="text-xs leading-snug text-steel-500">{reading.why}</p>
       {/* Not upper case: this is a footnote, and shouting it would make the attribution louder
@@ -141,6 +171,8 @@ export default function Queries() {
   const [mode, setMode] = useViewMode('queries');
 
   const { options, can } = useParticipantOptions();
+  const { user } = useAuth();
+  const me = selfId(user);
   const term = useDebounced(search);
 
   /* Arriving from a customer's screen, or chosen in the box below: that buyer's threads. Kept in
@@ -362,77 +394,95 @@ export default function Queries() {
           />
         </div>
       ) : (
-        <div className="card overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead className="table-head">
-                <tr>
-                  {/* First, because a queue is scanned before it is read and this is the column
-                      that says where to start. Given a width, because a sentence in an
-                      auto-sized column is a sentence the subject beside it squeezes to four
-                      words a line. */}
-                  <th className="w-[15rem] px-4 py-3">For you</th>
-                  <th className="px-4 py-3">Query</th>
-                  <th className="px-4 py-3">Customer</th>
-                  <th className="px-4 py-3">Asked by</th>
-                  <th className="whitespace-nowrap px-4 py-3">Waiting</th>
-                  <th className="px-4 py-3">State</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.map((row) => (
-                  <tr key={row._id} className="row-hover align-top">
-                    <td className="px-4 py-3.5">
-                      <Urgency reading={urgencyOf(row)} />
-                    </td>
-                    {/*
-                      The subject leads and the number sits under it, because the subject is what
-                      somebody scans for — "September invoice disputed" is how a person remembers
-                      a thread, and QRY-2026-0014 is how it is quoted afterwards.
-                    */}
-                    <td className="px-4 py-3.5">
-                      <Link
-                        to={`/queries/${row._id}`}
-                        className="font-semibold text-steel-100 hover:text-accent"
+        /*
+          An inbox, not a table.
+
+          The table answered "what exists"; the question people open this screen with is "what
+          is new since I last looked", and that is what a chat inbox answers at a glance: the
+          last thing said, who said it, when, and how many things I have not seen. Bold rows and
+          a count are the whole of it — the same grammar as the WhatsApp the people using this
+          already read all day, which is the point.
+
+          The urgency stays, one line down and quieter, because it answers a different question
+          (what needs *me*) and a thread can be unread and not urgent, or read and still owed.
+        */
+        <ul className="card divide-y divide-line/[0.06] overflow-hidden">
+          {data.map((row) => {
+            const unread = row.unread || 0;
+            const last = row.last || {};
+
+            return (
+              <li key={row._id}>
+                <Link
+                  to={`/queries/${row._id}`}
+                  className={`flex gap-3 px-4 py-3.5 transition-colors hover:bg-line/[0.03] ${
+                    unread ? 'bg-flame-500/[0.03]' : ''
+                  }`}
+                >
+                  <span
+                    className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full
+                      bg-line/[0.07] text-xs font-bold text-steel-300"
+                    aria-hidden
+                  >
+                    {initialsOf(row.customer?.name)}
+                  </span>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <p
+                        className={`truncate text-sm ${
+                          unread ? 'font-bold text-steel-50' : 'font-semibold text-steel-200'
+                        }`}
                       >
                         {row.subject}
-                      </Link>
-                      <p className="text-xs text-steel-500">
+                      </p>
+                      <time
+                        className={`shrink-0 text-xs tabular-nums ${
+                          unread ? 'font-semibold text-flame-400' : 'text-steel-500'
+                        }`}
+                        dateTime={last.at}
+                        title={last.at ? new Date(last.at).toLocaleString('en-IN') : undefined}
+                      >
+                        {whenSaid(last.at)}
+                      </time>
+                    </div>
+
+                    <div className="mt-0.5 flex items-center justify-between gap-3">
+                      <p className={`truncate text-sm ${unread ? 'text-steel-200' : 'text-steel-400'}`}>
+                        <span className="text-steel-500">{row.customer?.name || 'No customer'} · </span>
+                        {lastLine(last, me)}
+                      </p>
+                      {unread > 0 && (
+                        <span
+                          className="flex h-5 min-w-[1.25rem] shrink-0 items-center justify-center
+                            rounded-full bg-flame-500 px-1.5 text-[0.7rem] font-bold text-white"
+                          aria-label={`${unread} unread`}
+                        >
+                          {unread > 99 ? '99+' : unread}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+                      <Urgency reading={urgencyOf(row)} />
+                      <Badge status={row.status} />
+                      <span className="text-xs text-steel-500">
                         {row.number}
-                        {/* Who was asked, so a queue reads as a queue rather than a list of
-                            subjects. A row naming a person says the person. */}
+                        {/* Who was asked, so a queue reads as a queue. A row naming a person
+                            says the person. */}
                         {row.participants?.length
-                          ? ` · ${row.participants
+                          ? ` · asked of ${row.participants
                               .map((entry) => entry.user?.name || departmentLabel(entry.department))
                               .join(', ')}`
                           : ''}
-                      </p>
-                    </td>
-                    <td className="px-4 py-3.5 text-steel-200">{row.customer?.name || '—'}</td>
-                    <td className="px-4 py-3.5">
-                      <p className="text-steel-300">{row.raisedBy?.name || '—'}</p>
-                      <p className="text-xs text-steel-500">{formatDate(row.createdAt)}</p>
-                    </td>
-                    {/* Only meaningful while it is open — the record returns null once it is
-                        closed, and a thread nobody owes an answer on should not wear a number
-                        that keeps climbing. */}
-                    <td className="whitespace-nowrap px-4 py-3.5 text-steel-300">
-                      {row.status === 'closed' ? '—' : waitingFor(row.waitingHours)}
-                    </td>
-                    <td className="px-4 py-3.5">
-                      <Badge status={row.status} />
-                      {row.replyCount > 0 && (
-                        <p className="mt-1 text-xs text-steel-500">
-                          {plural(row.replyCount, 'reply', 'replies')}
-                        </p>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
       )}
 
       {/* Paging belongs to the table. The map asked for everything the filters matched, so a

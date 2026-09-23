@@ -52,7 +52,7 @@ export default function RaiseQuery({ open, customer, onClose, onRaised }) {
     try {
       const created = await queriesApi.create({
         customer: chosen,
-        subject: values.subject.trim(),
+        subject: values.subject.trim() || undefined,
         question: values.question.trim(),
         participants: asked,
       });
@@ -80,22 +80,32 @@ export default function RaiseQuery({ open, customer, onClose, onRaised }) {
           <CustomerSelect value={chosen} onChange={setChosen} allowCreate={false} />
         </Field>
 
-        <Field label="Subject" error={errors.subject?.message} required>
-          <input
-            className="input"
-            placeholder="September invoice disputed"
-            {...register('subject', {
-              required: 'A line somebody can recognise in a list',
-              maxLength: { value: 200, message: 'Keep it to a line — the detail goes below' },
-            })}
-          />
-        </Field>
-
         <Field label="The question" error={errors.question?.message} required>
           <textarea
             className="input min-h-[7rem]"
             placeholder="The buyer says the September load was short by 1,000 pcs. What actually went on the lorry, and do we have the signed LR?"
             {...register('question', { required: 'What do you need to know?' })}
+          />
+        </Field>
+
+        {/*
+          Optional, and after the question rather than before it. A chat does not ask for a
+          title before you may speak, and this was the one field people stalled on. Left empty,
+          the question's first line is used — which is what the asker would have typed here.
+        */}
+        <Field
+          label="Subject"
+          error={errors.subject?.message}
+          hint="Optional — the first line of your question is used if you leave it empty"
+        >
+          <input
+            className="input"
+            placeholder="September invoice disputed"
+            {...register('subject', {
+              maxLength: { value: 200, message: 'Keep it to a line — the detail goes above' },
+              validate: (value) =>
+                !value.trim() || value.trim().length >= 3 || 'A few words, or leave it empty',
+            })}
           />
         </Field>
 

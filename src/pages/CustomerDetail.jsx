@@ -3,16 +3,18 @@ import { Link, useParams } from 'react-router-dom';
 import { customers as customersApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useRecord } from '../hooks/useRecords.js';
-import { Badge, ErrorState, Facts, Modal, PageHeader, Section, Spinner } from '../components/ui.jsx';
+import { Badge, ErrorState, Facts, FormError, Modal, PageHeader, Section, Spinner } from '../components/ui.jsx';
 import Documents from '../components/Documents.jsx';
 import CustomerQueries from '../components/CustomerQueries.jsx';
 import CustomerMap from '../components/CustomerMap.jsx';
 import ViewSwitch from '../components/ViewSwitch.jsx';
 import { useViewMode } from '../hooks/useBoard.js';
 import HistoryPanel from '../components/HistoryPanel.jsx';
+import { accuracyLabel, directionsUrl, mapsUrl, placeLabel } from '../utils/maps.js';
 import { formatCompactCurrency, formatCurrency, formatDate, formatNumber } from '../utils/format.js';
 import {
-  CUSTOMER_TYPES, SAMPLE_PURPOSES, SOURCES, leadStageLabel, optionLabel, sampleStageLabel, stageLabel,
+  CUSTOMER_TYPES, SAMPLE_PURPOSES, SOURCES, leadStageLabel, optionLabel, ownsRecord, sampleStageLabel,
+  stageLabel,
 } from '../utils/pipeline.js';
 import { CustomerForm } from './Customers.jsx';
 
@@ -36,8 +38,9 @@ function ContactCard({ contact }) {
 
 export default function CustomerDetail() {
   const { id } = useParams();
-  const { canRead, canWrite } = useAuth();
+  const { canRead, canWrite, user } = useAuth();
   const [editing, setEditing] = useState(false);
+  const [siteError, setSiteError] = useState(null);
   /*
    * List or map, remembered per person. The list stays the default and stays complete: exact
    * figures, sorting and copying a number out are what the tables are for, and they are also
@@ -106,6 +109,78 @@ export default function CustomerDetail() {
               ]}
             />
           </Section>
+
+          {/*
+            The buyer's gate, pinned from somebody who stood at it.
+
+            Only ever from a check-in shared in a thread — never typed — so it says who pinned it
+            and when, and links back to the thread it came from. That provenance is the pin's
+            whole claim to being right: a wrong one sends a lorry forty minutes the wrong way, and
+            this is where somebody checks it before setting off.
+
+            Nothing is drawn when there is no pin; the address above is what the plant has, and
+            an empty "Site" box would read as something missing rather than something not yet done.
+          */}
+          {customer.site && (
+            <Section
+              title="Site"
+              actions={
+                /* The owner's, like the pin itself — offered to nobody the server would refuse. */
+                mayWrite && ownsRecord(user, customer) && (
+                  <button
+                    type="button"
+                    className="text-xs font-semibold text-steel-500 hover:text-danger-400"
+                    onClick={async () => {
+                      /* Somebody stood at that gate to make this. One accidental press should not
+                         be the end of it — it can be re-pinned from the thread, but only if the
+                         person knows to go and look. */
+                      if (!window.confirm(`Remove ${customer.name}’s site pin? It can be pinned again from the check-in in its thread.`)) return;
+                      setSiteError(null);
+                      try {
+                        await customersApi.clearSite(customer._id);
+                        reload();
+                      } catch (failure) {
+                        setSiteError(failure);
+                      }
+                    }}
+                  >
+                    Remove the pin
+                  </button>
+                )
+              }
+            >
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-steel-100">
+                    📍 {customer.site.place?.name ? placeLabel(customer.site) : 'Pinned location'}
+                  </p>
+                  <p className="mt-0.5 text-xs text-steel-500">
+                    {[
+                      accuracyLabel(customer.site.accuracyM),
+                      customer.site.setBy?.name && `pinned by ${customer.site.setBy.name}`,
+                      customer.site.setAt && formatDate(customer.site.setAt),
+                    ].filter(Boolean).join(' · ')}
+                    {' · '}
+                    <Link to={`/queries/${customer.site.fromQuery}`} className="text-accent hover:underline">
+                      from this check-in
+                    </Link>
+                  </p>
+                  <p className="mt-0.5 font-mono text-[0.7rem] text-steel-600">
+                    {Number(customer.site.lat).toFixed(5)}, {Number(customer.site.lng).toFixed(5)}
+                  </p>
+                  <FormError error={siteError} />
+                </div>
+                <div className="flex shrink-0 gap-2">
+                  <a className="btn-secondary" href={mapsUrl(customer.site)} target="_blank" rel="noopener noreferrer">
+                    Open in Google Maps ↗
+                  </a>
+                  <a className="btn-primary" href={directionsUrl(customer.site)} target="_blank" rel="noopener noreferrer">
+                    Directions ↗
+                  </a>
+                </div>
+              </div>
+            </Section>
+          )}
 
           {/*
             Where a question about this buyer actually starts — somebody is on this screen

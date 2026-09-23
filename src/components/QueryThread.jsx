@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Badge } from './ui.jsx';
+import LocationCard from './LocationCard.jsx';
 
 /**
  * A query, read the way the conversation actually happened.
@@ -81,9 +82,10 @@ function DayBreak({ when }) {
  * every entry including the reader's own: a thread is quoted in meetings, and "me" means
  * nothing to the person it is quoted to.
  */
-function Said({ entry, mine }) {
+function Said({ entry, mine, pin }) {
   const note = entry.kind === 'note';
   const side = !note && mine;
+  const words = String(entry.body || '').trim();
 
   return (
     <li className={`flex gap-3 ${side ? 'flex-row-reverse' : ''}`}>
@@ -122,16 +124,25 @@ function Said({ entry, mine }) {
                 : 'bg-line/[0.04] ring-1 ring-line/[0.06]'
           }`}
         >
-          <p className="whitespace-pre-wrap text-sm leading-relaxed text-steel-200">
-            {entry.body}
-          </p>
+          {words && (
+            <p className="whitespace-pre-wrap text-sm leading-relaxed text-steel-200">{words}</p>
+          )}
+          {/* A shared location, under whatever was said with it — or on its own, since "📍" is a
+              complete message. */}
+          <LocationCard
+            location={entry.location}
+            from={entry.by?.name}
+            onPin={pin?.may && entry._id ? () => pin.onPin(entry) : undefined}
+            pinned={pin?.pinnedId && String(pin.pinnedId) === String(entry._id)}
+            pinning={pin?.pinningId && String(pin.pinningId) === String(entry._id)}
+          />
         </div>
       </div>
     </li>
   );
 }
 
-export default function QueryThread({ query, me, closed }) {
+export default function QueryThread({ query, me, closed, seenBy = [], pin }) {
   const foot = useRef(null);
 
   /*
@@ -166,8 +177,22 @@ export default function QueryThread({ query, me, closed }) {
           entry={entry}
           previous={entries[index - 1]}
           me={me}
+          pin={pin}
         />
       ))}
+
+      {/*
+        Who has seen the last thing said. Accounts' real question about a thread is not "has
+        anybody answered" but "has despatch even seen it", and nothing on the screen answered
+        that. Only people who read *after* the last message are named, so it resets the moment
+        somebody says something new — and the author is left out, since having seen what you
+        wrote is not news.
+      */}
+      {seenBy.length > 0 && (
+        <li className="text-right text-xs text-steel-500">
+          Seen by {seenBy.map((reader) => reader.name).join(', ')}
+        </li>
+      )}
 
       {closed && (
         <li className="pt-1 text-center">
@@ -185,13 +210,13 @@ export default function QueryThread({ query, me, closed }) {
 }
 
 /** An entry, and the day rule that may come before it. */
-function ThreadEntry({ entry, previous, me }) {
+function ThreadEntry({ entry, previous, me, pin }) {
   const mine = String(entry.by?._id || entry.by) === String(me);
 
   return (
     <>
       {!sameDay(previous?.at, entry.at) && <DayBreak when={entry.at} />}
-      <Said entry={entry} mine={mine} />
+      <Said entry={entry} mine={mine} pin={pin} />
     </>
   );
 }

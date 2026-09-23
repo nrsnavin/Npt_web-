@@ -70,3 +70,26 @@ test('a note is never given a side in the conversation', () => {
    */
   assert.match(thread, /const side = !note && mine/);
 });
+
+test('opening a thread does not toast', () => {
+  /*
+   * Marking a thread read is a POST, and the toast layer announces every POST. Nobody pressed
+   * anything, so "Query marked as read" on every thread opened is noise — the kind that teaches
+   * people to dismiss toasts without reading them, including the ones that matter.
+   */
+  const endpoints = source('api/endpoints.js');
+  assert.match(endpoints, /read: \(id\) => api\.post\(`\/queries\/\$\{id\}\/read`, \{\}, \{ feedback: false \}\)/);
+  /* And not `null` for the body: axios sends it as the JSON literal `null`, which Express's
+     strict parser refuses with a 400 — the read silently stopped working when this was tried. */
+  assert.ok(!/\/read`, null/.test(endpoints));
+});
+
+test('a location is only ever taken on a press', () => {
+  /*
+   * docs/QUERIES-CHAT-DESIGN.md §6: a location is a message somebody chose to send. A watch or
+   * an interval anywhere in the app is the first step to background tracking, which is out.
+   */
+  const hook = source('hooks/useCurrentLocation.js');
+  assert.ok(!/watchPosition|setInterval|setTimeout/.test(hook), 'no watch, no timer');
+  assert.ok(!/useEffect/.test(hook), 'nothing on mount');
+});

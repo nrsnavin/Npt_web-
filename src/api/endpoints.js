@@ -218,6 +218,15 @@ export const queries = {
   urgency: (ids) => api.post('/queries/urgency', { ids }).then(unwrap),
   /** A draft for the composer. Nothing is said in the thread until somebody presses send. */
   draftReply: (id) => api.post(`/queries/${id}/draft-reply`).then(unwrap),
+  /**
+   * Moves my own read cursor. A POST so that nothing but the screen actually opening the thread
+   * — no prefetch, no link preview — can mark it read on somebody's behalf.
+   *
+   * `feedback: false` because it is a write nobody made: the toast layer announces every POST,
+   * and "Query marked as read" on every thread opened is noise a chat app cannot make — nobody
+   * pressed anything, so there is nothing to confirm.
+   */
+  read: (id) => api.post(`/queries/${id}/read`, {}, { feedback: false }).then(unwrap),
   close: (id) => api.post(`/queries/${id}/close`).then(unwrap),
   reopen: (id) => api.post(`/queries/${id}/reopen`).then(unwrap),
 };
@@ -233,6 +242,13 @@ export const customers = {
    * screen everybody uses to serve the one they sometimes want.
    */
   map: (id) => api.get(`/customers/${id}/map`).then(unwrap),
+  /**
+   * The buyer's gate, pinned from a location somebody shared in a thread. Takes the thread and
+   * the message rather than coordinates: the pin is only ever a recorded check-in, never typed.
+   */
+  pinSite: ({ id, query, message }) =>
+    api.post(`/customers/${id}/site`, { query, message }).then(unwrap),
+  clearSite: (id) => api.delete(`/customers/${id}/site`).then(unwrap),
   create: (payload) => api.post('/customers', payload).then(unwrap),
   update: ({ id, ...payload }) => api.patch(`/customers/${id}`, payload).then(unwrap),
   /** Warns before submitting, on the same GST-then-number rule the server enforces. */
