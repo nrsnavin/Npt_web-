@@ -185,7 +185,17 @@ export const components = {
 export const queries = {
   list: (params) => api.get('/queries', { params }).then((response) => response.data),
   get: (id) => api.get(`/queries/${id}`).then((response) => response.data),
-  options: () => api.get('/queries/options').then(unwrap),
+  /*
+   * The pickers, and what the model can do here.
+   *
+   * Keeps the envelope rather than unwrapping to the list, because `can` travels beside it: a
+   * "draft a reply" button with no key behind it is a button that fails, and a spinner
+   * resolving to nothing teaches people the feature is broken rather than absent.
+   */
+  options: () => api.get('/queries/options').then((response) => ({
+    departments: response.data.data,
+    can: response.data.can || {},
+  })),
   create: (payload) => api.post('/queries', payload).then(unwrap),
   say: ({ id, ...payload }) => api.post(`/queries/${id}/messages`, payload).then(unwrap),
   /**
@@ -198,6 +208,16 @@ export const queries = {
       query: response.data.data,
       granted: response.data.granted,
     })),
+  /**
+   * How pressing the rows on screen are, read by the model.
+   *
+   * Asked for *after* the list has drawn, never as part of it: the rows already carry the
+   * reading the rules gave them, and this refines it. A list that waited on a model call would
+   * look broken for as long as the call took.
+   */
+  urgency: (ids) => api.post('/queries/urgency', { ids }).then(unwrap),
+  /** A draft for the composer. Nothing is said in the thread until somebody presses send. */
+  draftReply: (id) => api.post(`/queries/${id}/draft-reply`).then(unwrap),
   close: (id) => api.post(`/queries/${id}/close`).then(unwrap),
   reopen: (id) => api.post(`/queries/${id}/reopen`).then(unwrap),
 };

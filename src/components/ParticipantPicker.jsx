@@ -38,13 +38,20 @@ export const describeParticipant = (row, options) => {
  */
 export function useParticipantOptions() {
   const [options, setOptions] = useState([]);
+  /* What the model can do in this deployment — see `queries.options`. Empty until it answers,
+     so a button that depends on it is simply not drawn rather than drawn and then withdrawn. */
+  const [can, setCan] = useState({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let live = true;
     queriesApi
       .options()
-      .then((data) => live && setOptions(data || []))
+      .then((answer) => {
+        if (!live) return;
+        setOptions(answer.departments || []);
+        setCan(answer.can || {});
+      })
       /* A picker that cannot load is a form that cannot be filled, and the submit will say so
          plainly. Failing quietly here beats an error banner over a dialog somebody just opened. */
       .catch(() => live && setOptions([]))
@@ -54,7 +61,7 @@ export function useParticipantOptions() {
     };
   }, []);
 
-  return { options, loading };
+  return { options, can, loading };
 }
 
 /**

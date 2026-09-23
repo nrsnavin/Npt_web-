@@ -8,6 +8,7 @@ import {
 } from '../components/ui.jsx';
 import ParticipantPicker, { describeParticipant, useParticipantOptions } from '../components/ParticipantPicker.jsx';
 import QueryRoomMap from '../components/QueryRoomMap.jsx';
+import QueryThread from '../components/QueryThread.jsx';
 import ViewSwitch from '../components/ViewSwitch.jsx';
 import { useViewMode } from '../hooks/useBoard.js';
 import { formatDate, plural } from '../utils/format.js';
@@ -51,7 +52,11 @@ export default function QueryDetail() {
   const [adding, setAdding] = useState(false);
   const [granted, setGranted] = useState(null);
 
-  const { options, loading: loadingOptions } = useParticipantOptions();
+  const { options, can, loading: loadingOptions } = useParticipantOptions();
+  /* A draft, once one has been asked for. Held here rather than written into the box directly,
+     so what it needed checking is shown beside the text somebody is about to send. */
+  const [suggestion, setSuggestion] = useState(null);
+  const [drafting, setDrafting] = useState(false);
   /*
    * Thread or room. The thread is the default and always will be — it is what somebody opened
    * this screen to read. The room answers the other question, the one the participant rows can
@@ -92,7 +97,35 @@ export default function QueryDetail() {
     act(async () => {
       await queriesApi.say({ id, kind, body: body.trim() });
       setBody('');
+      /* The draft is spent once something has been sent; leaving its checklist up would have it
+         describing text that is no longer in the box. */
+      setSuggestion(null);
     });
+
+  /**
+   * A first draft, into the box the person was already typing in.
+   *
+   * It replaces whatever is there, which is the honest behaviour for a button pressed on an
+   * empty box — and the button is disabled while it runs, so it cannot land on top of something
+   * being typed. Nothing is said in the thread: what is recorded is whatever they send.
+   */
+  const draft = async () => {
+    setError(null);
+    setDrafting(true);
+    try {
+      const drafted = await queriesApi.draftReply(id);
+      if (!drafted) {
+        setError({ message: 'No draft came back — write it yourself, or try again in a moment.' });
+        return;
+      }
+      setSuggestion(drafted);
+      setBody(drafted.draft);
+    } catch (failure) {
+      setError(failure);
+    } finally {
+      setDrafting(false);
+    }
+  };
 
   const addParticipant = (row) =>
     act(async () => {
@@ -186,72 +219,62 @@ export default function QueryDetail() {
 
       <div className={`grid gap-6 lg:grid-cols-[2fr,1fr] ${mode === 'room' ? 'hidden' : ''}`}>
         <div className="space-y-6">
-          <Section title="The question">
-            <p className="whitespace-pre-wrap text-sm leading-relaxed text-steel-200">
-              {query.question}
-            </p>
-            <p className="mt-3 text-xs text-steel-500">
-              Asked by {query.raisedBy?.name} on {formatDate(query.createdAt)}
-            </p>
-          </Section>
-
-          <Section title={`Replies and notes${query.messages?.length ? ` (${query.messages.length})` : ''}`}>
-            {!query.messages?.length ? (
-              <p className="text-sm text-steel-500">Nothing said yet.</p>
-            ) : (
-              <ol className="space-y-4">
-                {query.messages.map((message) => (
-                  <li
-                    key={message._id}
-                    /* A note is set back and dimmer than a reply. They are read in one column in
-                       the order they happened, so the difference has to be visible without
-                       reading the label — otherwise a thread of nine notes looks answered. */
-                    className={`rounded-lg border p-4 ${
-                      message.kind === 'note'
-                        ? 'border-line/[0.04] bg-line/[0.02]'
-                        : 'border-line/[0.08] bg-line/[0.04]'
-                    }`}
-                  >
-                    <div className="mb-1.5 flex flex-wrap items-center gap-2">
-                      <span className="text-sm font-semibold text-steel-200">
-                        {message.by?.name || 'Somebody'}
-                      </span>
-                      <Badge tone={message.kind === 'note' ? 'neutral' : 'success'}>
-                        {message.kind === 'note' ? 'Note' : 'Reply'}
-                      </Badge>
-                      <span className="text-xs text-steel-500">{formatDate(message.at)}</span>
-                    </div>
-                    <p className="whitespace-pre-wrap text-sm leading-relaxed text-steel-300">
-                      {message.body}
-                    </p>
-                  </li>
-                ))}
-              </ol>
-            )}
+          {/*
+            The conversation, in the order it happened — the question first, because that is
+            what started it, then everything said since. See `QueryThread` for why it reads
+            like a chat and deliberately does not look like one.
+          */}
+          <Section title="The conversation">
+            <QueryThread query={query} me={me} closed={closed} />
 
             {/*
-              A closed thread takes neither, and says so rather than hiding the box: a reply that
-              silently revived a finished thread is how a closed queue fills back up without
-              anybody deciding to.
+              A closed thread takes neither a reply nor a note, and the thread itself says so —
+              a composer that silently revived a finished question is how a closed queue fills
+              back up without anybody deciding to.
             */}
-            {closed ? (
-              <Notice tone="info">
-                {query.closedBy?.name || 'The asker'} closed this on {formatDate(query.closedAt)}.
-                Re-open it if there is more to say.
-              </Notice>
-            ) : (
-              <div className="mt-5 space-y-3 border-t border-line/[0.06] pt-5">
+            {!closed && (
+              <div className="mt-6 space-y-3 border-t border-line/[0.06] pt-5">
+                {/*
+                  What the draft needed checking, above the box rather than inside it. A blank
+                  the model left is a blank somebody has to fill, and burying that in the text
+                  is how `[quantity]` reaches a colleague.
+                */}
+                {suggestion?.needs?.length > 0 && (
+                  <Notice tone="warn">
+                    <p className="font-semibold">Check before you send it</p>
+                    <ul className="mt-1 list-disc space-y-0.5 pl-4">
+                      {suggestion.needs.map((need) => <li key={need}>{need}</li>)}
+                    </ul>
+                  </Notice>
+                )}
+
                 <textarea
                   className="input min-h-[6rem]"
                   placeholder="What you found out, or what you tried…"
                   value={body}
                   onChange={(event) => setBody(event.target.value)}
                 />
+
                 <div className="flex flex-wrap items-center justify-end gap-2">
                   <p className="mr-auto text-xs text-steel-500">
                     A reply answers the question. A note is something worth recording that does
                     not.
                   </p>
+                  {/*
+                    Offered only where there is a model behind it. The draft lands in the box
+                    above as ordinary text: from that moment it is the sender's, to change or
+                    delete, and nothing is said in the thread until they press Reply.
+                  */}
+                  {can.draftReply && (
+                    <button
+                      type="button"
+                      className="btn-ghost text-xs"
+                      disabled={busy || drafting}
+                      onClick={draft}
+                    >
+                      {drafting ? 'Drafting…' : 'Draft a reply'}
+                    </button>
+                  )}
                   <button
                     type="button"
                     className="btn-secondary"
@@ -269,6 +292,13 @@ export default function QueryDetail() {
                     Reply
                   </button>
                 </div>
+
+                {suggestion && (
+                  <p className="text-right text-xs text-steel-500">
+                    Drafted by the model from this thread. It is yours now — change it, and it is
+                    sent under your name.
+                  </p>
+                )}
               </div>
             )}
           </Section>

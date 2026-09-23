@@ -1,15 +1,16 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { queries as queriesApi } from '../api/endpoints.js';
 import { useDebounced, useRecordList } from '../hooks/useRecords.js';
 import {
-  Badge, EmptyState, ErrorState, Notice, PageHeader, Pagination, TableSkeleton,
+  Badge, EmptyState, ErrorState, Field, Notice, PageHeader, Pagination, TableSkeleton,
 } from '../components/ui.jsx';
 import RaiseQuery from '../components/RaiseQuery.jsx';
 import PeopleQueryMap from '../components/PeopleQueryMap.jsx';
 import ViewSwitch from '../components/ViewSwitch.jsx';
 import { useViewMode } from '../hooks/useBoard.js';
 import { useParticipantOptions } from '../components/ParticipantPicker.jsx';
+import { CustomerSelect } from '../components/pickers.jsx';
 import { formatDate, plural } from '../utils/format.js';
 
 /**
@@ -42,11 +43,88 @@ const waitingFor = (hours) => {
   return plural(Math.floor(hours / 24), 'day', 'days');
 };
 
+/** Three levels, three colours, and the words somebody would actually say. */
+const URGENCY = {
+  high: { tone: 'danger', label: 'Needs you' },
+  normal: { tone: 'info', label: 'In hand' },
+  low: { tone: 'neutral', label: 'Can wait' },
+};
+
+/**
+ * How pressing this thread is *for the person reading it*, and where that reading came from.
+ *
+ * Two things are on the chip and both are load-bearing. The level is the colour, because a queue
+ * is scanned before it is read. The sentence under it is the account — "Asked of you 2 day(s) ago
+ * and nobody has answered" — and without it a red chip is a thing people learn to ignore, because
+ * a priority nobody can check is a priority nobody trusts.
+ *
+ * And it says which reading it is. The rules count hours off the record; the model reads the
+ * words and can tell a held lorry from a packing question, and can also be wrong. Labelling it
+ * is the difference between the model's opinion and the plant's judgement, and they are not the
+ * same thing — nothing here is stored, nobody is chased off it, and the thread is one click away.
+ */
+function Urgency({ reading }) {
+  if (!reading) return null;
+  const shape = URGENCY[reading.level] || URGENCY.normal;
+
+  return (
+    <div className="space-y-1">
+      <Badge tone={shape.tone}>{shape.label}</Badge>
+      <p className="text-xs leading-snug text-steel-500">{reading.why}</p>
+      {/* Not upper case: this is a footnote, and shouting it would make the attribution louder
+          than the reason it attributes. */}
+      <p className="text-[0.7rem] text-steel-600">
+        {reading.readBy === 'model' ? 'Read by the model' : 'From the record'}
+      </p>
+    </div>
+  );
+}
+
+/**
+ * The model's second look at the rows that are already on screen.
+ *
+ * Asked for *after* the table has drawn, never as part of it. Every row arrives carrying the
+ * reading the rules gave it, so the list is complete and coloured the moment it paints; this
+ * replaces some of those readings a few seconds later. Folding the two together would make
+ * every list load wait on a model call that is allowed to fail — a screen that looks broken for
+ * eight seconds to buy a better ordering is a bad trade.
+ *
+ * Keyed on the ids themselves rather than on the array, because `useRecordList` hands back a new
+ * array on every render and the request would never stop. An empty answer leaves the rules in
+ * place, which is the ordinary case wherever no key is configured.
+ */
+function useModelReadings(rows, enabled) {
+  const [readings, setReadings] = useState({});
+  const ids = rows.map((row) => row._id).join(',');
+
+  useEffect(() => {
+    /* A new page is a different set of threads; the old readings belong to none of them. */
+    setReadings({});
+    if (!enabled || !ids) return undefined;
+
+    let live = true;
+    queriesApi
+      .urgency(ids.split(','))
+      .then((answer) => live && setReadings(answer || {}))
+      /* Silence on purpose: the rows are already coloured and already honest about it. An error
+         banner here would report the failure of something nobody asked for. */
+      .catch(() => {});
+
+    return () => {
+      live = false;
+    };
+  }, [ids, enabled]);
+
+  return readings;
+}
+
 export default function Queries() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const [department, setDepartment] = useState('');
+  /* Whose threads — "what is Anita carrying", which is the Monday question. */
+  const [person, setPerson] = useState('');
   const [page, setPage] = useState(1);
   const [asking, setAsking] = useState(false);
   /*
@@ -62,12 +140,31 @@ export default function Queries() {
    */
   const [mode, setMode] = useViewMode('queries');
 
-  const { options } = useParticipantOptions();
+  const { options, can } = useParticipantOptions();
   const term = useDebounced(search);
 
-  /* Arriving from a customer's screen: that buyer's threads. Kept in the address so the view
-     survives a refresh and can be sent to somebody. */
+  /* Arriving from a customer's screen, or chosen in the box below: that buyer's threads. Kept in
+     the address so the view survives a refresh and can be sent to somebody. */
   const customer = searchParams.get('customer') || undefined;
+
+  const chooseCustomer = (id) => {
+    if (id) searchParams.set('customer', id);
+    else searchParams.delete('customer');
+    setSearchParams(searchParams, { replace: true });
+    setPage(1);
+  };
+
+  /*
+   * Who may be asked after: everybody, or — once a department is chosen — the people in it.
+   *
+   * Narrowing with the department rather than beside it, because the two together are one
+   * question ("anybody in despatch" then "Anita in despatch"), and a person list that keeps
+   * offering the other four departments after one is picked makes the second choice a hunt.
+   */
+  const people = useMemo(
+    () => (department ? options.filter((entry) => entry.key === department) : options),
+    [options, department]
+  );
 
   const params = useMemo(
     () => ({
@@ -81,13 +178,19 @@ export default function Queries() {
       search: term || undefined,
       status: status || undefined,
       department: department || undefined,
+      person: person || undefined,
       customer,
       ai: wordsOnly ? 'false' : undefined,
     }),
-    [page, term, status, department, customer, wordsOnly, mode]
+    [page, term, status, department, person, customer, wordsOnly, mode]
   );
 
   const { data, pagination, meta, loading, error, reload } = useRecordList(queriesApi.list, params);
+
+  /* The model's reading of the rows already on screen, over the rules reading each row came
+     with. Asked for only where there is a key behind it — see `useModelReadings`. */
+  const readings = useModelReadings(data, Boolean(can.readUrgency));
+  const urgencyOf = (row) => readings[row._id] || row.urgency;
 
   /* What the phrase was taken to mean, when it was read at all. Absent on every plain search
      and whenever no key is configured, which is the ordinary case. */
@@ -114,58 +217,94 @@ export default function Queries() {
         }
       />
 
-      <div className="card p-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <input
-            className="input min-w-[16rem] flex-1"
-            placeholder="Search the question, the replies, or describe what you are after…"
-            value={search}
-            onChange={(event) => {
-              setSearch(event.target.value);
-              /* A new phrase deserves a fresh reading: the escape hatch was from the last one,
-                 not a preference. */
-              setWordsOnly(false);
-              setPage(1);
-            }}
-          />
-          <select
-            className="input w-auto"
-            value={status}
-            onChange={(event) => {
-              setStatus(event.target.value);
-              setPage(1);
-            }}
-          >
-            {STATUSES.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-          </select>
-          <select
-            className="input w-auto"
-            value={department}
-            onChange={(event) => {
-              setDepartment(event.target.value);
-              setPage(1);
-            }}
-          >
-            <option value="">Any department</option>
-            {options.map((entry) => (
-              <option key={entry.key} value={entry.key}>{entry.label}</option>
-            ))}
-          </select>
-          {customer && (
-            <button
-              type="button"
-              className="btn-secondary"
-              onClick={() => {
-                searchParams.delete('customer');
-                setSearchParams(searchParams);
+      <div className="card space-y-3 p-4">
+        <input
+          className="input"
+          aria-label="Search queries"
+          placeholder="Search the question, the replies, or describe what you are after…"
+          value={search}
+          onChange={(event) => {
+            setSearch(event.target.value);
+            /* A new phrase deserves a fresh reading: the escape hatch was from the last one,
+               not a preference. */
+            setWordsOnly(false);
+            setPage(1);
+          }}
+        />
+
+        {/*
+          Four narrowings, labelled, on one line.
+
+          Labelled rather than a row of bare dropdowns reading "Any state / Any department /
+          Any person", because those three say what they are only while they are untouched — the
+          moment somebody picks "Despatch" the control no longer says which question it answered,
+          and a list narrowed by a filter nobody can name is the one everybody mistakes for an
+          empty plant.
+        */}
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <Field label="State">
+            <select
+              className="input"
+              value={status}
+              onChange={(event) => {
+                setStatus(event.target.value);
                 setPage(1);
               }}
             >
-              Show every customer
-            </button>
-          )}
+              {STATUSES.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </Field>
+
+          <Field label="Asked of">
+            <select
+              className="input"
+              value={department}
+              onChange={(event) => {
+                setDepartment(event.target.value);
+                /* A person in the department just dropped is no longer a possible answer, and
+                   leaving them set would narrow the list to nothing without saying why. */
+                setPerson('');
+                setPage(1);
+              }}
+            >
+              <option value="">Any department</option>
+              {options.map((entry) => (
+                <option key={entry.key} value={entry.key}>{entry.label}</option>
+              ))}
+            </select>
+          </Field>
+
+          <Field label="Anybody in particular">
+            <select
+              className="input"
+              value={person}
+              onChange={(event) => {
+                setPerson(event.target.value);
+                setPage(1);
+              }}
+            >
+              <option value="">Anybody</option>
+              {people.map((entry) => (
+                <optgroup key={entry.key} label={entry.label}>
+                  {entry.people.map((candidate) => (
+                    <option key={candidate._id} value={candidate._id}>{candidate.name}</option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+          </Field>
+
+          <Field label="About">
+            <CustomerSelect
+              value={customer || ''}
+              onChange={chooseCustomer}
+              allowCreate={false}
+              emptyLabel="Any customer"
+              aria-label="Customer"
+            />
+          </Field>
         </div>
 
         {/*
@@ -204,7 +343,7 @@ export default function Queries() {
         <EmptyState
           title="Nothing here"
           description={
-            term || status || department
+            term || status || department || person || customer
               ? 'Nothing matches those filters. Widen them, or ask a new question.'
               : 'You are not in any query yet. Ask one, or wait to be pulled into somebody else’s.'
           }
@@ -228,16 +367,24 @@ export default function Queries() {
             <table className="min-w-full text-sm">
               <thead className="table-head">
                 <tr>
+                  {/* First, because a queue is scanned before it is read and this is the column
+                      that says where to start. Given a width, because a sentence in an
+                      auto-sized column is a sentence the subject beside it squeezes to four
+                      words a line. */}
+                  <th className="w-[15rem] px-4 py-3">For you</th>
                   <th className="px-4 py-3">Query</th>
                   <th className="px-4 py-3">Customer</th>
                   <th className="px-4 py-3">Asked by</th>
-                  <th className="px-4 py-3">Waiting</th>
+                  <th className="whitespace-nowrap px-4 py-3">Waiting</th>
                   <th className="px-4 py-3">State</th>
                 </tr>
               </thead>
               <tbody>
                 {data.map((row) => (
-                  <tr key={row._id} className="row-hover">
+                  <tr key={row._id} className="row-hover align-top">
+                    <td className="px-4 py-3.5">
+                      <Urgency reading={urgencyOf(row)} />
+                    </td>
                     {/*
                       The subject leads and the number sits under it, because the subject is what
                       somebody scans for — "September invoice disputed" is how a person remembers
@@ -269,7 +416,7 @@ export default function Queries() {
                     {/* Only meaningful while it is open — the record returns null once it is
                         closed, and a thread nobody owes an answer on should not wear a number
                         that keeps climbing. */}
-                    <td className="px-4 py-3.5 text-steel-300">
+                    <td className="whitespace-nowrap px-4 py-3.5 text-steel-300">
                       {row.status === 'closed' ? '—' : waitingFor(row.waitingHours)}
                     </td>
                     <td className="px-4 py-3.5">
