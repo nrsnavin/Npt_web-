@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Badge } from './ui.jsx';
 import LocationCard from './LocationCard.jsx';
+import { splitMentions } from '../utils/mentions.js';
 
 /**
  * A query, read the way the conversation actually happened.
@@ -82,7 +83,7 @@ function DayBreak({ when }) {
  * every entry including the reader's own: a thread is quoted in meetings, and "me" means
  * nothing to the person it is quoted to.
  */
-function Said({ entry, mine, pin }) {
+function Said({ entry, mine, me, pin }) {
   const note = entry.kind === 'note';
   const side = !note && mine;
   const words = String(entry.body || '').trim();
@@ -125,7 +126,26 @@ function Said({ entry, mine, pin }) {
           }`}
         >
           {words && (
-            <p className="whitespace-pre-wrap text-sm leading-relaxed text-steel-200">{words}</p>
+            <p className="whitespace-pre-wrap text-sm leading-relaxed text-steel-200">
+              {/* Tags drawn as tags, and the reader's own louder — that is the one they look for. */}
+              {splitMentions(words, entry.mentions).map((piece, index) =>
+                piece.person ? (
+                  <span
+                    key={index}
+                    className={`rounded px-0.5 font-semibold ${
+                      String(piece.person._id) === String(me)
+                        ? 'bg-flame-500/20 text-flame-300'
+                        : 'text-aqua-300'
+                    }`}
+                    title={piece.person.department ? `Tagged · ${piece.person.department}` : 'Tagged'}
+                  >
+                    {piece.text}
+                  </span>
+                ) : (
+                  <span key={index}>{piece.text}</span>
+                )
+              )}
+            </p>
           )}
           {/* A shared location, under whatever was said with it — or on its own, since "📍" is a
               complete message. */}
@@ -216,7 +236,7 @@ function ThreadEntry({ entry, previous, me, pin }) {
   return (
     <>
       {!sameDay(previous?.at, entry.at) && <DayBreak when={entry.at} />}
-      <Said entry={entry} mine={mine} pin={pin} />
+      <Said entry={entry} mine={mine} me={me} pin={pin} />
     </>
   );
 }

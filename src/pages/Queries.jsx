@@ -452,6 +452,16 @@ export default function Queries() {
                         <span className="text-steel-500">{row.customer?.name || 'No customer'} · </span>
                         {lastLine(last, me)}
                       </p>
+                      {/* Tagged in something not yet read: the one row a person must not scroll past. */}
+                      {row.taggedMe > 0 && (
+                        <span
+                          className="shrink-0 rounded-full bg-aqua-500/15 px-2 py-0.5 text-[0.7rem] font-bold text-aqua-300 ring-1 ring-inset ring-aqua-500/25"
+                          aria-label={`You were tagged${row.taggedMe > 1 ? ` ${row.taggedMe} times` : ''}`}
+                          title="You were tagged in this thread"
+                        >
+                          @ you
+                        </span>
+                      )}
                       {unread > 0 && (
                         <span
                           className="flex h-5 min-w-[1.25rem] shrink-0 items-center justify-center

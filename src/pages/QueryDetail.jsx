@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { customers as customersApi, queries as queriesApi } from '../api/endpoints.js';
 import { useRecord } from '../hooks/useRecords.js';
@@ -15,6 +15,7 @@ import { formatDate, plural } from '../utils/format.js';
 import { ownsRecord, selfId } from '../utils/pipeline.js';
 import useCurrentLocation from '../hooks/useCurrentLocation.js';
 import { WORST_ACCURACY_M, accuracyLabel, mapsUrl } from '../utils/maps.js';
+import { insertMention, matchPeople, mentionAt, mentionsIn, taggablePeople } from '../utils/mentions.js';
 
 /**
  * One thread: what was asked, who is in it, and everything said since.
@@ -50,6 +51,14 @@ export default function QueryDetail() {
   const { user, canWrite } = useAuth();
   const [error, setError] = useState(null);
   const [body, setBody] = useState('');
+  /*
+   * Tagging with @. `picked` is who was chosen from the list while typing; what is sent is the
+   * ones whose "@Name" is still in the message. `tagging` is the @-word under the caret, when
+   * there is one, and which suggestion is highlighted.
+   */
+  const box = useRef(null);
+  const [picked, setPicked] = useState([]);
+  const [tagging, setTagging] = useState(null);
   /* A location waiting to go with the next message — shown to the sender before it is sent. */
   const here = useCurrentLocation();
   /* Which check-in is being pinned, and which one is the buyer's site once it is. */
@@ -60,6 +69,7 @@ export default function QueryDetail() {
   const [granted, setGranted] = useState(null);
 
   const { options, can, loading: loadingOptions } = useParticipantOptions();
+  const people = taggablePeople(options, selfId(user));
   /* A draft, once one has been asked for. Held here rather than written into the box directly,
      so what it needed checking is shown beside the text somebody is about to send. */
   const [suggestion, setSuggestion] = useState(null);
@@ -115,19 +125,44 @@ export default function QueryDetail() {
     }
   };
 
+  /* Who the @-word under the caret could be. */
+  const suggestions = tagging ? matchPeople(people, tagging.typed) : [];
+
+  const typed = (event) => {
+    setBody(event.target.value);
+    const at = mentionAt(event.target.value, event.target.selectionStart);
+    setTagging(at ? { ...at, index: 0 } : null);
+  };
+
+  const tag = (person) => {
+    const caret = box.current?.selectionStart ?? body.length;
+    const next = insertMention(body, tagging, caret, person);
+    setBody(next.text);
+    setPicked((current) => (current.some((row) => row._id === person._id) ? current : [...current, person]));
+    setTagging(null);
+    requestAnimationFrame(() => {
+      box.current?.focus();
+      box.current?.setSelectionRange(next.caret, next.caret);
+    });
+  };
+
   const fix = here.status === 'ready' ? here.fix : null;
   const tooVague = fix && fix.accuracyM > WORST_ACCURACY_M;
   const sayable = Boolean(body.trim()) || (fix && !tooVague);
 
   const say = (kind) =>
     act(async () => {
+      const mentions = mentionsIn(body, picked);
       await queriesApi.say({
         id,
         kind,
         body: body.trim(),
         ...(fix && !tooVague ? { location: fix } : {}),
+        ...(mentions.length ? { mentions } : {}),
       });
       setBody('');
+      setPicked([]);
+      setTagging(null);
       here.clear();
       /* The draft is spent once something has been sent; leaving its checklist up would have it
          describing text that is no longer in the box. */
@@ -347,19 +382,72 @@ export default function QueryDetail() {
                   </div>
                 )}
 
-                <div className="flex items-end gap-2">
+                <div className="relative flex items-end gap-2">
+                  {/*
+                    Who the @ could be, above the box so a phone keyboard does not cover it.
+                    Arrow keys move, Enter or Tab picks, Escape closes — the chat-app habits.
+                  */}
+                  {suggestions.length > 0 && (
+                    <ul
+                      role="listbox"
+                      aria-label="People to tag"
+                      className="absolute bottom-full left-0 z-20 mb-2 w-72 max-w-full overflow-hidden rounded-lg bg-ink-850 shadow-lg ring-1 ring-line/10"
+                    >
+                      {suggestions.map((person, index) => (
+                        <li key={person._id} role="option" aria-selected={index === tagging.index}>
+                          <button
+                            type="button"
+                            className={`flex w-full items-baseline justify-between gap-3 px-3 py-2 text-left text-sm ${
+                              index === tagging.index ? 'bg-flame-500/15 text-steel-50' : 'text-steel-200 hover:bg-line/[0.05]'
+                            }`}
+                            /* mousedown, so the box keeps focus and the caret stays where it was. */
+                            onMouseDown={(event) => {
+                              event.preventDefault();
+                              tag(person);
+                            }}
+                          >
+                            <span className="truncate font-semibold">{person.name}</span>
+                            <span className="shrink-0 text-xs text-steel-500">{person.department}</span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                   <textarea
+                    ref={box}
                     className="input min-h-[3.25rem] flex-1"
                     rows={2}
-                    placeholder={fix ? 'Add a caption, or just send' : 'Type a message'}
+                    placeholder={fix ? 'Add a caption, or just send' : 'Type a message — @ to tag somebody'}
                     value={body}
-                    onChange={(event) => setBody(event.target.value)}
+                    onChange={typed}
+                    onBlur={() => setTagging(null)}
                     /*
                       Enter sends, Shift+Enter is a new line — chat-app muscle memory, which is
                       what the people using this type in all day. `isComposing` so an Indic or
                       other input method finishing a word with Enter does not send half of it.
                     */
                     onKeyDown={(event) => {
+                      if (suggestions.length) {
+                        const move = { ArrowDown: 1, ArrowUp: -1 }[event.key];
+                        if (move) {
+                          event.preventDefault();
+                          setTagging((current) => ({
+                            ...current,
+                            index: (current.index + move + suggestions.length) % suggestions.length,
+                          }));
+                          return;
+                        }
+                        if ((event.key === 'Enter' || event.key === 'Tab') && !event.nativeEvent.isComposing) {
+                          event.preventDefault();
+                          tag(suggestions[tagging.index]);
+                          return;
+                        }
+                        if (event.key === 'Escape') {
+                          event.preventDefault();
+                          setTagging(null);
+                          return;
+                        }
+                      }
                       if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
                         event.preventDefault();
                         if (sayable && !busy) say('reply');
@@ -382,8 +470,8 @@ export default function QueryDetail() {
 
                 <div className="flex flex-wrap items-center justify-end gap-2">
                   <p className="mr-auto text-xs text-steel-500">
-                    Enter sends a reply · Shift+Enter for a new line · a note records something
-                    that is not an answer.
+                    Enter sends a reply · Shift+Enter for a new line · @ tags somebody, and brings
+                    them in if they are not already · a note records something that is not an answer.
                   </p>
                   {/*
                     Offered only where there is a model behind it. The draft lands in the box
