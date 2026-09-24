@@ -57,8 +57,9 @@ export function AuthProvider({ children }) {
         setUser(data.user);
         return data.user;
       },
-      async register(payload) {
-        const data = await auth.register(payload);
+      /** Sets a password from an emailed link and signs in with the session that comes back. */
+      async resetPassword(token, password) {
+        const data = await auth.resetPassword({ token, password });
         setToken(data.token);
         setUser(data.user);
         return data.user;

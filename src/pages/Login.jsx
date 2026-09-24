@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { Field, Notice } from '../components/ui.jsx';
 import { ThemeToggle, Wordmark } from '../components/Layout.jsx';
@@ -77,6 +77,12 @@ function PasswordForm({ onError }) {
       <button type="submit" className="btn-primary w-full" disabled={isSubmitting}>
         {isSubmitting ? 'Signing in…' : 'Sign in'}
       </button>
+
+      <p className="text-center text-sm">
+        <Link to="/forgot-password" className="link-action">
+          Forgot password?
+        </Link>
+      </p>
     </form>
   );
 }
@@ -225,67 +231,6 @@ function OtpForm({ onError }) {
   );
 }
 
-function RegisterForm({ onError }) {
-  const { register: signUp } = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm();
-
-  const submit = async (values) => {
-    onError(null);
-    try {
-      await signUp({ ...values, phone: values.phone || undefined });
-      navigate(location.state?.from || '/', { replace: true });
-    } catch (error) {
-      onError(error.message);
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit(submit)} className="space-y-4">
-      <Field label="Full name" error={errors.name} required>
-        <input
-          className="input"
-          {...register('name', { required: 'Name is required', minLength: { value: 2, message: 'Too short' } })}
-        />
-      </Field>
-
-      <Field label="Email" error={errors.email} required>
-        <input
-          type="email"
-          autoComplete="email"
-          className="input"
-          {...register('email', { required: 'Email is required' })}
-        />
-      </Field>
-
-      <Field label="Phone" error={errors.phone} hint="Optional — lets you sign in by SMS code">
-        <input type="tel" autoComplete="tel" className="input" {...register('phone')} />
-      </Field>
-
-      <Field label="Password" error={errors.password} hint="At least 8 characters" required>
-        <input
-          type="password"
-          autoComplete="new-password"
-          className="input"
-          {...register('password', {
-            required: 'Password is required',
-            minLength: { value: 8, message: 'At least 8 characters' },
-          })}
-        />
-      </Field>
-
-      <button type="submit" className="btn-primary w-full" disabled={isSubmitting}>
-        {isSubmitting ? 'Creating account…' : 'Create account'}
-      </button>
-    </form>
-  );
-}
-
 export default function Login() {
   const { isAuthenticated, loading } = useAuth();
   const location = useLocation();
@@ -294,8 +239,6 @@ export default function Login() {
 
   if (loading) return null;
   if (isAuthenticated) return <Navigate to={location.state?.from || '/'} replace />;
-
-  const registering = mode === 'register';
 
   return (
     <div className="grid min-h-screen lg:grid-cols-[1.1fr_minmax(0,32rem)]">
@@ -356,36 +299,22 @@ export default function Login() {
             <Wordmark />
           </div>
 
-          <h2 className="text-[1.75rem] font-extrabold tracking-tighter text-steel-50">
-            {registering ? 'Create an account' : 'Sign in'}
-          </h2>
+          <h2 className="text-[1.75rem] font-extrabold tracking-tighter text-steel-50">Sign in</h2>
           <p className="mb-7 mt-1.5 text-sm leading-relaxed text-steel-400">
-            {registering
-              ? 'The first account created becomes the administrator.'
-              : 'Use your password, or have a code sent to your email or phone.'}
+            Use your password, or have a code sent to your email or phone.
           </p>
 
-          {!registering && (
-            <Tabs
-              mode={mode}
-              onChange={(next) => {
-                setMode(next);
-                setError(null);
-              }}
-            />
-          )}
+          <Tabs
+            mode={mode}
+            onChange={(next) => {
+              setMode(next);
+              setError(null);
+            }}
+          />
 
-          {registering ? (
-            <RegisterForm onError={setError} />
-          ) : (
-            <div
-              role="tabpanel"
-              id={`signin-panel-${mode}`}
-              aria-labelledby={`signin-tab-${mode}`}
-            >
-              {mode === 'password' ? <PasswordForm onError={setError} /> : <OtpForm onError={setError} />}
-            </div>
-          )}
+          <div role="tabpanel" id={`signin-panel-${mode}`} aria-labelledby={`signin-tab-${mode}`}>
+            {mode === 'password' ? <PasswordForm onError={setError} /> : <OtpForm onError={setError} />}
+          </div>
 
           {error && (
             <div className="mt-4">
@@ -393,18 +322,10 @@ export default function Login() {
             </div>
           )}
 
+          {/* No sign-up: accounts are created by an administrator, who sends a welcome email. */}
           <p className="mt-8 border-t border-line/[0.06] pt-5 text-center text-sm text-steel-400">
-            {registering ? 'Already registered?' : 'Need an account?'}{' '}
-            <button
-              type="button"
-              className="link-action"
-              onClick={() => {
-                setMode(registering ? 'password' : 'register');
-                setError(null);
-              }}
-            >
-              {registering ? 'Sign in' : 'Register'}
-            </button>
+            No account yet? Ask your administrator to invite you — you will get an email with a
+            link to set your password.
           </p>
         </div>
       </main>

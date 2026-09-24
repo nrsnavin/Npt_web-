@@ -23,6 +23,8 @@ import Login from './pages/Login.jsx';
 import Home from './pages/Home.jsx';
 
 const Profile = lazyPage(() => import('./pages/Profile.jsx'));
+const ForgotPassword = lazyPage(() => import('./pages/ForgotPassword.jsx'));
+const ResetPassword = lazyPage(() => import('./pages/ResetPassword.jsx'));
 const Users = lazyPage(() => import('./pages/Users.jsx'));
 const Integrations = lazyPage(() => import('./pages/Integrations.jsx'));
 const Queries = lazyPage(() => import('./pages/Queries.jsx'));
@@ -124,6 +126,9 @@ export default function App() {
     <Suspense fallback={<Spinner label="Loading" />}>
       <Routes>
         <Route path="/login" element={<Login />} />
+        {/* Public: reached from an email, before anybody is signed in. */}
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
 
         <Route
           element={

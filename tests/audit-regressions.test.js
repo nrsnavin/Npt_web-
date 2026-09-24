@@ -69,3 +69,18 @@ test('a person can change their own password, and stays signed in where they did
     /async changePassword\(payload\) \{\s*const data = await auth\.changePassword\(payload\);\s*setToken\(data\.token\);/
   );
 });
+
+test('there is no sign-up; accounts come from an administrator by email', () => {
+  /*
+   * The login page carried a Register form that let anyone make an account. Accounts are now
+   * created by an administrator and the person sets their own password from a welcome email;
+   * a forgotten one is replaced the same way.
+   */
+  const login = source('pages/Login.jsx');
+  assert.ok(!/RegisterForm|Create account/.test(login), 'no sign-up form');
+  assert.match(login, /to="\/forgot-password"/);
+  const app = source('App.jsx');
+  assert.match(app, /path="\/forgot-password"/);
+  assert.match(app, /path="\/reset-password"/);
+  assert.ok(!/label="Temporary password"/.test(source('pages/Users.jsx')), 'no password typed for somebody else');
+});

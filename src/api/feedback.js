@@ -18,6 +18,7 @@ export function actionLabel(config) {
   /* Noun-aware: `/announcements/:id/read` and `/whatsapp/threads/:id/read` are the same verb on
      two different things, and the announcement wording reached the inbox unchanged. */
   if (last === 'read') return `${noun} marked as read`;
+  if (last === 'invitation') return 'Invitation sent';
   if (last === 'convert') return `${noun} converted`;
   if (last === 'pod' || last === 'photo' || last === 'po') return 'Document uploaded';
   if (config.method === 'delete') return noun === 'User' ? 'User offboarded' : `${noun} removed`;

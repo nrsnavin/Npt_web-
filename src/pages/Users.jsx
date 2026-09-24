@@ -130,13 +130,12 @@ function UserForm({ catalogue, onClose, onSaved }) {
   const submit = async (values) => {
     setError(null);
     try {
-      onSaved(
-        await usersApi.create({
-          ...values,
-          phone: values.phone || undefined,
-          moduleAccess: values.role === 'admin' ? [] : mapToGrants(grants),
-        })
-      );
+      const { data, invitation } = await usersApi.create({
+        ...values,
+        phone: values.phone || undefined,
+        moduleAccess: values.role === 'admin' ? [] : mapToGrants(grants),
+      });
+      onSaved(data, invitation);
       onClose();
     } catch (submitError) {
       setError(submitError);
@@ -158,20 +157,6 @@ function UserForm({ catalogue, onClose, onSaved }) {
         </Field>
         <Field label="Phone" hint="Optional — enables SMS sign-in">
           <input type="tel" className="input" {...register('phone')} />
-        </Field>
-        <Field
-          label="Temporary password"
-          hint="At least 8 characters"
-          error={errors.password}
-        required>
-          <input
-            type="text"
-            className="input"
-            {...register('password', {
-              required: 'Password is required',
-              minLength: { value: 8, message: 'At least 8 characters' },
-            })}
-          />
         </Field>
         <Field label="Department">
           <select className="input" {...register('department', { required: true })}>
@@ -204,6 +189,13 @@ function UserForm({ catalogue, onClose, onSaved }) {
         </div>
       )}
 
+      {/* No password here: the person chooses their own from the welcome email, which also
+          tells them the department, role and access set on this form. */}
+      <p className="text-xs text-steel-400">
+        A welcome email goes to this address with their department, role and module access, and a
+        link to set their own password. The link works for 72 hours and can be resent.
+      </p>
+
       <FormError error={error} />
 
       <div className="flex justify-end gap-2">
@@ -211,7 +203,7 @@ function UserForm({ catalogue, onClose, onSaved }) {
           Cancel
         </button>
         <button type="submit" className="btn-primary" disabled={isSubmitting}>
-          {isSubmitting ? 'Creating…' : 'Create user'}
+          {isSubmitting ? 'Creating…' : 'Create and send invitation'}
         </button>
       </div>
     </form>
@@ -295,6 +287,18 @@ export default function Users() {
   const [editingAccess, setEditingAccess] = useState(null);
   const [deleting, setDeleting] = useState(null);
   const [busy, setBusy] = useState(false);
+  /* What happened to a welcome email: `{ user, invitation }`, shown once after it is sent. */
+  const [invited, setInvited] = useState(null);
+
+  const resend = async (row) => {
+    try {
+      const { data, invitation } = await usersApi.resendInvitation(row.id);
+      replaceRow(data);
+      setInvited({ user: data, invitation });
+    } catch (resendError) {
+      setError(resendError);
+    }
+  };
 
   const mayWrite = canWrite('users');
   const { sort, toggle } = useSort();
@@ -457,7 +461,10 @@ export default function Users() {
                   return (
                     <tr key={row.id} className="row-hover">
                       <td className="px-4 py-3.5">
-                        <p className="font-semibold text-steel-100">{row.name} {!row.isActive && <Badge tone="neutral">Inactive</Badge>}</p>
+                        <p className="font-semibold text-steel-100">
+                          {row.name} {!row.isActive && <Badge tone="neutral">Inactive</Badge>}{' '}
+                          {row.isActive && row.invitationPending && <Badge tone="progress">Invitation pending</Badge>}
+                        </p>
                         <p className="text-xs text-steel-400">{row.email}</p>
                       </td>
                       <td className="px-4 py-3.5 text-steel-200">
@@ -489,6 +496,11 @@ export default function Users() {
                       <td className="whitespace-nowrap px-4 py-3.5 text-right">
                         {mayWrite && (
                           <div className="flex justify-end gap-3">
+                            {row.isActive && row.invitationPending && (
+                              <button type="button" className="row-action" onClick={() => resend(row)}>
+                                Resend invite
+                              </button>
+                            )}
                             {row.role !== 'admin' && (
                               <button
                                 type="button"
@@ -528,9 +540,21 @@ export default function Users() {
           <UserForm
             catalogue={catalogue}
             onClose={() => setCreating(false)}
-            onSaved={(created) => setRows((current) => [created, ...current])}
+            onSaved={(created, invitation) => {
+              setRows((current) => [created, ...current]);
+              setInvited({ user: created, invitation });
+            }}
           />
         )}
+      </Modal>
+
+      <Modal
+        open={Boolean(invited)}
+        title={invited?.invitation?.delivered ? 'Invitation sent' : 'The email could not be sent'}
+        size="sm"
+        onClose={() => setInvited(null)}
+      >
+        {invited && <InvitationResult {...invited} onClose={() => setInvited(null)} />}
       </Modal>
 
       <Modal
@@ -552,6 +576,52 @@ export default function Users() {
 
       {deleting && <OffboardUser user={deleting} onClose={() => setDeleting(null)} onSaved={(updated) => { replaceRow(updated); setDeleting(null); }} />}
 
+    </div>
+  );
+}
+
+/**
+ * What became of a welcome email.
+ *
+ * When it went, that is all there is to say. When it did not — no mail server configured, or
+ * it refused — the account still exists, and the link is here so it can be sent another way
+ * (WhatsApp, in person). It is shown to the administrator only, and only for this reason.
+ */
+function InvitationResult({ user, invitation, onClose }) {
+  const [copied, setCopied] = useState(false);
+  const until = invitation?.expiresAt ? formatDate(invitation.expiresAt) : null;
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(invitation.link);
+      setCopied(true);
+    } catch {
+      setCopied(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {invitation?.delivered ? (
+        <p className="text-sm text-steel-300">
+          {user.name} has been emailed at <strong>{user.email}</strong> with their access and a
+          link to set their password{until ? `, valid until ${until}` : ''}.
+        </p>
+      ) : (
+        <>
+          <Notice tone="warn">
+            {user.name}’s account is ready, but the welcome email did not go. Send them this link
+            another way — it lets them set their password{until ? ` until ${until}` : ''}, once.
+          </Notice>
+          <input className="input font-mono text-xs" readOnly value={invitation?.link || ''} onFocus={(event) => event.target.select()} />
+          <button type="button" className="btn-secondary w-full" onClick={copy}>
+            {copied ? 'Copied' : 'Copy link'}
+          </button>
+        </>
+      )}
+      <div className="flex justify-end">
+        <button type="button" className="btn-primary" onClick={onClose}>Done</button>
+      </div>
     </div>
   );
 }

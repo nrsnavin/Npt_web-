@@ -68,7 +68,9 @@ export const users = {
   catalogue: () => api.get('/users/catalogue').then(unwrap),
   list: (params) => api.get('/users', { params }).then((response) => response.data),
   get: (id) => api.get(`/users/${id}`).then(unwrap),
-  create: (payload) => api.post('/users', payload).then(unwrap),
+  /** `{ data, invitation }` — whether the welcome email went, and the link when it did not. */
+  create: (payload) => api.post('/users', payload).then((response) => response.data),
+  resendInvitation: (id) => api.post(`/users/${id}/invitation`).then((response) => response.data),
   update: ({ id, ...payload }) => api.patch(`/users/${id}`, payload).then(unwrap),
   setAccess: ({ id, moduleAccess }) =>
     api.put(`/users/${id}/access`, { moduleAccess }).then(unwrap),
@@ -802,7 +804,12 @@ export const downloads = {
 
 export const auth = {
   login: (payload) => api.post('/auth/login', payload).then(unwrap),
-  register: (payload) => api.post('/auth/register', payload).then(unwrap),
+  /* Password links: the welcome invitation and a forgotten password. Quiet — each page says
+     what happened in its own words, and a toast reading "Signed in" over a reset is wrong. */
+  forgotPassword: (email) =>
+    api.post('/auth/password/forgot', { email }, { feedback: false }).then((response) => response.data),
+  checkResetLink: (token) => api.get(`/auth/password/reset/${encodeURIComponent(token)}`, { feedback: false }).then(unwrap),
+  resetPassword: (payload) => api.post('/auth/password/reset', payload, { feedback: false }).then(unwrap),
   me: () => api.get('/auth/me').then(unwrap),
   updateProfile: (payload) => api.patch('/auth/me', payload).then(unwrap),
   changePassword: (payload) => api.post('/auth/change-password', payload).then(unwrap),
