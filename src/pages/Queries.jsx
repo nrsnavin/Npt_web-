@@ -443,7 +443,9 @@ export default function Queries() {
                 <Link
                   to={`/queries/${row._id}`}
                   className={`flex gap-3 border-l-4 px-4 py-3.5 transition-colors hover:bg-line/[0.03] ${
-                    tagged
+                    row.isUrgent
+                      ? 'border-danger-500 bg-danger-500/[0.06]'
+                      : tagged
                       ? 'border-aqua-400 bg-aqua-500/[0.06]'
                       : unread
                         ? 'border-transparent bg-flame-500/[0.03]'
@@ -511,6 +513,8 @@ export default function Queries() {
                     </div>
 
                     <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+                      {/* Flagged by an administrator — why this row is at the top. */}
+                      {row.isUrgent && <Badge tone="danger">Urgent</Badge>}
                       <Urgency reading={urgencyOf(row)} />
                       <Badge status={row.status} />
                       <span className="text-xs text-steel-500">

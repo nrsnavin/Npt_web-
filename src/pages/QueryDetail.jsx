@@ -58,6 +58,9 @@ export default function QueryDetail() {
    */
   const box = useRef(null);
   const [picked, setPicked] = useState([]);
+  /* A photo or document waiting to go with the next message. */
+  const [file, setFile] = useState(null);
+  const filePicker = useRef(null);
   const [tagging, setTagging] = useState(null);
   /*
    * Where the caret goes after a name is picked. Placed in a layout effect, in the same commit
@@ -157,18 +160,24 @@ export default function QueryDetail() {
 
   const fix = here.status === 'ready' ? here.fix : null;
   const tooVague = fix && fix.accuracyM > WORST_ACCURACY_M;
-  const sayable = Boolean(body.trim()) || (fix && !tooVague);
+  const sayable = Boolean(body.trim()) || (fix && !tooVague) || Boolean(file);
 
   const say = (kind) =>
     act(async () => {
       const mentions = mentionsIn(body, picked);
-      await queriesApi.say({
-        id,
-        kind,
-        body: body.trim(),
-        ...(fix && !tooVague ? { location: fix } : {}),
-        ...(mentions.length ? { mentions } : {}),
-      });
+      if (file) {
+        /* A file goes on its own door; the words become its caption, tags ride along. */
+        await queriesApi.sendFile({ id, file, body: body.trim(), kind, mentions });
+        setFile(null);
+      } else {
+        await queriesApi.say({
+          id,
+          kind,
+          body: body.trim(),
+          ...(fix && !tooVague ? { location: fix } : {}),
+          ...(mentions.length ? { mentions } : {}),
+        });
+      }
       setBody('');
       setPicked([]);
       setTagging(null);
@@ -255,6 +264,18 @@ export default function QueryDetail() {
               common case, and letting whoever replied close it is letting them mark their own
               work. Admins can too, so somebody can tidy up after a person who has left.
             */}
+            {query.isUrgent && <Badge tone="danger">Urgent</Badge>}
+            {/* Administrators only: urgent puts this thread above everything on every list. */}
+            {user?.role === 'admin' && (
+              <button
+                type="button"
+                className={query.isUrgent ? 'btn-secondary' : 'btn-danger'}
+                disabled={busy}
+                onClick={() => act(() => queriesApi.urgent({ id, urgent: !query.isUrgent }))}
+              >
+                {query.isUrgent ? 'Remove urgent' : 'Mark urgent'}
+              </button>
+            )}
             {!closed && (isAsker || user?.role === 'admin') && (
               <button
                 type="button"
@@ -391,6 +412,18 @@ export default function QueryDetail() {
                   </div>
                 )}
 
+                {file && (
+                  <div className="flex items-center justify-between gap-3 rounded-lg border border-line/[0.1] bg-line/[0.03] px-3 py-2 text-sm">
+                    <span className="min-w-0 truncate text-steel-200">
+                      📎 {file.name}{' '}
+                      <span className="text-xs text-steel-500">· {Math.max(1, Math.round(file.size / 1024))} KB</span>
+                    </span>
+                    <button type="button" className="text-xs font-semibold text-steel-400 hover:text-danger-400" onClick={() => setFile(null)}>
+                      Remove
+                    </button>
+                  </div>
+                )}
+
                 <div className="relative flex items-end gap-2">
                   {/*
                     Who the @ could be, above the box so a phone keyboard does not cover it.
@@ -464,6 +497,27 @@ export default function QueryDetail() {
                     }}
                     aria-label="Message"
                   />
+                  {/* A photo or a document. On a phone the picker offers the camera too. */}
+                  <input
+                    ref={filePicker}
+                    type="file"
+                    className="hidden"
+                    accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx"
+                    onChange={(event) => {
+                      setFile(event.target.files?.[0] || null);
+                      event.target.value = '';
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="btn-secondary h-[3.25rem] px-3.5 text-lg"
+                    onClick={() => filePicker.current?.click()}
+                    disabled={busy}
+                    title="Add a photo or document"
+                    aria-label="Add a photo or document"
+                  >
+                    📎
+                  </button>
                   {/* Only ever on a press. See `useCurrentLocation`. */}
                   <button
                     type="button"

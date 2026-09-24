@@ -1,7 +1,58 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Badge } from './ui.jsx';
 import LocationCard from './LocationCard.jsx';
 import { splitMentions } from '../utils/mentions.js';
+import AuthedImage from './AuthedImage.jsx';
+import { files as filesApi } from '../api/endpoints.js';
+
+/** Opens a protected file in a new tab — the route needs the session, so it is fetched first. */
+async function openFile(file) {
+  const blob = await filesApi.blob(file.key);
+  const url = URL.createObjectURL(blob);
+  window.open(url, '_blank', 'noopener');
+  /* Held long enough for the new tab to read it; revoking at once shows a blank tab. */
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+const sizeOf = (bytes) =>
+  !bytes ? '' : bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+
+/** Photos as thumbnails that open full size; documents as a row that opens or downloads. */
+function Attachments({ files }) {
+  const [opening, setOpening] = useState(null);
+  if (!files?.length) return null;
+  const open = async (file) => {
+    setOpening(file._id);
+    try { await openFile(file); } finally { setOpening(null); }
+  };
+  return (
+    <div className="mt-2 flex flex-wrap gap-2">
+      {files.map((file) =>
+        String(file.mimeType).startsWith('image/') ? (
+          <AuthedImage
+            key={file._id}
+            attachmentKey={file.key}
+            alt={file.filename}
+            className="h-40 w-auto max-w-full cursor-zoom-in rounded-lg object-cover ring-1 ring-line/10"
+            onClick={() => open(file)}
+          />
+        ) : (
+          <button
+            key={file._id}
+            type="button"
+            onClick={() => open(file)}
+            disabled={opening === file._id}
+            className="flex max-w-full items-center gap-2 rounded-lg border border-line/[0.1] bg-ink-850 px-3 py-2 text-left text-sm hover:bg-line/[0.05]"
+          >
+            <span aria-hidden>📄</span>
+            <span className="min-w-0 truncate font-semibold text-steel-100">{file.filename}</span>
+            <span className="shrink-0 text-xs text-steel-500">{opening === file._id ? 'Opening…' : sizeOf(file.size)}</span>
+          </button>
+        )
+      )}
+    </div>
+  );
+}
 
 /**
  * A query, read the way the conversation actually happened.
@@ -147,6 +198,7 @@ function Said({ entry, mine, me, pin }) {
               )}
             </p>
           )}
+          <Attachments files={entry.attachments} />
           {/* A shared location, under whatever was said with it — or on its own, since "📍" is a
               complete message. */}
           <LocationCard

@@ -19,6 +19,8 @@ export function actionLabel(config) {
      two different things, and the announcement wording reached the inbox unchanged. */
   if (last === 'read') return `${noun} marked as read`;
   if (last === 'invitation') return 'Invitation sent';
+  if (last === 'files') return 'File shared';
+  if (last === 'urgent') return 'Urgency updated';
   if (last === 'convert') return `${noun} converted`;
   if (last === 'pod' || last === 'photo' || last === 'po') return 'Document uploaded';
   if (config.method === 'delete') return noun === 'User' ? 'User offboarded' : `${noun} removed`;

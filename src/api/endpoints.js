@@ -201,6 +201,17 @@ export const queries = {
   })),
   create: (payload) => api.post('/queries', payload).then(unwrap),
   say: ({ id, ...payload }) => api.post(`/queries/${id}/messages`, payload).then(unwrap),
+  /** A photo or document into the thread, with an optional caption and tags. */
+  sendFile: ({ id, file, body, kind, mentions }) => {
+    const form = new FormData();
+    form.append('file', file);
+    if (body) form.append('body', body);
+    if (kind) form.append('kind', kind);
+    if (mentions?.length) form.append('mentions', JSON.stringify(mentions));
+    return api.post(`/queries/${id}/files`, form).then(unwrap);
+  },
+  /** Administrators: flag a thread urgent, or take the flag off. */
+  urgent: ({ id, urgent, reason }) => api.post(`/queries/${id}/urgent`, { urgent, reason }).then(unwrap),
   /**
    * Pulling somebody else in. Keeps the envelope, because the reply says what the press actually
    * granted — adding a participant also lets them open the buyer, and a consequence nobody is
