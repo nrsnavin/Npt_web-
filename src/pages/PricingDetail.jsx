@@ -713,7 +713,10 @@ export default function PricingDetail() {
                 <Fact label="Category" value={optionLabel(HANGER_CATEGORIES, mould.category)} />
                 <Fact label="Size" value={mould.sizeMm && `${mould.sizeMm} mm`} />
                 <Fact label="Hook" value={optionLabel(HOOK_TYPES, mould.hookType)} />
-                <Fact label="Resin" value={mould.material && mould.material.toUpperCase()} />
+                {/* The tool's usual resin, said as such — the resin this model is costed and
+                    quoted in is the Material above, and the two differ whenever a PP tool is
+                    costed in HIPS. */}
+                <Fact label="Tool's usual resin" value={mould.material && mould.material.toUpperCase()} />
                 <Fact
                   label="Standard minimum"
                   value={mould.moq ? `${formatNumber(mould.moq)} pcs` : null}
