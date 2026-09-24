@@ -734,6 +734,7 @@ function DispatchDetailsForm({ sample, onClose, onSaved }) {
         <Field label="Quantity sent">
           <input
             type="number"
+            min="1"
             className="input"
             value={dispatchedQuantity}
             onChange={(event) => setDispatchedQuantity(event.target.value)}

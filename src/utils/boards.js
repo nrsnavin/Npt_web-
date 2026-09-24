@@ -203,7 +203,7 @@ export const MOVE_FIELDS = {
   estimatedValue: { label: 'Confirmed value (₹)', type: 'number', hint: 'The figure the weekly review is built on' },
   courier: { label: 'Courier', type: 'text', placeholder: 'Professional Couriers' },
   awbNumber: { label: 'AWB number', type: 'text' },
-  dispatchedQuantity: { label: 'Pieces dispatched', type: 'number' },
+  dispatchedQuantity: { label: 'Pieces dispatched', type: 'number', min: 1 },
 };
 
 /**

@@ -116,6 +116,7 @@ function MoveDialog({ open, card, to, label, needs, noteField, onClose, onConfir
                   className="input"
                   type={field.type}
                   placeholder={field.placeholder}
+                  min={field.min}
                   value={values[key] || ''}
                   onChange={set(key)}
                   required
