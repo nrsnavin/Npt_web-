@@ -155,6 +155,8 @@ export default function Queries() {
   const [department, setDepartment] = useState('');
   /* Whose threads — "what is Anita carrying", which is the Monday question. */
   const [person, setPerson] = useState('');
+  /* Only the threads I have been tagged in — "who needs me", asked in one press. */
+  const [taggedOnly, setTaggedOnly] = useState(false);
   const [page, setPage] = useState(1);
   const [asking, setAsking] = useState(false);
   /*
@@ -212,9 +214,10 @@ export default function Queries() {
       department: department || undefined,
       person: person || undefined,
       customer,
+      tagged: taggedOnly ? 'me' : undefined,
       ai: wordsOnly ? 'false' : undefined,
     }),
-    [page, term, status, department, person, customer, wordsOnly, mode]
+    [page, term, status, department, person, customer, taggedOnly, wordsOnly, mode]
   );
 
   const { data, pagination, meta, loading, error, reload } = useRecordList(queriesApi.list, params);
@@ -250,6 +253,27 @@ export default function Queries() {
       />
 
       <div className="card space-y-3 p-4">
+        {/*
+          Threads I was tagged in, one press away. The count is of live ones, whatever else is
+          narrowed, so it says how many people are waiting on me even when the list is filtered.
+        */}
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            aria-pressed={taggedOnly}
+            className={`rounded-full px-3 py-1.5 text-sm font-semibold ring-1 ring-inset transition-colors ${
+              taggedOnly
+                ? 'bg-aqua-500/20 text-aqua-300 ring-aqua-500/40'
+                : 'bg-transparent text-steel-300 ring-line/15 hover:bg-line/[0.05]'
+            }`}
+            onClick={() => {
+              setTaggedOnly((current) => !current);
+              setPage(1);
+            }}
+          >
+            @ Tagged me{meta?.taggedOpen ? ` · ${meta.taggedOpen}` : ''}
+          </button>
+        </div>
         <input
           className="input"
           aria-label="Search queries"
@@ -410,13 +434,20 @@ export default function Queries() {
           {data.map((row) => {
             const unread = row.unread || 0;
             const last = row.last || {};
+            /* Tagged in it at all, and whether that tag is still unread. */
+            const tagged = row.tagged > 0;
+            const taggedUnread = row.taggedMe > 0;
 
             return (
               <li key={row._id}>
                 <Link
                   to={`/queries/${row._id}`}
-                  className={`flex gap-3 px-4 py-3.5 transition-colors hover:bg-line/[0.03] ${
-                    unread ? 'bg-flame-500/[0.03]' : ''
+                  className={`flex gap-3 border-l-4 px-4 py-3.5 transition-colors hover:bg-line/[0.03] ${
+                    tagged
+                      ? 'border-aqua-400 bg-aqua-500/[0.06]'
+                      : unread
+                        ? 'border-transparent bg-flame-500/[0.03]'
+                        : 'border-transparent'
                   }`}
                 >
                   <span
@@ -452,12 +483,17 @@ export default function Queries() {
                         <span className="text-steel-500">{row.customer?.name || 'No customer'} · </span>
                         {lastLine(last, me)}
                       </p>
-                      {/* Tagged in something not yet read: the one row a person must not scroll past. */}
-                      {row.taggedMe > 0 && (
+                      {/* The tag and the count sit together at the right, as one signal. */}
+                      <span className="flex shrink-0 items-center gap-1.5">
+                      {tagged && (
                         <span
-                          className="shrink-0 rounded-full bg-aqua-500/15 px-2 py-0.5 text-[0.7rem] font-bold text-aqua-300 ring-1 ring-inset ring-aqua-500/25"
-                          aria-label={`You were tagged${row.taggedMe > 1 ? ` ${row.taggedMe} times` : ''}`}
-                          title="You were tagged in this thread"
+                          className={`shrink-0 rounded-full px-2 py-0.5 text-[0.7rem] font-bold ring-1 ring-inset ${
+                            taggedUnread
+                              ? 'bg-aqua-600 text-white ring-aqua-600'
+                              : 'bg-aqua-500/15 text-aqua-300 ring-aqua-500/25'
+                          }`}
+                          aria-label={taggedUnread ? 'You were tagged in something you have not read' : 'You were tagged in this thread'}
+                          title={taggedUnread ? 'Tagged — not read yet' : 'You were tagged in this thread'}
                         >
                           @ you
                         </span>
@@ -471,6 +507,7 @@ export default function Queries() {
                           {unread > 99 ? '99+' : unread}
                         </span>
                       )}
+                      </span>
                     </div>
 
                     <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
