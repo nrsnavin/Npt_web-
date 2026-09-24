@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { users as usersApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import {
-  Badge, ConfirmDialog, Field, FormError, Modal, Notice, PageHeader, Spinner,
+  Badge, ConfirmDialog, Field, FormError, Modal, Notice, PageHeader, Pagination, Spinner,
 } from '../components/ui.jsx';
 import { formatDate, humanise } from '../utils/format.js';
 import { SortHeader, useSort } from '../components/SortHeader.jsx';
@@ -302,6 +302,9 @@ export default function Users() {
 
   const mayWrite = canWrite('users');
   const { sort, toggle } = useSort();
+  /* Paged like every other list: twenty-five at a time, the server counts the rest. */
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState(null);
 
   /*
    * Re-fetched on every sort rather than re-ordered here, like every other table in the app.
@@ -310,7 +313,7 @@ export default function Users() {
    * the answer depends on which table you are looking at, and the server is also what decides
    * that the password column is not an ordering anybody may ask for.
    */
-  const load = async (term = search, order = sort, narrow = { department, role, active }) => {
+  const load = async (term = search, order = sort, narrow = { department, role, active }, at = page) => {
     setLoading(true);
     setError(null);
     try {
@@ -324,11 +327,13 @@ export default function Users() {
              picker means "either", not "inactive". */
           isActive: narrow.active || undefined,
           sort: order || undefined,
-          limit: 100,
+          page: at,
+          limit: 25,
         }),
       ]);
       setCatalogue(cat);
       setRows(list.data);
+      setPagination(list.pagination);
     } catch (loadError) {
       setError(loadError);
     } finally {
@@ -336,10 +341,23 @@ export default function Users() {
     }
   };
 
+  /* A new filter or ordering starts again at the first page; turning the page keeps them. */
   useEffect(() => {
-    load(search, sort, { department, role, active });
+    setPage(1);
+    load(search, sort, { department, role, active }, 1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sort, department, role, active]);
+
+  /* Re-ordering starts again at the top of the new ordering. */
+  const sortBy = (field) => {
+    toggle(field);
+    setPage(1);
+  };
+
+  const turnTo = (next) => {
+    setPage(next);
+    load(search, sort, { department, role, active }, next);
+  };
 
   const replaceRow = (updated) =>
     setRows((current) => current.map((row) => (row.id === updated.id ? updated : row)));
@@ -365,7 +383,8 @@ export default function Users() {
         className="mb-5 flex flex-wrap gap-2"
         onSubmit={(event) => {
           event.preventDefault();
-          load();
+          setPage(1);
+          load(search, sort, { department, role, active }, 1);
         }}
       >
         <input
@@ -426,9 +445,9 @@ export default function Users() {
             <table className="min-w-full text-sm">
               <thead className="table-head">
                 <tr>
-                  <SortHeader field="name" label="User" sort={sort} onToggle={toggle} className="px-4" />
-                  <SortHeader field="department" label="Department" sort={sort} onToggle={toggle} className="px-4" />
-                  <SortHeader field="role" label="Role" sort={sort} onToggle={toggle} className="px-4" />
+                  <SortHeader field="name" label="User" sort={sort} onToggle={sortBy} className="px-4" />
+                  <SortHeader field="department" label="Department" sort={sort} onToggle={sortBy} className="px-4" />
+                  <SortHeader field="role" label="Role" sort={sort} onToggle={sortBy} className="px-4" />
                   {/* A list of grants, summarised. There is no single value to rank it by; the
                       department and role columns are how that question actually gets asked. */}
                   <th className="px-4 py-3">Module access</th>
@@ -437,7 +456,7 @@ export default function Users() {
                     dormant-account list, and a dormant account still holding module grants is
                     exactly the housekeeping an access screen exists to make visible.
                   */}
-                  <SortHeader field="lastLoginAt" label="Last sign-in" sort={sort} onToggle={toggle} className="px-4" />
+                  <SortHeader field="lastLoginAt" label="Last sign-in" sort={sort} onToggle={sortBy} className="px-4" />
                   <th className="px-4 py-3" />
                 </tr>
               </thead>
@@ -525,6 +544,9 @@ export default function Users() {
                 })}
               </tbody>
             </table>
+          </div>
+          <div className="px-4 pb-4">
+            <Pagination pagination={pagination} onChange={turnTo} />
           </div>
         </div>
       )}
