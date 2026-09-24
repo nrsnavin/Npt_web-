@@ -124,9 +124,90 @@ function EditProfile({ user, onClose, onSaved }) {
   );
 }
 
+/**
+ * Setting a new password.
+ *
+ * Accounts are created with a temporary password an administrator types and reads out, and
+ * there was no screen that changed it — the server has always had the door, nothing called it.
+ * An account made by OTP has no password yet, so it is not asked for one it does not have.
+ */
+function ChangePassword({ user, onClose }) {
+  const { changePassword } = useAuth();
+  const [error, setError] = useState(null);
+  const {
+    register,
+    handleSubmit,
+    getValues,
+    formState: { errors, isSubmitting },
+  } = useForm({ defaultValues: { currentPassword: '', newPassword: '', confirm: '' } });
+
+  const submit = async ({ currentPassword, newPassword }) => {
+    setError(null);
+    try {
+      await changePassword({ ...(user.hasPassword ? { currentPassword } : {}), newPassword });
+      onClose();
+    } catch (submitError) {
+      setError(submitError.message);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit(submit)} className="space-y-4">
+      {user.hasPassword && (
+        <Field label="Current password" error={errors.currentPassword} required>
+          <input
+            type="password"
+            autoComplete="current-password"
+            className="input"
+            {...register('currentPassword', { required: 'Enter your current password' })}
+          />
+        </Field>
+      )}
+      <Field label="New password" hint="At least 8 characters" error={errors.newPassword} required>
+        <input
+          type="password"
+          autoComplete="new-password"
+          className="input"
+          {...register('newPassword', {
+            required: 'Enter a new password',
+            minLength: { value: 8, message: 'At least 8 characters' },
+          })}
+        />
+      </Field>
+      <Field label="New password again" error={errors.confirm} required>
+        <input
+          type="password"
+          autoComplete="new-password"
+          className="input"
+          {...register('confirm', {
+            required: 'Enter the new password again',
+            validate: (value) => value === getValues('newPassword') || 'The two do not match',
+          })}
+        />
+      </Field>
+
+      <p className="text-xs text-steel-500">
+        Every other phone or computer signed in as you will be signed out. This one stays signed in.
+      </p>
+
+      {error && <Notice tone="danger">{error}</Notice>}
+
+      <div className="flex justify-end gap-2 pt-1">
+        <button type="button" className="btn-secondary" onClick={onClose}>
+          Cancel
+        </button>
+        <button type="submit" className="btn-primary" disabled={isSubmitting}>
+          {isSubmitting ? 'Saving…' : 'Change password'}
+        </button>
+      </div>
+    </form>
+  );
+}
+
 export default function Profile() {
   const { user, applyUser, logout } = useAuth();
   const [editing, setEditing] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
   const grouped = useGroupedModules(user?.modules);
 
   if (!user) return null;
@@ -234,6 +315,20 @@ export default function Profile() {
 
       <section className="card mt-5 flex flex-wrap items-center justify-between gap-4 p-6">
         <div>
+          <h2 className="text-base font-bold tracking-tight text-steel-50">Password</h2>
+          <p className="mt-1 text-sm text-steel-400">
+            {user.hasPassword
+              ? 'Change the password you sign in with. Other devices are signed out.'
+              : 'You sign in with a code. Set a password to sign in with your email as well.'}
+          </p>
+        </div>
+        <button type="button" className="btn-secondary" onClick={() => setChangingPassword(true)}>
+          {user.hasPassword ? 'Change password' : 'Set a password'}
+        </button>
+      </section>
+
+      <section className="card mt-5 flex flex-wrap items-center justify-between gap-4 p-6">
+        <div>
           <h2 className="text-base font-bold tracking-tight text-steel-50">Sign out</h2>
           <p className="mt-1 text-sm text-steel-400">
             Ends this session on this device. You will need to sign in again.
@@ -252,6 +347,15 @@ export default function Profile() {
         size="sm"
       >
         <EditProfile user={user} onClose={() => setEditing(false)} onSaved={applyUser} />
+      </Modal>
+
+      <Modal
+        open={changingPassword}
+        title={user.hasPassword ? 'Change password' : 'Set a password'}
+        onClose={() => setChangingPassword(false)}
+        size="sm"
+      >
+        <ChangePassword user={user} onClose={() => setChangingPassword(false)} />
       </Modal>
     </div>
   );

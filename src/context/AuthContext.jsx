@@ -74,6 +74,17 @@ export function AuthProvider({ children }) {
         setUser(data.user);
         return data.user;
       },
+      /**
+       * Changing the password ends every session issued before it, this one included — so the
+       * fresh token that comes back has to replace the stored one, or the next call signs the
+       * person out of the device they just changed it on.
+       */
+      async changePassword(payload) {
+        const data = await auth.changePassword(payload);
+        setToken(data.token);
+        setUser(data.user);
+        return data.user;
+      },
       logout() {
         clearToken();
         setUser(null);

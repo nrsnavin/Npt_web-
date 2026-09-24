@@ -56,3 +56,16 @@ test('converting a lead judges the enquiry by its items', () => {
   assert.match(lead, /const described = items\.filter\(filledItem\)/);
   assert.ok(!/!mould &&/.test(lead));
 });
+
+test('a person can change their own password, and stays signed in where they did it', () => {
+  /*
+   * The server had the door and nothing called it: temporary passwords an admin typed were
+   * permanent. Changing one now ends every earlier session, so the fresh token that comes back
+   * must replace the stored one or the next call signs the person out of this device too.
+   */
+  assert.match(source('pages/Profile.jsx'), /function ChangePassword/);
+  assert.match(
+    source('context/AuthContext.jsx'),
+    /async changePassword\(payload\) \{\s*const data = await auth\.changePassword\(payload\);\s*setToken\(data\.token\);/
+  );
+});
