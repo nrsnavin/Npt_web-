@@ -35,24 +35,42 @@ export function WorkspaceProvider({ children }) {
     setReminders(await workspace.todos.reminders());
   }, []);
 
+  /*
+   * The dock's four panels, each loaded on its own.
+   *
+   * This runs on every screen, so how it fails matters more than almost anything else in the
+   * app. It used to be `Promise.all` inside a try with no catch: one failed call — a 4G blip at
+   * the loading bay, a server restart — threw an uncaught error on every page load, *and* threw
+   * away the other panels that had loaded fine. Found by the audit sweep, which saw
+   * "Request failed with status code 429" surface as a page error on whatever screen it was on.
+   *
+   * `allSettled`, so a panel that fails keeps what it last showed and the others still update;
+   * and nothing escapes, because the caller is an effect that has nowhere to put an error.
+   */
   const load = useCallback(async () => {
     if (!isAuthenticated) return;
     setLoading(true);
     try {
-      const [todoResponse, reminderData, noteList] = await Promise.all([
+      const [todoResult, reminderResult, noteResult] = await Promise.allSettled([
         workspace.todos.list({ scope }),
         workspace.todos.reminders(),
         workspace.notes.list(),
       ]);
-      setTodos(todoResponse.data);
-      setTodoMeta(todoResponse.meta || {});
-      setReminders(reminderData);
-      setNotes(noteList);
+      if (todoResult.status === 'fulfilled') {
+        setTodos(todoResult.value.data);
+        setTodoMeta(todoResult.value.meta || {});
+      }
+      if (reminderResult.status === 'fulfilled') setReminders(reminderResult.value);
+      if (noteResult.status === 'fulfilled') setNotes(noteResult.value);
 
       if (mayReadAnnouncements) {
-        const response = await workspace.announcements.list();
-        setAnnouncements(response.data);
-        setAnnouncementMeta(response.meta);
+        try {
+          const response = await workspace.announcements.list();
+          setAnnouncements(response.data);
+          setAnnouncementMeta(response.meta);
+        } catch {
+          /* Keeps what it last showed; the badge is a convenience, not a record. */
+        }
       }
     } finally {
       setLoading(false);

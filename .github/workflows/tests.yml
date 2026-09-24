@@ -20,6 +20,12 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci --ignore-scripts
+      # Errors only. The build does not catch an undefined variable — Vite treats an unknown
+      # identifier as a global it cannot see yet — so a name left behind by a refactor ships and
+      # throws in front of somebody. That is exactly how lead conversion broke: `mould` was
+      # removed from the form, one reference stayed, and every conversion with an enquiry threw.
+      # The 60-odd unused-variable warnings are dead code, not failures, and stay warnings.
+      - run: npx eslint src --quiet
       - run: npm test
       - run: npm run build
 

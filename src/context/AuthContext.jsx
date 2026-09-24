@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { auth } from '../api/endpoints.js';
 import { clearToken, getToken, setToken } from '../api/client.js';
 
@@ -7,26 +7,50 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(Boolean(getToken()));
+  /* Set when the server could not be asked who this is — as opposed to answering "nobody". */
+  const [unreachable, setUnreachable] = useState(null);
 
-  useEffect(() => {
+  /*
+   * Restoring the session on load.
+   *
+   * **Only a 401 ends a session.** This used to clear the token on *any* failure of the check —
+   * a timeout, a 500, a 429, a phone losing signal at the loading bay — so reopening the app
+   * during a network blip signed the person out, and a rate-limited burst signed out whoever
+   * happened to reload. Found by the audit sweep: one role's later calls all came back 401
+   * because the app had thrown a perfectly valid session away.
+   *
+   * A 401 is the server saying the token is no good, and the client interceptor already clears
+   * it. Anything else means the question went unanswered, so the token is kept and the screen
+   * offers to try again rather than sending the person to a login they do not need.
+   */
+  const restore = useCallback(() => {
     if (!getToken()) {
       setLoading(false);
       return;
     }
-
-    // Restore the session on reload; the interceptor clears a rejected token.
+    setLoading(true);
+    setUnreachable(null);
     auth
       .me()
       .then(setUser)
-      .catch(() => clearToken())
+      .catch((failure) => {
+        if (failure?.response?.status === 401) return;
+        setUnreachable(failure);
+      })
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    restore();
+  }, [restore]);
 
   const value = useMemo(
     () => ({
       user,
       loading,
       isAuthenticated: Boolean(user),
+      unreachable,
+      retrySession: restore,
       async login(credentials) {
         const data = await auth.login(credentials);
         setToken(data.token);
@@ -82,7 +106,7 @@ export function AuthProvider({ children }) {
       /** Replaces the cached user after a profile update. */
       applyUser: setUser,
     }),
-    [user, loading]
+    [user, loading, unreachable, restore]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

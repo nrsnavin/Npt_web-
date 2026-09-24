@@ -57,7 +57,14 @@ export default function CustomerDetail() {
   if (!data) return null;
 
   const { customer, timeline } = data;
-  const mayWrite = canWrite('customers');
+  /*
+   * The module grant *and* the account. A customer can reach somebody's screen through a query
+   * that shared it with them — which lets them read it, not change it — and the server refuses
+   * that edit. Offering the button anyway ended in "Customer not found" while the customer was
+   * on the screen. Found by the audit: a second marketing person, sharing a thread about a
+   * colleague's buyer, could press Edit and Save and be told the buyer did not exist.
+   */
+  const mayWrite = canWrite('customers') && ownsRecord(user, customer);
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -126,7 +133,7 @@ export default function CustomerDetail() {
               title="Site"
               actions={
                 /* The owner's, like the pin itself — offered to nobody the server would refuse. */
-                mayWrite && ownsRecord(user, customer) && (
+                mayWrite && (
                   <button
                     type="button"
                     className="text-xs font-semibold text-steel-500 hover:text-danger-400"

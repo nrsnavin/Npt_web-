@@ -455,7 +455,6 @@ export default function ItemCards({
             items have no id until they are saved, and the alternative is a generated key that
             changes on every keystroke and blurs the field somebody is typing in.
           */
-          // eslint-disable-next-line react/no-array-index-key
           <ItemCard
             key={index}
             item={row}

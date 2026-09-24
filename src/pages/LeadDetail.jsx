@@ -11,7 +11,7 @@ import HistoryPanel from '../components/HistoryPanel.jsx';
 import LeadLog from '../components/LeadLog.jsx';
 import EnquiryFields from '../components/EnquiryFields.jsx';
 import SampleRequestForm from '../components/SampleRequestForm.jsx';
-import { itemsForSave } from '../components/ItemCards.jsx';
+import { filledItem, itemsForSave } from '../components/ItemCards.jsx';
 import LeadForm from '../components/LeadForm.jsx';
 import { formatCompactCurrency, formatDate, formatNumber } from '../utils/format.js';
 import {
@@ -120,24 +120,34 @@ function ConvertForm({ lead, onClose, onConverted, startWithEnquiry = true }) {
         mobile: lead.mobile,
         email: lead.email,
       },
-      enquiry: { requirement: { modelNumber: '' } },
     },
   });
 
   const submit = async (values) => {
     setError(null);
 
-    if (
-      withEnquiry &&
-      !mould &&
-      !isNewDevelopment &&
-      !values.enquiry?.requirement?.modelNumber?.trim()
-    ) {
-      setError({
-        message:
-          'Name the mould, or give the model number the buyer asked for, or mark the enquiry as a new development.',
-      });
-      return;
+    /*
+     * Judged on the items, because the items are what is sent. This used to test `mould` and
+     * `isNewDevelopment` — state that moved onto each item when the enquiry became a list — and
+     * the leftover names threw a ReferenceError on every conversion with an enquiry: the press
+     * did nothing and said nothing. Same rule as the enquiry form, said per item.
+     */
+    if (withEnquiry) {
+      const described = items.filter(filledItem);
+      if (!described.length) {
+        setError({ message: 'Say what the buyer asked about — fill in at least one item.' });
+        return;
+      }
+      const vague = described.findIndex(
+        (item) => !item.mould && !item.isNewDevelopment && !item.modelNumber?.trim()
+      );
+      if (vague >= 0) {
+        setError({
+          message: `Item ${vague + 1}: name the mould, or give the model number the buyer asked `
+            + 'for, or mark it as a new development.',
+        });
+        return;
+      }
     }
 
     const payload = {

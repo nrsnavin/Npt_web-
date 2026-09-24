@@ -91,10 +91,28 @@ function RequireModule({ moduleKey, children }) {
 
 /** Sends anyone without a session to the login screen, remembering where they were headed. */
 function RequireAuth({ children }) {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, unreachable, retrySession } = useAuth();
   const location = useLocation();
 
   if (loading) return <Spinner label="Restoring your session" />;
+  /*
+   * The server could not be asked, which is not the same as being told no. The session is kept
+   * and the person is offered a retry — sending them to the login page for a network blip is
+   * how a flaky connection turns into "the app keeps logging me out".
+   */
+  if (!isAuthenticated && unreachable) {
+    return (
+      <div className="mx-auto mt-24 max-w-md px-4 text-center">
+        <p className="text-base font-bold text-steel-50">Could not reach the server</p>
+        <p className="mt-2 text-sm text-steel-400">
+          You are still signed in. Check the connection, then try again.
+        </p>
+        <button type="button" className="btn-primary mt-5" onClick={retrySession}>
+          Try again
+        </button>
+      </div>
+    );
+  }
   if (!isAuthenticated) return <Navigate to="/login" state={{ from: location.pathname }} replace />;
 
   return children;
