@@ -43,9 +43,8 @@ export default function QuoteFromCosting({ pricing, lines, onClose, onQuoted }) 
    * the screen already worked it out (it knows what has been quoted); the fallback is every
    * approved line, which is right wherever nothing has gone out.
    *
-   * The rate and the minimum below apply to a single model — on a sheet of five, "offer all
-   * five at this price" is not something anybody means, so those are edited on the quotation
-   * afterwards, model by model.
+   * On a sheet of several, each model's rate and minimum is its own field below — "offer all
+   * five at this price" is not something anybody means.
    */
   const quotable =
     lines
@@ -58,6 +57,18 @@ export default function QuoteFromCosting({ pricing, lines, onClose, onQuoted }) 
   const [unitPrice, setUnitPrice] = useState(
     (only?.approvedSellingPrice ?? pricing.approvedSellingPrice) ?? ''
   );
+  /*
+   * Each model's rate and minimum, on a sheet of several — prefilled from the approved price and
+   * the tool's own minimum, and editable here rather than only on the quotation afterwards. A
+   * rate below the floor is allowed on a draft; sending it asks for approval, as any edit does.
+   */
+  const [perLine, setPerLine] = useState(() =>
+    Object.fromEntries(
+      quotable.map((row) => [row._id, { unitPrice: row.approvedSellingPrice ?? '', moq: row.mould?.moq || '' }])
+    )
+  );
+  const setLine = (id, field, value) =>
+    setPerLine((current) => ({ ...current, [id]: { ...current[id], [field]: value } }));
   const [gstPercent, setGst] = useState(18);
   const [isExport, setExport] = useState(false);
   const [paymentTerms, setPayment] = useState('');
@@ -133,6 +144,15 @@ export default function QuoteFromCosting({ pricing, lines, onClose, onQuoted }) 
            on a sheet of several each line keeps the rate and the minimum it was priced at. */
         moq: single && moq !== '' ? Number(moq) : undefined,
         unitPrice: single && unitPrice !== '' ? Number(unitPrice) : undefined,
+        ...(single
+          ? {}
+          : {
+              lines: quotable.map((row) => ({
+                pricingLine: row._id,
+                unitPrice: perLine[row._id]?.unitPrice !== '' ? Number(perLine[row._id]?.unitPrice) : undefined,
+                moq: perLine[row._id]?.moq !== '' ? Number(perLine[row._id]?.moq) : undefined,
+              })),
+            }),
         /* The terms belong to the document, so a draft keeps its own: one validity and one set
            of payment terms for every model on it, which is what makes it one offer. */
         ...(target
@@ -203,7 +223,14 @@ export default function QuoteFromCosting({ pricing, lines, onClose, onQuoted }) 
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Unit price" hint="From the costing. Change it and the floor is re-checked">
+            <Field
+              label="Unit price"
+              hint={
+                unitPrice !== '' && Number(unitPrice) < Number(only?.approvedSellingPrice ?? pricing.approvedSellingPrice)
+                  ? 'Below the approved price — if it is under the floor, management must approve it before it can be sent'
+                  : 'From the costing, and yours to change. The floor is checked when it is sent'
+              }
+            >
               <input
                 type="number"
                 step="0.01"
@@ -236,33 +263,54 @@ export default function QuoteFromCosting({ pricing, lines, onClose, onQuoted }) 
         </>
       ) : (
         /*
-          Several models, so the rates are shown rather than asked for: each carries the price
-          it was approved at and the minimum off its own tool. A single box here would be one
-          number standing for five different hangers, and whichever of them it fits, it is
-          wrong for the other four. They are editable on the quotation, line by line.
+          Several models, each with its own rate and minimum, prefilled from what was approved
+          and from its own tool. Edited model by model — one box for all of them would be one
+          number standing for five different hangers.
         */
         <div className="rounded-lg border border-line/[0.06] bg-line/[0.02] px-3.5 py-3">
           <p className="eyebrow mb-2">Going on the quotation</p>
-          <ul className="space-y-1.5">
-            {quotable.map((row) => (
-              <li key={row._id} className="flex items-baseline justify-between gap-4 text-sm">
-                <span className="min-w-0 truncate text-steel-200">
-                  {row.modelNumber || 'Unnamed model'}
-                </span>
-                <span className="shrink-0 tabular-nums text-steel-100">
-                  {rupees(row.approvedSellingPrice)}
-                  {row.mould?.moq ? (
-                    <span className="ml-2 text-xs text-steel-500">
-                      min {formatNumber(row.mould.moq)}
+          <div className="mb-1 grid grid-cols-[minmax(0,1fr)_6.5rem_6.5rem] gap-2 text-xs text-steel-500">
+            <span>Model · approved</span>
+            <span>Rate (₹)</span>
+            <span>Minimum</span>
+          </div>
+          <ul className="space-y-2">
+            {quotable.map((row) => {
+              const rate = perLine[row._id]?.unitPrice;
+              const under = rate !== '' && rate !== undefined && Number(rate) < Number(row.approvedSellingPrice);
+              return (
+                <li key={row._id} className="grid grid-cols-[minmax(0,1fr)_6.5rem_6.5rem] items-center gap-2 text-sm">
+                  <span className="min-w-0">
+                    <span className="block truncate text-steel-200">{row.modelNumber || 'Unnamed model'}</span>
+                    <span className={`text-xs tabular-nums ${under ? 'text-warn-400' : 'text-steel-500'}`}>
+                      {rupees(row.approvedSellingPrice)}{under ? ' · below approved' : ''}
                     </span>
-                  ) : null}
-                </span>
-              </li>
-            ))}
+                  </span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    className="input py-1.5 tabular-nums"
+                    aria-label={`Rate for ${row.modelNumber || 'this model'}`}
+                    value={rate ?? ''}
+                    onChange={(event) => setLine(row._id, 'unitPrice', event.target.value)}
+                  />
+                  <input
+                    type="number"
+                    min="0"
+                    className="input py-1.5 tabular-nums"
+                    aria-label={`Minimum for ${row.modelNumber || 'this model'}`}
+                    value={perLine[row._id]?.moq ?? ''}
+                    onChange={(event) => setLine(row._id, 'moq', event.target.value)}
+                  />
+                </li>
+              );
+            })}
           </ul>
           <p className="mt-2.5 text-xs text-steel-500">
-            Each rate is the price it was approved at, and each minimum is its own tool&rsquo;s.
-            Change either on the quotation once it is raised.
+            Each rate starts at the price it was approved at, and each minimum at its own tool&rsquo;s.
+            A rate under the floor is kept as a draft, and management must approve it before it
+            can be sent.
             {(() => {
               const held = (pricing.lines?.length || 0) - quotable.length;
               if (held <= 0) return '';

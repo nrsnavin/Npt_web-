@@ -177,9 +177,18 @@ export default function PricingDetail() {
         ).toFixed(2)}g runner share, ${mould.runningCavities ?? mould.cavities} up`
       : null;
 
+  /*
+   * The resin this line was costed on, by name. The breakdown said "Raw material" and a figure;
+   * which resin that figure is — the register entry chosen while costing, and its rate — was
+   * only in a side panel, away from the number it explains.
+   */
+  const resin = line.materialRef
+    ? `${line.materialRef.name}${line.materialRef.code ? ` (${line.materialRef.code})` : ''}`
+    : line.material?.toUpperCase() || null;
+
   const costLines = [
     {
-      label: 'Raw material',
+      label: resin ? `Raw material — ${resin}` : 'Raw material',
       hint:
         cost.gramWeight && cost.rawMaterialRate
           ? `${cost.gramWeight}g × ₹${cost.rawMaterialRate}/kg ÷ 1000`
