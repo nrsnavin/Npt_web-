@@ -41,6 +41,8 @@ export function useParticipantOptions() {
   /* What the model can do in this deployment — see `queries.options`. Empty until it answers,
      so a button that depends on it is simply not drawn rather than drawn and then withdrawn. */
   const [can, setCan] = useState({});
+  /* Administrators, department or not, so they can be tagged — see `queries.options`. */
+  const [admins, setAdmins] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -51,6 +53,7 @@ export function useParticipantOptions() {
         if (!live) return;
         setOptions(answer.departments || []);
         setCan(answer.can || {});
+        setAdmins(answer.admins || []);
       })
       /* A picker that cannot load is a form that cannot be filled, and the submit will say so
          plainly. Failing quietly here beats an error banner over a dialog somebody just opened. */
@@ -61,7 +64,7 @@ export function useParticipantOptions() {
     };
   }, []);
 
-  return { options, can, loading };
+  return { options, can, admins, loading };
 }
 
 /**

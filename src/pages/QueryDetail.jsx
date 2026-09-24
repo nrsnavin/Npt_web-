@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { customers as customersApi, queries as queriesApi } from '../api/endpoints.js';
 import { useRecord } from '../hooks/useRecords.js';
@@ -59,6 +59,18 @@ export default function QueryDetail() {
   const box = useRef(null);
   const [picked, setPicked] = useState([]);
   const [tagging, setTagging] = useState(null);
+  /*
+   * Where the caret goes after a name is picked. Placed in a layout effect, in the same commit
+   * as the new text, rather than a frame later — a fast typist's next key otherwise lands before
+   * the caret has moved, in the middle of the name just inserted.
+   */
+  const caretAfterTag = useRef(null);
+  useLayoutEffect(() => {
+    if (caretAfterTag.current === null || !box.current) return;
+    box.current.focus();
+    box.current.setSelectionRange(caretAfterTag.current, caretAfterTag.current);
+    caretAfterTag.current = null;
+  });
   /* A location waiting to go with the next message — shown to the sender before it is sent. */
   const here = useCurrentLocation();
   /* Which check-in is being pinned, and which one is the buyer's site once it is. */
@@ -68,8 +80,8 @@ export default function QueryDetail() {
   const [adding, setAdding] = useState(false);
   const [granted, setGranted] = useState(null);
 
-  const { options, can, loading: loadingOptions } = useParticipantOptions();
-  const people = taggablePeople(options, selfId(user));
+  const { options, can, admins, loading: loadingOptions } = useParticipantOptions();
+  const people = taggablePeople(options, selfId(user), admins);
   /* A draft, once one has been asked for. Held here rather than written into the box directly,
      so what it needed checking is shown beside the text somebody is about to send. */
   const [suggestion, setSuggestion] = useState(null);
@@ -140,10 +152,7 @@ export default function QueryDetail() {
     setBody(next.text);
     setPicked((current) => (current.some((row) => row._id === person._id) ? current : [...current, person]));
     setTagging(null);
-    requestAnimationFrame(() => {
-      box.current?.focus();
-      box.current?.setSelectionRange(next.caret, next.caret);
-    });
+    caretAfterTag.current = next.caret;
   };
 
   const fix = here.status === 'ready' ? here.fix : null;

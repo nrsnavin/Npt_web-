@@ -38,6 +38,17 @@ test('first names match first, then anywhere in the name; the reader is never of
   assert.deepEqual(matchPeople(people, 'ita').map((person) => person.name), ['Anita P']);
 });
 
+test('administrators can be tagged, even with no department of their own', () => {
+  const people = taggablePeople(
+    [{ label: 'Marketing', people: [arun] }, { label: 'Management', people: [{ _id: 'm1', name: 'Navin R' }] }],
+    'me',
+    [{ _id: 'm1', name: 'Navin R', department: 'management' }, { _id: 'x1', name: 'Owner Admin', department: null }]
+  );
+  assert.equal(people.filter((person) => person._id === 'm1').length, 1, 'listed once, under their department');
+  assert.deepEqual(people.find((person) => person._id === 'x1'), { _id: 'x1', name: 'Owner Admin', department: 'Administrator' });
+  assert.deepEqual(matchPeople(people, 'own').map((person) => person.name), ['Owner Admin']);
+});
+
 test('only people still named in the message are sent', () => {
   assert.deepEqual(mentionsIn('@Arun K please check', [arun, anita]), ['a1'], 'Anita was picked, then deleted');
   assert.deepEqual(mentionsIn('@Arun K and @Arun K again', [arun]), ['a1']);

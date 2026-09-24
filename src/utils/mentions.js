@@ -18,13 +18,21 @@ export function mentionAt(text, caret) {
   return { start: before.length - match[2].length - 1, typed: match[2] };
 }
 
-/** Everybody on the pickers, flattened, with their department's label; me left out. */
-export function taggablePeople(departments = [], me) {
-  return departments.flatMap((department) =>
-    (department.people || [])
-      .filter((person) => String(person._id) !== String(me))
-      .map((person) => ({ _id: person._id, name: person.name, department: department.label }))
+/**
+ * Everybody on the pickers, flattened, with their department's label; me left out. Administrators
+ * are added too — an admin with no department is on no department's list, and is often the one
+ * who has to decide — labelled by their department when they have one, "Administrator" if not.
+ */
+export function taggablePeople(departments = [], me, admins = []) {
+  const people = departments.flatMap((department) =>
+    (department.people || []).map((person) => ({ _id: person._id, name: person.name, department: department.label }))
   );
+  for (const admin of admins) {
+    if (!people.some((person) => String(person._id) === String(admin._id))) {
+      people.push({ _id: admin._id, name: admin.name, department: 'Administrator' });
+    }
+  }
+  return people.filter((person) => String(person._id) !== String(me));
 }
 
 /** Who matches what has been typed after @ — first names first, then anywhere in the name. */

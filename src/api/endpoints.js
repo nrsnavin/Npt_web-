@@ -197,6 +197,7 @@ export const queries = {
   options: () => api.get('/queries/options').then((response) => ({
     departments: response.data.data,
     can: response.data.can || {},
+    admins: response.data.admins || [],
   })),
   create: (payload) => api.post('/queries', payload).then(unwrap),
   say: ({ id, ...payload }) => api.post(`/queries/${id}/messages`, payload).then(unwrap),
