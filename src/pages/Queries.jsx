@@ -14,6 +14,7 @@ import { CustomerSelect } from '../components/pickers.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { selfId } from '../utils/pipeline.js';
 import { plural } from '../utils/format.js';
+import { LabelChip } from '../components/QueryLabels.jsx';
 
 /**
  * Every question this person is in.
@@ -148,6 +149,35 @@ function useModelReadings(rows, enabled) {
   return readings;
 }
 
+/**
+ * The model's line for each row, over the thread's own words each row arrived with.
+ *
+ * The same shape as `useModelReadings` and for the same reason: the rows draw at once with the
+ * rules' line and this improves them a moment later, so a list is never waiting on a model.
+ */
+function useModelLines(rows, enabled) {
+  const [lines, setLines] = useState({});
+  const ids = rows.map((row) => row._id).join(',');
+
+  useEffect(() => {
+    setLines({});
+    if (!enabled || !ids) return undefined;
+
+    let live = true;
+    queriesApi
+      .summaries(ids.split(','))
+      .then((answer) => live && setLines(answer || {}))
+      .catch(() => {});
+
+    return () => {
+      live = false;
+    };
+  }, [ids, enabled]);
+
+  return lines;
+}
+
+
 export default function Queries() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState('');
@@ -157,6 +187,8 @@ export default function Queries() {
   const [person, setPerson] = useState('');
   /* Only the threads I have been tagged in — "who needs me", asked in one press. */
   const [taggedOnly, setTaggedOnly] = useState(false);
+  /* One label's group, from the chip bar. */
+  const [label, setLabel] = useState('');
   const [page, setPage] = useState(1);
   const [asking, setAsking] = useState(false);
   /*
@@ -215,9 +247,10 @@ export default function Queries() {
       person: person || undefined,
       customer,
       tagged: taggedOnly ? 'me' : undefined,
+      label: label || undefined,
       ai: wordsOnly ? 'false' : undefined,
     }),
-    [page, term, status, department, person, customer, taggedOnly, wordsOnly, mode]
+    [page, term, status, department, person, customer, taggedOnly, label, wordsOnly, mode]
   );
 
   const { data, pagination, meta, loading, error, reload } = useRecordList(queriesApi.list, params);
@@ -226,6 +259,15 @@ export default function Queries() {
      with. Asked for only where there is a key behind it — see `useModelReadings`. */
   const readings = useModelReadings(data, Boolean(can.readUrgency));
   const urgencyOf = (row) => readings[row._id] || row.urgency;
+  /* The line under each row: the model's once it has read the page, the thread's own till then. */
+  const modelLines = useModelLines(data, Boolean(can.readUrgency));
+  /* The thread's own words add nothing to a thread that is still only its question — the row
+     already shows that — so the line waits until there is a reply or the model's reading. */
+  const lineOf = (row) => {
+    const line = modelLines[row._id] || row.gist;
+    if (line?.writtenBy !== 'model' && !(row.messages || []).length) return null;
+    return line;
+  };
 
   /* What the phrase was taken to mean, when it was read at all. Absent on every plain search
      and whenever no key is configured, which is the ordinary case. */
@@ -273,6 +315,28 @@ export default function Queries() {
           >
             @ Tagged me{meta?.taggedOpen ? ` · ${meta.taggedOpen}` : ''}
           </button>
+
+          {/*
+            The groups, with how many live threads are in each. Counted over everything the
+            reader can see rather than the current page, so the bar holds still while somebody
+            clicks through it. A label nobody can see is not offered.
+          */}
+          {(meta?.labels || []).map((entry) => (
+            <LabelChip
+              key={entry.label}
+              label={entry.label}
+              count={entry.count}
+              active={label === entry.label}
+              onClick={() => {
+                setLabel((current) => (current === entry.label ? '' : entry.label));
+                setPage(1);
+              }}
+            />
+          ))}
+          {/* A chosen label whose last open thread was closed still needs a way to be dropped. */}
+          {label && !(meta?.labels || []).some((entry) => entry.label === label) && (
+            <LabelChip label={label} active onClick={() => { setLabel(''); setPage(1); }} />
+          )}
         </div>
         <input
           className="input"
@@ -512,7 +576,29 @@ export default function Queries() {
                       </span>
                     </div>
 
+                    {/*
+                      Where the thread stands, in a line. The model's when it has read the page,
+                      and marked so — it is a reading of the thread, not part of it, and the
+                      thread itself is one press away. The thread's own words otherwise.
+                    */}
+                    {lineOf(row)?.summary && (
+                      <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-steel-400">
+                        {lineOf(row).writtenBy === 'model' && (
+                          <span
+                            className="mr-1.5 rounded bg-aqua-500/15 px-1 py-px text-[0.65rem] font-bold uppercase tracking-wide text-aqua-300"
+                            title="Summarised by AI from the thread — open it to read every message"
+                          >
+                            AI
+                          </span>
+                        )}
+                        {lineOf(row).summary}
+                      </p>
+                    )}
+
                     <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+                      {(row.labels || []).map((name) => (
+                        <LabelChip key={name} label={name} active={name === label} />
+                      ))}
                       {/* Flagged by an administrator — why this row is at the top. */}
                       {row.isUrgent && <Badge tone="danger">Urgent</Badge>}
                       <Urgency reading={urgencyOf(row)} />

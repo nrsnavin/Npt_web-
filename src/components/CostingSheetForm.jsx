@@ -3,6 +3,7 @@ import { components as componentsApi, materials as materialsApi, moulds as mould
 import { Field, Notice } from './ui.jsx';
 import Combobox from './Combobox.jsx';
 import { MINIMUM_TIER, STANDARD_TIERS, priceAt as priceFor } from '../utils/pricing.js';
+import { changedParts } from '../utils/pricing.js';
 
 /**
  * The costing sheet, shared by the list and the costing's own page.
@@ -208,6 +209,20 @@ export default function CostingSheetForm({ pricing, line, onClose, onSaved }) {
    */
   const belowCost = minimumOverride !== '' && total > 0 && Number(minimumOverride) < total;
 
+  /*
+   * The register entries picked on this sheet — the tool, the resin, the hook, the clips, the
+   * print job.
+   *
+   * These were never sent. The pickers filled the rates onto the lines, the rates were saved, and
+   * the choice itself was dropped — so the detail page, the review step and the quote had no
+   * resin, hook, clip or print to name, and re-opening the sheet showed the pickers empty again.
+   *
+   * Only what changed goes, and a cleared picker goes as `null`. Sending an unchanged choice
+   * would make the server refill every line from the registers, and a figure somebody typed for
+   * this particular job would be overwritten by a picker nobody touched.
+   */
+  const chosenParts = () => changedParts({ mould, materialRef, hookRef, clipRef, printRef }, row);
+
   const submit = async (event) => {
     event.preventDefault();
     setBusy(true);
@@ -227,6 +242,7 @@ export default function CostingSheetForm({ pricing, line, onClose, onSaved }) {
           approvedSellingPrice: number(approved),
           printing: printing || undefined,
           procurement,
+          ...chosenParts(),
         })
       );
       onClose();

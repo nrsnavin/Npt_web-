@@ -3,6 +3,7 @@ import { pricings as pricingsApi, quotations as quotationsApi } from '../api/end
 import { Field, Notice } from './ui.jsx';
 import { formatDate, formatNumber } from '../utils/format.js';
 import { inDays } from '../utils/pipeline.js';
+import { costedWith } from '../utils/pricing.js';
 
 /* Two decimals, because a rate per piece is quoted in paise and ₹8.3 is not a price anybody
    writes. Matching the costing screens this form is opened from rather than the order screens,
@@ -282,6 +283,9 @@ export default function QuoteFromCosting({ pricing, lines, onClose, onQuoted }) 
                 <li key={row._id} className="grid grid-cols-[minmax(0,1fr)_6.5rem_6.5rem] items-center gap-2 text-sm">
                   <span className="min-w-0">
                     <span className="block truncate text-steel-200">{row.modelNumber || 'Unnamed model'}</span>
+                    {costedWith(row) && (
+                      <span className="block truncate text-xs text-steel-400">{costedWith(row)}</span>
+                    )}
                     <span className={`text-xs tabular-nums ${under ? 'text-warn-400' : 'text-steel-500'}`}>
                       {rupees(row.approvedSellingPrice)}{under ? ' · below approved' : ''}
                     </span>

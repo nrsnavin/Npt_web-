@@ -1,6 +1,6 @@
 import { Badge } from './ui.jsx';
 import { humanise } from '../utils/format.js';
-import { rupees } from '../utils/pricing.js';
+import { costedWith, rupees } from '../utils/pricing.js';
 
 /**
  * Pricing a sheet of several models, one at a time, ending in what may be offered.
@@ -168,6 +168,9 @@ export function StepReview({ lines, quotable, alreadyOut, onQuote, mayQuote }) {
                 <p className="text-sm font-semibold text-steel-100">
                   {line.modelNumber || `Model ${index + 1}`}
                 </p>
+                {costedWith(line) && (
+                  <p className="mt-0.5 text-xs text-steel-400">{costedWith(line)}</p>
+                )}
                 <p className="mt-0.5 text-xs text-steel-500">
                   {approved
                     ? (out

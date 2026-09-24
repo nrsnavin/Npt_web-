@@ -16,6 +16,7 @@ import { ownsRecord, selfId } from '../utils/pipeline.js';
 import useCurrentLocation from '../hooks/useCurrentLocation.js';
 import { WORST_ACCURACY_M, accuracyLabel, mapsUrl } from '../utils/maps.js';
 import { insertMention, matchPeople, mentionAt, mentionsIn, taggablePeople } from '../utils/mentions.js';
+import QueryLabels from '../components/QueryLabels.jsx';
 
 /**
  * One thread: what was asked, who is in it, and everything said since.
@@ -299,6 +300,9 @@ export default function QueryDetail() {
           </div>
         }
       />
+
+      {/* Filing the thread under the list's groups. Anybody who can see it may. */}
+      <QueryLabels query={query} onSaved={() => reload()} />
 
       <FormError error={error} />
 

@@ -75,3 +75,33 @@ export function priceAt(cost, percent, step = PRICE_STEP) {
 /** The three standing prices for a cost, as `{ 10: 12.2, 15: 12.75, 20: 13.3 }`. */
 export const tiersFor = (cost) =>
   Object.fromEntries(STANDARD_TIERS.map((percent) => [percent, priceAt(cost, percent)]));
+
+/**
+ * What a costed model was built from, in one line: "HIPS Natural · Fixed PP hook · Metal clip
+ * pair · 1 colour screen". Only the parts that were chosen; empty when none were, so a screen can
+ * leave the line out rather than print an empty one.
+ */
+export const costedWith = (line) =>
+  [
+    line?.materialRef?.name || (line?.material ? String(line.material).toUpperCase() : null),
+    line?.hookRef?.name,
+    line?.clipRef?.name,
+    line?.printRef?.name,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
+/**
+ * The register choices on a costing sheet that differ from what is saved on the line — the only
+ * ones worth sending. An unchanged choice sent again makes the server refill every cost line from
+ * the registers, overwriting a figure somebody typed for this job; a cleared one goes as `null`
+ * so the server detaches it rather than ignoring the absence.
+ */
+export const changedParts = (picked, saved = {}) => {
+  const idOf = (value) => value?._id ?? value ?? '';
+  return Object.fromEntries(
+    Object.entries(picked)
+      .filter(([key, value]) => (value || '') !== idOf(saved[key]))
+      .map(([key, value]) => [key, value || null])
+  );
+};

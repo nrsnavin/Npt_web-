@@ -182,6 +182,9 @@ export default function PricingDetail() {
    * which resin that figure is — the register entry chosen while costing, and its rate — was
    * only in a side panel, away from the number it explains.
    */
+  const partLabel = (label, part) =>
+    part?.name ? `${label} — ${part.name}${part.code ? ` (${part.code})` : ''}` : label;
+
   const resin = line.materialRef
     ? `${line.materialRef.name}${line.materialRef.code ? ` (${line.materialRef.code})` : ''}`
     : line.material?.toUpperCase() || null;
@@ -197,9 +200,11 @@ export default function PricingDetail() {
       note: fromTool,
     },
     { label: 'Job work', value: cost.jobWorkCost },
-    { label: 'Hook', value: cost.hookCost },
-    { label: 'Metal clips', value: cost.metalClipsCost },
-    { label: 'Print price', value: cost.printingCost },
+    /* Each part named beside its figure, as the resin is — which hook, which clips, which print
+       job the sheet was costed with, so the number can be checked against the register. */
+    { label: partLabel('Hook', line.hookRef), value: cost.hookCost },
+    { label: partLabel('Metal clips', line.clipRef), value: cost.metalClipsCost },
+    { label: partLabel('Print price', line.printRef), value: cost.printingCost },
     { label: 'Packing', value: cost.packingCost },
     { label: 'Anything else', value: cost.otherCost },
   ];
@@ -668,6 +673,7 @@ export default function PricingDetail() {
                 label="Trade or manufacture"
                 value={line.procurement && humanise(line.procurement)}
               />
+              <Fact label="Print job" value={line.printRef?.name} />
               <Fact label="Printing" value={line.printing} />
               <Fact label="Asked by" value={pricing.requestedBy?.name} />
               <Fact label="Asked on" value={formatDate(pricing.requestedAt)} />
