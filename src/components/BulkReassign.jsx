@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { bulk, users as usersApi } from '../api/endpoints.js';
 import { Field, Modal, Notice } from './ui.jsx';
+import { mayHoldBuyers } from '../utils/pipeline.js';
 
 /**
  * Moving a batch of records to another owner.
@@ -87,7 +88,8 @@ export default function BulkBar({ collection, selection, noun = 'records', onDon
     if (!open || team.length) return;
     usersApi
       .list({ isActive: true, limit: 100 })
-      .then((response) => setTeam(response.data || []))
+      /* Only people who may hold a buyer: marketing, or an administrator. */
+      .then((response) => setTeam((response.data || []).filter(mayHoldBuyers)))
       .catch(() => setTeam([]));
   }, [open, team.length]);
 

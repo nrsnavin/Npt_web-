@@ -6,6 +6,7 @@ import {
   Badge, ConfirmDialog, Field, FormError, Modal, Notice, PageHeader, Pagination, Spinner,
 } from '../components/ui.jsx';
 import { formatDate, humanise } from '../utils/format.js';
+import { mayHoldBuyers } from '../utils/pipeline.js';
 import { SortHeader, useSort } from '../components/SortHeader.jsx';
 
 /** Grants are edited as a map of module key to level, then flattened on save. */
@@ -658,7 +659,11 @@ function OffboardUser({ user, onClose, onSaved }) {
     setError(null);
     try {
       const [held, list] = await Promise.all([usersApi.workload(user.id), usersApi.list({ isActive: true, limit: 100 })]);
-      setWorkload(held); setColleagues(list.data.filter((row) => row.id !== user.id && row.isActive));
+      /* A book holding buyers goes to marketing or an administrator — the server refuses anyone
+         else, so the picker offers only them. Bench work alone may go to any colleague. */
+      const buyers = ['customers', 'leads', 'enquiries', 'quotations', 'orders'].some((key) => held[key] > 0);
+      setWorkload(held);
+      setColleagues(list.data.filter((row) => row.id !== user.id && row.isActive && (!buyers || mayHoldBuyers(row))));
     } catch (err) { setError(err); }
   };
   useEffect(() => { load(); }, [user.id]);

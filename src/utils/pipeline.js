@@ -642,3 +642,10 @@ export const DEPARTMENTS = [
 export const departmentLabel = (key) =>
   DEPARTMENTS.find((department) => department.key === key)?.label ||
   String(key || '').replace(/_/g, ' ');
+
+/**
+ * Whether somebody may hold a buyer — own a lead, customer, enquiry or quotation. The server's
+ * rule, mirrored so pickers only offer people it will accept: marketing, or an administrator.
+ */
+export const mayHoldBuyers = (person) =>
+  Boolean(person) && person.isActive !== false && (person.role === 'admin' || person.department === 'marketing');
