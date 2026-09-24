@@ -68,6 +68,69 @@ export const ON_THE_BENCH_STAGES = [
   'sample_ready',
 ];
 
+/**
+ * How far along the run each working stage is — the server's `SAMPLE_STAGE_RANK`, mirrored.
+ *
+ * Stock found and production needed share a rank: they are the two answers to one question,
+ * so swapping one for the other is a correction. The customer's answers and cancelled are off
+ * the run; a request sent back for modification starts the bench again, which is not a fall.
+ */
+export const SAMPLE_STAGE_RANK = {
+  request_received: 0,
+  checking_stock: 1,
+  sample_available: 2,
+  production_required: 2,
+  printing_required: 3,
+  sample_ready: 4,
+  dispatched: 5,
+  delivered: 6,
+  customer_feedback_pending: 7,
+};
+
+/** Whether a move goes back along the run, which the server refuses without a reason. */
+export const isBackwardSampleMove = (from, to) =>
+  from in SAMPLE_STAGE_RANK && to in SAMPLE_STAGE_RANK && SAMPLE_STAGE_RANK[to] < SAMPLE_STAGE_RANK[from];
+
+/** The shortest reason the server takes for a step back. */
+export const BACKWARD_REASON_MIN = 5;
+
+/** What each stage means, in the words on the button that moves a sample there. */
+export const SAMPLE_STAGE_HINTS = {
+  request_received: 'Back in the queue, not started',
+  checking_stock: 'Look for a piece in stock',
+  sample_available: 'A piece is in stock',
+  production_required: 'Nothing in stock — mould it',
+  printing_required: 'Needs printing before it goes',
+  sample_ready: 'Made, checked and packed',
+  dispatched: 'Sent — courier and AWB needed',
+  delivered: 'It has reached the customer',
+  customer_feedback_pending: 'Waiting on their answer',
+  cancelled: 'Stop work — no longer wanted',
+};
+
+/**
+ * The moves on offer from a stage, sorted the way the stage panel lays them out: onward first
+ * with the nearest step leading, then the steps back (each needing a reason), then cancelling.
+ */
+export const sampleMovesFrom = (current) => {
+  const moves = nextSampleStagesFrom(current);
+  const rank = SAMPLE_STAGE_RANK[current];
+  const onward = moves
+    .filter((stage) => stage.value !== 'cancelled' && !isBackwardSampleMove(current, stage.value))
+    .sort((a, b) => (SAMPLE_STAGE_RANK[a.value] ?? 0) - (SAMPLE_STAGE_RANK[b.value] ?? 0));
+  /* The nearest onward step is the one the bench almost always wants. From a stage off the run
+     (sent back for modification) the whole bench is ahead, so the first stage leads. */
+  const nearest = onward.find((stage) => rank === undefined || SAMPLE_STAGE_RANK[stage.value] > rank);
+  return {
+    onward,
+    recommended: nearest?.value || onward[0]?.value || null,
+    back: moves
+      .filter((stage) => isBackwardSampleMove(current, stage.value))
+      .sort((a, b) => SAMPLE_STAGE_RANK[b.value] - SAMPLE_STAGE_RANK[a.value]),
+    cancel: moves.some((stage) => stage.value === 'cancelled'),
+  };
+};
+
 /** The sample stages that have something to tell the customer [§42.5]. */
 export const NOTIFIABLE_STAGES = {
   sample_ready: 'sample_ready',

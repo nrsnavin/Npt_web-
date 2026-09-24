@@ -15,9 +15,10 @@ import ItemList from '../components/ItemList.jsx';
 import { formatDate, formatNumber } from '../utils/format.js';
 import {
   CLOSED_SAMPLE_STAGES, HANGER_CATEGORIES, MATERIALS, MESSAGE_CHANNELS, MESSAGE_EVENTS,
-  NOTIFIABLE_STAGES,
-  SAMPLE_PURPOSES, SAMPLE_STAGES, SKIP_REASONS, WITH_CUSTOMER_STAGES, followUpState,
-  nextSampleStagesFrom, numeric, optionLabel, sampleStageLabel, text,
+  BACKWARD_REASON_MIN, NOTIFIABLE_STAGES,
+  SAMPLE_PURPOSES, SAMPLE_STAGE_HINTS, SAMPLE_STAGE_RANK, SKIP_REASONS,
+  WITH_CUSTOMER_STAGES, followUpState, isBackwardSampleMove, numeric, optionLabel,
+  sampleMovesFrom, sampleStageLabel, text,
 } from '../utils/pipeline.js';
 
 const TONE_TEXT = {
@@ -28,15 +29,14 @@ const TONE_TEXT = {
 };
 
 /**
- * The sample team moving its own work along.
+ * The one move that needs telling something first — dispatching, going back, or cancelling.
  *
- * Dispatch is the one stage that asks for more than a note: courier, AWB and quantity are
- * mandatory [§6], because a sample the customer cannot be told how to expect is a sample
- * nobody chases. The server enforces the same thing.
+ * Dispatch asks for the courier, AWB and quantity [§6], because a sample the customer cannot be
+ * told how to expect is a sample nobody chases. A step back asks why, because it is the move
+ * somebody will ask about later and the answer is otherwise only in the head of whoever clicked;
+ * the server refuses both without them. Cancelling asks why too: it ends somebody's request.
  */
-function StageForm({ sample, onClose, onSaved }) {
-  const options = nextSampleStagesFrom(sample.status);
-  const [status, setStatus] = useState(options[0]?.value || '');
+function StageForm({ sample, to, onClose, onSaved }) {
   const [note, setNote] = useState('');
   const [courier, setCourier] = useState(sample.courier || '');
   const [awbNumber, setAwbNumber] = useState(sample.awbNumber || '');
@@ -49,7 +49,11 @@ function StageForm({ sample, onClose, onSaved }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
-  const dispatching = status === 'dispatched';
+  const dispatching = to === 'dispatched';
+  const goingBack = isBackwardSampleMove(sample.status, to);
+  const cancelling = to === 'cancelled';
+  const reasonNeeded = goingBack || cancelling;
+  const reasonShort = reasonNeeded && note.trim().length < BACKWARD_REASON_MIN;
   const substituting =
     Boolean(sample.colour) &&
     Boolean(dispatchedColour.trim()) &&
@@ -57,13 +61,17 @@ function StageForm({ sample, onClose, onSaved }) {
 
   const submit = async (event) => {
     event.preventDefault();
+    if (reasonShort) {
+      setError(`Say why in a few words — at least ${BACKWARD_REASON_MIN} characters.`);
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
       onSaved(
         await samplesApi.setStatus({
           id: sample._id, expectedUpdatedAt: sample.updatedAt,
-          status,
+          status: to,
           note: text(note),
           courier: dispatching ? courier : undefined,
           awbNumber: dispatching ? awbNumber : undefined,
@@ -81,13 +89,20 @@ function StageForm({ sample, onClose, onSaved }) {
 
   return (
     <form onSubmit={submit} className="space-y-4">
-      <Field label="Move to">
-        <select className="input" value={status} onChange={(event) => setStatus(event.target.value)}>
-          {options.map((stage) => (
-            <option key={stage.value} value={stage.value}>{stage.label}</option>
-          ))}
-        </select>
-      </Field>
+      <div className="flex items-center gap-3 rounded-lg border border-line/[0.06] bg-line/[0.02] px-4 py-3 text-sm">
+        <span className="text-steel-400">{sampleStageLabel(sample.status)}</span>
+        <span aria-hidden="true" className={goingBack || cancelling ? 'text-warn-400' : 'text-accent'}>
+          {goingBack ? '↩' : '→'}
+        </span>
+        <span className="font-semibold text-steel-50">{sampleStageLabel(to)}</span>
+      </div>
+
+      {goingBack && (
+        <Notice tone="warn">
+          This sends the sample back a stage. The reason goes into the stage history, so whoever
+          looks later can see what went wrong.
+        </Notice>
+      )}
 
       {dispatching && (
         <div className="rounded-lg border border-line/[0.06] p-4">
@@ -95,15 +110,17 @@ function StageForm({ sample, onClose, onSaved }) {
             The customer needs to know how it is coming, so these are not optional.
           </p>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Courier">
-              <input className="input" value={courier} onChange={(event) => setCourier(event.target.value)} />
+            <Field label="Courier" required>
+              <input className="input" required value={courier} onChange={(event) => setCourier(event.target.value)} />
             </Field>
-            <Field label="Tracking number" hint="The courier's AWB">
-              <input className="input" value={awbNumber} onChange={(event) => setAwbNumber(event.target.value)} />
+            <Field label="Tracking number" hint="The courier's AWB" required>
+              <input className="input" required value={awbNumber} onChange={(event) => setAwbNumber(event.target.value)} />
             </Field>
-            <Field label="Quantity sent">
+            <Field label="Quantity sent" required>
               <input
                 type="number"
+                min="1"
+                required
                 className="input"
                 value={dispatchedQuantity}
                 onChange={(event) => setDispatchedQuantity(event.target.value)}
@@ -161,8 +178,24 @@ function StageForm({ sample, onClose, onSaved }) {
         </div>
       )}
 
-      <Field label="Note" hint="Recorded against this move in the history">
-        <textarea rows={2} className="input" value={note} onChange={(event) => setNote(event.target.value)} />
+      <Field
+        label={goingBack ? 'Why is it going back?' : cancelling ? 'Why is it being cancelled?' : 'Note'}
+        hint={
+          reasonNeeded
+            ? 'Required — recorded against this move in the stage history'
+            : 'Optional — recorded against this move in the stage history'
+        }
+        required={reasonNeeded}
+      >
+        <textarea
+          rows={3}
+          className="input"
+          value={note}
+          maxLength={500}
+          required={reasonNeeded}
+          placeholder={goingBack ? 'Handle cracked in the drop test' : cancelling ? 'Buyer dropped the model' : ''}
+          onChange={(event) => setNote(event.target.value)}
+        />
       </Field>
 
       {dispatching && (
@@ -175,19 +208,262 @@ function StageForm({ sample, onClose, onSaved }) {
       {error && <Notice tone="danger">{error}</Notice>}
 
       <div className="flex justify-end gap-2">
-        <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
-        {/* Held shut while the strict colour rule is broken. The server refuses it anyway, but
-            a button that submits only to come back with a refusal teaches people to press
-            buttons and read afterwards. */}
+        <button type="button" className="btn-secondary" onClick={onClose}>Close</button>
+        {/* Held shut while the strict colour rule is broken, or the reason is missing. The
+            server refuses both anyway, but a button that submits only to come back with a
+            refusal teaches people to press buttons and read afterwards. */}
         <button
           type="submit"
-          className="btn-primary"
-          disabled={busy || !status || (dispatching && substituting && sample.colourMandatory)}
+          className={cancelling ? 'btn-danger' : 'btn-primary'}
+          disabled={busy || reasonShort || (dispatching && substituting && sample.colourMandatory)}
         >
-          {busy ? 'Saving…' : `Move to ${sampleStageLabel(status)}`}
+          {busy
+            ? 'Saving…'
+            : cancelling
+              ? 'Cancel the request'
+              : goingBack
+                ? `Send back to ${sampleStageLabel(to)}`
+                : `Move to ${sampleStageLabel(to)}`}
         </button>
       </div>
     </form>
+  );
+}
+
+/**
+ * The run a sample makes, as steps: done, skipped, where it is, and what is still ahead.
+ *
+ * "Stock found" and "production required" are one step — the two answers to "is there stock?" —
+ * named for whichever answer this sample got. Printing is optional, so a sample that never
+ * needed it shows the step as skipped rather than pretending it happened.
+ */
+const RUN = [
+  ['request_received'],
+  ['checking_stock'],
+  ['sample_available', 'production_required'],
+  ['printing_required'],
+  ['sample_ready'],
+  ['dispatched'],
+  ['delivered'],
+  ['customer_feedback_pending'],
+];
+
+const OUTCOME_TONE = {
+  approved: 'border-success-500/40 bg-success-500/10 text-success-400',
+  rejected: 'border-danger-500/40 bg-danger-500/10 text-danger-400',
+  cancelled: 'border-line/15 bg-line/[0.04] text-steel-300',
+  modification_required: 'border-warn-500/40 bg-warn-500/10 text-warn-400',
+};
+
+function StageStepper({ sample }) {
+  const visited = new Set(['request_received', ...(sample.statusHistory || []).map((entry) => entry.to)]);
+  const onRun = sample.status in SAMPLE_STAGE_RANK;
+  /* Off the run — answered, cancelled, or sent back for a change — the steps show how far it got. */
+  const reached = onRun
+    ? SAMPLE_STAGE_RANK[sample.status]
+    : Math.max(...[...visited].map((status) => SAMPLE_STAGE_RANK[status] ?? -1));
+
+  const steps = RUN.map((statuses, index) => {
+    const current = onRun && statuses.includes(sample.status);
+    const history = [...(sample.statusHistory || [])].reverse();
+    const named = current
+      ? sample.status
+      : history.find((entry) => statuses.includes(entry.to))?.to || null;
+    const label =
+      statuses.length > 1 && !named ? 'Stock or production' : sampleStageLabel(named || statuses[0]);
+    const state = current
+      ? 'current'
+      : index < reached || (index === reached && !onRun)
+        ? statuses.some((status) => visited.has(status)) ? 'done' : 'skipped'
+        : 'ahead';
+    return { key: statuses[0], label, state, number: index + 1 };
+  });
+
+  return (
+    /* Four to a row on a phone, so the run reads as two even lines rather than a ragged wrap;
+       one line from a tablet up. Connectors that would dangle off a row's edge are hidden. */
+    <ol className="grid grid-cols-4 items-start gap-y-4 sm:flex" aria-label="Sample stages">
+      {steps.map((step, index) => (
+        <li
+          key={step.key}
+          aria-current={step.state === 'current' ? 'step' : undefined}
+          className="flex min-w-0 flex-1 flex-col items-center text-center"
+        >
+          <div className="flex w-full items-center">
+            <span
+              className={`h-0.5 flex-1 ${index === 0 ? 'opacity-0' : step.state === 'ahead' ? 'bg-line/10' : 'bg-flame-500/60'} ${
+                index % 4 === 0 ? 'max-sm:opacity-0' : ''
+              }`}
+            />
+            <span
+              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+                step.state === 'current'
+                  ? 'bg-flame-500 text-white ring-4 ring-flame-500/25'
+                  : step.state === 'done'
+                    ? 'bg-flame-500/15 text-flame-400 ring-1 ring-inset ring-flame-500/40'
+                    : step.state === 'skipped'
+                      ? 'border border-dashed border-line/20 text-steel-500'
+                      : 'bg-line/[0.05] text-steel-500 ring-1 ring-inset ring-line/10'
+              }`}
+            >
+              {step.state === 'done' ? '✓' : step.state === 'skipped' ? '–' : step.number}
+            </span>
+            <span
+              className={`h-0.5 flex-1 ${index === steps.length - 1 ? 'opacity-0' : steps[index + 1].state === 'ahead' ? 'bg-line/10' : 'bg-flame-500/60'} ${
+                index % 4 === 3 ? 'max-sm:opacity-0' : ''
+              }`}
+            />
+          </div>
+          <span
+            className={`mt-2 px-1 text-xs leading-tight ${
+              step.state === 'current'
+                ? 'font-bold text-steel-50'
+                : step.state === 'ahead' || step.state === 'skipped'
+                  ? 'text-steel-500'
+                  : 'text-steel-300'
+            }`}
+          >
+            {step.label}
+            {step.state === 'skipped' && <span className="block text-[10px]">skipped</span>}
+          </span>
+        </li>
+      ))}
+      {!onRun && (
+        <li className="col-span-4 flex flex-1 flex-col items-center justify-start pt-0.5">
+          <span className={`rounded-full border px-3 py-1.5 text-xs font-bold ${OUTCOME_TONE[sample.status] || OUTCOME_TONE.cancelled}`}>
+            {sampleStageLabel(sample.status)}
+          </span>
+        </li>
+      )}
+    </ol>
+  );
+}
+
+/**
+ * Moving a sample, as cards rather than a dropdown.
+ *
+ * Onward stages are big buttons with the nearest one leading — it is the move the bench makes
+ * nine times in ten, one click, done. Dispatch opens the courier form. Stepping back is a row
+ * of smaller amber buttons that each ask why first, and cancelling sits apart at the end: both
+ * are allowed, neither should be the easy thing to hit by accident.
+ */
+function StagePanel({ sample, mayMove, onSaved, onAsk }) {
+  const [busyTo, setBusyTo] = useState(null);
+  const [error, setError] = useState(null);
+  const { onward, recommended, back, cancel } = sampleMovesFrom(sample.status);
+  const showMoves = mayMove && (onward.length > 0 || back.length > 0 || cancel);
+
+  const go = async (to) => {
+    if (to === 'dispatched') {
+      onAsk(to);
+      return;
+    }
+    setBusyTo(to);
+    setError(null);
+    try {
+      onSaved(await samplesApi.setStatus({ id: sample._id, expectedUpdatedAt: sample.updatedAt, status: to }));
+    } catch (moveError) {
+      setError(moveError.message);
+    } finally {
+      setBusyTo(null);
+    }
+  };
+
+  return (
+    <section className="card mb-5 p-5">
+      <StageStepper sample={sample} />
+
+      {showMoves && (
+        <div className="mt-6 border-t border-line/[0.06] pt-5">
+          {onward.length > 0 && (
+            <>
+              <p className="eyebrow">Move this sample on</p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {onward.map((stage) => {
+                  const leading = stage.value === recommended;
+                  return (
+                    <button
+                      key={stage.value}
+                      type="button"
+                      disabled={Boolean(busyTo)}
+                      onClick={() => go(stage.value)}
+                      className={`group flex items-center gap-3 rounded-xl border p-4 text-left transition-colors disabled:opacity-60 ${
+                        leading
+                          ? 'border-flame-500/50 bg-flame-500/[0.08] hover:bg-flame-500/[0.14]'
+                          : 'border-line/10 bg-line/[0.02] hover:border-line/20 hover:bg-line/[0.05]'
+                      }`}
+                    >
+                      <span
+                        aria-hidden="true"
+                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-base font-bold ${
+                          leading ? 'bg-flame-500 text-white' : 'bg-line/[0.06] text-steel-300'
+                        }`}
+                      >
+                        →
+                      </span>
+                      <span className="min-w-0">
+                        <span className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm font-bold text-steel-50">
+                            {busyTo === stage.value ? 'Moving…' : sampleStageLabel(stage.value)}
+                          </span>
+                          {leading && (
+                            <span className="rounded bg-flame-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-flame-400">
+                              Next step
+                            </span>
+                          )}
+                        </span>
+                        <span className="mt-0.5 block text-xs text-steel-400">
+                          {SAMPLE_STAGE_HINTS[stage.value]}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
+
+          {(back.length > 0 || cancel) && (
+            <div className="mt-5 flex flex-wrap items-end justify-between gap-4">
+              {back.length > 0 && (
+                <div>
+                  <p className="eyebrow">Send back · a reason is required</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {back.map((stage) => (
+                      <button
+                        key={stage.value}
+                        type="button"
+                        disabled={Boolean(busyTo)}
+                        onClick={() => onAsk(stage.value)}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-warn-500/30 bg-warn-500/[0.06] px-3 py-1.5 text-xs font-semibold text-warn-400 transition-colors hover:bg-warn-500/[0.12]"
+                      >
+                        <span aria-hidden="true">↩</span> {sampleStageLabel(stage.value)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {cancel && (
+                <button
+                  type="button"
+                  disabled={Boolean(busyTo)}
+                  onClick={() => onAsk('cancelled')}
+                  className="ml-auto rounded-lg px-3 py-1.5 text-xs font-semibold text-danger-400 transition-colors hover:bg-danger-500/10"
+                >
+                  Cancel this request
+                </button>
+              )}
+            </div>
+          )}
+
+          {error && (
+            <div className="mt-4">
+              <Notice tone="danger">{error}</Notice>
+            </div>
+          )}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -829,8 +1105,8 @@ function LinkEnquiryForm({ sample, onClose, onSaved }) {
  * read as two different measurements.
  */
 function StageBanner({ sample }) {
-  const index = SAMPLE_STAGES.findIndex((stage) => stage.value === sample.status);
-  const total = SAMPLE_STAGES.findIndex((stage) => stage.value === 'approved');
+  /* Counted the way the stepper below draws it, so the two never disagree. */
+  const rank = SAMPLE_STAGE_RANK[sample.status];
   const done = CLOSED_SAMPLE_STAGES.includes(sample.status);
 
   return (
@@ -884,7 +1160,8 @@ function StageBanner({ sample }) {
       {/* No bar of its own: the stage pipeline sits directly beneath this and draws one
           segment per stage, which says more than a single fill could. */}
       <p className="mt-3 text-sm text-steel-400">
-        Step {Math.min(index + 1, total)} of {total} &mdash; raised {formatDate(sample.requestedAt)}
+        {rank !== undefined && <>Step {rank + 1} of {RUN.length} &mdash; </>}
+        raised {formatDate(sample.requestedAt)}
       </p>
     </div>
   );
@@ -894,7 +1171,8 @@ export default function SampleDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { canRead, canWrite } = useAuth();
-  const [movingStage, setMovingStage] = useState(false);
+  /* The stage a card asked for that needs telling something first — or null. */
+  const [movingStage, setMovingStage] = useState(null);
   const [givingFeedback, setGivingFeedback] = useState(false);
   const [messaging, setMessaging] = useState(false);
   const [editingDispatch, setEditingDispatch] = useState(false);
@@ -932,7 +1210,6 @@ export default function SampleDetail() {
   const bag = sample.items?.length ? sample.items : [sample];
   const withCustomer = WITH_CUSTOMER_STAGES.includes(sample.status);
   const due = followUpState(sample.requiredDate);
-  const stageIndex = SAMPLE_STAGES.findIndex((stage) => stage.value === sample.status);
 
   const act = async (run) => {
     setBusy(true);
@@ -1066,15 +1343,6 @@ export default function SampleDetail() {
               </button>
             )}
 
-            {maySample && !closed && (
-              <button
-                type="button"
-                className={withCustomer ? 'btn-secondary' : 'btn-primary'}
-                onClick={() => setMovingStage(true)}
-              >
-                Move stage
-              </button>
-            )}
           </div>
         }
       />
@@ -1130,19 +1398,12 @@ export default function SampleDetail() {
         </div>
       )}
 
-      {/* Position on the bench. Feedback outcomes sit outside the run, so only the nine
-          working stages are drawn. */}
-      <div className="mb-5 flex gap-1" aria-hidden="true">
-        {SAMPLE_STAGES.slice(0, 9).map((stage, index) => (
-          <span
-            key={stage.value}
-            title={stage.label}
-            className={`h-1 flex-1 rounded-full ${
-              index <= stageIndex && stageIndex < 9 ? 'bg-flame-500' : 'bg-line/[0.08]'
-            }`}
-          />
-        ))}
-      </div>
+      <StagePanel
+        sample={sample}
+        mayMove={maySample && !closed}
+        onSaved={setData}
+        onAsk={setMovingStage}
+      />
 
       <div className="grid gap-5 lg:grid-cols-3">
         <div className="min-w-0 space-y-5 lg:col-span-2">
@@ -1212,19 +1473,40 @@ export default function SampleDetail() {
           <Section title={`Stage history (${sample.statusHistory?.length || 0})`}>
             {sample.statusHistory?.length ? (
               <ol className="space-y-3">
-                {[...sample.statusHistory].reverse().map((entry, index) => (
-                  <li key={`${entry.to}-${entry.at}-${index}`} className="flex gap-3">
-                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-flame-500" />
-                    <div className="min-w-0">
-                      <p className="text-sm text-steel-100">
-                        {entry.from ? `${sampleStageLabel(entry.from)} → ` : 'Raised as '}
-                        <span className="font-semibold">{sampleStageLabel(entry.to)}</span>
-                      </p>
-                      <p className="text-xs text-steel-500">{formatDate(entry.at)}</p>
-                      {entry.note && <p className="mt-1 text-xs text-steel-400">{entry.note}</p>}
-                    </div>
-                  </li>
-                ))}
+                {[...sample.statusHistory].reverse().map((entry, index) => {
+                  const wentBack = isBackwardSampleMove(entry.from, entry.to);
+                  return (
+                    <li key={`${entry.to}-${entry.at}-${index}`} className="flex gap-3">
+                      <span
+                        className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${wentBack ? 'bg-warn-400' : 'bg-flame-500'}`}
+                      />
+                      <div className="min-w-0">
+                        <p className="flex flex-wrap items-center gap-x-2 text-sm text-steel-100">
+                          <span>
+                            {entry.from ? `${sampleStageLabel(entry.from)} ${wentBack ? '↩' : '→'} ` : 'Raised as '}
+                            <span className="font-semibold">{sampleStageLabel(entry.to)}</span>
+                          </span>
+                          {wentBack && <Badge tone="progress">Sent back</Badge>}
+                        </p>
+                        <p className="text-xs text-steel-500">
+                          {formatDate(entry.at)}
+                          {entry.by?.name && ` · ${entry.by.name}`}
+                        </p>
+                        {entry.note && (
+                          <p
+                            className={`mt-1 text-xs ${
+                              wentBack
+                                ? 'rounded-md border-l-2 border-warn-500/60 bg-warn-500/[0.06] px-2 py-1 text-steel-200'
+                                : 'text-steel-400'
+                            }`}
+                          >
+                            {entry.note}
+                          </p>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
               </ol>
             ) : (
               <p className="text-sm text-steel-500">No moves recorded.</p>
@@ -1296,12 +1578,28 @@ export default function SampleDetail() {
       </Modal>
 
       <Modal
-        open={movingStage}
-        title="Move stage"
-        description="Where the sample has got to on the bench"
-        onClose={() => setMovingStage(false)}
+        open={Boolean(movingStage)}
+        title={
+          movingStage === 'cancelled'
+            ? 'Cancel this request'
+            : movingStage === 'dispatched'
+              ? 'Dispatch the sample'
+              : isBackwardSampleMove(sample.status, movingStage)
+                ? 'Send the sample back'
+                : 'Move stage'
+        }
+        description={sample.number}
+        onClose={() => setMovingStage(null)}
       >
-        <StageForm sample={sample} onClose={() => setMovingStage(false)} onSaved={setData} />
+        {movingStage && (
+          <StageForm
+            key={movingStage}
+            sample={sample}
+            to={movingStage}
+            onClose={() => setMovingStage(null)}
+            onSaved={setData}
+          />
+        )}
       </Modal>
 
       <Modal

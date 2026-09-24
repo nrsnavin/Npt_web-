@@ -28,7 +28,7 @@
  */
 import {
   CLOSED_STAGES, DISQUALIFY_REASONS, ENQUIRY_STAGES, FEEDBACK_OUTCOMES, LEAD_STAGES,
-  LOST_REASONS, SAMPLE_STAGES,
+  LOST_REASONS, SAMPLE_STAGES, isBackwardSampleMove,
 } from './pipeline.js';
 
 /**
@@ -130,6 +130,11 @@ export const SAMPLE_BOARD = {
     cancelled: closedTo('Cancelling a request is done from the sample, so the reason goes on the record.'),
     dispatched: { needs: ['courier', 'awbNumber', 'dispatchedQuantity'] },
   },
+  /**
+   * Dragging a card back along the run — sample ready back to production, say — is allowed, and
+   * refused by the server without a reason. So the drop asks for one first.
+   */
+  needsFrom: (card, status) => (isBackwardSampleMove(card?.status, status) ? ['note'] : []),
 };
 
 export const BOARDS = { leads: LEAD_BOARD, enquiries: ENQUIRY_BOARD, samples: SAMPLE_BOARD };

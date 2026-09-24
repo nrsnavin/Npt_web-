@@ -103,3 +103,38 @@ test('the bench can still send its own work backwards', () => {
   assert.ok(offered('sample_ready').includes('production_required'), 'a broken piece cannot be remade');
   assert.ok(offered('sample_available').includes('checking_stock'), 'a failed check cannot be redone');
 });
+
+/**
+ * A step back needs a reason, so the screen has to know which moves are steps back — the stage
+ * panel asks for one before it sends, and so does a card dragged back on the board.
+ */
+test('steps back along the run are told apart from steps on and sideways moves', async () => {
+  const { isBackwardSampleMove, sampleMovesFrom } = await import('../src/utils/pipeline.js');
+  const { SAMPLE_BOARD, requirementsFor } = await import('../src/utils/boards.js');
+
+  assert.equal(isBackwardSampleMove('sample_ready', 'production_required'), true);
+  assert.equal(isBackwardSampleMove('delivered', 'dispatched'), true);
+  assert.equal(isBackwardSampleMove('checking_stock', 'sample_ready'), false);
+  /* The two answers to "is there stock?" — a correction, not a fall. */
+  assert.equal(isBackwardSampleMove('sample_available', 'production_required'), false);
+  assert.equal(isBackwardSampleMove('production_required', 'sample_available'), false);
+  /* Off the run: a request sent back for a change starts the bench again. */
+  assert.equal(isBackwardSampleMove('modification_required', 'checking_stock'), false);
+
+  const moves = sampleMovesFrom('printing_required');
+  assert.equal(moves.recommended, 'sample_ready', 'the nearest step on does not lead');
+  assert.ok(moves.onward.every((stage) => !isBackwardSampleMove('printing_required', stage.value)));
+  assert.deepEqual(
+    moves.back.map((stage) => stage.value),
+    ['sample_available', 'production_required', 'checking_stock', 'request_received'],
+    'steps back are not nearest first'
+  );
+  assert.equal(moves.cancel, true);
+  assert.ok(!moves.onward.some((stage) => stage.value === 'cancelled'), 'cancelling is offered as a step on');
+
+  assert.deepEqual(sampleMovesFrom('approved'), { onward: [], recommended: null, back: [], cancel: false });
+
+  const card = { status: 'sample_ready' };
+  assert.deepEqual(requirementsFor(SAMPLE_BOARD, 'production_required', card), ['note']);
+  assert.deepEqual(requirementsFor(SAMPLE_BOARD, 'printing_required', { status: 'checking_stock' }), []);
+});
