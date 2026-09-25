@@ -410,7 +410,7 @@ export default function Layout() {
           <ModuleTabs modules={readable} active={lit} />
         </div>
 
-        <div className="min-w-0 flex-1 lg:max-w-xs lg:flex-none"><GlobalSearch /></div>
+        <div className="min-w-0 flex-1 lg:flex-none 2xl:w-72"><GlobalSearch /></div>
 
         <InboxBell />
         <ThemeToggle />

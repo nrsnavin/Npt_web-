@@ -54,11 +54,13 @@ function SearchTrigger({ onOpen }) {
       onClick={onOpen}
       aria-label="Search everything"
       title="Search everything"
-      className="flex min-h-11 min-w-11 shrink-0 items-center gap-2 rounded-lg border border-line/[0.08] bg-ink-800/60 px-2.5 py-1.5 text-left transition-colors hover:border-line/15 sm:min-w-0 sm:flex-1 sm:shrink sm:max-w-xs"
+      /* A field on a phone's width and on a very wide screen; an icon between, where the module
+         tabs need the room — at 1366px the field pushed "Administration" off the end. */
+      className="flex min-h-11 min-w-11 shrink-0 items-center gap-2 rounded-lg border border-line/[0.08] bg-ink-800/60 px-2.5 py-1.5 text-left transition-colors hover:border-line/15 sm:min-w-0 sm:flex-1 sm:shrink sm:max-w-xs lg:max-w-none lg:flex-none lg:min-w-11 2xl:min-w-0 2xl:flex-1"
     >
       {icon}
-      <span className="hidden truncate text-xs text-steel-500 sm:block">Search…</span>
-      <kbd className="ml-auto hidden shrink-0 rounded border border-line/[0.08] px-1.5 py-0.5 font-sans text-xs font-semibold text-steel-500 sm:block">
+      <span className="hidden truncate text-xs text-steel-500 sm:block lg:hidden 2xl:block">Search…</span>
+      <kbd className="ml-auto hidden shrink-0 rounded border border-line/[0.08] px-1.5 py-0.5 font-sans text-xs font-semibold text-steel-500 sm:block lg:hidden 2xl:block">
         {isMac ? '⌘' : 'Ctrl '}K
       </kbd>
     </button>

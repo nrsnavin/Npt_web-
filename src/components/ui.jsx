@@ -135,8 +135,8 @@ export function PageHeader({ title, subtitle, actions }) {
   return (
     <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
       <div>
-        <h1 className="text-[1.6rem] font-extrabold tracking-tighter text-steel-50">{title}</h1>
-        {subtitle && <p className="mt-1 text-sm text-steel-400">{subtitle}</p>}
+        <h1 className="text-[1.65rem] font-extrabold leading-tight tracking-tighter text-steel-50">{title}</h1>
+        {subtitle && <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-steel-400">{subtitle}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </div>

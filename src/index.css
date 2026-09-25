@@ -11,8 +11,9 @@
 
   body {
     @apply bg-ink-900 font-sans text-steel-100 antialiased;
-    /* A single low, wide flame wash keeps the canvas from reading as flat. */
-    background-image: none;
+    /* A single low, wide flame wash keeps the canvas from reading as flat — faint enough that
+       nothing on top of it changes colour, there only to give the page a top. */
+    background-image: radial-gradient(1100px 380px at 18% -140px, rgb(var(--flame-500) / 0.07), transparent 70%);
     background-attachment: fixed;
     /* Only the palette animates on a theme switch, not layout. */
     transition: background-color 200ms ease, color 200ms ease;
@@ -70,8 +71,9 @@
 @layer components {
   /* ---------- Surfaces ---------- */
 
+  /* Softer corners than the controls inside them, so a card reads as a surface, not a button. */
   .card {
-    @apply rounded-xl border border-line/[0.06] bg-ink-850 shadow-raised;
+    @apply rounded-2xl border border-line/[0.06] bg-ink-850 shadow-raised;
   }
 
   /* Cards that respond to the pointer: used for anything clickable. */
@@ -80,7 +82,7 @@
   }
 
   .panel {
-    @apply rounded-xl border border-line/[0.06] bg-ink-800/60;
+    @apply rounded-2xl border border-line/[0.06] bg-ink-800/60;
   }
 
   /*
