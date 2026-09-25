@@ -22,6 +22,7 @@ import useOpenFromLink from '../hooks/useOpenFromLink.js';
 import QueryQuickReply, { ShortcutHelp } from '../components/QueryQuickReply.jsx';
 import { listAction, step } from '../utils/listKeys.js';
 import SaveView from '../components/SaveView.jsx';
+import QueryLabelBoard from '../components/QueryLabelBoard.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 
 /**
@@ -279,7 +280,8 @@ export default function Queries() {
        * out of sixty is a picture of a third of the department's load, which is worse than no
        * picture — so the map asks for the lot, under the same filters.
        */
-      limit: mode === 'map' ? 100 : 20,
+      /* The map and the board are pictures of the whole load, so they ask for the lot. */
+      limit: mode === 'list' ? 20 : 100,
       search: term || undefined,
       status: status || undefined,
       department: department || undefined,
@@ -319,7 +321,7 @@ export default function Queries() {
    * the keyboard; see `utils/listKeys.js`.
    */
   useEffect(() => {
-    if (mode === 'map') return undefined;
+    if (mode !== 'list') return undefined;
     const onKey = (event) => {
       const action = listAction(event);
       if (!action) return;
@@ -387,7 +389,11 @@ export default function Queries() {
             <ViewSwitch
               mode={mode}
               onChange={setMode}
-              options={[{ value: 'list', label: 'List' }, { value: 'map', label: 'Map' }]}
+              options={[
+                { value: 'list', label: 'List' },
+                { value: 'board', label: 'Board' },
+                { value: 'map', label: 'Map' },
+              ]}
             />
             <button type="button" className="btn-primary" onClick={() => setAsking(true)}>
               + Ask a question
@@ -594,7 +600,7 @@ export default function Queries() {
 
       {error ? (
         <ErrorState error={error} onRetry={reload} />
-      ) : loading ? (
+      ) : loading && !data.length ? (
         <TableSkeleton rows={6} columns={6} />
       ) : !data.length ? (
         <EmptyState
@@ -610,6 +616,9 @@ export default function Queries() {
             </button>
           }
         />
+      ) : mode === 'board' ? (
+        /* Columns by label; dragging a card between columns moves its label. */
+        <QueryLabelBoard rows={data} labels={meta?.labels || []} onFile={file} />
       ) : mode === 'map' ? (
         <div className="card p-4">
           <PeopleQueryMap
@@ -884,7 +893,7 @@ export default function Queries() {
 
       {/* Paging belongs to the table. The map asked for everything the filters matched, so a
           pager under it would offer to show a second picture of the same question. */}
-      {mode !== 'map' && <Pagination pagination={pagination} onChange={setPage} />}
+      {mode === 'list' && <Pagination pagination={pagination} onChange={setPage} />}
       </div>
       </div>
 
