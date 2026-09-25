@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
+import SavedViewsNav from './SavedViewsNav.jsx';
 
 /**
  * The sidebar's groups, as things that open and shut.
@@ -313,6 +314,8 @@ export default function SidebarNav({ sections, scope = 'nav' }) {
           pathname={pathname}
         />
       ))}
+      {/* The person's own named filter sets, under the modules they belong to. */}
+      <SavedViewsNav />
     </nav>
   );
 }

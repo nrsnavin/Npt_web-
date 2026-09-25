@@ -21,6 +21,7 @@ import {
 import useOpenFromLink from '../hooks/useOpenFromLink.js';
 import QueryQuickReply, { ShortcutHelp } from '../components/QueryQuickReply.jsx';
 import { listAction, step } from '../utils/listKeys.js';
+import SaveView from '../components/SaveView.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 
 /**
@@ -187,15 +188,23 @@ function useModelLines(rows, enabled) {
 
 export default function Queries() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [search, setSearch] = useState('');
-  const [status, setStatus] = useState('');
-  const [department, setDepartment] = useState('');
+  /*
+   * The filters start from the address, so a saved view — or a link somebody pasted — opens the
+   * list exactly as it was. Changing a filter afterwards does not rewrite the address; opening
+   * another view does, and the filters follow it.
+   */
+  const fromUrl = (key) => searchParams.get(key) || '';
+  const [search, setSearch] = useState(() => fromUrl('q'));
+  const [status, setStatus] = useState(() => fromUrl('status'));
+  const [department, setDepartment] = useState(() => fromUrl('department'));
   /* Whose threads — "what is Anita carrying", which is the Monday question. */
-  const [person, setPerson] = useState('');
+  const [person, setPerson] = useState(() => fromUrl('person'));
   /* Only the threads I have been tagged in — "who needs me", asked in one press. */
-  const [taggedOnly, setTaggedOnly] = useState(false);
+  const [taggedOnly, setTaggedOnly] = useState(() => fromUrl('tagged') === 'me');
   /* One label's group, from the chip bar. */
-  const [label, setLabel] = useState('');
+  const [label, setLabel] = useState(() => fromUrl('label'));
+  const [savingView, setSavingView] = useState(false);
+  const addressKey = ['q', 'status', 'department', 'person', 'tagged', 'label'].map(fromUrl).join('|');
   /* Rows ticked for filing together, a drag in progress, and the row whose # menu is open. */
   const [selected, setSelected] = useState([]);
   const [dragging, setDragging] = useState(false);
@@ -207,6 +216,17 @@ export default function Queries() {
   const navigate = useNavigate();
   const { warn } = useToast();
   const [page, setPage] = useState(1);
+  /* Opening another view (or link) moves the filters with it. */
+  useEffect(() => {
+    setSearch(fromUrl('q'));
+    setStatus(fromUrl('status'));
+    setDepartment(fromUrl('department'));
+    setPerson(fromUrl('person'));
+    setTaggedOnly(fromUrl('tagged') === 'me');
+    setLabel(fromUrl('label'));
+    setPage(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [addressKey]);
   const [asking, setAsking] = useState(false);
   /* The command bar's "New …" arrives as `?new=1` with the form to open. */
   useOpenFromLink(() => setAsking(true));
@@ -412,6 +432,25 @@ export default function Queries() {
           >
             @ Tagged me{meta?.taggedOpen ? ` · ${meta.taggedOpen}` : ''}
           </button>
+
+          {/* Keeping these filters under a name, pinned in the sidebar. */}
+          <div className="relative ml-auto">
+            <button
+              type="button"
+              className="rounded-full px-3 py-1.5 text-sm font-semibold text-steel-300 ring-1 ring-inset ring-line/15 transition-colors hover:bg-line/[0.05]"
+              onMouseDown={(event) => event.stopPropagation()}
+              onClick={() => setSavingView((open) => !open)}
+            >
+              ☆ Save view
+            </button>
+            {savingView && (
+              <SaveView
+                page="queries"
+                params={{ q: search, status, department, person, customer, tagged: taggedOnly ? 'me' : '', label }}
+                onClose={() => setSavingView(false)}
+              />
+            )}
+          </div>
 
           {/*
             The groups, with how many live threads are in each. Counted over everything the

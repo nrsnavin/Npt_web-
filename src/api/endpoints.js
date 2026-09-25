@@ -3,6 +3,14 @@ import api from './client.js';
 const unwrap = (response) => response.data.data;
 
 /** The bottom-right dock: personal tasks and notes, plus plant-wide announcements. */
+/** A person's saved views — named filter sets pinned in their sidebar. */
+export const views = {
+  list: (page) => api.get('/workspace/views', { params: page ? { page } : undefined }).then(unwrap),
+  create: (payload) => api.post('/workspace/views', payload, { feedback: false }).then(unwrap),
+  update: ({ id, ...payload }) => api.patch(`/workspace/views/${id}`, payload, { feedback: false }).then(unwrap),
+  remove: (id) => api.delete(`/workspace/views/${id}`, { feedback: false }).then(unwrap),
+};
+
 export const workspace = {
   /**
    * Tasks [§35]. `scope` picks which question is being asked: `mine` (the default) is what I am
