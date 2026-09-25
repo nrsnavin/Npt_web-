@@ -23,7 +23,7 @@ export function ToastProvider({ children }) {
   }, []);
 
   const push = useCallback(
-    (message, { tone = 'success', detail } = {}) => {
+    (message, { tone = 'success', detail, action } = {}) => {
       if (!message) return null;
 
       const id = ++nextId;
@@ -31,7 +31,7 @@ export function ToastProvider({ children }) {
          and the oldest is always the least relevant. */
       setToasts((current) => {
         current.slice(0, -2).forEach((item) => { clearTimeout(timers.current.get(item.id)); timers.current.delete(item.id); });
-        return [...current.slice(-2), { id, message, detail, tone }];
+        return [...current.slice(-2), { id, message, detail, tone, action }];
       });
       timers.current.set(id, setTimeout(() => dismiss(id), LIFE[tone] ?? LIFE.success));
       return id;
@@ -51,6 +51,12 @@ export function ToastProvider({ children }) {
     () => ({
       /** The ordinary case: something worked. */
       toast: (message, detail) => push(message, { tone: 'success', detail }),
+      /**
+       * A success that can be taken back — "Filed 3 under #quality · Undo". The action runs and
+       * the toast closes; left alone, it simply times out like any other.
+       */
+      undoable: (message, { detail, label = 'Undo', onAction }) =>
+        push(message, { tone: 'success', detail, action: { label, onAction } }),
       /** Something happened that is worth reading but is not a success. */
       note: (message, detail) => push(message, { tone: 'info', detail }),
       /**
@@ -120,6 +126,19 @@ function ToastStack({ toasts, onDismiss }) {
             {toast.detail && <p className="mt-0.5 text-xs text-steel-400">{toast.detail}</p>}
           </div>
 
+          {toast.action && (
+            <button
+              type="button"
+              onClick={() => {
+                onDismiss(toast.id);
+                toast.action.onAction?.();
+              }}
+              className="-my-1 flex-none rounded-md px-2.5 py-1 text-sm font-bold text-flame-400 transition-colors hover:bg-flame-500/10"
+            >
+              {toast.action.label}
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() => onDismiss(toast.id)}
@@ -148,6 +167,7 @@ export function useToast() {
       toast: () => null,
       note: () => null,
       warn: () => null,
+      undoable: () => null,
       dismiss: () => null,
     }
   );

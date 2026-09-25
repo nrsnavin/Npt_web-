@@ -443,7 +443,9 @@ export default function Layout() {
             id="main-content"
             tabIndex={-1}
             key={location.pathname}
-            className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8"
+            /* Room at the foot on a phone for the floating Workspace button, which otherwise
+               sits on top of whatever is last on the page — a reply box, a row's menu. */
+            className="min-h-0 flex-1 overflow-y-auto p-4 pb-24 sm:p-6 lg:p-8"
           >
             {/*
               Inside the main column rather than around the whole app, so a screen that throws

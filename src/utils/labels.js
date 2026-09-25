@@ -20,3 +20,13 @@ export function labelProblem(label, current = []) {
   if (current.length >= MAX_LABELS) return `A query carries at most ${MAX_LABELS} labels`;
   return null;
 }
+
+/**
+ * A label's hue, 0–359, from its name — the same word is always the same colour, on every screen
+ * and for everybody, without anybody having to choose one or the server having to store it.
+ */
+export function labelHue(label) {
+  let hash = 0;
+  for (const char of String(label || '')) hash = (hash * 31 + char.codePointAt(0)) % 360;
+  return hash;
+}

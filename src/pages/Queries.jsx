@@ -15,6 +15,9 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { selfId } from '../utils/pipeline.js';
 import { plural } from '../utils/format.js';
 import { LabelChip } from '../components/QueryLabels.jsx';
+import {
+  LabelDot, LabelPicker, LabelRail, SelectionBar, startRowDrag, useLabelling,
+} from '../components/QueryLabelling.jsx';
 
 /**
  * Every question this person is in.
@@ -189,6 +192,10 @@ export default function Queries() {
   const [taggedOnly, setTaggedOnly] = useState(false);
   /* One label's group, from the chip bar. */
   const [label, setLabel] = useState('');
+  /* Rows ticked for filing together, a drag in progress, and the row whose # menu is open. */
+  const [selected, setSelected] = useState([]);
+  const [dragging, setDragging] = useState(false);
+  const [pickerFor, setPickerFor] = useState(null);
   const [page, setPage] = useState(1);
   const [asking, setAsking] = useState(false);
   /*
@@ -255,6 +262,27 @@ export default function Queries() {
 
   const { data, pagination, meta, loading, error, reload } = useRecordList(queriesApi.list, params);
 
+  /* Filing from the list: a drop, the selection bar or a row's # menu all land here. A filing
+     that carried the ticked rows is done with them, so the ticks clear. */
+  const fileWith = useLabelling(reload);
+  const file = async (request) => {
+    const result = await fileWith(request);
+    if (result?.updated?.length && request.add && request.ids.some((id) => selected.includes(id))) setSelected([]);
+    return result;
+  };
+  const known = (meta?.labels || []).map((entry) => entry.label);
+  const toggleSelected = (id) =>
+    setSelected((current) => (current.includes(id) ? current.filter((each) => each !== id) : [...current, id]));
+  /* A new page or filter is a different set of rows; a tick on one that has gone is a trap. */
+  useEffect(() => {
+    setSelected([]);
+    setPickerFor(null);
+  }, [params]);
+  const chooseLabel = (next) => {
+    setLabel(next);
+    setPage(1);
+  };
+
   /* The model's reading of the rows already on screen, over the rules reading each row came
      with. Asked for only where there is a key behind it — see `useModelReadings`. */
   const readings = useModelReadings(data, Boolean(can.readUrgency));
@@ -294,6 +322,21 @@ export default function Queries() {
         }
       />
 
+      {/*
+        The labels down the side on a wide screen — each a filter to press and a place to drop a
+        query on. A phone keeps the chips above the list and files through each row's # menu.
+      */}
+      <div className="lg:grid lg:grid-cols-[13rem_minmax(0,1fr)] lg:items-start lg:gap-6">
+      <aside className="hidden lg:sticky lg:top-20 lg:block">
+        <LabelRail
+          labels={meta?.labels || []}
+          active={label}
+          onChoose={chooseLabel}
+          onFile={file}
+          dragging={dragging}
+        />
+      </aside>
+      <div className="min-w-0 space-y-6">
       <div className="card space-y-3 p-4">
         {/*
           Threads I was tagged in, one press away. The count is of live ones, whatever else is
@@ -323,6 +366,7 @@ export default function Queries() {
           */}
           {(meta?.labels || []).map((entry) => (
             <LabelChip
+              className="lg:hidden"
               key={entry.label}
               label={entry.label}
               count={entry.count}
@@ -335,7 +379,7 @@ export default function Queries() {
           ))}
           {/* A chosen label whose last open thread was closed still needs a way to be dropped. */}
           {label && !(meta?.labels || []).some((entry) => entry.label === label) && (
-            <LabelChip label={label} active onClick={() => { setLabel(''); setPage(1); }} />
+            <LabelChip className="lg:hidden" label={label} active onClick={() => { setLabel(''); setPage(1); }} />
           )}
         </div>
         <input
@@ -494,7 +538,15 @@ export default function Queries() {
           The urgency stays, one line down and quieter, because it answers a different question
           (what needs *me*) and a thread can be unread and not urgent, or read and still owed.
         */
-        <ul className="card divide-y divide-line/[0.06] overflow-hidden">
+        <div>
+        <SelectionBar
+          count={selected.length}
+          ids={selected}
+          known={known}
+          onFile={file}
+          onClear={() => setSelected([])}
+        />
+        <ul className="card divide-y divide-line/[0.06]">
           {data.map((row) => {
             const unread = row.unread || 0;
             const last = row.last || {};
@@ -503,11 +555,24 @@ export default function Queries() {
             const taggedUnread = row.taggedMe > 0;
 
             return (
-              <li key={row._id}>
+              <li key={row._id} className="group relative">
                 <Link
                   to={`/queries/${row._id}`}
-                  className={`flex gap-3 border-l-4 px-4 py-3.5 transition-colors hover:bg-line/[0.03] ${
-                    row.isUrgent
+                  /*
+                   * Draggable onto a label in the rail. Grabbing a ticked row carries every ticked
+                   * row; grabbing any other carries just that one.
+                   */
+                  draggable
+                  onDragStart={(event) => {
+                    startRowDrag(event, selected.includes(row._id) ? selected : [row._id]);
+                    setDragging(true);
+                  }}
+                  onDragEnd={() => setDragging(false)}
+                  className={`flex gap-3 border-l-4 px-4 py-3.5 transition-colors hover:bg-line/[0.03]
+                    [li:first-child>&]:rounded-t-xl [li:last-child>&]:rounded-b-xl ${
+                    selected.includes(row._id)
+                      ? 'border-flame-500 bg-flame-500/[0.08]'
+                      : row.isUrgent
                       ? 'border-danger-500 bg-danger-500/[0.06]'
                       : tagged
                       ? 'border-aqua-400 bg-aqua-500/[0.06]'
@@ -516,13 +581,35 @@ export default function Queries() {
                         : 'border-transparent'
                   }`}
                 >
-                  <span
-                    className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full
-                      bg-line/[0.07] text-xs font-bold text-steel-300"
-                    aria-hidden
+                  {/*
+                    The initials turn into a tick box on hover, as a mail inbox does — select
+                    several, then drag them together or file them from the bar at the foot.
+                  */}
+                  <button
+                    type="button"
+                    role="checkbox"
+                    aria-checked={selected.includes(row._id)}
+                    aria-label={`Select ${row.number}`}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      toggleSelected(row._id);
+                    }}
+                    className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-bold transition-colors ${
+                      selected.includes(row._id)
+                        ? 'bg-flame-500 text-white'
+                        : 'bg-line/[0.07] text-steel-300 hover:bg-flame-500/20'
+                    }`}
                   >
-                    {initialsOf(row.customer?.name)}
-                  </span>
+                    {selected.includes(row._id) ? (
+                      '✓'
+                    ) : (
+                      <>
+                        <span className={selected.length ? 'hidden' : 'group-hover:hidden'}>{initialsOf(row.customer?.name)}</span>
+                        <span className={`${selected.length ? '' : 'hidden group-hover:inline'} h-4 w-4 rounded border-2 border-steel-400`} />
+                      </>
+                    )}
+                  </button>
 
                   <div className="min-w-0 flex-1">
                     <div className="flex items-baseline justify-between gap-3">
@@ -595,9 +682,28 @@ export default function Queries() {
                       </p>
                     )}
 
-                    <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 pr-9">
+                      {/* The row's labels, each with an × to take it off. */}
                       {(row.labels || []).map((name) => (
-                        <LabelChip key={name} label={name} active={name === label} />
+                        <span
+                          key={name}
+                          className="group/label inline-flex items-center gap-1.5 rounded-full bg-line/[0.05] py-0.5 pl-2 pr-1 text-[0.7rem] font-semibold text-steel-300 ring-1 ring-inset ring-line/10"
+                        >
+                          <LabelDot label={name} />
+                          {name}
+                          <button
+                            type="button"
+                            aria-label={`Take #${name} off ${row.number}`}
+                            onClick={(event) => {
+                              event.preventDefault();
+                              event.stopPropagation();
+                              file({ ids: [row._id], remove: name });
+                            }}
+                            className="rounded-full px-1 text-steel-500 opacity-0 transition-opacity hover:text-danger-400 group-hover/label:opacity-100 focus:opacity-100 [@media(hover:none)]:opacity-100"
+                          >
+                            ×
+                          </button>
+                        </span>
                       ))}
                       {/* Flagged by an administrator — why this row is at the top. */}
                       {row.isUrgent && <Badge tone="danger">Urgent</Badge>}
@@ -616,15 +722,46 @@ export default function Queries() {
                     </div>
                   </div>
                 </Link>
+
+                {/* The # menu: the row's labels as switches, and a box to start a new one.
+                    Shown on hover, and always on a touch screen, which has no hover and no drag. */}
+                <div className="absolute bottom-2.5 right-3">
+                  <button
+                    type="button"
+                    aria-label={`Labels for ${row.number}`}
+                    aria-expanded={pickerFor === row._id}
+                    /* Kept from the menu's click-away, so pressing # again closes it rather than
+                       closing and at once reopening it. */
+                    onMouseDown={(event) => event.stopPropagation()}
+                    onClick={() => setPickerFor((open) => (open === row._id ? null : row._id))}
+                    className={`flex h-7 w-7 items-center justify-center rounded-lg text-sm font-bold text-steel-400 ring-1 ring-inset ring-line/10 transition hover:bg-line/[0.06] hover:text-steel-100 focus:opacity-100 [@media(hover:none)]:opacity-100 ${
+                      pickerFor === row._id ? 'bg-line/[0.08] opacity-100' : 'bg-ink-850 opacity-0 group-hover:opacity-100'
+                    }`}
+                  >
+                    #
+                  </button>
+                  {pickerFor === row._id && (
+                    <LabelPicker
+                      known={known}
+                      current={row.labels || []}
+                      onClose={() => setPickerFor(null)}
+                      onToggle={(name, on) => file({ ids: [row._id], ...(on ? { add: name } : { remove: name }) })}
+                    />
+                  )}
+                </div>
               </li>
             );
           })}
         </ul>
+        </div>
       )}
 
       {/* Paging belongs to the table. The map asked for everything the filters matched, so a
           pager under it would offer to show a second picture of the same question. */}
       {mode !== 'map' && <Pagination pagination={pagination} onChange={setPage} />}
+      </div>
+      </div>
+
 
       <RaiseQuery
         open={asking}

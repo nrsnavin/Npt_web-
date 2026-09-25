@@ -232,6 +232,10 @@ export const queries = {
   urgency: (ids) => api.post('/queries/urgency', { ids }).then(unwrap),
   /** A line per row, read after the list has drawn. Quiet: nobody pressed anything. */
   summaries: (ids) => api.post('/queries/summaries', { ids }, { feedback: false }).then(unwrap),
+  /** One label added to, or taken off, several threads — the list's drag and drop. The page
+      says what happened itself (with an undo), so the generic toast stays quiet. */
+  bulkLabel: ({ ids, add, remove }) =>
+    api.post('/queries/labels', { ids, add, remove }, { feedback: false }).then(unwrap),
   /** The thread's labels, replaced as a set. */
   setLabels: ({ id, labels }) => api.put(`/queries/${id}/labels`, { labels }).then(unwrap),
   /** A draft for the composer. Nothing is said in the thread until somebody presses send. */

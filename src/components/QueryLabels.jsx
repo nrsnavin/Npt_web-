@@ -3,7 +3,7 @@ import { queries as queriesApi } from '../api/endpoints.js';
 import { LABEL_MAX_LENGTH, MAX_LABELS, labelProblem, normaliseLabel } from '../utils/labels.js';
 
 /** One label, as a chip. `#` so it reads as a group rather than as a status. */
-export function LabelChip({ label, active = false, count, onClick }) {
+export function LabelChip({ label, active = false, count, onClick, className = '' }) {
   const body = (
     <>
       #{label}
@@ -15,7 +15,7 @@ export function LabelChip({ label, active = false, count, onClick }) {
     : 'bg-line/[0.05] text-steel-300 ring-line/10';
   if (!onClick) {
     return (
-      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[0.7rem] font-semibold ring-1 ring-inset ${tone}`}>
+      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[0.7rem] font-semibold ring-1 ring-inset ${tone} ${className}`}>
         {body}
       </span>
     );
@@ -25,7 +25,7 @@ export function LabelChip({ label, active = false, count, onClick }) {
       type="button"
       aria-pressed={active}
       onClick={onClick}
-      className={`inline-flex items-center rounded-full px-3 py-1.5 text-sm font-semibold ring-1 ring-inset transition-colors hover:bg-line/[0.06] ${tone}`}
+      className={`inline-flex items-center rounded-full px-3 py-1.5 text-sm font-semibold ring-1 ring-inset transition-colors hover:bg-line/[0.06] ${tone} ${className}`}
     >
       {body}
     </button>
