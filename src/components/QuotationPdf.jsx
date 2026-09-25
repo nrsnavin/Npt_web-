@@ -129,7 +129,8 @@ export default function QuotationPdf({ quotation, open, onClose, onSent }) {
     if (!url) return;
     const link = document.createElement('a');
     link.href = url;
-    link.download = `${quotation?.number || 'quotation'}.pdf`;
+    /* NP/26-27/001 → NP-26-27-001.pdf: a slash is not allowed in a file name. */
+    link.download = `${(quotation?.number || 'quotation').replace(/[^A-Za-z0-9-]+/g, '-')}.pdf`;
     document.body.appendChild(link);
     link.click();
     link.remove();
