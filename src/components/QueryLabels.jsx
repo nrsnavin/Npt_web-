@@ -45,7 +45,21 @@ export default function QueryLabels({ query, onSaved }) {
   const [known, setKnown] = useState([]);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState(null);
+  /* Labels that might fit, from the ones in use — the model's pick or the rules'. A suggestion
+     only: nothing is filed until somebody presses it. */
+  const [suggested, setSuggested] = useState([]);
   const listId = useId();
+
+  useEffect(() => {
+    let live = true;
+    queriesApi
+      .labelSuggestions(query._id)
+      .then((rows) => live && setSuggested(rows || []))
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [query._id]);
 
   useEffect(() => setLabels(query.labels || []), [query.labels]);
 
@@ -131,6 +145,23 @@ export default function QueryLabels({ query, onSaved }) {
           </button>
         </form>
       )}
+
+      {suggested
+        .filter((entry) => !labels.includes(entry.label))
+        .map((entry) => (
+          <button
+            key={entry.label}
+            type="button"
+            disabled={busy || labels.length >= MAX_LABELS}
+            onClick={() => save([...labels, entry.label])}
+            title={`${entry.by === 'model' ? 'Suggested by AI' : 'Suggested'}: ${entry.why}. Press to add.`}
+            className="inline-flex items-center gap-1 rounded-full border border-dashed border-aqua-500/40 px-2.5 py-0.5 text-[0.7rem] font-semibold text-aqua-300 transition-colors hover:bg-aqua-500/10"
+          >
+            <span aria-hidden>{entry.by === 'model' ? '✦' : '+'}</span>
+            #{entry.label}
+            <span className="sr-only"> — suggested{entry.by === 'model' ? ' by AI' : ''}: {entry.why}</span>
+          </button>
+        ))}
 
       {problem && <span role="alert" className="text-xs text-danger-400">{problem}</span>}
     </div>

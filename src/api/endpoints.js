@@ -244,6 +244,8 @@ export const queries = {
       says what happened itself (with an undo), so the generic toast stays quiet. */
   bulkLabel: ({ ids, add, remove }) =>
     api.post('/queries/labels', { ids, add, remove }, { feedback: false }).then(unwrap),
+  /** Labels that might fit a thread, from the ones in use. A suggestion — nothing is filed. */
+  labelSuggestions: (id) => api.get(`/queries/${id}/label-suggestions`).then(unwrap),
   /** The thread's labels, replaced as a set. */
   setLabels: ({ id, labels }) => api.put(`/queries/${id}/labels`, { labels }).then(unwrap),
   /** A draft for the composer. Nothing is said in the thread until somebody presses send. */
