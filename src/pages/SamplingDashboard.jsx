@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { samples as samplesApi } from '../api/endpoints.js';
 import { useRecord } from '../hooks/useRecords.js';
-import { Badge, ErrorState, PageHeader, Section, Spinner } from '../components/ui.jsx';
+import { Badge, ErrorState, PageHeader, Section, DashboardSkeleton } from '../components/ui.jsx';
 import NeedsYouToday from '../components/NeedsYouToday.jsx';
 import { formatNumber } from '../utils/format.js';
 import { SAMPLE_PURPOSES, optionLabel, sampleStageLabel } from '../utils/pipeline.js';
@@ -125,7 +125,7 @@ export default function SamplingDashboard() {
   const fetch = useCallback(() => samplesApi.dashboard(), []);
   const { data, loading, error, reload } = useRecord(fetch, 'sampling');
 
-  if (loading) return <Spinner label="Loading the sampling dashboard" />;
+  if (loading) return <DashboardSkeleton label="Loading the sampling dashboard" />;
   if (error) return <ErrorState error={error} onRetry={reload} />;
   if (!data) return null;
 

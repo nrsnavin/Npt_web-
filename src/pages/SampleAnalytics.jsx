@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { samples as samplesApi } from '../api/endpoints.js';
 import { useRecord } from '../hooks/useRecords.js';
-import { ErrorState, PageHeader, Section, Spinner } from '../components/ui.jsx';
+import { ErrorState, PageHeader, Section, DashboardSkeleton } from '../components/ui.jsx';
 import {
   HANGER_CATEGORIES, HOOK_TYPES, MATERIALS, SAMPLE_PURPOSES, optionLabel, sampleStageLabel,
 } from '../utils/pipeline.js';
@@ -170,7 +170,7 @@ export default function SampleAnalytics() {
   const fetch = useCallback((period) => samplesApi.analytics({ months: period }), []);
   const { data, loading, error, reload } = useRecord(fetch, months);
 
-  if (loading) return <Spinner label="Building the analytics" />;
+  if (loading) return <DashboardSkeleton label="Building the analytics" />;
   if (error) return <ErrorState error={error} onRetry={reload} />;
   if (!data) return null;
 

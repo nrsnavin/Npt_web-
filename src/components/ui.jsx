@@ -86,6 +86,38 @@ export function ErrorState({ error, onRetry }) {
   );
 }
 
+/**
+ * A dashboard's shape while it loads — a row of figures and two panels — so the page appears in
+ * place rather than as a spinner that is then replaced by something else entirely. The label is
+ * still said, for a screen reader.
+ */
+export function DashboardSkeleton({ label = 'Loading', tiles = 4 }) {
+  return (
+    <div role="status" aria-label={label} className="space-y-5">
+      <span className="sr-only">{label}</span>
+      <div className="skeleton h-7 w-56" />
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {Array.from({ length: tiles }).map((_, index) => (
+          <div key={index} className="card space-y-3 p-5">
+            <div className="skeleton h-3 w-24" />
+            <div className="skeleton h-7 w-16" />
+          </div>
+        ))}
+      </div>
+      <div className="grid gap-5 lg:grid-cols-2">
+        {[0, 1].map((panel) => (
+          <div key={panel} className="card space-y-3 p-5">
+            <div className="skeleton h-4 w-40" />
+            {[0, 1, 2, 3].map((line) => (
+              <div key={line} className="skeleton h-3" style={{ width: `${88 - line * 12}%` }} />
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function EmptyState({ title, description, action, icon = '◇' }) {
   return (
     <div className="card animate-fade-up flex flex-col items-center gap-3 px-6 py-16 text-center">

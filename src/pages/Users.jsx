@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { users as usersApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import {
-  Badge, ConfirmDialog, Field, FormError, Modal, Notice, PageHeader, Pagination, Spinner,
+  Badge, ConfirmDialog, EmptyState, Field, FormError, Modal, Notice, PageHeader, Pagination, Spinner, TableSkeleton,
 } from '../components/ui.jsx';
 import { formatDate, humanise } from '../utils/format.js';
 import { mayHoldBuyers } from '../utils/pipeline.js';
@@ -437,10 +437,17 @@ export default function Users() {
         </select>
       </form>
 
-      {loading && <Spinner label="Loading users" />}
+      {loading && <TableSkeleton rows={6} columns={5} />}
       {error && <Notice tone="danger">{error.message}</Notice>}
 
-      {!loading && !error && (
+      {!loading && !error && !rows.length && (
+        <EmptyState
+          title="Nobody matches"
+          description="No account fits those filters. Clear the search, or add the person."
+        />
+      )}
+
+      {!loading && !error && rows.length > 0 && (
         <div className="card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">

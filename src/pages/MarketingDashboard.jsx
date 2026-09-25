@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { dashboards } from '../api/endpoints.js';
 import { useRecord } from '../hooks/useRecords.js';
-import { Badge, ErrorState, PageHeader, Section, Spinner } from '../components/ui.jsx';
+import { Badge, ErrorState, PageHeader, Section, DashboardSkeleton } from '../components/ui.jsx';
 import TodoBoard from '../components/TodoBoard.jsx';
 import NeedsYouToday from '../components/NeedsYouToday.jsx';
 import { formatCompactCurrency, formatDate, humanise } from '../utils/format.js';
@@ -96,7 +96,7 @@ export default function MarketingDashboard() {
   const fetch = useCallback(() => dashboards.marketing(), []);
   const { data, loading, error, reload } = useRecord(fetch, 'marketing');
 
-  if (loading) return <Spinner label="Gathering your day" />;
+  if (loading) return <DashboardSkeleton label="Gathering your day" />;
   if (error) return <ErrorState error={error} onRetry={reload} />;
   if (!data) return null;
 

@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useWorkspace } from '../components/dock/WorkspaceContext.jsx';
-import { Badge, PageHeader, Spinner } from '../components/ui.jsx';
+import { Badge, PageHeader, DashboardSkeleton } from '../components/ui.jsx';
 import SampleDay from '../components/SampleDay.jsx';
 import NeedsYouToday from '../components/NeedsYouToday.jsx';
 import { formatDate, humanise, plural } from '../utils/format.js';
@@ -126,7 +126,7 @@ export default function Dashboard() {
     return 'Good evening';
   }, []);
 
-  if (loading && !reminders) return <Spinner label="Loading your day" />;
+  if (loading && !reminders) return <DashboardSkeleton label="Loading your day" />;
 
   const counts = reminders?.counts || { overdue: 0, today: 0, tomorrow: 0, actionable: 0 };
   const openTasks = todos.filter((todo) => !todo.completed).length;

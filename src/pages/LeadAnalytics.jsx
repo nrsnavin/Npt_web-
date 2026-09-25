@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { leads as leadsApi } from '../api/endpoints.js';
 import { useRecord } from '../hooks/useRecords.js';
-import { ErrorState, PageHeader, Section, Spinner } from '../components/ui.jsx';
+import { ErrorState, PageHeader, Section, DashboardSkeleton } from '../components/ui.jsx';
 import LeadMap from '../components/LeadMap.jsx';
 import Scoreboard from '../components/Scoreboard.jsx';
 import { humanise } from '../utils/format.js';
@@ -161,7 +161,7 @@ export default function LeadAnalytics() {
     navigate(`/leads?${choice.field}=${encodeURIComponent(choice.value)}`);
   };
 
-  if (loading) return <Spinner />;
+  if (loading) return <DashboardSkeleton label="Loading lead analytics" />;
   if (error) return <ErrorState error={error} onRetry={reload} />;
   if (!data) return null;
 

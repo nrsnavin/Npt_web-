@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { samples as samplesApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
-import { ErrorState, PageHeader, Spinner } from '../components/ui.jsx';
+import { ErrorState, PageHeader, DashboardSkeleton } from '../components/ui.jsx';
 import { formatDate } from '../utils/format.js';
 
 /**
@@ -181,7 +181,7 @@ export default function SampleHome() {
   }, []);
 
   if (error) return <ErrorState error={error} onRetry={load} />;
-  if (!day) return <Spinner label="Loading your work" />;
+  if (!day) return <DashboardSkeleton label="Loading your work" />;
 
   const nothing = !day.overdue.length && !day.fresh.length && !day.inWork.length;
 

@@ -9,7 +9,7 @@ import {
   samples as samplesApi,
 } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
-import { Badge, ErrorState, Modal, Notice, PageHeader, Spinner } from '../components/ui.jsx';
+import { Badge, ErrorState, Modal, Notice, PageHeader, DashboardSkeleton } from '../components/ui.jsx';
 import PricingDecision from '../components/PricingDecision.jsx';
 import NeedsYouToday from '../components/NeedsYouToday.jsx';
 import WhatMattersNow from '../components/WhatMattersNow.jsx';
@@ -214,7 +214,7 @@ export default function ManagementHome() {
     return 'Good evening';
   }, []);
 
-  if (loading) return <Spinner label="Reading the business" />;
+  if (loading) return <DashboardSkeleton label="Reading the business" />;
   if (error) return <ErrorState error={error} onRetry={load} />;
 
   const { approvals, funnel, sent, won, openQueries, openLeads, openSamples } = data;
