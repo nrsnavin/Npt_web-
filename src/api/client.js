@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { beginFeedback, finishFeedback } from './feedback.js';
 import { failureFrom } from './failure.js';
+import { shrinkForm } from '../utils/shrinkImage.js';
 
 const TOKEN_KEY = 'npt.token';
 
@@ -13,9 +14,12 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-api.interceptors.request.use((config) => {
+api.interceptors.request.use(async (config) => {
   const token = getToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;
+
+  /* Every upload passes here, so every photo is made smaller here — see shrinkImage.js. */
+  if (config.data instanceof FormData) config.data = await shrinkForm(config.data);
 
   /*
    * The instance sets application/json for every request, which is right for all of them
