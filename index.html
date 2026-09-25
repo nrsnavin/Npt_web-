@@ -7,6 +7,11 @@
     <!-- Every page load asked for /favicon.ico, got nothing, and logged a 404 in the console of
          a tab whose icon was blank. One file fixes both. -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- Installable: the manifest names the app and its icons; iOS reads its own tags. -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Navin Hangers" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link

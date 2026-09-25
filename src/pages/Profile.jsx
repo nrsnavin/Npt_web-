@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { auth } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { Badge, Field, Modal, Notice, PageHeader } from '../components/ui.jsx';
 import { formatDate, humanise } from '../utils/format.js';
 import { setStartPage, startPage } from '../utils/startPage.js';
+import { disablePush, enablePush, pushState } from '../utils/push.js';
 
 const SIGN_IN_METHODS = {
   password: 'Email and password',
@@ -205,6 +206,57 @@ function ChangePassword({ user, onClose }) {
   );
 }
 
+const PUSH_SAYS = {
+  unsupported: 'This browser cannot take notifications here. On a phone, install the app first (Add to Home Screen), then turn them on.',
+  unconfigured: 'Notifications are not switched on for the plant yet — ask an administrator.',
+  denied: 'This device has blocked notifications for the app. Allow them in the browser settings.',
+  on: 'This device is told when somebody tags you.',
+  off: 'Get told on this device when somebody tags you, even with the app closed.',
+};
+
+/** Pushes to this device — a tag reaches the phone in the pocket. */
+function DeviceNotifications() {
+  const [state, setState] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState(null);
+
+  useEffect(() => {
+    pushState().then(setState).catch(() => setState('unsupported'));
+  }, []);
+
+  const flip = async () => {
+    setBusy(true);
+    setProblem(null);
+    try {
+      if (state === 'on') await disablePush();
+      else await enablePush();
+      setState(await pushState());
+    } catch (failure) {
+      setProblem(failure.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!state) return null;
+  const canFlip = state === 'on' || state === 'off';
+
+  return (
+    <section className="card mt-5 flex flex-wrap items-center justify-between gap-4 p-6">
+      <div>
+        <h2 className="text-base font-bold tracking-tight text-steel-50">Notifications on this device</h2>
+        <p className="mt-1 text-sm text-steel-400">{PUSH_SAYS[state]}</p>
+        {problem && <p role="alert" className="mt-1 text-sm text-danger-400">{problem}</p>}
+      </div>
+      {canFlip && (
+        <button type="button" className={state === 'on' ? 'btn-secondary' : 'btn-primary'} disabled={busy} onClick={flip}>
+          {busy ? 'Working…' : state === 'on' ? 'Turn off' : 'Turn on'}
+        </button>
+      )}
+    </section>
+  );
+}
+
 /** Where the app opens for this person: the query list, or Today. Kept on this device. */
 function StartPageChoice() {
   const [page, setPage] = useState(startPage);
@@ -348,6 +400,7 @@ export default function Profile() {
       </section>
 
       <StartPageChoice />
+      <DeviceNotifications />
 
       <section className="card mt-5 flex flex-wrap items-center justify-between gap-4 p-6">
         <div>

@@ -22,3 +22,13 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     </ThemeProvider>
   </React.StrictMode>
 );
+
+/*
+ * The installed app's worker — keeps the app's own files for a poor signal and shows pushes.
+ * Built copies only: in development it would hold on to files Vite is busy replacing.
+ */
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}

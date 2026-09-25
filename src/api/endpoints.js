@@ -3,6 +3,13 @@ import api from './client.js';
 const unwrap = (response) => response.data.data;
 
 /** The bottom-right dock: personal tasks and notes, plus plant-wide announcements. */
+/** This device's notifications. The profile switch says what happened itself. */
+export const pushApi = {
+  key: () => api.get('/workspace/push/key').then(unwrap),
+  subscribe: (payload) => api.post('/workspace/push/subscribe', payload, { feedback: false }).then(unwrap),
+  unsubscribe: (payload) => api.post('/workspace/push/unsubscribe', payload, { feedback: false }).then(unwrap),
+};
+
 /** Everything waiting on me — the bell. Read quietly: nobody pressed anything. */
 export const inbox = {
   get: () => api.get('/inbox').then(unwrap),
