@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { useTheme } from '../context/ThemeContext.jsx';
 import WorkspaceRail from './dock/WorkspaceRail.jsx';
 import SidebarNav from './SidebarNav.jsx';
+import InboxBell from './InboxBell.jsx';
 import GlobalSearch from './GlobalSearch.jsx';
 import ErrorBoundary from './ErrorBoundary.jsx';
 import { Modal } from './ui.jsx';
@@ -411,6 +412,7 @@ export default function Layout() {
 
         <div className="min-w-0 flex-1 lg:max-w-xs lg:flex-none"><GlobalSearch /></div>
 
+        <InboxBell />
         <ThemeToggle />
 
         <NavLink

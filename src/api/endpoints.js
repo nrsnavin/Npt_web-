@@ -3,6 +3,11 @@ import api from './client.js';
 const unwrap = (response) => response.data.data;
 
 /** The bottom-right dock: personal tasks and notes, plus plant-wide announcements. */
+/** Everything waiting on me — the bell. Read quietly: nobody pressed anything. */
+export const inbox = {
+  get: () => api.get('/inbox').then(unwrap),
+};
+
 /** A person's saved views — named filter sets pinned in their sidebar. */
 export const views = {
   list: (page) => api.get('/workspace/views', { params: page ? { page } : undefined }).then(unwrap),

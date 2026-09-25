@@ -17,6 +17,7 @@ import useCurrentLocation from '../hooks/useCurrentLocation.js';
 import { WORST_ACCURACY_M, accuracyLabel, mapsUrl } from '../utils/maps.js';
 import { insertMention, matchPeople, mentionAt, mentionsIn, taggablePeople } from '../utils/mentions.js';
 import QueryLabels from '../components/QueryLabels.jsx';
+import { announceInboxChanged } from '../components/InboxBell.jsx';
 
 /**
  * One thread: what was asked, who is in it, and everything said since.
@@ -122,7 +123,8 @@ export default function QueryDetail({ id: givenId, inPanel = false } = {}) {
    */
   useEffect(() => {
     if (!query?._id) return;
-    queriesApi.read(query._id).catch(() => {});
+    /* And tell the bell, which may be holding a tag this read has just cleared. */
+    queriesApi.read(query._id).then(announceInboxChanged).catch(() => {});
   }, [query?._id, heard]);
 
   if (loading && !query) return <Spinner label="Opening the thread" />;
