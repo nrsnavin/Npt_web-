@@ -47,8 +47,13 @@ const BY_MODEL =
   'Written by the model from the thread below, and not stored anywhere. It can be wrong: the '
   + 'thread underneath is the record.';
 
-export default function QueryDetail() {
-  const { id } = useParams();
+/**
+ * `id` is given when the page is shown in the list's side panel; on its own route it comes from
+ * the address. `inPanel` narrows the layout to one column, which is what a drawer has room for.
+ */
+export default function QueryDetail({ id: givenId, inPanel = false } = {}) {
+  const params = useParams();
+  const id = givenId || params.id;
   const { user, canWrite } = useAuth();
   const [error, setError] = useState(null);
   const [body, setBody] = useState('');
@@ -338,7 +343,7 @@ export default function QueryDetail() {
         </Section>
       )}
 
-      <div className={`grid gap-6 lg:grid-cols-[2fr,1fr] ${mode === 'room' ? 'hidden' : ''}`}>
+      <div className={`grid gap-6 ${inPanel ? '' : 'lg:grid-cols-[2fr,1fr]'} ${mode === 'room' ? 'hidden' : ''}`}>
         <div className="space-y-6">
           {/*
             The conversation, in the order it happened — the question first, because that is

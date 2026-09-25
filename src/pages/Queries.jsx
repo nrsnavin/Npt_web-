@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { queries as queriesApi } from '../api/endpoints.js';
 import { useDebounced, useRecordList } from '../hooks/useRecords.js';
@@ -23,6 +23,9 @@ import QueryQuickReply, { ShortcutHelp } from '../components/QueryQuickReply.jsx
 import { listAction, step } from '../utils/listKeys.js';
 import SaveView from '../components/SaveView.jsx';
 import QueryLabelBoard from '../components/QueryLabelBoard.jsx';
+import PeekPanel from '../components/PeekPanel.jsx';
+/* The thread page, fetched only when somebody first peeks — the list does not carry it. */
+const QueryDetail = lazy(() => import('./QueryDetail.jsx'));
 import { useToast } from '../context/ToastContext.jsx';
 
 /**
@@ -205,6 +208,24 @@ export default function Queries() {
   /* One label's group, from the chip bar. */
   const [label, setLabel] = useState(() => fromUrl('label'));
   const [savingView, setSavingView] = useState(false);
+  /*
+   * The thread open beside the list, in the address as `?peek=` so Back closes it and a link
+   * opens it. A plain click on a wide screen peeks; Ctrl/⌘-click, a middle click, or a phone
+   * opens the page itself, as a link always does.
+   */
+  const peek = searchParams.get('peek') || '';
+  const setPeek = (id) => {
+    const next = new URLSearchParams(searchParams);
+    if (id) next.set('peek', id);
+    else next.delete('peek');
+    setSearchParams(next, { replace: !id });
+  };
+  const peekOnClick = (event, id) => {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    if (window.innerWidth < 1024) return;
+    event.preventDefault();
+    setPeek(id);
+  };
   const addressKey = ['q', 'status', 'department', 'person', 'tagged', 'label'].map(fromUrl).join('|');
   /* Rows ticked for filing together, a drag in progress, and the row whose # menu is open. */
   const [selected, setSelected] = useState([]);
@@ -342,7 +363,10 @@ export default function Queries() {
         setCursor(0);
         return;
       }
-      if (action === 'open') navigate(`/queries/${row._id}`);
+      if (action === 'open') {
+        if (window.innerWidth >= 1024) setPeek(row._id);
+        else navigate(`/queries/${row._id}`);
+      }
       if (action === 'select') toggleSelected(row._id);
       if (action === 'label') setPickerFor(row._id);
       if (action === 'reply') setReplyFor(row._id);
@@ -642,6 +666,13 @@ export default function Queries() {
         */
         <div>
         <ShortcutHelp open={showKeys} onClose={() => setShowKeys(false)} />
+      <PeekPanel open={Boolean(peek)} onClose={() => { setPeek(''); reload(); }} fullHref={`/queries/${peek}`} title="Query">
+        {peek && (
+          <Suspense fallback={<TableSkeleton rows={4} columns={2} />}>
+            <QueryDetail key={peek} id={peek} inPanel />
+          </Suspense>
+        )}
+      </PeekPanel>
       <SelectionBar
           count={selected.length}
           ids={selected}
@@ -678,6 +709,7 @@ export default function Queries() {
                     setDragging(true);
                   }}
                   onDragEnd={() => setDragging(false)}
+                  onClick={(event) => peekOnClick(event, row._id)}
                   className={`flex gap-3 border-l-4 px-4 py-3.5 transition-colors hover:bg-line/[0.03]
                     [li:first-child>&]:rounded-t-xl [li:last-child>&]:rounded-b-xl ${
                     selected.includes(row._id)

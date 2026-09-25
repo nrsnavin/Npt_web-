@@ -101,11 +101,16 @@ export default {
         shimmer: {
           '100%': { transform: 'translateX(100%)' },
         },
+        'slide-in-right': {
+          from: { opacity: '0.6', transform: 'translateX(24px)' },
+          to: { opacity: '1', transform: 'translateX(0)' },
+        },
       },
       animation: {
         'fade-up': 'fade-up 240ms cubic-bezier(0.2, 0, 0, 1) both',
         'fade-in': 'fade-in 180ms ease-out both',
         'scale-in': 'scale-in 200ms cubic-bezier(0.2, 0, 0, 1) both',
+        'slide-in-right': 'slide-in-right 220ms cubic-bezier(0.2, 0, 0, 1) both',
       },
     },
   },
