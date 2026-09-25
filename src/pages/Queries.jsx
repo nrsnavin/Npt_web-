@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { queries as queriesApi } from '../api/endpoints.js';
 import { useDebounced, useRecordList } from '../hooks/useRecords.js';
 import {
@@ -19,6 +19,9 @@ import {
   LabelDot, LabelPicker, LabelRail, SelectionBar, startRowDrag, useLabelling,
 } from '../components/QueryLabelling.jsx';
 import useOpenFromLink from '../hooks/useOpenFromLink.js';
+import QueryQuickReply, { ShortcutHelp } from '../components/QueryQuickReply.jsx';
+import { listAction, step } from '../utils/listKeys.js';
+import { useToast } from '../context/ToastContext.jsx';
 
 /**
  * Every question this person is in.
@@ -197,6 +200,12 @@ export default function Queries() {
   const [selected, setSelected] = useState([]);
   const [dragging, setDragging] = useState(false);
   const [pickerFor, setPickerFor] = useState(null);
+  /* The keyboard's place in the list, the row being answered in place, and the help sheet. */
+  const [cursor, setCursor] = useState(-1);
+  const [replyFor, setReplyFor] = useState(null);
+  const [showKeys, setShowKeys] = useState(false);
+  const navigate = useNavigate();
+  const { warn } = useToast();
   const [page, setPage] = useState(1);
   const [asking, setAsking] = useState(false);
   /* The command bar's "New …" arrives as `?new=1` with the form to open. */
@@ -280,7 +289,49 @@ export default function Queries() {
   useEffect(() => {
     setSelected([]);
     setPickerFor(null);
+    setReplyFor(null);
+    setCursor(-1);
   }, [params]);
+
+  /*
+   * The list from the keyboard — J/K to move, Enter to open, X to tick, L for labels, R to reply,
+   * E to close, ? for the sheet. Only on the list view, never while typing or while a dialog has
+   * the keyboard; see `utils/listKeys.js`.
+   */
+  useEffect(() => {
+    if (mode === 'map') return undefined;
+    const onKey = (event) => {
+      const action = listAction(event);
+      if (!action) return;
+      if (action === 'help') {
+        setShowKeys(true);
+        return;
+      }
+      if (!data.length) return;
+      event.preventDefault();
+      if (action === 'next' || action === 'previous') {
+        const next = step(cursor, action, data.length);
+        setCursor(next);
+        document.querySelector(`[data-row="${next}"]`)?.scrollIntoView({ block: 'nearest' });
+        return;
+      }
+      const row = data[cursor];
+      if (!row) {
+        setCursor(0);
+        return;
+      }
+      if (action === 'open') navigate(`/queries/${row._id}`);
+      if (action === 'select') toggleSelected(row._id);
+      if (action === 'label') setPickerFor(row._id);
+      if (action === 'reply') setReplyFor(row._id);
+      if (action === 'close') {
+        queriesApi.close(row._id).then(reload).catch((failure) => warn(`${row.number} was not closed`, failure.message));
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, cursor, mode]);
   const chooseLabel = (next) => {
     setLabel(next);
     setPage(1);
@@ -542,7 +593,8 @@ export default function Queries() {
           (what needs *me*) and a thread can be unread and not urgent, or read and still owed.
         */
         <div>
-        <SelectionBar
+        <ShortcutHelp open={showKeys} onClose={() => setShowKeys(false)} />
+      <SelectionBar
           count={selected.length}
           ids={selected}
           known={known}
@@ -550,7 +602,7 @@ export default function Queries() {
           onClear={() => setSelected([])}
         />
         <ul className="card divide-y divide-line/[0.06]">
-          {data.map((row) => {
+          {data.map((row, rowIndex) => {
             const unread = row.unread || 0;
             const last = row.last || {};
             /* Tagged in it at all, and whether that tag is still unread. */
@@ -558,7 +610,14 @@ export default function Queries() {
             const taggedUnread = row.taggedMe > 0;
 
             return (
-              <li key={row._id} className="group relative">
+              <li
+                key={row._id}
+                data-row={rowIndex}
+                className={`group relative ${rowIndex === cursor ? 'z-[1] outline outline-2 -outline-offset-2 outline-flame-500/60 [li:first-child&]:rounded-t-xl' : ''}`}
+              >
+                {/* The row and its buttons share a box, so the buttons stay on the row when the
+                    reply box opens underneath it. */}
+                <div className="relative">
                 <Link
                   to={`/queries/${row._id}`}
                   /*
@@ -685,7 +744,7 @@ export default function Queries() {
                       </p>
                     )}
 
-                    <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 pr-9">
+                    <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 pr-28">
                       {/* The row's labels, each with an × to take it off. */}
                       {(row.labels || []).map((name) => (
                         <span
@@ -728,7 +787,21 @@ export default function Queries() {
 
                 {/* The # menu: the row's labels as switches, and a box to start a new one.
                     Shown on hover, and always on a touch screen, which has no hover and no drag. */}
-                <div className="absolute bottom-2.5 right-3">
+                <div className="absolute bottom-2.5 right-3 flex items-center gap-1">
+                  {row.status !== 'closed' && (
+                    <button
+                      type="button"
+                      aria-label={`Reply to ${row.number}`}
+                      title="Reply without opening (R)"
+                      onClick={() => setReplyFor((open) => (open === row._id ? null : row._id))}
+                      className={`flex h-7 items-center rounded-lg px-2 text-xs font-semibold text-steel-400 ring-1 ring-inset ring-line/10 transition hover:bg-line/[0.06] hover:text-steel-100 focus:opacity-100 [@media(hover:none)]:opacity-100 ${
+                        replyFor === row._id ? 'bg-line/[0.08] opacity-100' : 'bg-ink-850 opacity-0 group-hover:opacity-100'
+                      }`}
+                    >
+                      ↩ Reply
+                    </button>
+                  )}
+                  <div className="relative">
                   <button
                     type="button"
                     aria-label={`Labels for ${row.number}`}
@@ -751,11 +824,22 @@ export default function Queries() {
                       onToggle={(name, on) => file({ ids: [row._id], ...(on ? { add: name } : { remove: name }) })}
                     />
                   )}
+                  </div>
                 </div>
+                </div>
+
+                {/* Answering in place — R, or the row's Reply button. */}
+                {replyFor === row._id && (
+                  <QueryQuickReply query={row} onClose={() => setReplyFor(null)} onSent={reload} />
+                )}
               </li>
             );
           })}
         </ul>
+        {/* Said once, under the list, where somebody looking for a faster way will find it. */}
+        <p className="mt-2 hidden text-right text-xs text-steel-500 lg:block">
+          Tip: press <kbd className="rounded border border-line/15 px-1 font-mono">?</kbd> for keyboard shortcuts
+        </p>
         </div>
       )}
 
