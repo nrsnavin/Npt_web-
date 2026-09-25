@@ -17,6 +17,7 @@ import {
   stageLabel,
 } from '../utils/pipeline.js';
 import { CustomerForm } from './Customers.jsx';
+import CustomerTimeline from '../components/CustomerTimeline.jsx';
 
 function ContactCard({ contact }) {
   return (
@@ -77,7 +78,11 @@ export default function CustomerDetail() {
             <ViewSwitch
               mode={mode}
               onChange={setMode}
-              options={[{ value: 'list', label: 'List' }, { value: 'map', label: 'Map' }]}
+              options={[
+                { value: 'list', label: 'Details' },
+                { value: 'timeline', label: 'Timeline' },
+                { value: 'map', label: 'Map' },
+              ]}
             />
             {mayWrite && (
               <button type="button" className="btn-secondary" onClick={() => setEditing(true)}>
@@ -91,13 +96,16 @@ export default function CustomerDetail() {
       {/* The map replaces the columns rather than sitting above them: a picture of the whole
           relationship and then the same records again as tables is one screen saying everything
           twice, and the reader has just chosen which of the two they wanted. */}
+      {/* Everything about the buyer on one scroll, newest first. */}
+      {mode === 'timeline' && <CustomerTimeline customerId={customer._id} />}
+
       {mode === 'map' && (
         <div className="card p-4">
           <CustomerMap customer={customer._id} name={customer.name} />
         </div>
       )}
 
-      <div className={`grid gap-5 lg:grid-cols-3 ${mode === 'map' ? 'hidden' : ''}`}>
+      <div className={`grid gap-5 lg:grid-cols-3 ${mode !== 'list' ? 'hidden' : ''}`}>
         <div className="min-w-0 space-y-5 lg:col-span-2">
           <Section title="Details">
             <Facts

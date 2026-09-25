@@ -277,6 +277,9 @@ export const queries = {
 
 export const customers = {
   list: (params) => api.get('/customers', { params }).then(listed),
+  /** Everything about the buyer, newest first; `before` pages back through it. */
+  timeline: ({ id, before }) =>
+    api.get(`/customers/${id}/timeline`, { params: before ? { before } : undefined }).then((response) => response.data),
   get: (id) => api.get(`/customers/${id}`).then(unwrap),
   /**
    * Everything hanging off one buyer, for the map view.
