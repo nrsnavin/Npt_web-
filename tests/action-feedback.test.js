@@ -22,3 +22,7 @@ test('ordinary reads remain quiet and labels use business language', () => {
   let count=0;const unsubscribe=subscribeFeedback(()=>count++);
   try {const config={method:'get',url:'/customers'};beginFeedback(config);finishFeedback(config,{status:200});assert.equal(count,1);assert.equal(actionLabel({method:'delete',url:'/users/123'}),'User offboarded');assert.equal(actionLabel({method:'post',url:'/payments/123/receipts'}),'Receipt recorded');} finally {unsubscribe();}
 });
+
+test('moving the quote sequence says so, not "quotation updated"', () => {
+  assert.equal(actionLabel({ method: 'put', url: '/quotations/numbering' }), 'Quote numbering saved');
+});

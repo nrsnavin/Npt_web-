@@ -9,6 +9,7 @@ import {
 import StagePipeline from '../components/StagePipeline.jsx';
 import QuotationPdf from '../components/QuotationPdf.jsx';
 import { SortHeader, useSort } from '../components/SortHeader.jsx';
+import QuoteNumbering from '../components/QuoteNumbering.jsx';
 import { CustomerSelect, MouldSelect } from '../components/pickers.jsx';
 import { formatCompactCurrency, formatCurrency, formatDate, formatNumber, humanise } from '../utils/format.js';
 /* The shared one, not a second copy of it: this date now decides whether the server takes the
@@ -613,6 +614,7 @@ export default function Quotations() {
   const [editing, setEditing] = useState(null);
   const [responding, setResponding] = useState(null);
   const [sendError, setSendError] = useState(null);
+  const [numbering, setNumbering] = useState(false);
   const { sort, toggle } = useSort();
 
   /* Back to page one on every sort, so a re-ordering never lands somebody in the middle of a
@@ -675,6 +677,9 @@ export default function Quotations() {
             <Link to="/quotations/sent" className="btn-secondary">
               Sent only
             </Link>
+            <button type="button" className="btn-secondary" onClick={() => setNumbering(true)}>
+              Numbering
+            </button>
             {mayWrite && (
               <button type="button" className="btn-primary" onClick={() => setCreating(true)}>
                 + New quotation
@@ -941,6 +946,8 @@ export default function Quotations() {
           reload();
         }}
       />
+
+      <QuoteNumbering open={numbering} onClose={() => setNumbering(false)} />
     </div>
   );
 }

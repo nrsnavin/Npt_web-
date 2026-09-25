@@ -22,6 +22,7 @@ export function actionLabel(config) {
   if (last === 'files') return 'File shared';
   if (last === 'urgent') return 'Urgency updated';
   if (last === 'labels') return 'Labels saved';
+  if (last === 'numbering') return 'Quote numbering saved';
   if (last === 'convert') return `${noun} converted`;
   if (last === 'pod' || last === 'photo' || last === 'po') return 'Document uploaded';
   if (config.method === 'delete') return noun === 'User' ? 'User offboarded' : `${noun} removed`;

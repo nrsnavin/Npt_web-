@@ -645,6 +645,10 @@ export const quotations = {
    * life of the tab.
    */
   pdf: (id) => api.get(`/quotations/${id}/pdf`, { responseType: 'blob' }).then((r) => r.data),
+  /** Where this year's and next year's quote sequences stand. */
+  numbering: () => api.get('/quotations/numbering').then(unwrap),
+  /** Where a sequence carries on from — administrators only, and never onto a number in use. */
+  setNumbering: (payload) => api.put('/quotations/numbering', payload).then(unwrap),
 };
 
 /** Phase 2: sample requests, from the enquiry that raised one to the customer's answer. */
