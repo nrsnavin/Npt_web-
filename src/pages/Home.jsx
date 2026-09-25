@@ -4,6 +4,7 @@ import Dashboard from './Dashboard.jsx';
 
 const SampleHome = lazyPage(() => import('./SampleHome.jsx'));
 const ManagementHome = lazyPage(() => import('./ManagementHome.jsx'));
+const TeamHome = lazyPage(() => import('./TeamHome.jsx'));
 
 /**
  * What somebody sees when they open the app.
@@ -60,6 +61,15 @@ const HOME_BY_DEPARTMENT = {
    * their own to-dos told them none of that.
    */
   management: () => <ManagementHome />,
+  /*
+   * The departments the app reaches through questions rather than follow-up dates. My day
+   * counted their to-dos, which were mostly none; their home leads with what is being asked of
+   * them — see `TeamHome`.
+   */
+  despatch: () => <TeamHome />,
+  accounts: () => <TeamHome />,
+  quality: () => <TeamHome />,
+  production: () => <TeamHome />,
 };
 
 export default function Home() {

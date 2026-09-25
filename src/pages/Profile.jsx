@@ -4,6 +4,7 @@ import { auth } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { Badge, Field, Modal, Notice, PageHeader } from '../components/ui.jsx';
 import { formatDate, humanise } from '../utils/format.js';
+import { setStartPage, startPage } from '../utils/startPage.js';
 
 const SIGN_IN_METHODS = {
   password: 'Email and password',
@@ -204,6 +205,39 @@ function ChangePassword({ user, onClose }) {
   );
 }
 
+/** Where the app opens for this person: the query list, or Today. Kept on this device. */
+function StartPageChoice() {
+  const [page, setPage] = useState(startPage);
+  const choose = (next) => {
+    setStartPage(next);
+    setPage(next);
+  };
+  return (
+    <section className="card mt-5 flex flex-wrap items-center justify-between gap-4 p-6">
+      <div>
+        <h2 className="text-base font-bold tracking-tight text-steel-50">Open the app on</h2>
+        <p className="mt-1 text-sm text-steel-400">
+          Today is your day by role — what is waiting on you and your team. On this device only.
+        </p>
+      </div>
+      <div role="radiogroup" aria-label="Start page" className="tab-track grid-flow-col">
+        {[['queries', 'Queries'], ['today', 'Today']].map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            role="radio"
+            aria-checked={page === value}
+            onClick={() => choose(value)}
+            className={`tab ${page === value ? 'tab-active' : ''}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export default function Profile() {
   const { user, applyUser, logout } = useAuth();
   const [editing, setEditing] = useState(false);
@@ -312,6 +346,8 @@ export default function Profile() {
           ))}
         </div>
       </section>
+
+      <StartPageChoice />
 
       <section className="card mt-5 flex flex-wrap items-center justify-between gap-4 p-6">
         <div>

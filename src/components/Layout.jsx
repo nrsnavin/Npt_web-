@@ -61,7 +61,12 @@ const MODULES = [
     key: 'queries',
     label: 'Queries',
     module: 'queries',
-    features: [{ to: '/queries', label: 'Questions & answers' }],
+    features: [
+      { to: '/queries', label: 'Questions & answers' },
+      /* The day by role — the bench queue, the plant's numbers, what is waiting on my team —
+         for whoever wants a morning screen before the list. See `Home`. */
+      { to: '/today', label: 'Today' },
+    ],
   },
   {
     key: 'enquiries',

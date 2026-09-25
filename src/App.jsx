@@ -21,6 +21,7 @@ import lazyPage from './utils/lazyPage.js';
  */
 import Login from './pages/Login.jsx';
 import Home from './pages/Home.jsx';
+import { startPage } from './utils/startPage.js';
 
 const Profile = lazyPage(() => import('./pages/Profile.jsx'));
 const ForgotPassword = lazyPage(() => import('./pages/ForgotPassword.jsx'));
@@ -81,6 +82,8 @@ function RequireAdmin({ children }) {
  */
 function Landing() {
   const { canRead } = useAuth();
+  /* Somebody who chose Today as their start page on their profile opens on it instead. */
+  if (startPage() === 'today') return <Navigate to="/today" replace />;
   return canRead('queries') ? <Navigate to="/queries" replace /> : <Home />;
 }
 
@@ -161,6 +164,8 @@ export default function App() {
           */}
           <Route index element={<Landing />} />
           <Route path="profile" element={<Profile />} />
+          {/* The day by role, whichever page the app opens on. */}
+          <Route path="today" element={<Home />} />
 
           {/* Phase 1: the pipeline that runs from a lead to a customer to an enquiry. */}
           <Route
