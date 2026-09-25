@@ -1,4 +1,5 @@
-import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
+import lazyPage from '../utils/lazyPage.js';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { queries as queriesApi } from '../api/endpoints.js';
 import { useDebounced, useRecordList } from '../hooks/useRecords.js';
@@ -25,7 +26,7 @@ import SaveView from '../components/SaveView.jsx';
 import QueryLabelBoard from '../components/QueryLabelBoard.jsx';
 import PeekPanel from '../components/PeekPanel.jsx';
 /* The thread page, fetched only when somebody first peeks — the list does not carry it. */
-const QueryDetail = lazy(() => import('./QueryDetail.jsx'));
+const QueryDetail = lazyPage(() => import('./QueryDetail.jsx'));
 import { useToast } from '../context/ToastContext.jsx';
 
 /**
