@@ -20,6 +20,7 @@ import { formatCompactCurrency, formatDate, formatNumber } from '../utils/format
 import {
   CLOSED_STAGES, ENQUIRY_STAGES, SOURCES, buildEnquiryPayload, followUpState, stageLabel,
 } from '../utils/pipeline.js';
+import useOpenFromLink from '../hooks/useOpenFromLink.js';
 
 const TONE_TEXT = {
   danger: 'text-danger-400',
@@ -53,6 +54,8 @@ export default function Enquiries() {
     setPage(1);
   };
   const [creating, setCreating] = useState(false);
+  /* The command bar's "New …" arrives as `?new=1` with the form to open. */
+  useOpenFromLink(() => setCreating(true));
   const [searchParams, setSearchParams] = useSearchParams();
 
   const term = useDebounced(search);

@@ -17,6 +17,7 @@ import ViewSwitch from '../components/ViewSwitch.jsx';
 import { useViewMode } from '../hooks/useBoard.js';
 import { formatCompactCurrency, formatNumber, humanise } from '../utils/format.js';
 import { CLOSED_LEAD_STAGES, SOURCES, followUpState, leadStageLabel } from '../utils/pipeline.js';
+import useOpenFromLink from '../hooks/useOpenFromLink.js';
 
 const TONE_TEXT = {
   danger: 'text-danger-400',
@@ -56,6 +57,8 @@ export default function Leads() {
     setPage(1);
   };
   const [creating, setCreating] = useState(false);
+  /* The command bar's "New …" arrives as `?new=1` with the form to open. */
+  useOpenFromLink(() => setCreating(true));
 
   /*
    * The place filter lives in the address rather than in state, because it mostly arrives from

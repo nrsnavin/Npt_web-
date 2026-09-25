@@ -18,6 +18,7 @@ import { LabelChip } from '../components/QueryLabels.jsx';
 import {
   LabelDot, LabelPicker, LabelRail, SelectionBar, startRowDrag, useLabelling,
 } from '../components/QueryLabelling.jsx';
+import useOpenFromLink from '../hooks/useOpenFromLink.js';
 
 /**
  * Every question this person is in.
@@ -198,6 +199,8 @@ export default function Queries() {
   const [pickerFor, setPickerFor] = useState(null);
   const [page, setPage] = useState(1);
   const [asking, setAsking] = useState(false);
+  /* The command bar's "New …" arrives as `?new=1` with the form to open. */
+  useOpenFromLink(() => setAsking(true));
   /*
    * "Search the words only": the escape hatch from a reading that got it wrong. It has to be a
    * real parameter rather than a re-typing of the phrase, because the same words would be read

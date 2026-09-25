@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { search as searchApi } from '../api/endpoints.js';
+import { queries as queriesApi, search as searchApi } from '../api/endpoints.js';
+import { useAuth } from '../context/AuthContext.jsx';
+import { useToast } from '../context/ToastContext.jsx';
+import { suggestCommands } from '../utils/commands.js';
 import { useDebounced } from '../hooks/useRecords.js';
 
 /**
@@ -74,6 +77,9 @@ export default function GlobalSearch() {
 
   const input = useRef(null);
   const requestId = useRef(0);
+  const { user, canRead, canWrite } = useAuth();
+  const { toast, warn } = useToast();
+  const [running, setRunning] = useState(false);
 
   const query = useDebounced(term, 250);
 
@@ -122,7 +128,8 @@ export default function GlobalSearch() {
   }, [open]);
 
   useEffect(() => {
-    if (!open || query.trim().length < 2) {
+    /* "label QRY-6 quality" is an instruction, not something to search for. */
+    if (!open || query.trim().length < 2 || /^(label|close|reopen|urgent)\s/i.test(query.trim())) {
       setData(null);
       return undefined;
     }
@@ -145,13 +152,68 @@ export default function GlobalSearch() {
     };
   }, [open, query]);
 
+  /* What was typed read as a command — a page, a form, or something done to a query. Shown above
+     the search results, so Enter on "new sample" opens the form rather than searching for it. */
+  const commands = suggestCommands(term, { canRead, canWrite, isAdmin: user?.role === 'admin' });
+
   // Flattened once, so the keyboard walks the same order the eye does.
-  const flat = (data?.groups || []).flatMap((group) =>
-    group.results.map((result) => ({ ...result, group: group.label }))
-  );
+  const flat = [
+    ...commands.map((command) => ({ ...command, _id: command.id, isCommand: true })),
+    ...(data?.groups || []).flatMap((group) =>
+      group.results.map((result) => ({ ...result, group: group.label }))
+    ),
+  ];
+
+  /** Finds the query a command names — the exact number, or the newest ending in those digits. */
+  const findQuery = async (ref) => {
+    const answer = await queriesApi.list({ search: ref.exact || ref.tail, limit: 10, ai: 'false' });
+    const rows = answer.data || [];
+    return ref.exact
+      ? rows.find((row) => row.number === ref.exact)
+      : rows.filter((row) => row.number?.endsWith(`-${ref.tail}`)).sort((a, b) => (a.number < b.number ? 1 : -1))[0];
+  };
+
+  const runCommand = async (command) => {
+    const { run } = command;
+    if (command.disabled) return;
+    if (run.type === 'go') {
+      close();
+      navigate(run.path);
+      return;
+    }
+    setRunning(true);
+    try {
+      const query = await findQuery(run.ref);
+      if (!query) {
+        warn('No such query', 'Nothing you can see has that number.');
+        return;
+      }
+      if (run.type === 'label') {
+        const result = await queriesApi.bulkLabel({ ids: [query._id], add: run.label });
+        if (result.updated.length) toast(`Filed ${query.number} under #${result.label}`);
+        else warn(`${query.number} was not filed`, result.skipped[0]?.reason || 'It already carries that label.');
+      } else if (run.type === 'close') {
+        await queriesApi.close(query._id);
+      } else if (run.type === 'reopen') {
+        await queriesApi.reopen(query._id);
+      } else if (run.type === 'urgent') {
+        await queriesApi.urgent({ id: query._id, urgent: true });
+      }
+      close();
+      navigate(`/queries/${query._id}`);
+    } catch (error) {
+      warn('That did not go through', error.message);
+    } finally {
+      setRunning(false);
+    }
+  };
 
   const go = (result) => {
     if (!result) return;
+    if (result.isCommand) {
+      runCommand(result);
+      return;
+    }
     close();
     navigate(result.link);
   };
@@ -199,7 +261,7 @@ export default function GlobalSearch() {
                 ref={input}
                 type="text"
                 className="min-w-0 flex-1 bg-transparent text-[0.9375rem] text-steel-50 outline-none placeholder:text-steel-500"
-                placeholder="Customers, enquiries, samples, leads, models…"
+                placeholder="Search, or type a command — new sample, label QRY-6 quality…"
                 aria-label="Search everything"
                 value={term}
                 onChange={(event) => setTerm(event.target.value)}
@@ -216,13 +278,53 @@ export default function GlobalSearch() {
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto py-1">
+              {/* The commands, first — see `utils/commands.js`. */}
+              {commands.length > 0 && (
+                <div>
+                  <p className="px-4 pb-1 pt-2.5 text-[0.75rem] font-bold uppercase tracking-[0.1em] text-steel-500">
+                    {term.trim() ? 'Do' : 'Quick actions'}
+                  </p>
+                  {commands.map((command, index) => (
+                    <button
+                      key={command.id}
+                      type="button"
+                      disabled={running}
+                      className={`flex w-full items-center gap-3 px-4 py-2.5 text-left ${index === active ? 'bg-line/[0.07]' : ''} ${
+                        command.disabled ? 'opacity-60' : ''
+                      }`}
+                      onMouseEnter={() => setActive(index)}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => runCommand(command)}
+                    >
+                      <span
+                        aria-hidden
+                        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-xs font-bold ${
+                          command.kind === 'act'
+                            ? 'bg-flame-500/15 text-flame-400'
+                            : command.kind === 'new'
+                              ? 'bg-aqua-500/15 text-aqua-300'
+                              : 'bg-line/[0.07] text-steel-300'
+                        }`}
+                      >
+                        {command.kind === 'act' ? '⚡' : command.kind === 'new' ? '+' : '→'}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium text-steel-100">{command.title}</span>
+                        <span className="block truncate text-xs text-steel-500">{command.hint}</span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
               {term.trim().length < 2 && (
-                <p className="px-4 py-6 text-center text-sm text-steel-500">
-                  Search a customer, a number, a model or a phone number.
+                <p className="px-4 py-5 text-center text-xs leading-relaxed text-steel-500">
+                  Search a customer, a number, a model or a phone number — or type a command:
                   <br />
-                  <span className="text-xs">
-                    A customer&rsquo;s name brings back their enquiries and samples too.
-                  </span>
+                  <span className="font-mono text-steel-400">new sample</span> ·{' '}
+                  <span className="font-mono text-steel-400">label QRY-6 quality</span> ·{' '}
+                  <span className="font-mono text-steel-400">close QRY-6</span> ·{' '}
+                  <span className="font-mono text-steel-400">samples</span>
                 </p>
               )}
 
@@ -230,7 +332,7 @@ export default function GlobalSearch() {
                 <p className="px-4 py-6 text-center text-sm text-steel-500">Searching…</p>
               )}
 
-              {term.trim().length >= 2 && data && !flat.length && (
+              {term.trim().length >= 2 && data && !flat.length && !commands.length && (
                 <p className="px-4 py-6 text-center text-sm text-steel-500">
                   Nothing matches &ldquo;{term.trim()}&rdquo;.
                 </p>
@@ -249,7 +351,8 @@ export default function GlobalSearch() {
                   </p>
                   {group.results.map((result) => {
                     cursor += 1;
-                    const index = cursor;
+                    /* After the commands, which take the first places on the keyboard. */
+                    const index = cursor + commands.length;
 
                     return (
                       <button
@@ -281,7 +384,7 @@ export default function GlobalSearch() {
               <div className="flex shrink-0 items-center gap-3 border-t border-line/[0.06] px-4 py-2 text-xs text-steel-500">
                 <span>↑↓ to move</span>
                 <span>↵ to open</span>
-                <span className="ml-auto">{data.total} in all</span>
+                {data && <span className="ml-auto">{data.total} in all</span>}
               </div>
             )}
           </div>

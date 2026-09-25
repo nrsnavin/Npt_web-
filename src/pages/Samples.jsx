@@ -18,6 +18,7 @@ import {
   HANGER_CATEGORIES, MATERIALS, SAMPLE_PURPOSES, SAMPLE_STAGES, followUpState, numeric,
   optionLabel, sampleStageLabel, text,
 } from '../utils/pipeline.js';
+import useOpenFromLink from '../hooks/useOpenFromLink.js';
 
 const TONE_TEXT = {
   danger: 'text-danger-400',
@@ -86,6 +87,8 @@ const idle = async () => ({ data: [], pagination: null });
 export default function Samples() {
   const { user, canWrite } = useAuth();
   const [creating, setCreating] = useState(false);
+  /* The command bar's "New …" arrives as `?new=1` with the form to open. */
+  useOpenFromLink(() => setCreating(true));
   const [mode, setMode] = useViewMode('samples');
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');

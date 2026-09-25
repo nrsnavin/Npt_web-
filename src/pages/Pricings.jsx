@@ -15,6 +15,7 @@ import QuotationPdf from '../components/QuotationPdf.jsx';
 import QuoteFromCosting from '../components/QuoteFromCosting.jsx';
 import { formatCompactCurrency, formatDate, formatNumber, humanise } from '../utils/format.js';
 import { inDays, ownsRecord } from '../utils/pipeline.js';
+import useOpenFromLink from '../hooks/useOpenFromLink.js';
 
 /**
  * Costing sheets [BLUEPRINT §7, §9].
@@ -315,6 +316,8 @@ export default function Pricings() {
   const [costing, setCosting] = useState(null);
   const [deciding, setDeciding] = useState(null);
   const [raising, setRaising] = useState(null);
+  /* The command bar's "New …" arrives as `?new=1` with the form to open. */
+  useOpenFromLink(() => setRaising(true));
   const [quoting, setQuoting] = useState(null);
   const [madeQuote, setMadeQuote] = useState(null);
   const { sort, toggle } = useSort();

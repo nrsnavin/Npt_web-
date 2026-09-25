@@ -14,6 +14,7 @@ import PlaceInput from '../components/PlaceInput.jsx';
 import { SortHeader, useSort } from '../components/SortHeader.jsx';
 import { formatCompactCurrency, formatDate } from '../utils/format.js';
 import { CUSTOMER_TYPES, SOURCES, optionLabel } from '../utils/pipeline.js';
+import useOpenFromLink from '../hooks/useOpenFromLink.js';
 
 const RATINGS = [
   { value: 'A', label: 'A — key account' },
@@ -252,6 +253,8 @@ export default function Customers() {
   const [status, setStatus] = useState('');
   const [page, setPage] = useState(1);
   const [creating, setCreating] = useState(false);
+  /* The command bar's "New …" arrives as `?new=1` with the form to open. */
+  useOpenFromLink(() => setCreating(true));
   const { sort, toggle } = useSort();
 
   const sortBy = (field) => {
