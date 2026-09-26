@@ -4,7 +4,7 @@ import { Field, Notice } from './ui.jsx';
 import Combobox from './Combobox.jsx';
 import { MINIMUM_TIER, STANDARD_TIERS, priceAt as priceFor } from '../utils/pricing.js';
 import { changedParts } from '../utils/pricing.js';
-import { GRAM_STEP, roundGrams } from '../utils/grams.js';
+import { GRAM_STEP, cutGrams } from '../utils/grams.js';
 
 /**
  * The costing sheet, shared by the list and the costing's own page.
@@ -125,7 +125,7 @@ export default function CostingSheetForm({ pricing, line, onClose, onSaved }) {
           ...current,
           ...(tool
             ? {
-                gramWeight: roundGrams(
+                gramWeight: cutGrams(
                   tool.consumptionPerPieceGrams * (1 + (resin?.grammageFactorPercent || 0) / 100)
                 ),
                 /* The tool's own cost lines, only when the tool itself changed. A different
