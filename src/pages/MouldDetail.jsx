@@ -9,6 +9,7 @@ import {
 import { MouldThumb } from '../components/MouldPhoto.jsx';
 import MouldForm from '../components/MouldForm.jsx';
 import { formatCurrency, formatDate, formatNumber, humanise } from '../utils/format.js';
+import { formatGrams } from '../utils/grams.js';
 import {
   HANGER_CATEGORIES, HOOK_TYPES, MATERIALS, MOULD_OWNERSHIP, MOULD_STATUSES, optionLabel,
 } from '../utils/pipeline.js';
@@ -34,8 +35,7 @@ import {
  * rendering a row of dashes — an unexplained gap reads as a fault in the record.
  */
 
-const grams = (value) =>
-  value === undefined || value === null ? '—' : `${Number(value).toFixed(2)} g`;
+const grams = formatGrams;
 
 const percent = (value) =>
   value === undefined || value === null ? '—' : `${Number(value).toFixed(1)}%`;

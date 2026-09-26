@@ -4,6 +4,7 @@ import { Field, Notice } from './ui.jsx';
 import Combobox from './Combobox.jsx';
 import { MINIMUM_TIER, STANDARD_TIERS, priceAt as priceFor } from '../utils/pricing.js';
 import { changedParts } from '../utils/pricing.js';
+import { GRAM_STEP, roundGrams } from '../utils/grams.js';
 
 /**
  * The costing sheet, shared by the list and the costing's own page.
@@ -124,12 +125,9 @@ export default function CostingSheetForm({ pricing, line, onClose, onSaved }) {
           ...current,
           ...(tool
             ? {
-                gramWeight:
-                  Math.round(
-                    tool.consumptionPerPieceGrams *
-                      (1 + (resin?.grammageFactorPercent || 0) / 100) *
-                      1000
-                  ) / 1000,
+                gramWeight: roundGrams(
+                  tool.consumptionPerPieceGrams * (1 + (resin?.grammageFactorPercent || 0) / 100)
+                ),
                 /* The tool's own cost lines, only when the tool itself changed. A different
                    resin does not change what the job work on this mould costs. */
                 ...(moved.has('mould')
@@ -254,11 +252,11 @@ export default function CostingSheetForm({ pricing, line, onClose, onSaved }) {
   };
 
   /* One cost line's input. Named `costField` rather than `line`, which is now the model. */
-  const costField = (key, label, hint) => (
+  const costField = (key, label, hint, step = '0.01') => (
     <Field label={label} hint={hint}>
       <input
         type="number"
-        step="0.01"
+        step={step}
         min="0"
         className="input"
         value={cost[key]}
@@ -324,7 +322,7 @@ export default function CostingSheetForm({ pricing, line, onClose, onSaved }) {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        {costField('gramWeight', 'Gram weight', 'Grams a piece consumes, in this resin')}
+        {costField('gramWeight', 'Gram weight', 'Grams a piece consumes, in this resin — up to five decimals', GRAM_STEP)}
         {costField('rawMaterialRate', 'Raw material rate', '₹ per kilo, as the market quotes it')}
       </div>
 

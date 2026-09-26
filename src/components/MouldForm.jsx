@@ -5,6 +5,7 @@ import { Field, FormError } from './ui.jsx';
 import { CustomerSelect } from './pickers.jsx';
 import { MouldPhotoField } from './MouldPhoto.jsx';
 import { formatCurrency, formatNumber } from '../utils/format.js';
+import { GRAM_STEP, formatGrams } from '../utils/grams.js';
 import {
   HANGER_CATEGORIES, HOOK_TYPES, MATERIALS, MOULD_OWNERSHIP, MOULD_STATUSES,
 } from '../utils/pipeline.js';
@@ -22,8 +23,7 @@ import {
  * is visible before the record is saved rather than discovered later in a costing.
  */
 
-const grams = (value) =>
-  value === undefined || value === null ? '—' : `${Number(value).toFixed(2)} g`;
+const grams = formatGrams;
 
 /** A derived figure. Never an input — everything here is arithmetic over what is above it. */
 function Derived({ label, value, note, lit }) {
@@ -289,10 +289,10 @@ export default function MouldForm({ mould, onClose, onSaved }) {
             </select>
           </Field>
           <Field label="Part weight (g)" error={errors.partWeightGrams} hint="One moulded piece" required>
-            <input type="number" step="0.01" className="input" {...register('partWeightGrams', { required: 'A piece has a weight' })} />
+            <input type="number" step={GRAM_STEP} className="input" {...register('partWeightGrams', { required: 'A piece has a weight' })} />
           </Field>
           <Field label="Runner weight (g)" hint="The whole system, per shot">
-            <input type="number" step="0.01" className="input" {...register('runnerWeightGrams')} />
+            <input type="number" step={GRAM_STEP} className="input" {...register('runnerWeightGrams')} />
           </Field>
           <Field label="Regrind recovery (%)" hint="How much of the runner goes back in">
             <input type="number" step="1" min="0" max="100" className="input" {...register('regrindRecoveryPercent')} />

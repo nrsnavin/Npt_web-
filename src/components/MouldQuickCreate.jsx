@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import { moulds as mouldsApi } from '../api/endpoints.js';
 import { Field, FormError, Modal, Notice } from './ui.jsx';
 import { HANGER_CATEGORIES, HOOK_TYPES, MATERIALS } from '../utils/pipeline.js';
+import { GRAM_STEP } from '../utils/grams.js';
 
 /**
  * Puts a model on the mould register without leaving the form that needed one.
@@ -170,12 +171,12 @@ export default function MouldQuickCreate({ open, initialName = '', onClose, onCr
           required>
             <input
               type="number"
-              step="0.01"
+              step={GRAM_STEP}
               className="input"
               placeholder="26"
               {...register('partWeightGrams', {
                 required: 'A moulded piece has a weight',
-                min: { value: 0.01, message: 'A moulded piece has a weight' },
+                min: { value: 0.00001, message: 'A moulded piece has a weight' },
               })}
             />
           </Field>

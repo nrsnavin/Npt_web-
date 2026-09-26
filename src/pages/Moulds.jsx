@@ -11,6 +11,7 @@ import MouldForm from '../components/MouldForm.jsx';
 import ExportButton from '../components/ExportButton.jsx';
 import { SortHeader, useSort } from '../components/SortHeader.jsx';
 import { formatCurrency, formatNumber } from '../utils/format.js';
+import { formatGrams } from '../utils/grams.js';
 import {
   HANGER_CATEGORIES, HOOK_TYPES, MATERIALS, MOULD_STATUSES, optionLabel,
 } from '../utils/pipeline.js';
@@ -198,14 +199,14 @@ export default function Moulds() {
                           <span className="text-steel-500">/{mould.cavities}</span>
                         </td>
                         <td className="px-4 py-3.5 text-right tabular-nums text-steel-300">
-                          {Number(mould.partWeightGrams).toFixed(1)} g
+                          {formatGrams(mould.partWeightGrams)}
                         </td>
                         {/*
                           Lit, because it is the number a costing should start from and the one
                           people reach past to the part weight beside it.
                         */}
                         <td className="px-4 py-3.5 text-right tabular-nums font-semibold text-flame-400">
-                          {Number(mould.consumptionPerPieceGrams).toFixed(2)} g
+                          {formatGrams(mould.consumptionPerPieceGrams)}
                         </td>
                         <td className="px-4 py-3.5 text-right tabular-nums text-steel-300">
                           {mould.runnerPercent}%

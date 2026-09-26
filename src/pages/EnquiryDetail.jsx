@@ -17,6 +17,7 @@ import QuotationPdf from '../components/QuotationPdf.jsx';
 import ItemList from '../components/ItemList.jsx';
 import EnquiryForm from '../components/EnquiryForm.jsx';
 import { formatCurrency, formatDate, formatNumber, humanise } from '../utils/format.js';
+import { GRAM_STEP } from '../utils/grams.js';
 import {
   CLOSED_STAGES, ENQUIRY_STAGES, HANGER_CATEGORIES, LOST_REASONS, MATERIALS,
   SAMPLE_PURPOSES, SOURCES, WORKING_STAGE_COUNT, followUpState, inDays, nextStagesFrom, numeric,
@@ -301,7 +302,7 @@ function PromoteForm({ enquiry, onClose, onSaved }) {
         required>
           <input
             type="number"
-            step="0.01"
+            step={GRAM_STEP}
             className="input"
             {...register('partWeightGrams', { required: 'A moulded piece has a weight' })}
           />
@@ -315,7 +316,7 @@ function PromoteForm({ enquiry, onClose, onSaved }) {
           />
         </Field>
         <Field label="Runner weight (g)" hint="The whole system per shot, not per cavity">
-          <input type="number" step="0.01" className="input" {...register('runnerWeightGrams')} />
+          <input type="number" step={GRAM_STEP} className="input" {...register('runnerWeightGrams')} />
         </Field>
         <Field label="Minimum order quantity">
           <input type="number" className="input" {...register('moq')} />
