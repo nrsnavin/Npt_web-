@@ -48,6 +48,38 @@ const BY_MODEL =
   'Written by the model from the thread below, and not stored anywhere. It can be wrong: the '
   + 'thread underneath is the record.';
 
+const FILES_BY_MODEL =
+  'Read by the model from each file, and not stored anywhere. It can misread: the file in the '
+  + 'thread is the record.';
+
+/** What each file posted in the thread says — its own label, since it is always the model's. */
+function FilesRead({ files }) {
+  return (
+    <div className="mt-4 border-t border-line/[0.06] pt-3">
+      <p className="text-xs font-semibold uppercase tracking-wide text-steel-400">In the files</p>
+      <ul className="mt-2 space-y-2">
+        {files.map((file) => (
+          <li key={file.id} className="text-sm leading-relaxed">
+            <span className="font-semibold text-steel-100">
+              <span aria-hidden>📎 </span>
+              {file.filename}
+            </span>
+            <span className="text-steel-500"> — </span>
+            {file.says ? (
+              <span className="text-steel-200">{file.says}</span>
+            ) : file.pending ? (
+              <span className="text-steel-400">still being read; it will be here when you next open this thread.</span>
+            ) : (
+              <span className="text-steel-400">{file.problem}</span>
+            )}
+          </li>
+        ))}
+      </ul>
+      <p className="mt-2 text-xs leading-relaxed text-steel-500">{FILES_BY_MODEL}</p>
+    </div>
+  );
+}
+
 /**
  * `id` is given when the page is shown in the list's side panel; on its own route it comes from
  * the address. `inPanel` narrows the layout to one column, which is what a drawer has room for.
@@ -333,6 +365,7 @@ export default function QueryDetail({ id: givenId, inPanel = false } = {}) {
           <p className="mt-2 text-xs leading-relaxed text-steel-500">
             {gist.writtenBy === 'model' ? BY_MODEL : BY_RULES}
           </p>
+          {gist.files?.length > 0 && <FilesRead files={gist.files} />}
         </Section>
       )}
 
