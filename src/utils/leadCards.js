@@ -12,8 +12,18 @@ export const CARD_FIELDS = [
   ['city', 'City'],
   ['state', 'State'],
   ['productInterest', 'Interested in'],
-  ['notes', 'Also on the card'],
+  ['notes', 'Notes'],
 ];
+
+/** What the picture was, in the list and above the photo. */
+export const KIND_LABEL = { card: 'Card', chat: 'Chat screenshot', other: 'Not a card or chat' };
+
+/** "5000" → 5000; "" → null. Anything else is not a quantity. */
+export const quantityOf = (text) => {
+  const value = String(text ?? '').replace(/,/g, '').trim();
+  if (!value) return null;
+  return /^\d+$/.test(value) ? Number(value) : NaN;
+};
 
 const digits = (value) => String(value || '').replace(/\D/g, '');
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -26,6 +36,7 @@ export function cardProblem(fields) {
   const bad = phones.find((value) => digits(value).length < 8 || digits(value).length > 15);
   if (bad) return `${bad} is not a phone number.`;
   if (String(fields.email || '').trim() && !EMAIL.test(String(fields.email).trim())) return 'That email address is not valid.';
+  if (Number.isNaN(quantityOf(fields.estimatedQuantity))) return 'A quantity is a whole number of pieces.';
   return null;
 }
 

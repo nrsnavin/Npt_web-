@@ -318,7 +318,8 @@ export const leadCards = {
   list: (params) => api.get('/lead-cards', { params }).then(listed),
   get: (id) => api.get(`/lead-cards/${id}`).then(unwrap),
   /** The photo, as a blob: the route needs the session's token, which an <img src> cannot send. */
-  image: (id) => api.get(`/lead-cards/${id}/image`, { responseType: 'blob', feedback: false }).then((r) => r.data),
+  /** `n` is 0 for the first picture, 1 and on for the later screenshots of a long chat. */
+  image: (id, n = 0) => api.get(`/lead-cards/${id}/image`, { params: n ? { n } : undefined, responseType: 'blob', feedback: false }).then((r) => r.data),
   upload: ({ file, caption }) => {
     const form = new FormData();
     form.append('image', file);

@@ -26,3 +26,12 @@ test('what the card actions say when they are done', () => {
   assert.equal(actionLabel({ method: 'post', url: '/lead-cards/abc/discard' }), 'Card dropped');
   assert.equal(actionLabel({ method: 'post', url: '/lead-cards' }), 'Card read');
 });
+
+test('a quantity is a whole number of pieces, or left empty', async () => {
+  const { quantityOf } = await import('../src/utils/leadCards.js');
+  assert.equal(quantityOf('5,000'), 5000);
+  assert.equal(quantityOf(''), null);
+  assert.ok(Number.isNaN(quantityOf('5k')));
+  assert.match(cardProblem({ company: 'Velan Textiles', mobile: '9789012345', estimatedQuantity: 'lots' }), /whole number of pieces/);
+  assert.equal(cardProblem({ company: 'Velan Textiles', mobile: '9789012345', estimatedQuantity: 5000 }), null);
+});

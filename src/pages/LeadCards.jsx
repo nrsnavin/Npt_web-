@@ -4,18 +4,19 @@ import { leadCards as cardsApi } from '../api/endpoints.js';
 import { Badge, EmptyState, ErrorState, Field, Notice, PageHeader } from '../components/ui.jsx';
 import { formatDate } from '../utils/format.js';
 import { SOURCES } from '../utils/pipeline.js';
-import { CARD_FIELDS, CARD_STATUS, cardProblem } from '../utils/leadCards.js';
+import { CARD_FIELDS, CARD_STATUS, KIND_LABEL, cardProblem, quantityOf } from '../utils/leadCards.js';
 
 /**
- * Cards to confirm.
+ * Cards and chats to confirm.
  *
- * A salesperson photographs a visiting card or an enquiry slip and sends it to the plant's
- * WhatsApp number — or uploads it here — and the model reads it. The reading waits on this
- * screen beside the photo, so whoever confirms it can see the card they are vouching for. Nothing
- * is a lead until somebody presses "Make it a lead" here, or replies YES on WhatsApp.
+ * A salesperson photographs a visiting card or an enquiry slip, or screenshots a WhatsApp chat
+ * with a buyer, and sends it to the plant's WhatsApp number — or uploads it here — and the model
+ * reads it. The reading waits on this screen beside the picture, so whoever confirms it can see
+ * what they are vouching for. Nothing is a lead until somebody presses "Make it a lead" here, or
+ * replies YES on WhatsApp.
  */
 
-function CardPhoto({ id }) {
+function CardPhoto({ id, n = 0 }) {
   const [url, setUrl] = useState(null);
   const [failed, setFailed] = useState(false);
   useEffect(() => {
@@ -24,7 +25,7 @@ function CardPhoto({ id }) {
     setUrl(null);
     setFailed(false);
     cardsApi
-      .image(id)
+      .image(id, n)
       .then((blob) => {
         if (!live) return;
         made = URL.createObjectURL(blob);
@@ -35,13 +36,13 @@ function CardPhoto({ id }) {
       live = false;
       if (made) URL.revokeObjectURL(made);
     };
-  }, [id]);
+  }, [id, n]);
 
   if (failed) return <p className="p-6 text-sm text-steel-500">The photo could not be loaded.</p>;
   if (!url) return <div className="h-64 animate-pulse rounded-xl bg-line/[0.05]" aria-label="Loading the photo" />;
   return (
     <a href={url} target="_blank" rel="noreferrer" title="Open the photo full size">
-      <img src={url} alt="The card as it was sent" className="max-h-[28rem] w-full rounded-xl bg-ink-850 object-contain ring-1 ring-line/[0.08]" />
+      <img src={url} alt={n ? `Screenshot ${n + 1} as it was sent` : 'The card as it was sent'} className="max-h-[28rem] w-full rounded-xl bg-ink-850 object-contain ring-1 ring-line/[0.08]" />
     </a>
   );
 }
@@ -54,7 +55,7 @@ function CardEditor({ card, onDone }) {
 
   useEffect(() => {
     setFields({ ...(card.reading || {}) });
-    setSource('manual');
+    setSource(card.kind === 'chat' ? 'whatsapp' : 'manual');
     setProblem(null);
   }, [card._id]);
 
@@ -72,7 +73,7 @@ function CardEditor({ card, onDone }) {
     setBusy(true);
     setProblem(null);
     try {
-      const done = await cardsApi.confirm({ id: card._id, ...fields, source });
+      const done = await cardsApi.confirm({ id: card._id, ...fields, estimatedQuantity: quantityOf(fields.estimatedQuantity), source });
       onDone(done.card, done.lead);
     } catch (failure) {
       setProblem(failure.message);
@@ -96,15 +97,22 @@ function CardEditor({ card, onDone }) {
     <div className="grid gap-5 xl:grid-cols-2">
       <div className="space-y-3">
         <CardPhoto id={card._id} />
+        {(card.moreImages || []).map((image, index) => (
+          <CardPhoto key={image.imageKey} id={card._id} n={index + 1} />
+        ))}
         <p className="text-xs text-steel-500">
-          {card.via === 'whatsapp' ? 'Sent on WhatsApp' : 'Uploaded'} by {card.sender?.name || 'a colleague'} · {formatDate(card.createdAt)}
+          {KIND_LABEL[card.kind] ? `${KIND_LABEL[card.kind]} · ` : ''}
+          {card.via === 'whatsapp' ? 'sent on WhatsApp' : 'uploaded'} by {card.sender?.name || 'a colleague'} · {formatDate(card.createdAt)}
           {card.caption && <span className="mt-1 block text-steel-400">“{card.caption}”</span>}
         </p>
       </div>
 
       <form onSubmit={confirm} className="space-y-3">
         {card.readBy === 'model' && open && (
-          <Notice tone="info">Read from the photo by AI. Check each field against the card before you confirm.</Notice>
+          <Notice tone="info">Read from the picture by AI. Check each field against it before you confirm.</Notice>
+        )}
+        {card.companyFromName && open && (
+          <Notice tone="warn">No business was named, so the company is the person’s name. Change it if you know the business.</Notice>
         )}
         {card.problem && open && <Notice tone="warn">{card.problem}</Notice>}
         {holder && (
@@ -133,8 +141,8 @@ function CardEditor({ card, onDone }) {
               }}
             />
           </Field>
-          {CARD_FIELDS.filter(([key]) => key !== 'company').map(([key, label]) => (
-            <Field key={key} label={label} className={key === 'notes' || key === 'productInterest' ? 'sm:col-span-2 xl:col-span-1 2xl:col-span-2' : ''}>
+          {CARD_FIELDS.filter(([key]) => key !== 'company' && key !== 'notes').map(([key, label]) => (
+            <Field key={key} label={label} className={key === 'productInterest' ? 'sm:col-span-2 xl:col-span-1 2xl:col-span-2' : ''}>
               <input
                 className="input"
                 value={fields[key] || ''}
@@ -147,6 +155,30 @@ function CardEditor({ card, onDone }) {
               />
             </Field>
           ))}
+          <Field label="Quantity (pieces)" hint="If they said how many">
+            <input
+              className="input"
+              inputMode="numeric"
+              value={fields.estimatedQuantity ?? ''}
+              disabled={!open || busy}
+              onChange={(event) => {
+                setFields({ ...fields, estimatedQuantity: event.target.value.replace(/[^\d,]/g, '') });
+                setProblem(null);
+              }}
+            />
+          </Field>
+          <Field label={card.kind === 'chat' ? 'What was said' : 'Notes'} className="sm:col-span-2 xl:col-span-1 2xl:col-span-2">
+            <textarea
+              className="input"
+              rows={card.kind === 'chat' ? 4 : 2}
+              value={fields.notes || ''}
+              disabled={!open || busy}
+              onChange={(event) => {
+                setFields({ ...fields, notes: event.target.value });
+                setProblem(null);
+              }}
+            />
+          </Field>
           <Field label="How we met them">
             <select className="input" value={source} disabled={!open || busy} onChange={(event) => setSource(event.target.value)}>
               {SOURCES.filter((entry) => entry.value !== 'indiamart').map((entry) => (
@@ -247,8 +279,8 @@ export default function LeadCards() {
   return (
     <div className="mx-auto max-w-6xl space-y-5">
       <PageHeader
-        title="Cards to confirm"
-        subtitle="Visiting cards and enquiry slips, read from the photo. Nothing is a lead until you confirm it."
+        title="Cards and chats to confirm"
+        subtitle="Visiting cards, enquiry slips and WhatsApp chat screenshots, read from the picture. Nothing is a lead until you confirm it."
         actions={
           <div className="flex items-center gap-2">
             <Link to="/leads" className="btn-secondary">All leads</Link>
@@ -261,18 +293,18 @@ export default function LeadCards() {
               onChange={(event) => upload(event.target.files?.[0])}
             />
             <button type="button" className="btn-primary" disabled={uploading} onClick={() => picker.current?.click()}>
-              {uploading ? 'Reading the card…' : '+ Photo of a card'}
+              {uploading ? 'Reading it…' : '+ Photo or screenshot'}
             </button>
           </div>
         }
       />
 
       <p className="text-sm text-steel-400">
-        On the road? Send the photo to the plant’s WhatsApp number from your own phone. The reply says what was read — answer
-        YES to add the lead, or NO to drop it.
+        On the road? Send a photo of the card, or screenshots of your chat with the buyer, to the plant’s WhatsApp number from your
+        own phone. The reply says what was read — answer YES to add the lead, or NO to drop it. No number on it? Reply with the number.
       </p>
       {state && state.reading === false && (
-        <Notice tone="warn">Reading cards automatically is not switched on, so each card is typed in from its photo.</Notice>
+        <Notice tone="warn">Reading pictures automatically is not switched on, so each one is typed in from its picture.</Notice>
       )}
       {uploadProblem && <Notice>{uploadProblem}</Notice>}
 
@@ -296,8 +328,8 @@ export default function LeadCards() {
 
       {state && !state.data.length && !selected && (
         <EmptyState
-          title={view === 'waiting' ? 'No cards waiting' : 'No cards yet'}
-          description="Send a photo of a visiting card to the WhatsApp number, or take one here."
+          title={view === 'waiting' ? 'Nothing waiting' : 'Nothing yet'}
+          description="Send a photo of a visiting card or a screenshot of a chat with a buyer to the WhatsApp number, or add one here."
           icon="▭"
         />
       )}
@@ -316,10 +348,10 @@ export default function LeadCards() {
                     className={`w-full px-4 py-3 text-left transition-colors hover:bg-line/[0.03] ${selected?._id === row._id ? 'bg-flame-500/[0.07]' : ''}`}
                   >
                     <span className="block truncate text-sm font-semibold text-steel-100">
-                      {row.reading?.company || row.reading?.contactName || 'A card to read'}
+                      {row.reading?.company || row.reading?.contactName || 'A picture to read'}
                     </span>
                     <span className="mt-0.5 flex items-center justify-between gap-2 text-xs text-steel-500">
-                      <span className="truncate">{row.sender?.name} · {formatDate(row.createdAt)}</span>
+                      <span className="truncate">{row.kind === 'chat' ? 'Chat · ' : ''}{row.sender?.name} · {formatDate(row.createdAt)}</span>
                       <Badge tone={status.tone}>{status.label}</Badge>
                     </span>
                   </button>
