@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { downloads, leads as leadsApi } from '../api/endpoints.js';
@@ -18,6 +18,24 @@ import { useViewMode } from '../hooks/useBoard.js';
 import { formatCompactCurrency, formatNumber, humanise } from '../utils/format.js';
 import { CLOSED_LEAD_STAGES, SOURCES, followUpState, leadStageLabel } from '../utils/pipeline.js';
 import useOpenFromLink from '../hooks/useOpenFromLink.js';
+import { leadCards as cardsApi } from '../api/endpoints.js';
+
+/** How many photographed cards wait to be confirmed — the way into that screen. */
+function CardsWaiting() {
+  const [waiting, setWaiting] = useState(0);
+  useEffect(() => {
+    let live = true;
+    cardsApi.list().then((answer) => live && setWaiting(answer.waiting || 0)).catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, []);
+  return (
+    <Link to="/leads/cards" className="btn-secondary">
+      Cards{waiting ? <span className="ml-1.5 rounded-full bg-flame-500 px-1.5 text-[0.7rem] font-bold text-white">{waiting}</span> : ''}
+    </Link>
+  );
+}
 
 const TONE_TEXT = {
   danger: 'text-danger-400',
@@ -182,6 +200,7 @@ export default function Leads() {
             <Link to="/leads/analytics" className="btn-secondary">
               Analytics
             </Link>
+            <CardsWaiting />
             <ExportButton download={downloads.leads} params={filters} />
             {mayWrite && (
               <button type="button" className="btn-primary" onClick={() => setCreating(true)}>

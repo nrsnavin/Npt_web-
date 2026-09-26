@@ -310,6 +310,25 @@ export const customers = {
   team: () => api.get('/customers/team').then((response) => response.data),
 };
 
+/**
+ * Cards to confirm: photos of leads — sent to the WhatsApp number or uploaded here — read by the
+ * model and made leads only when a person confirms them.
+ */
+export const leadCards = {
+  list: (params) => api.get('/lead-cards', { params }).then(listed),
+  get: (id) => api.get(`/lead-cards/${id}`).then(unwrap),
+  /** The photo, as a blob: the route needs the session's token, which an <img src> cannot send. */
+  image: (id) => api.get(`/lead-cards/${id}/image`, { responseType: 'blob', feedback: false }).then((r) => r.data),
+  upload: ({ file, caption }) => {
+    const form = new FormData();
+    form.append('image', file);
+    if (caption) form.append('caption', caption);
+    return api.post('/lead-cards', form).then(unwrap);
+  },
+  confirm: ({ id, ...fields }) => api.post(`/lead-cards/${id}/confirm`, fields).then(unwrap),
+  discard: (id) => api.post(`/lead-cards/${id}/discard`).then(unwrap),
+};
+
 export const leads = {
   list: (params) => api.get('/leads', { params }).then(listed),
   /** The same book as `list`, arranged as columns — every stage, the head of each. */
