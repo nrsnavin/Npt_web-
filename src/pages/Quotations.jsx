@@ -611,9 +611,9 @@ export default function Quotations() {
   const [creating, setCreating] = useState(false);
   const [revising, setRevising] = useState(null);
   const [viewing, setViewing] = useState(null);
+  const [composing, setComposing] = useState(false);
   const [editing, setEditing] = useState(null);
   const [responding, setResponding] = useState(null);
-  const [sendError, setSendError] = useState(null);
   const [numbering, setNumbering] = useState(false);
   const { sort, toggle } = useSort();
 
@@ -645,16 +645,10 @@ export default function Quotations() {
     setPage(1);
   };
 
-  const send = async (quotation) => {
-    setSendError(null);
-    try {
-      await quotationsApi.send({ id: quotation._id });
-      reload();
-    } catch (failure) {
-      // §9's block arrives here. Said plainly, without the figure it is protecting.
-      setSendError(`${quotation.number}: ${failure.message}`);
-      reload();
-    }
+  /* Send opens the message — pre-filled, editable — rather than marking the quote sent outright. */
+  const send = (quotation) => {
+    setComposing(true);
+    setViewing(quotation);
   };
 
   const saved = () => {
@@ -710,12 +704,6 @@ export default function Quotations() {
           }}
         />
       </div>
-
-      {sendError && (
-        <div className="mb-4">
-          <Notice tone="warn">{sendError}</Notice>
-        </div>
-      )}
 
       {loading && <TableSkeleton columns={7} />}
       {error && <ErrorState error={error} onRetry={reload} />}
@@ -828,7 +816,10 @@ export default function Quotations() {
                           <button
                             type="button"
                             className="btn-secondary px-2.5 py-1 text-xs"
-                            onClick={() => setViewing(row)}
+                            onClick={() => {
+                              setComposing(false);
+                              setViewing(row);
+                            }}
                           >
                             PDF
                           </button>
@@ -940,6 +931,7 @@ export default function Quotations() {
       <QuotationPdf
         quotation={viewing}
         open={Boolean(viewing)}
+        compose={composing}
         onClose={() => setViewing(null)}
         onSent={(sent) => {
           if (sent) setViewing(sent);

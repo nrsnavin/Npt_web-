@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { quotations as quotationsApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { Modal, Notice, Spinner } from './ui.jsx';
+import SendQuotationForm from './SendQuotationForm.jsx';
+import { deliveryLines } from '../utils/quoteSend.js';
 
 /**
  * The quotation as the customer will see it [BLUEPRINT §10].
@@ -25,8 +27,12 @@ import { Modal, Notice, Spinner } from './ui.jsx';
  * §9's gate still applies and still refuses without naming the floor [§8]. It arrives here as a
  * message rather than as a silent failure, because a Send that does nothing reads as a broken
  * button rather than as a rule.
+ *
+ * Send opens the message itself — the email and the WhatsApp text, pre-filled and editable —
+ * in place of the document, and Back returns to it. `compose` opens straight onto the message,
+ * for the Send buttons on lists where the document has already been read.
  */
-export default function QuotationPdf({ quotation, open, onClose, onSent }) {
+export default function QuotationPdf({ quotation, open, onClose, onSent, compose = false }) {
   const { canQuote } = useAuth();
   const [url, setUrl] = useState(null);
   const [error, setError] = useState(null);
@@ -35,16 +41,17 @@ export default function QuotationPdf({ quotation, open, onClose, onSent }) {
    * caller may or may not re-fetch — this dialog is opened from five screens — and the person
    * looking at it needs to see the outcome either way.
    */
-  const [sending, setSending] = useState(false);
-  const [sendError, setSendError] = useState(null);
+  const [composing, setComposing] = useState(false);
   const [justSent, setJustSent] = useState(null);
+  const [deliveries, setDeliveries] = useState([]);
 
   /* A fresh open is a fresh question: a dialog that reopens still saying "Sent" about the last
      quotation is worse than one that says nothing. */
   useEffect(() => {
-    setSendError(null);
     setJustSent(null);
-  }, [open, quotation?._id]);
+    setDeliveries([]);
+    setComposing(Boolean(open && compose));
+  }, [open, quotation?._id, compose]);
 
   useEffect(() => {
     /*
@@ -107,22 +114,11 @@ export default function QuotationPdf({ quotation, open, onClose, onSent }) {
     !justSent &&
     !['sent', 'accepted', 'rejected'].includes(quotation?.status);
 
-  const send = async () => {
-    setSending(true);
-    setSendError(null);
-    try {
-      const sent = await quotationsApi.send({ id: quotation._id });
-      setJustSent(sent);
-      onSent?.(sent);
-    } catch (failure) {
-      /* §9 arrives here. Said plainly, without the figure it is protecting. */
-      setSendError(failure.message);
-      /* The refusal moves the quote into the approval queue, so the caller's list is now stale
-         whether the send worked or not. */
-      onSent?.(null);
-    } finally {
-      setSending(false);
-    }
+  const sent = ({ quotation: done, deliveries: went }) => {
+    setComposing(false);
+    setJustSent(done);
+    setDeliveries(went);
+    onSent?.(done);
   };
 
   const download = () => {
@@ -141,14 +137,27 @@ export default function QuotationPdf({ quotation, open, onClose, onSent }) {
       open={open}
       onClose={onClose}
       size="lg"
-      title={`${quotation?.number || 'Quotation'} — document`}
-      description="What the customer receives. Check it before it goes out."
+      title={`${quotation?.number || 'Quotation'} — ${composing ? 'send to the buyer' : 'document'}`}
+      description={
+        composing
+          ? 'The message as it will go. Change anything — the address, the number, the words.'
+          : 'What the customer receives. Check it before it goes out.'
+      }
     >
-      {error && <Notice>{error.message}</Notice>}
+      {composing && quotation?._id && (
+        <SendQuotationForm
+          quotation={quotation}
+          onCancel={() => (compose ? onClose() : setComposing(false))}
+          onSent={sent}
+          onRefused={() => onSent?.(null)}
+        />
+      )}
 
-      {!error && !url && <Spinner label="Preparing the document" />}
+      {!composing && error && <Notice>{error.message}</Notice>}
 
-      {url && (
+      {!composing && !error && !url && <Spinner label="Preparing the document" />}
+
+      {!composing && url && (
         <>
           {/*
             A tall frame rather than a scaled thumbnail: the point of showing the document is
@@ -163,12 +172,6 @@ export default function QuotationPdf({ quotation, open, onClose, onSent }) {
             />
           </div>
 
-          {sendError && (
-            <div className="mt-4">
-              <Notice tone="warn">{sendError}</Notice>
-            </div>
-          )}
-
           {/* Where it went, said as a place somebody can go and look. A confirmation that only
               says "done" leaves the person wondering where "done" is. */}
           {justSent && (
@@ -179,6 +182,15 @@ export default function QuotationPdf({ quotation, open, onClose, onSent }) {
                   sent quotations
                 </Link>{' '}
                 board. What the buyer says next is recorded there.
+                {deliveries.length > 0 && (
+                  <ul className="mt-2 space-y-0.5">
+                    {deliveryLines(deliveries).map((line) => (
+                      <li key={line.text} className={line.ok ? '' : 'text-warn-400'}>
+                        {line.ok ? '✓' : '!'} {line.text}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </Notice>
             </div>
           )}
@@ -198,13 +210,12 @@ export default function QuotationPdf({ quotation, open, onClose, onSent }) {
                 <button
                   type="button"
                   className="btn-primary"
-                  disabled={sending}
-                  onClick={send}
+                  onClick={() => setComposing(true)}
                 >
                   {/* A quote that has been out before is going out again with a new price on
                       it, and saying so is what tells the sender they are revising rather than
                       repeating. */}
-                  {sending ? 'Sending…' : quotation?.sentAt ? 'Send the new price' : 'Mark it sent'}
+                  {quotation?.sentAt ? 'Send the new price…' : 'Send to the buyer…'}
                 </button>
               )}
               {/* Why there is no Send, rather than a gap where one was. Sending twice overwrites

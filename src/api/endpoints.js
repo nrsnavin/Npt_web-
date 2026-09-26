@@ -655,6 +655,13 @@ export const quotations = {
   revise: ({ id, ...payload }) => api.post(`/quotations/${id}/revisions`, payload).then(unwrap),
   /** Putting it in front of the customer — where §9's gate applies. */
   send: ({ id, ...payload }) => api.post(`/quotations/${id}/send`, payload).then(unwrap),
+  /** The email and WhatsApp message as they would go, for the sender to edit first. */
+  sendPreview: (id) => api.get(`/quotations/${id}/send-preview`).then(unwrap),
+  /** Sends what was edited. The dialog reports each channel itself, so no generic toast. */
+  deliver: ({ id, ...payload }) =>
+    api
+      .post(`/quotations/${id}/send`, payload, { feedback: false })
+      .then((response) => ({ quotation: response.data.data, deliveries: response.data.deliveries || [] })),
   respond: ({ id, ...payload }) => api.post(`/quotations/${id}/response`, payload).then(unwrap),
   /**
    * The document itself, as a blob.
