@@ -4,16 +4,16 @@ import { leadCards as cardsApi } from '../api/endpoints.js';
 import { Badge, EmptyState, ErrorState, Field, Notice, PageHeader } from '../components/ui.jsx';
 import { formatDate } from '../utils/format.js';
 import { SOURCES } from '../utils/pipeline.js';
-import { CARD_FIELDS, CARD_STATUS, KIND_LABEL, cardProblem, quantityOf } from '../utils/leadCards.js';
+import { CARD_STATUS, KIND_LABEL, cardProblem, quantityOf, todayIso } from '../utils/leadCards.js';
 
 /**
- * Cards and chats to confirm.
+ * Draft leads.
  *
  * A salesperson photographs a visiting card or an enquiry slip, or screenshots a WhatsApp chat
  * with a buyer, and sends it to the plant's WhatsApp number — or uploads it here — and the model
- * reads it. The reading waits on this screen beside the picture, so whoever confirms it can see
- * what they are vouching for. Nothing is a lead until somebody presses "Make it a lead" here, or
- * replies YES on WhatsApp.
+ * reads it into a draft holding only what the picture shows. The draft waits here beside the
+ * picture; the salesperson checks what was recognised, fills in the rest — the next step, when to
+ * follow up, how they met the buyer — and saves it as a lead. Nothing is a lead until they do.
  */
 
 function CardPhoto({ id, n = 0 }) {
@@ -47,17 +47,46 @@ function CardPhoto({ id, n = 0 }) {
   );
 }
 
+/** One field as recognised in the picture: marked while it still holds what was read. */
+function ReadField({ label, name, fields, reading, set, disabled, wide = false, textarea = false, inputMode }) {
+  const value = fields[name] ?? '';
+  const read = reading?.[name];
+  const fromPicture = read !== undefined && read !== null && read !== '' && String(read) === String(value);
+  const Control = textarea ? 'textarea' : 'input';
+  return (
+    <Field
+      label={label}
+      hint={fromPicture ? 'From the picture' : !String(value) ? 'Not in the picture' : undefined}
+      className={wide ? 'sm:col-span-2 xl:col-span-1 2xl:col-span-2' : ''}
+    >
+      <Control
+        className={`input ${fromPicture ? 'ring-1 ring-inset ring-aqua-500/30' : ''}`}
+        rows={textarea ? 3 : undefined}
+        value={value}
+        disabled={disabled}
+        inputMode={inputMode}
+        onChange={(event) => set(name, event.target.value)}
+      />
+    </Field>
+  );
+}
+
 function CardEditor({ card, onDone }) {
   const [fields, setFields] = useState({});
-  const [source, setSource] = useState('manual');
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState(null);
 
+  /* Only what was recognised. The next step, the date and how we met them start empty: they are
+     the salesperson's to give, not the app's to guess. */
   useEffect(() => {
-    setFields({ ...(card.reading || {}) });
-    setSource(card.kind === 'chat' ? 'whatsapp' : 'manual');
+    setFields({ ...(card.reading || {}), nextAction: '', nextFollowUpDate: '', source: '', estimatedValue: '' });
     setProblem(null);
   }, [card._id]);
+
+  const set = (name, value) => {
+    setFields((current) => ({ ...current, [name]: value }));
+    setProblem(null);
+  };
 
   const open = ['ready', 'unreadable'].includes(card.status);
   const why = cardProblem(fields);
@@ -67,13 +96,19 @@ function CardEditor({ card, onDone }) {
       ? { to: `/customers/${card.matchedCustomer._id}`, text: `customer ${card.matchedCustomer.code} (${card.matchedCustomer.name})` }
       : null;
 
-  const confirm = async (event) => {
+  const save = async (event) => {
     event.preventDefault();
     if (why) return;
     setBusy(true);
     setProblem(null);
     try {
-      const done = await cardsApi.confirm({ id: card._id, ...fields, estimatedQuantity: quantityOf(fields.estimatedQuantity), source });
+      const value = String(fields.estimatedValue ?? '').replace(/,/g, '').trim();
+      const done = await cardsApi.confirm({
+        id: card._id,
+        ...fields,
+        estimatedQuantity: quantityOf(fields.estimatedQuantity),
+        estimatedValue: value ? Number(value) : null,
+      });
       onDone(done.card, done.lead);
     } catch (failure) {
       setProblem(failure.message);
@@ -93,6 +128,9 @@ function CardEditor({ card, onDone }) {
     }
   };
 
+  const off = !open || busy;
+  const common = { fields, reading: card.reading, set, disabled: off };
+
   return (
     <div className="grid gap-5 xl:grid-cols-2">
       <div className="space-y-3">
@@ -107,14 +145,11 @@ function CardEditor({ card, onDone }) {
         </p>
       </div>
 
-      <form onSubmit={confirm} className="space-y-3">
-        {card.readBy === 'model' && open && (
-          <Notice tone="info">Read from the picture by AI. Check each field against it before you confirm.</Notice>
-        )}
+      <form onSubmit={save} className="space-y-4">
+        {card.problem && open && <Notice tone="warn">{card.problem}</Notice>}
         {card.companyFromName && open && (
           <Notice tone="warn">No business was named, so the company is the person’s name. Change it if you know the business.</Notice>
         )}
-        {card.problem && open && <Notice tone="warn">{card.problem}</Notice>}
         {holder && (
           <Notice tone="warn">
             This buyer is already <Link className="font-semibold underline" to={holder.to}>{holder.text}</Link>.
@@ -122,79 +157,97 @@ function CardEditor({ card, onDone }) {
         )}
         {card.status === 'confirmed' && card.lead && (
           <Notice tone="success">
-            Made lead <Link className="font-semibold underline" to={`/leads/${card.lead._id}`}>{card.lead.number}</Link>
+            Saved as lead <Link className="font-semibold underline" to={`/leads/${card.lead._id}`}>{card.lead.number}</Link>
             {card.decidedBy ? ` by ${card.decidedBy.name}` : ''}.
           </Notice>
         )}
         {card.status === 'discarded' && <Notice tone="info">Dropped{card.decidedBy ? ` by ${card.decidedBy.name}` : ''}.</Notice>}
 
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
-          <Field label="Company" required className="sm:col-span-2 xl:col-span-1 2xl:col-span-2">
-            <input
+        <section className="space-y-3">
+          <h3 className="text-xs font-bold uppercase tracking-[0.08em] text-steel-500">
+            Recognised in the picture{card.readBy === 'model' ? ' — by AI, check it' : ''}
+          </h3>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+            <Field
+              label="Company"
               required
-              className="input"
-              value={fields.company || ''}
-              disabled={!open || busy}
-              onChange={(event) => {
-                setFields({ ...fields, company: event.target.value });
-                setProblem(null);
-              }}
-            />
-          </Field>
-          {CARD_FIELDS.filter(([key]) => key !== 'company' && key !== 'notes').map(([key, label]) => (
-            <Field key={key} label={label} className={key === 'productInterest' ? 'sm:col-span-2 xl:col-span-1 2xl:col-span-2' : ''}>
+              hint={card.reading?.company && fields.company === card.reading.company ? 'From the picture' : !fields.company ? 'Not in the picture' : undefined}
+              className="sm:col-span-2 xl:col-span-1 2xl:col-span-2"
+            >
               <input
-                className="input"
-                value={fields[key] || ''}
-                disabled={!open || busy}
-                inputMode={key === 'mobile' || key === 'whatsapp' ? 'tel' : key === 'email' ? 'email' : undefined}
-                onChange={(event) => {
-                  setFields({ ...fields, [key]: event.target.value });
-                  setProblem(null);
-                }}
+                required
+                className={`input ${card.reading?.company && fields.company === card.reading.company ? 'ring-1 ring-inset ring-aqua-500/30' : ''}`}
+                value={fields.company || ''}
+                disabled={off}
+                onChange={(event) => set('company', event.target.value)}
               />
             </Field>
-          ))}
-          <Field label="Quantity (pieces)" hint="If they said how many">
-            <input
-              className="input"
-              inputMode="numeric"
-              value={fields.estimatedQuantity ?? ''}
-              disabled={!open || busy}
-              onChange={(event) => {
-                setFields({ ...fields, estimatedQuantity: event.target.value.replace(/[^\d,]/g, '') });
-                setProblem(null);
-              }}
-            />
-          </Field>
-          <Field label={card.kind === 'chat' ? 'What was said' : 'Notes'} className="sm:col-span-2 xl:col-span-1 2xl:col-span-2">
-            <textarea
-              className="input"
-              rows={card.kind === 'chat' ? 4 : 2}
-              value={fields.notes || ''}
-              disabled={!open || busy}
-              onChange={(event) => {
-                setFields({ ...fields, notes: event.target.value });
-                setProblem(null);
-              }}
-            />
-          </Field>
-          <Field label="How we met them">
-            <select className="input" value={source} disabled={!open || busy} onChange={(event) => setSource(event.target.value)}>
-              {SOURCES.filter((entry) => entry.value !== 'indiamart').map((entry) => (
-                <option key={entry.value} value={entry.value}>{entry.label}</option>
-              ))}
-            </select>
-          </Field>
-        </div>
+            <ReadField {...common} label="Contact name" name="contactName" />
+            <ReadField {...common} label="Designation" name="designation" />
+            <ReadField {...common} label="Mobile" name="mobile" inputMode="tel" />
+            <ReadField {...common} label="WhatsApp" name="whatsapp" inputMode="tel" />
+            <ReadField {...common} label="Email" name="email" inputMode="email" />
+            <ReadField {...common} label="City" name="city" />
+            <ReadField {...common} label="State" name="state" />
+            <ReadField {...common} label="Interested in" name="productInterest" wide />
+            <ReadField {...common} label="Quantity (pieces)" name="estimatedQuantity" inputMode="numeric" />
+            <ReadField {...common} label={card.kind === 'chat' ? 'What was said' : 'Notes'} name="notes" wide textarea />
+          </div>
+        </section>
+
+        {open && (
+          <section className="space-y-3 rounded-xl border border-flame-500/20 bg-flame-500/[0.04] p-4">
+            <h3 className="text-xs font-bold uppercase tracking-[0.08em] text-flame-400">For you to fill in</h3>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+              <Field label="Next step" required className="sm:col-span-2 xl:col-span-1 2xl:col-span-2">
+                <input
+                  required
+                  className="input"
+                  placeholder="Send the rate for 400mm black"
+                  value={fields.nextAction || ''}
+                  disabled={off}
+                  onChange={(event) => set('nextAction', event.target.value)}
+                />
+              </Field>
+              <Field label="Follow up on" required>
+                <input
+                  required
+                  type="date"
+                  min={todayIso()}
+                  className="input"
+                  value={fields.nextFollowUpDate || ''}
+                  disabled={off}
+                  onChange={(event) => set('nextFollowUpDate', event.target.value)}
+                />
+              </Field>
+              <Field label="How we met them" required>
+                <select required className="input" value={fields.source || ''} disabled={off} onChange={(event) => set('source', event.target.value)}>
+                  <option value="">Choose…</option>
+                  {SOURCES.filter((entry) => entry.value !== 'indiamart').map((entry) => (
+                    <option key={entry.value} value={entry.value}>{entry.label}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Estimated value (₹)" hint="If you have a feel for it">
+                <input
+                  className="input"
+                  inputMode="decimal"
+                  value={fields.estimatedValue ?? ''}
+                  disabled={off}
+                  onChange={(event) => set('estimatedValue', event.target.value.replace(/[^\d.,]/g, ''))}
+                />
+              </Field>
+            </div>
+          </section>
+        )}
 
         {open && (
           <>
-            {(problem || (why && Object.keys(fields).length > 0)) && <Notice>{problem || why}</Notice>}
+            {(problem || why) && <Notice tone={problem ? 'danger' : 'info'}>{problem || why}</Notice>}
             <div className="flex flex-wrap justify-end gap-2 pt-1">
-              <button type="button" className="btn-ghost" disabled={busy} onClick={discard}>Drop it</button>
+              <button type="button" className="btn-ghost" disabled={busy} onClick={discard}>Drop the draft</button>
               <button type="submit" className="btn-primary" disabled={busy || Boolean(why)}>
-                {busy ? 'Saving…' : 'Make it a lead'}
+                {busy ? 'Saving…' : 'Save as lead'}
               </button>
             </div>
           </>
@@ -279,8 +332,8 @@ export default function LeadCards() {
   return (
     <div className="mx-auto max-w-6xl space-y-5">
       <PageHeader
-        title="Cards and chats to confirm"
-        subtitle="Visiting cards, enquiry slips and WhatsApp chat screenshots, read from the picture. Nothing is a lead until you confirm it."
+        title="Draft leads"
+        subtitle="Started from visiting cards and WhatsApp chat screenshots. Check what was recognised, fill in the rest, and save it as a lead."
         actions={
           <div className="flex items-center gap-2">
             <Link to="/leads" className="btn-secondary">All leads</Link>
@@ -301,7 +354,7 @@ export default function LeadCards() {
 
       <p className="text-sm text-steel-400">
         On the road? Send a photo of the card, or screenshots of your chat with the buyer, to the plant’s WhatsApp number from your
-        own phone. The reply says what was read — answer YES to add the lead, or NO to drop it. No number on it? Reply with the number.
+        own phone. What it shows is saved here as a draft — finish it with the next step, when to follow up, and how you met them.
       </p>
       {state && state.reading === false && (
         <Notice tone="warn">Reading pictures automatically is not switched on, so each one is typed in from its picture.</Notice>
@@ -309,7 +362,7 @@ export default function LeadCards() {
       {uploadProblem && <Notice>{uploadProblem}</Notice>}
 
       <div role="tablist" aria-label="Which cards" className="inline-flex rounded-lg bg-line/[0.05] p-1">
-        {[['waiting', `Waiting${state?.waiting ? ` (${state.waiting})` : ''}`], ['decided', 'Done']].map(([key, label]) => (
+        {[['waiting', `Drafts${state?.waiting ? ` (${state.waiting})` : ''}`], ['decided', 'Finished or dropped']].map(([key, label]) => (
           <button
             key={key}
             type="button"
@@ -328,7 +381,7 @@ export default function LeadCards() {
 
       {state && !state.data.length && !selected && (
         <EmptyState
-          title={view === 'waiting' ? 'Nothing waiting' : 'Nothing yet'}
+          title={view === 'waiting' ? 'No drafts' : 'Nothing finished yet'}
           description="Send a photo of a visiting card or a screenshot of a chat with a buyer to the WhatsApp number, or add one here."
           icon="▭"
         />
@@ -348,7 +401,7 @@ export default function LeadCards() {
                     className={`w-full px-4 py-3 text-left transition-colors hover:bg-line/[0.03] ${selected?._id === row._id ? 'bg-flame-500/[0.07]' : ''}`}
                   >
                     <span className="block truncate text-sm font-semibold text-steel-100">
-                      {row.reading?.company || row.reading?.contactName || 'A picture to read'}
+                      {row.reading?.company || row.reading?.contactName || 'A draft to fill in'}
                     </span>
                     <span className="mt-0.5 flex items-center justify-between gap-2 text-xs text-steel-500">
                       <span className="truncate">{row.kind === 'chat' ? 'Chat · ' : ''}{row.sender?.name} · {formatDate(row.createdAt)}</span>

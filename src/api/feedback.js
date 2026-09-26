@@ -24,9 +24,9 @@ export function actionLabel(config) {
   if (last === 'labels') return 'Labels saved';
   if (last === 'numbering') return 'Quote numbering saved';
   if (parts[0] === 'lead-cards') {
-    if (last === 'confirm') return 'Lead created from the card';
-    if (last === 'discard') return 'Card dropped';
-    return 'Card read';
+    if (last === 'confirm') return 'Lead saved from the draft';
+    if (last === 'discard') return 'Draft dropped';
+    return 'Draft saved';
   }
   if (last === 'convert') return `${noun} converted`;
   if (last === 'pod' || last === 'photo' || last === 'po') return 'Document uploaded';

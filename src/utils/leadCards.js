@@ -1,6 +1,8 @@
 /**
- * The rule for making a card a lead, said before it is sent — the server holds the same one
- * (leadCard.service `confirmProblem` and the phone check in `confirmCard`).
+ * The rule for making a draft a lead, said before it is sent — the server holds the same one
+ * (leadCard.service `confirmProblem` and the phone check in `confirmCard`). What was recognised in
+ * the picture is only a start: the next step, when to follow up and how we met them are always
+ * the salesperson's to give.
  */
 export const CARD_FIELDS = [
   ['company', 'Company'],
@@ -25,6 +27,12 @@ export const quantityOf = (text) => {
   return /^\d+$/.test(value) ? Number(value) : NaN;
 };
 
+/** Today as the date input writes it, in the reader's own time zone. */
+export const todayIso = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+};
+
 const digits = (value) => String(value || '').replace(/\D/g, '');
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -37,14 +45,18 @@ export function cardProblem(fields) {
   if (bad) return `${bad} is not a phone number.`;
   if (String(fields.email || '').trim() && !EMAIL.test(String(fields.email).trim())) return 'That email address is not valid.';
   if (Number.isNaN(quantityOf(fields.estimatedQuantity))) return 'A quantity is a whole number of pieces.';
+  if (!String(fields.nextAction || '').trim()) return 'Say what the next step is.';
+  if (!fields.nextFollowUpDate) return 'Say when to follow up.';
+  if (String(fields.nextFollowUpDate) < todayIso()) return 'The follow-up date cannot be in the past.';
+  if (!fields.source) return 'Say how we met them.';
   return null;
 }
 
 /** What the card's status means, for a badge. */
 export const CARD_STATUS = {
   reading: { label: 'Reading…', tone: 'info' },
-  ready: { label: 'Ready to confirm', tone: 'success' },
-  unreadable: { label: 'Type it in', tone: 'warn' },
+  ready: { label: 'Draft', tone: 'info' },
+  unreadable: { label: 'Draft — fill in', tone: 'warn' },
   confirmed: { label: 'Made a lead', tone: 'neutral' },
   discarded: { label: 'Dropped', tone: 'neutral' },
 };

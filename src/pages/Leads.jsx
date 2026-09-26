@@ -20,7 +20,7 @@ import { CLOSED_LEAD_STAGES, SOURCES, followUpState, leadStageLabel } from '../u
 import useOpenFromLink from '../hooks/useOpenFromLink.js';
 import { leadCards as cardsApi } from '../api/endpoints.js';
 
-/** How many photographed cards wait to be confirmed — the way into that screen. */
+/** How many draft leads — from cards and chat screenshots — wait to be finished. */
 function CardsWaiting() {
   const [waiting, setWaiting] = useState(0);
   useEffect(() => {
@@ -32,7 +32,7 @@ function CardsWaiting() {
   }, []);
   return (
     <Link to="/leads/cards" className="btn-secondary">
-      Cards{waiting ? <span className="ml-1.5 rounded-full bg-flame-500 px-1.5 text-[0.7rem] font-bold text-white">{waiting}</span> : ''}
+      Drafts{waiting ? <span className="ml-1.5 rounded-full bg-flame-500 px-1.5 text-[0.7rem] font-bold text-white">{waiting}</span> : ''}
     </Link>
   );
 }
