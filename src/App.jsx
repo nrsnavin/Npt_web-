@@ -39,6 +39,8 @@ const PartDetail = lazyPage(() => import('./pages/PartDetail.jsx'));
 const Customers = lazyPage(() => import('./pages/Customers.jsx'));
 const CustomerDetail = lazyPage(() => import('./pages/CustomerDetail.jsx'));
 const BuyerCards = lazyPage(() => import('./pages/BuyerCards.jsx'));
+const DepartmentDashboard = lazyPage(() => import('./pages/DepartmentDashboard.jsx'));
+const DepartmentsOverview = lazyPage(() => import('./pages/DepartmentsOverview.jsx'));
 const Pricings = lazyPage(() => import('./pages/Pricings.jsx'));
 const PricingDetail = lazyPage(() => import('./pages/PricingDetail.jsx'));
 const Quotations = lazyPage(() => import('./pages/Quotations.jsx'));
@@ -164,6 +166,10 @@ export default function App() {
           <Route path="profile" element={<Profile />} />
           {/* The day by role, whichever page the app opens on. */}
           <Route path="today" element={<Home />} />
+          {/* Department dashboards: your own (`mine`), and Admin's view of all ten. The server
+              decides who may open which. */}
+          <Route path="departments" element={<DepartmentsOverview />} />
+          <Route path="departments/:key" element={<DepartmentDashboard />} />
 
           {/* Phase 1: the pipeline that runs from a customer to an enquiry. */}
           <Route

@@ -67,6 +67,9 @@ const MODULES = [
       /* The day by role — the bench queue, the plant's numbers, what is waiting on my team —
          for whoever wants a morning screen before the list. See `Home`. */
       { to: '/today', label: 'Today' },
+      /* What other departments have sent mine, and what mine is waiting on [DepartmentDashboard]. */
+      { to: '/departments/mine', label: 'My department' },
+      { to: '/departments', label: 'All departments', admin: true, end: true },
     ],
   },
   {

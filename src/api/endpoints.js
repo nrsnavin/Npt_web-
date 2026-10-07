@@ -344,6 +344,12 @@ export const handoffs = {
   send: ({ id, ...payload }) => api.post(`/enquiries/${id}/handoffs`, payload).then(unwrap),
 };
 
+/** Department dashboards: one department's (`mine` for your own), and Admin's view of all ten. */
+export const departments = {
+  dashboard: (key = 'mine') => api.get(`/departments/${key}/dashboard`).then(unwrap),
+  overview: () => api.get('/departments/overview').then(unwrap),
+};
+
 export const enquiries = {
   /** Who is holding enquiries, for the owner filter. Scoped like the list itself. */
   owners: () => api.get('/enquiries/owners').then(unwrap),
