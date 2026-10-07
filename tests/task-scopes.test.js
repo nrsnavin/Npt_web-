@@ -26,7 +26,7 @@ const read = (path) => readFileSync(new URL(`../src/${path}`, import.meta.url), 
 
 /* ------------------------------- The departments ------------------------------- */
 
-test('all eight departments are offered, sampling included', () => {
+test('all ten departments are offered, sampling included', () => {
   /*
    * There were two hand-written copies of this list in the app and *both* had lost `sampling` —
    * which is what happens to a list written out wherever it is needed. A handover dialog that
@@ -34,14 +34,15 @@ test('all eight departments are offered, sampling included', () => {
    */
   assert.deepEqual(
     DEPARTMENTS.map((entry) => entry.key).sort(),
-    ['accounts', 'despatch', 'management', 'marketing', 'order_confirmation', 'production',
-      'quality', 'sampling']
+    ['accounts', 'assembling', 'despatch', 'management', 'marketing', 'order_confirmation',
+      'production', 'quality', 'quotation', 'sampling']
   );
 });
 
 test('a department reads as a person would say it', () => {
-  assert.equal(departmentLabel('order_confirmation'), 'Order confirmation');
-  assert.equal(departmentLabel('despatch'), 'Despatch');
+  assert.equal(departmentLabel('order_confirmation'), 'Sales / SO');
+  assert.equal(departmentLabel('despatch'), 'Dispatch');
+  assert.equal(departmentLabel('management'), 'Admin');
   /* An unknown key still reads rather than rendering a snake_case token at somebody. */
   assert.equal(departmentLabel('something_new'), 'something new');
   assert.equal(departmentLabel(undefined), '');
@@ -71,7 +72,8 @@ test('the checkbox and the bin go with it', () => {
      behind `readOnly` in the JSX rather than left to fail at the door. */
   assert.match(ROW, /\{readOnly \? \(\s*\n\s*\/\* A spacer/, 'the checkbox is replaced by a spacer');
 
-  const bin = ROW.match(/\{!readOnly && \([\s\S]{0,320}?aria-label=\{`Delete /);
+  /* And never on a department task about an enquiry, which is finished by saying what was done. */
+  const bin = ROW.match(/\{!readOnly && !handoff && \([\s\S]{0,320}?aria-label=\{`Delete /);
   assert.ok(bin, 'the bin is drawn only when the row is actionable');
 });
 

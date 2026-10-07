@@ -55,6 +55,10 @@ export const workspace = {
     update: ({ id, ...payload }) => api.patch(`/workspace/todos/${id}`, payload).then(unwrap),
     escalate: ({ id, ...payload }) =>
       api.post(`/workspace/todos/${id}/escalate`, payload).then(unwrap),
+    /* A department task about an enquiry: done with what was recorded, sent back, re-dated. */
+    done: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/done`, payload).then(unwrap),
+    sendBack: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/send-back`, payload).then(unwrap),
+    reschedule: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/reschedule`, payload).then(unwrap),
     remove: (id) => api.delete(`/workspace/todos/${id}`).then(unwrap),
   },
   /**
@@ -328,6 +332,16 @@ export const buyerCards = {
   },
   confirm: ({ id, ...fields }) => api.post(`/buyer-cards/${id}/confirm`, fields).then(unwrap),
   discard: (id) => api.post(`/buyer-cards/${id}/discard`).then(unwrap),
+};
+
+/**
+ * Department tasks about an enquiry: the buttons and the twelve stages (`catalogue`), what has
+ * been asked on one enquiry (`list`, with its stage and stage history), and sending one.
+ */
+export const handoffs = {
+  catalogue: () => api.get('/handoffs').then(unwrap),
+  list: (id) => api.get(`/enquiries/${id}/handoffs`).then((response) => response.data),
+  send: ({ id, ...payload }) => api.post(`/enquiries/${id}/handoffs`, payload).then(unwrap),
 };
 
 export const enquiries = {

@@ -12,6 +12,7 @@ import {
 } from '../components/ui.jsx';
 import Documents from '../components/Documents.jsx';
 import EnquiryActions from '../components/EnquiryActions.jsx';
+import DepartmentDesk from '../components/DepartmentDesk.jsx';
 import HistoryPanel from '../components/HistoryPanel.jsx';
 import QuotationPdf from '../components/QuotationPdf.jsx';
 import ItemList from '../components/ItemList.jsx';
@@ -19,8 +20,8 @@ import EnquiryForm from '../components/EnquiryForm.jsx';
 import { formatCurrency, formatDate, formatNumber, humanise } from '../utils/format.js';
 import { GRAM_STEP } from '../utils/grams.js';
 import {
-  CLOSED_STAGES, ENQUIRY_STAGES, HANGER_CATEGORIES, LOST_REASONS, MATERIALS,
-  SAMPLE_PURPOSES, SOURCES, WORKING_STAGE_COUNT, followUpState, inDays, nextStagesFrom, numeric,
+  CLOSED_STAGES, HANGER_CATEGORIES, LOST_REASONS, MATERIALS,
+  SAMPLE_PURPOSES, SOURCES, followUpState, inDays, nextStagesFrom, numeric,
   optionLabel, sampleStageLabel, stageLabel, text,
 } from '../utils/pipeline.js';
 
@@ -575,7 +576,6 @@ export default function EnquiryDetail() {
   const mayReadQuotes = canRead('pricing');
   const open = !CLOSED_STAGES.includes(enquiry.status);
   const due = followUpState(enquiry.nextFollowUpDate);
-  const stageIndex = ENQUIRY_STAGES.findIndex((stage) => stage.value === enquiry.status);
   /* An enquiry raised before items existed, read as the one item it is — see the Section. */
   const firstItem = {
     ...enquiry.requirement,
@@ -651,28 +651,16 @@ export default function EnquiryDetail() {
         </div>
       )}
 
-      {/* The funnel position, so the stage reads as a place rather than a word. Won, lost
-          and hold sit outside the run, so only the nine working stages are drawn. */}
-      <div className="mb-5 flex gap-1" aria-hidden="true">
-        {ENQUIRY_STAGES.slice(0, WORKING_STAGE_COUNT).map((stage, index) => (
-          <span
-            key={stage.value}
-            title={stage.label}
-            className={`h-1 flex-1 rounded-full ${
-              index <= stageIndex && stageIndex < WORKING_STAGE_COUNT
-                ? 'bg-flame-500'
-                : 'bg-line/[0.08]'
-            }`}
-          />
-        ))}
-      </div>
-
       <div className="grid gap-5 lg:grid-cols-3">
         <div className="min-w-0 space-y-5 lg:col-span-2">
           {/*
             * First, because it is what somebody came here to do. Reading the requirement is
             * what they do on the way to deciding which of these to press.
             */}
+          {/* The plant's own screen: the twelve stages, and the buttons that send work to a
+              department. The sales actions below still move the quote along. */}
+          <DepartmentDesk enquiry={enquiry} onChanged={reload} />
+
           <EnquiryActions enquiry={enquiry} onSaved={setData} canWrite={mayWrite} />
 
           <Section

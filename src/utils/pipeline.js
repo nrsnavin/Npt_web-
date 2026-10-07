@@ -663,14 +663,16 @@ export const ownsRecord = (user, record, field = 'assignedTo') => {
  * that offers a department to choose from reads this one.
  */
 export const DEPARTMENTS = [
+  { key: 'management', label: 'Admin' },
   { key: 'marketing', label: 'Marketing' },
+  { key: 'order_confirmation', label: 'Sales / SO' },
+  { key: 'quotation', label: 'Quotation' },
   { key: 'sampling', label: 'Sampling' },
-  { key: 'order_confirmation', label: 'Order confirmation' },
   { key: 'production', label: 'Production' },
   { key: 'quality', label: 'Quality' },
-  { key: 'despatch', label: 'Despatch' },
-  { key: 'accounts', label: 'Accounts' },
-  { key: 'management', label: 'Management' },
+  { key: 'assembling', label: 'Assembling' },
+  { key: 'despatch', label: 'Dispatch' },
+  { key: 'accounts', label: 'Accounts / Payment Follow-up' },
 ];
 
 export const departmentLabel = (key) =>

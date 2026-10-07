@@ -1,6 +1,7 @@
 import { useAuth } from '../context/AuthContext.jsx';
 import lazyPage from '../utils/lazyPage.js';
 import Dashboard from './Dashboard.jsx';
+import DepartmentTasks from '../components/DepartmentTasks.jsx';
 
 const SampleHome = lazyPage(() => import('./SampleHome.jsx'));
 const ManagementHome = lazyPage(() => import('./ManagementHome.jsx'));
@@ -70,11 +71,19 @@ const HOME_BY_DEPARTMENT = {
   accounts: () => <TeamHome />,
   quality: () => <TeamHome />,
   production: () => <TeamHome />,
+  quotation: () => <TeamHome />,
+  assembling: () => <TeamHome />,
 };
 
 export default function Home() {
   const { user } = useAuth();
   const own = HOME_BY_DEPARTMENT[user?.department];
 
-  return own ? own() : <Dashboard />;
+  /* What other departments have sent this one comes first, whichever home follows. */
+  return (
+    <>
+      <DepartmentTasks />
+      {own ? own() : <Dashboard />}
+    </>
+  );
 }

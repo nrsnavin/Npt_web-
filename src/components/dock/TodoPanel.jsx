@@ -4,6 +4,7 @@ import { useWorkspace } from './WorkspaceContext.jsx';
 import DockIcon from './DockIcon.jsx';
 import { Notice } from '../ui.jsx';
 import { EscalateTaskDialog, TaskMeta } from '../TaskEscalation.jsx';
+import HandoffTaskActions, { HandoffDialog } from '../HandoffTaskActions.jsx';
 import { formatDate } from '../../utils/format.js';
 import { departmentLabel } from '../../utils/pipeline.js';
 
@@ -45,6 +46,15 @@ export function dueLabel(dueDate) {
  */
 export function TodoRow({ todo, onToggle, onDelete, onClaim, onEscalate, readOnly = false, showDepartment = false }) {
   const due = dueLabel(todo.dueDate);
+  const { reload } = useWorkspace();
+  /* A department task about an enquiry is finished by saying what was done, not by a tick —
+     what they record goes back to whoever asked. */
+  const handoff = Boolean(todo.kind);
+  const [finishing, setFinishing] = useState(false);
+  const toggle = () => (handoff && !todo.completed ? setFinishing(true) : onToggle(todo));
+  const enquiry = todo.enquiry && typeof todo.enquiry === 'object' ? todo.enquiry : null;
+  const model = enquiry?.requirement?.modelNumber || enquiry?.items?.[0]?.modelNumber;
+  const colour = enquiry?.requirement?.colour || enquiry?.items?.[0]?.colour;
 
   return (
     <li className="group flex items-start gap-2.5 py-2">
@@ -57,7 +67,7 @@ export function TodoRow({ todo, onToggle, onDelete, onClaim, onEscalate, readOnl
           role="checkbox"
           aria-checked={todo.completed}
           aria-label={todo.completed ? `Reopen ${todo.title}` : `Complete ${todo.title}`}
-          onClick={() => onToggle(todo)}
+          onClick={toggle}
           className={`mt-0.5 grid h-[1.05rem] w-[1.05rem] shrink-0 place-items-center rounded-[5px] border transition-colors ${
             todo.completed
               ? 'border-success-500 bg-success-500 text-white'
@@ -94,6 +104,18 @@ export function TodoRow({ todo, onToggle, onDelete, onClaim, onEscalate, readOnl
           {todo.notes && <span className="truncate text-steel-500">{todo.notes}</span>}
         </div>
 
+        {handoff && (enquiry || todo.fromDepartment) && (
+          <p className="mt-0.5 text-xs text-steel-400">
+            {[model, colour, enquiry?.requirement?.printing].filter(Boolean).join(' · ')}
+            {todo.fromDepartment && `${model || colour ? ' — ' : ''}from ${departmentLabel(todo.fromDepartment)}`}
+          </p>
+        )}
+        {handoff && todo.outcome?.note && (
+          <p className="mt-0.5 text-xs text-steel-400">
+            {todo.outcome.result === 'returned' ? 'Sent back: ' : 'Done: '}{todo.outcome.note}
+          </p>
+        )}
+
         <TaskMeta task={todo} showDepartment={showDepartment} />
 
         {/*
@@ -107,8 +129,9 @@ export function TodoRow({ todo, onToggle, onDelete, onClaim, onEscalate, readOnl
           does work from the window, which is also what a marketing person actually wants: not
           to do despatch's job, but to say it needs doing.
         */}
-        {!todo.completed && (onClaim || onEscalate) && (
+        {!todo.completed && (onClaim || onEscalate || handoff) && (
           <div className="mt-1 flex flex-wrap items-center gap-3">
+            {handoff && !readOnly && <HandoffTaskActions todo={todo} onChanged={() => reload?.()} />}
             {onClaim && !readOnly && !todo.user && (
               <button type="button" className="row-action" onClick={() => onClaim(todo, true)}>
                 I&rsquo;ll take it
@@ -128,7 +151,11 @@ export function TodoRow({ todo, onToggle, onDelete, onClaim, onEscalate, readOnl
         )}
       </div>
 
-      {!readOnly && (
+      {finishing && (
+        <HandoffDialog todo={todo} mode="done" onClose={() => setFinishing(false)} onChanged={() => reload?.()} />
+      )}
+
+      {!readOnly && !handoff && (
         <button
           type="button"
           aria-label={`Delete ${todo.title}`}
