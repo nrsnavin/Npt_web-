@@ -100,7 +100,7 @@ export const users = {
 };
 
 /**
- * Phase 1: the pipeline that runs from a lead to a customer to an enquiry. List endpoints
+ * Phase 1: the pipeline that runs from a customer to an enquiry. List endpoints
  * return `{ data, pagination }`, so those keep the whole envelope.
  */
 const listed = (response) => response.data;
@@ -311,58 +311,23 @@ export const customers = {
 };
 
 /**
- * Cards to confirm: photos of leads — sent to the WhatsApp number or uploaded here — read by the
- * model and made leads only when a person confirms them.
+ * Draft enquiries: chat screenshots and visiting cards — sent to the WhatsApp number or uploaded
+ * here — read by the model, and made a customer and an enquiry only when a person confirms them.
  */
-export const leadCards = {
-  list: (params) => api.get('/lead-cards', { params }).then(listed),
-  get: (id) => api.get(`/lead-cards/${id}`).then(unwrap),
+export const buyerCards = {
+  list: (params) => api.get('/buyer-cards', { params }).then(listed),
+  get: (id) => api.get(`/buyer-cards/${id}`).then(unwrap),
   /** The photo, as a blob: the route needs the session's token, which an <img src> cannot send. */
   /** `n` is 0 for the first picture, 1 and on for the later screenshots of a long chat. */
-  image: (id, n = 0) => api.get(`/lead-cards/${id}/image`, { params: n ? { n } : undefined, responseType: 'blob', feedback: false }).then((r) => r.data),
+  image: (id, n = 0) => api.get(`/buyer-cards/${id}/image`, { params: n ? { n } : undefined, responseType: 'blob', feedback: false }).then((r) => r.data),
   upload: ({ file, caption }) => {
     const form = new FormData();
     form.append('image', file);
     if (caption) form.append('caption', caption);
-    return api.post('/lead-cards', form).then(unwrap);
+    return api.post('/buyer-cards', form).then(unwrap);
   },
-  confirm: ({ id, ...fields }) => api.post(`/lead-cards/${id}/confirm`, fields).then(unwrap),
-  discard: (id) => api.post(`/lead-cards/${id}/discard`).then(unwrap),
-};
-
-export const leads = {
-  list: (params) => api.get('/leads', { params }).then(listed),
-  /** The same book as `list`, arranged as columns — every stage, the head of each. */
-  board: (params) => api.get('/leads/board', { params }).then(boarded),
-  get: (id) => api.get(`/leads/${id}`).then(unwrap),
-  create: (payload) => api.post('/leads', payload).then(unwrap),
-  update: ({ id, ...payload }) => api.patch(`/leads/${id}`, payload).then(unwrap),
-  /** Who a new lead may be given to — the marketing team. See `customers.team`. */
-  team: () => api.get('/leads/team').then((response) => response.data),
-  addActivity: ({ id, ...payload }) => api.post(`/leads/${id}/activities`, payload).then(unwrap),
-  /** Creates the customer, its first contact and optionally the first enquiry in one go. */
-  convert: ({ id, ...payload }) => api.post(`/leads/${id}/convert`, payload).then(unwrap),
-
-  /** What the log adds up to — arithmetic over the entries, no model involved. */
-  logAnalytics: (id) => api.get(`/leads/${id}/log-analytics`).then(unwrap),
-  /**
-   * Reads the log and proposes a next step. Proposes only: nothing reaches the lead until
-   * somebody fills the form and saves, which is what keeps a misread cheap.
-   */
-  suggest: (id) => api.post(`/leads/${id}/suggest`).then(unwrap),
-  /** Whose leads need somebody today — overdue, due, undecided, and quietly cooling. */
-  followUps: () => api.get('/leads/follow-ups').then(unwrap),
-  /** Outcomes and habits. Never activity — see the service for why that matters. */
-  scoreboard: () => api.get('/leads/scoreboard').then(unwrap),
-  /** The shape of the book, and the leads that are only nominally alive in it. */
-  overview: () => api.get('/leads/overview').then(unwrap),
-  /**
-   * Who is holding leads, for the owner filter.
-   *
-   * Scoped like the list itself, so a marketing person is offered only themselves — which is
-   * why the screen can decide whether to draw the picker from the answer alone.
-   */
-  owners: () => api.get('/leads/owners').then(unwrap),
+  confirm: ({ id, ...fields }) => api.post(`/buyer-cards/${id}/confirm`, fields).then(unwrap),
+  discard: (id) => api.post(`/buyer-cards/${id}/discard`).then(unwrap),
 };
 
 export const enquiries = {
@@ -691,15 +656,6 @@ export const samples = {
   day: () => api.get('/samples/day').then((response) => response.data),
   get: (id) => api.get(`/samples/${id}`).then(unwrap),
   create: (payload) => api.post('/samples', payload).then(unwrap),
-  /**
-   * The whole envelope, for the one case where the sample is not all that happened.
-   *
-   * A request raised for a lead converts that lead — an enquiry needs a customer — and the
-   * answer names the customer and the enquiry that came into being beside `data`. Unwrapping
-   * to the sample alone would throw the only record of a consequence nobody asked for, and
-   * the screen has to be able to say what it did.
-   */
-  createForLead: (payload) => api.post('/samples', payload).then((response) => response.data),
   update: ({ id, ...payload }) => api.patch(`/samples/${id}`, payload).then(unwrap),
   assign: ({ id, ...payload }) => api.post(`/samples/${id}/assign`, payload).then(unwrap),
   setStatus: ({ id, ...payload }) => api.post(`/samples/${id}/status`, payload).then(unwrap),
@@ -867,7 +823,6 @@ async function save(path, params, fallbackName) {
  */
 export const downloads = {
   customers: (params) => save('/customers/export', params, 'customers.csv'),
-  leads: (params) => save('/leads/export', params, 'leads.csv'),
   enquiries: (params) => save('/enquiries/export', params, 'enquiries.csv'),
   orders: (params) => save('/orders/export', params, 'sales-orders.csv'),
   production: (params) => save('/production/export', params, 'production.csv'),

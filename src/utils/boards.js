@@ -14,10 +14,9 @@
  * row of twelve equal boxes and destroy the only picture the board draws. So they sit in a tray
  * at the end, narrower and quieter, still droppable and still counted.
  *
- * **A column that cannot be dropped on says so.** Four of the sample columns and one of the
- * lead columns refuse a card, and each refuses for a reason the server already enforces —
- * the customer's verdict is not the bench's to record, a lead is converted through the action
- * that also creates the customer. A board that lets you drop and then shows an error has taught
+ * **A column that cannot be dropped on says so.** Four of the sample columns refuse a card, and
+ * each refuses for a reason the server already enforces — the customer's verdict is not the
+ * bench's to record. A board that lets you drop and then shows an error has taught
  * the reader that the screen guesses. One that dims the column and explains itself has taught
  * them the process.
  *
@@ -27,20 +26,19 @@
  * drop open a dialog that asks, instead of firing a request that can only come back 400.
  */
 import {
-  CLOSED_STAGES, DISQUALIFY_REASONS, ENQUIRY_STAGES, FEEDBACK_OUTCOMES, LEAD_STAGES,
-  LOST_REASONS, SAMPLE_STAGES, isBackwardSampleMove,
+  CLOSED_STAGES, ENQUIRY_STAGES, FEEDBACK_OUTCOMES, LOST_REASONS, SAMPLE_STAGES, isBackwardSampleMove,
 } from './pipeline.js';
 
 /**
- * Tone by what a column *means*, shared across the three vocabularies.
+ * Tone by what a column *means*, shared across the vocabularies.
  *
- * A lead is converted or disqualified; an enquiry is won or lost; a sample is approved or
- * rejected. Those are the same two ideas in three sets of words, and keying the colour on the
+ * An enquiry is won or lost; a sample is approved or rejected. Those are the same two ideas in
+ * two sets of words, and keying the colour on the
  * meaning stops the boards drifting into disagreeing about what green is — the same argument
  * the stage strip already makes.
  */
-const GOOD = ['converted', 'won', 'approved'];
-const BAD = ['disqualified', 'lost', 'rejected', 'cancelled'];
+const GOOD = ['won', 'approved'];
+const BAD = ['lost', 'rejected', 'cancelled'];
 const PARKED = ['hold', 'modification_required'];
 
 export const columnTone = (status) => {
@@ -52,33 +50,6 @@ export const columnTone = (status) => {
 
 /** A column nobody may drop on, and the sentence explaining why. */
 const closedTo = (why) => ({ droppable: false, why });
-
-/* --------------------------------------- Leads --------------------------------------- */
-
-export const LEAD_BOARD = {
-  key: 'leads',
-  /** The ladder: what a lead climbs. */
-  ladder: ['new', 'contacted', 'qualified'],
-  /** The outcomes, filed at the end. */
-  tray: ['converted', 'disqualified'],
-  labels: Object.fromEntries(LEAD_STAGES.map((stage) => [stage.value, stage.label])),
-  /*
-   * A lead move carries no general note, because there is no field on a lead for one to land
-   * in — `PATCH /leads/:id` would accept the key and zod would strip it, and a note somebody
-   * typed that silently disappears is worse than a box that was never offered. Disqualifying
-   * has `disqualifyNote`, so that move alone asks.
-   */
-  noteField: null,
-  rules: {
-    /*
-     * Converting writes a customer, a contact and the first enquiry in one action, and asks
-     * which of those to create. None of that fits on the end of a drag, and the server refuses
-     * a bare status change to `converted` for the same reason.
-     */
-    converted: closedTo('Converting also creates the customer and the first enquiry — open the lead and use Convert.'),
-    disqualified: { needs: ['disqualifyReason'], note: 'disqualifyNote' },
-  },
-};
 
 /* ------------------------------------- Enquiries ------------------------------------- */
 
@@ -137,7 +108,7 @@ export const SAMPLE_BOARD = {
   needsFrom: (card, status) => (isBackwardSampleMove(card?.status, status) ? ['note'] : []),
 };
 
-export const BOARDS = { leads: LEAD_BOARD, enquiries: ENQUIRY_BOARD, samples: SAMPLE_BOARD };
+export const BOARDS = { enquiries: ENQUIRY_BOARD, samples: SAMPLE_BOARD };
 
 /**
  * The statuses that end a record, per board.
@@ -149,7 +120,6 @@ export const BOARDS = { leads: LEAD_BOARD, enquiries: ENQUIRY_BOARD, samples: SA
  * about it turns the one colour that means *act on this* into wallpaper.
  */
 const SETTLED = {
-  leads: ['converted', 'disqualified'],
   enquiries: ['won', 'lost'],
   samples: ['approved', 'rejected', 'cancelled'],
 };
@@ -198,7 +168,6 @@ export const MOVE_FIELDS = {
     hint: 'Goes into the history beside the move it explains',
   },
   lostReason: { label: 'Why was it lost?', type: 'select', options: LOST_REASONS },
-  disqualifyReason: { label: 'Why is it disqualified?', type: 'select', options: DISQUALIFY_REASONS },
   holdReason: { label: 'What is it waiting on?', type: 'text', placeholder: 'Buyer travelling until the 20th' },
   estimatedValue: { label: 'Confirmed value (₹)', type: 'number', hint: 'The figure the weekly review is built on' },
   courier: { label: 'Courier', type: 'text', placeholder: 'Professional Couriers' },
@@ -218,20 +187,4 @@ export function daysInColumn(record) {
   const since = history?.length ? history[history.length - 1].at : record?.createdAt;
   if (!since) return null;
   return Math.floor((Date.now() - new Date(since).getTime()) / 86400000);
-}
-
-/**
- * How long since anybody logged anything against this lead.
- *
- * Leads keep no status history — there is no `statusHistory` on the model — so the honest
- * ageing question for one is not "how long in this column" but "how long since we last spoke",
- * which is the figure that decides whether a lead is alive. Answering the wrong question with
- * `updatedAt` would have been easy and would have read as a fact.
- */
-export function daysQuiet(lead) {
-  const last = lead?.activities?.length
-    ? lead.activities[lead.activities.length - 1].occurredAt
-    : lead?.createdAt;
-  if (!last) return null;
-  return Math.floor((Date.now() - new Date(last).getTime()) / 86400000);
 }

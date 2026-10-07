@@ -96,17 +96,15 @@ export default function SampleBoard({ filters, canMove, perColumn = 20 }) {
       hidden={hidden}
       hrefFor={(card) => `/samples/${card._id}`}
       describeCard={(card) =>
-        `${card.number} — ${card.customer?.name || card.lead?.company || 'internal trial'}`}
+        `${card.number} — ${card.customer?.name || 'internal trial'}`}
       renderCard={(card) => {
         /* A sample's promise is its required date, which is what §25 escalates against. */
         const due = followUpState(card.requiredDate);
         const days = daysInColumn(card);
         return (
           <>
-            {/* A request made for a lead names the company: calling it a trial for nobody
-                would be the card stating something untrue about a real buyer. */}
             <p className="truncate text-xs font-semibold text-steel-100">
-              {card.customer?.name || card.lead?.company || 'Internal trial'}
+              {card.customer?.name || 'Internal trial'}
             </p>
             <p className="truncate text-[11px] text-steel-400">
               {card.number} · {card.modelNumber || card.mould?.mouldCode || 'New development'}

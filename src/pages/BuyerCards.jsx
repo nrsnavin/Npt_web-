@@ -1,19 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { leadCards as cardsApi } from '../api/endpoints.js';
+import { buyerCards as cardsApi } from '../api/endpoints.js';
 import { Badge, EmptyState, ErrorState, Field, Notice, PageHeader } from '../components/ui.jsx';
 import { formatDate } from '../utils/format.js';
 import { SOURCES } from '../utils/pipeline.js';
-import { CARD_STATUS, KIND_LABEL, cardProblem, quantityOf, todayIso } from '../utils/leadCards.js';
+import { CARD_STATUS, KIND_LABEL, cardProblem, quantityOf, todayIso } from '../utils/buyerCards.js';
 
 /**
- * Draft leads.
+ * Draft enquiries.
  *
- * A salesperson photographs a visiting card or an enquiry slip, or screenshots a WhatsApp chat
- * with a buyer, and sends it to the plant's WhatsApp number — or uploads it here — and the model
+ * A salesperson screenshots a WhatsApp chat with a buyer, or photographs a visiting card or an
+ * enquiry slip, and sends it to the plant's WhatsApp number — or uploads it here — and the model
  * reads it into a draft holding only what the picture shows. The draft waits here beside the
  * picture; the salesperson checks what was recognised, fills in the rest — the next step, when to
- * follow up, how they met the buyer — and saves it as a lead. Nothing is a lead until they do.
+ * follow up, how they met the buyer — and saves it, which makes the customer and the enquiry.
+ * Nothing is saved until they do.
  */
 
 function CardPhoto({ id, n = 0 }) {
@@ -90,11 +91,9 @@ function CardEditor({ card, onDone }) {
 
   const open = ['ready', 'unreadable'].includes(card.status);
   const why = cardProblem(fields);
-  const holder = card.matchedLead
-    ? { to: `/leads/${card.matchedLead._id}`, text: `lead ${card.matchedLead.number} (${card.matchedLead.company})` }
-    : card.matchedCustomer
-      ? { to: `/customers/${card.matchedCustomer._id}`, text: `customer ${card.matchedCustomer.code} (${card.matchedCustomer.name})` }
-      : null;
+  const holder = card.matchedCustomer
+    ? { to: `/customers/${card.matchedCustomer._id}`, text: `customer ${card.matchedCustomer.code} (${card.matchedCustomer.name})` }
+    : null;
 
   const save = async (event) => {
     event.preventDefault();
@@ -109,7 +108,7 @@ function CardEditor({ card, onDone }) {
         estimatedQuantity: quantityOf(fields.estimatedQuantity),
         estimatedValue: value ? Number(value) : null,
       });
-      onDone(done.card, done.lead);
+      onDone(done.card, done.enquiry);
     } catch (failure) {
       setProblem(failure.message);
     } finally {
@@ -152,12 +151,13 @@ function CardEditor({ card, onDone }) {
         )}
         {holder && (
           <Notice tone="warn">
-            This buyer is already <Link className="font-semibold underline" to={holder.to}>{holder.text}</Link>.
+            This buyer is already <Link className="font-semibold underline" to={holder.to}>{holder.text}</Link> — raise the enquiry there.
           </Notice>
         )}
-        {card.status === 'confirmed' && card.lead && (
+        {card.status === 'confirmed' && card.enquiry && (
           <Notice tone="success">
-            Saved as lead <Link className="font-semibold underline" to={`/leads/${card.lead._id}`}>{card.lead.number}</Link>
+            Saved as enquiry <Link className="font-semibold underline" to={`/enquiries/${card.enquiry._id}`}>{card.enquiry.number}</Link>
+            {card.customer ? <> for <Link className="font-semibold underline" to={`/customers/${card.customer._id}`}>{card.customer.name}</Link></> : ''}
             {card.decidedBy ? ` by ${card.decidedBy.name}` : ''}.
           </Notice>
         )}
@@ -247,7 +247,7 @@ function CardEditor({ card, onDone }) {
             <div className="flex flex-wrap justify-end gap-2 pt-1">
               <button type="button" className="btn-ghost" disabled={busy} onClick={discard}>Drop the draft</button>
               <button type="submit" className="btn-primary" disabled={busy || Boolean(why)}>
-                {busy ? 'Saving…' : 'Save as lead'}
+                {busy ? 'Saving…' : 'Save as enquiry'}
               </button>
             </div>
           </>
@@ -257,7 +257,7 @@ function CardEditor({ card, onDone }) {
   );
 }
 
-export default function LeadCards() {
+export default function BuyerCards() {
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
   const [view, setView] = useState('waiting');
@@ -319,9 +319,9 @@ export default function LeadCards() {
     }
   };
 
-  const done = (card, lead) => {
-    if (lead) {
-      navigate(`/leads/${lead._id}`);
+  const done = (card, enquiry) => {
+    if (enquiry) {
+      navigate(`/enquiries/${enquiry._id}`);
       return;
     }
     setState((current) => ({ ...current, data: current.data.filter((row) => row._id !== card._id), waiting: Math.max(0, (current.waiting || 1) - 1) }));
@@ -332,11 +332,11 @@ export default function LeadCards() {
   return (
     <div className="mx-auto max-w-6xl space-y-5">
       <PageHeader
-        title="Draft leads"
-        subtitle="Started from visiting cards and WhatsApp chat screenshots. Check what was recognised, fill in the rest, and save it as a lead."
+        title="Draft enquiries"
+        subtitle="Started from WhatsApp chat screenshots and visiting cards. Check what was recognised, fill in the rest, and save it — that makes the customer and the enquiry."
         actions={
           <div className="flex items-center gap-2">
-            <Link to="/leads" className="btn-secondary">All leads</Link>
+            <Link to="/enquiries" className="btn-secondary">All enquiries</Link>
             <input
               ref={picker}
               type="file"

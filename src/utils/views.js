@@ -6,7 +6,6 @@ export const VIEW_PATHS = {
   queries: '/queries',
   enquiries: '/enquiries',
   samples: '/samples',
-  leads: '/leads',
   customers: '/customers',
   pricings: '/pricings',
 };

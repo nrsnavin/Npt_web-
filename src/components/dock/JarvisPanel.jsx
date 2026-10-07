@@ -107,7 +107,7 @@ export default function JarvisPanel() {
         {!turns.length && (
           <div>
             <p className="text-xs leading-relaxed text-steel-300">
-              Ask me about samples, enquiries, leads or customers
+              Ask me about samples, enquiries or customers
               {user?.name ? `, ${user.name.split(' ')[0]}` : ''}. Every figure comes straight
               from the records, with the rows behind it.
             </p>

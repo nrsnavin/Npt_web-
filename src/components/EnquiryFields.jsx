@@ -2,7 +2,7 @@ import { Field } from './ui.jsx';
 import ItemCards from './ItemCards.jsx';
 
 /**
- * The requirement half of an enquiry, shared by the enquiry form and by lead conversion.
+ * The requirement half of an enquiry, used by the enquiry form.
  *
  * `prefix` lets the same fields sit at the root of one form and under `enquiry.` in another, so
  * conversion can post a nested enquiry without a second copy of this markup.

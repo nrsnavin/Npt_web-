@@ -32,7 +32,6 @@ import { humanise, plural } from '../utils/format.js';
  * most of why it is worth having on a screen somebody works from.
  */
 const STRANDS = [
-  { key: 'leads', label: 'Came from', tone: 'neutral', at: (id) => `/leads/${id}`, list: null },
   { key: 'enquiries', label: 'Enquiries', tone: 'info', at: (id) => `/enquiries/${id}`, list: '/enquiries' },
   { key: 'samples', label: 'Samples', tone: 'progress', at: (id) => `/samples/${id}`, list: '/samples' },
   { key: 'quotations', label: 'Quotations', tone: 'info', at: (id) => `/quotations/${id}`, list: '/quotations' },

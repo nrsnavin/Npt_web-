@@ -38,15 +38,12 @@ const MaterialDetail = lazyPage(() => import('./pages/MaterialDetail.jsx'));
 const PartDetail = lazyPage(() => import('./pages/PartDetail.jsx'));
 const Customers = lazyPage(() => import('./pages/Customers.jsx'));
 const CustomerDetail = lazyPage(() => import('./pages/CustomerDetail.jsx'));
-const Leads = lazyPage(() => import('./pages/Leads.jsx'));
-const LeadAnalytics = lazyPage(() => import('./pages/LeadAnalytics.jsx'));
-const LeadCards = lazyPage(() => import('./pages/LeadCards.jsx'));
+const BuyerCards = lazyPage(() => import('./pages/BuyerCards.jsx'));
 const Pricings = lazyPage(() => import('./pages/Pricings.jsx'));
 const PricingDetail = lazyPage(() => import('./pages/PricingDetail.jsx'));
 const Quotations = lazyPage(() => import('./pages/Quotations.jsx'));
 const SentQuotations = lazyPage(() => import('./pages/SentQuotations.jsx'));
 const QuotationDetail = lazyPage(() => import('./pages/QuotationDetail.jsx'));
-const LeadDetail = lazyPage(() => import('./pages/LeadDetail.jsx'));
 const Enquiries = lazyPage(() => import('./pages/Enquiries.jsx'));
 const EnquiryDetail = lazyPage(() => import('./pages/EnquiryDetail.jsx'));
 const Samples = lazyPage(() => import('./pages/Samples.jsx'));
@@ -168,7 +165,7 @@ export default function App() {
           {/* The day by role, whichever page the app opens on. */}
           <Route path="today" element={<Home />} />
 
-          {/* Phase 1: the pipeline that runs from a lead to a customer to an enquiry. */}
+          {/* Phase 1: the pipeline that runs from a customer to an enquiry. */}
           <Route
             path="dashboard/marketing"
             element={
@@ -177,37 +174,15 @@ export default function App() {
               </RequireModule>
             }
           />
-          {/* Above `leads`, so the literal segment wins over nothing — and above `leads/:id`,
-              which would otherwise swallow it as a lead called "analytics". */}
+          {/* Leads were removed: an old link or bookmark lands on the enquiries instead. */}
+          <Route path="leads/*" element={<Navigate to="/enquiries" replace />} />
+          {/* Chat screenshots and cards waiting to be saved. Above `enquiries/:id`, which would
+              otherwise read "drafts" as an enquiry id. */}
           <Route
-            path="leads/analytics"
+            path="enquiries/drafts"
             element={
-              <RequireModule moduleKey="enquiries">
-                <LeadAnalytics />
-              </RequireModule>
-            }
-          />
-          <Route
-            path="leads/cards"
-            element={
-              <RequireModule moduleKey="enquiries">
-                <LeadCards />
-              </RequireModule>
-            }
-          />
-          <Route
-            path="leads"
-            element={
-              <RequireModule moduleKey="enquiries">
-                <Leads />
-              </RequireModule>
-            }
-          />
-          <Route
-            path="leads/:id"
-            element={
-              <RequireModule moduleKey="enquiries">
-                <LeadDetail />
+              <RequireModule moduleKey="customers">
+                <BuyerCards />
               </RequireModule>
             }
           />

@@ -1,11 +1,11 @@
 /**
- * The card form says what the server will say, before a card is confirmed.
+ * The draft-enquiry form says what the server will say, before a draft is saved.
  *
- *   node --test tests/lead-cards.test.js
+ *   node --test tests/buyer-cards.test.js
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { cardProblem, todayIso } from '../src/utils/leadCards.js';
+import { cardProblem, todayIso } from '../src/utils/buyerCards.js';
 
 const rest = { nextAction: 'Send the rate card', nextFollowUpDate: todayIso(), source: 'trade_show' };
 import { actionLabel } from '../src/api/feedback.js';
@@ -24,13 +24,13 @@ test('a phone or email that is not one is caught before sending', () => {
 });
 
 test('what the card actions say when they are done', () => {
-  assert.equal(actionLabel({ method: 'post', url: '/lead-cards/abc/confirm' }), 'Lead saved from the draft');
-  assert.equal(actionLabel({ method: 'post', url: '/lead-cards/abc/discard' }), 'Draft dropped');
-  assert.equal(actionLabel({ method: 'post', url: '/lead-cards' }), 'Draft saved');
+  assert.equal(actionLabel({ method: 'post', url: '/buyer-cards/abc/confirm' }), 'Enquiry saved from the draft');
+  assert.equal(actionLabel({ method: 'post', url: '/buyer-cards/abc/discard' }), 'Draft dropped');
+  assert.equal(actionLabel({ method: 'post', url: '/buyer-cards' }), 'Draft saved');
 });
 
 test('a quantity is a whole number of pieces, or left empty', async () => {
-  const { quantityOf } = await import('../src/utils/leadCards.js');
+  const { quantityOf } = await import('../src/utils/buyerCards.js');
   assert.equal(quantityOf('5,000'), 5000);
   assert.equal(quantityOf(''), null);
   assert.ok(Number.isNaN(quantityOf('5k')));

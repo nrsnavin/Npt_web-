@@ -10,7 +10,7 @@ import { plural } from '../utils/format.js';
  * What matters now [BLUEPRINT §25].
  *
  * The plant raises six kinds of alarm on a timer already — late production, undispatched stock,
- * stalled samples, unanswered queries, overdue money, quiet leads. Nothing goes unflagged. What
+ * stalled samples, unanswered queries, overdue money. Nothing goes unflagged. What
  * nobody had was a way to tell, before nine o'clock, which of that pile matters *today*.
  *
  * So this is a ranking, not a seventh alarm. Every figure in it comes from a database query and

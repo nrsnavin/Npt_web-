@@ -1,5 +1,5 @@
 /**
- * Who a new lead or customer belongs to — asked on the form [BLUEPRINT §29].
+ * Who a new customer belongs to — asked on the form [BLUEPRINT §29].
  *
  * The owner was filled in without anybody choosing: a new customer went to whoever created it,
  * a new lead went round-robin across marketing. Both were defensible and neither was a decision
@@ -20,7 +20,6 @@ import { isOwnershipScoped, selfId } from '../src/utils/pipeline.js';
 const read = (path) => readFileSync(new URL(`../src/${path}`, import.meta.url), 'utf8');
 
 const PICKER = read('components/OwnerPicker.jsx');
-const LEAD_FORM = read('components/LeadForm.jsx');
 const CUSTOMER_FORM = read('pages/Customers.jsx');
 const ENDPOINTS = read('api/endpoints.js');
 
@@ -45,8 +44,6 @@ test('the list is the marketing team, from its own endpoint', () => {
    * a label, not a choice.
    */
   assert.match(ENDPOINTS, /team: \(\) => api\.get\('\/customers\/team'\)/);
-  assert.match(ENDPOINTS, /team: \(\) => api\.get\('\/leads\/team'\)/);
-  assert.match(LEAD_FORM, /load=\{leadsApi\.team\}/);
   assert.match(CUSTOMER_FORM, /load=\{customersApi\.team\}/);
 });
 
@@ -101,7 +98,7 @@ test('the owner is asked on create and never on edit', () => {
    * Moving a record afterwards is a reassignment, which the server holds to be a management
    * decision. A picker on the edit form would be a control that mostly refuses.
    */
-  for (const [name, source] of [['the lead form', LEAD_FORM], ['the customer form', CUSTOMER_FORM]]) {
+  for (const [name, source] of [['the customer form', CUSTOMER_FORM]]) {
     const mounted = source.match(/\{!editing && \(\s*<OwnerPicker/);
     assert.ok(mounted, `${name} only offers it on create`);
   }
@@ -137,7 +134,7 @@ test('the grouping only appears when there are two kinds of answer', () => {
 test('keeping it yourself says what that costs, as plainly as handing it over', () => {
   /*
    * §3 and §29 assume a marketing person is chasing the relationship: the follow-up reminders,
-   * the scoreboard and the untouched-leads count all read from the owner. Keeping a buyer is a
+   * and the due lists all read from the owner. Keeping a buyer is a
    * legitimate thing to do and it takes them off all of that — worth knowing before pressing
    * save rather than after wondering why nobody rang them.
    */

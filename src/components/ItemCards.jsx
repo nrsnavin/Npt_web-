@@ -73,14 +73,13 @@ export const filledItem = (item = {}) =>
 /**
  * What goes on the wire: the items somebody filled in, with the empty strings taken out.
  *
- * `withQuantity` is the sample's, and only the sample's. On a lead or an enquiry the quantity was
+ * `withQuantity` is the sample's, and only the sample's. On an enquiry the quantity was
  * a guess at how big an order might be and is no longer asked for anywhere; on a sample it is how
  * many pieces of this model go in the courier bag, which the person raising it knows and the
  * bench has to act on. Sending it from a form that never showed the field would put a number on a
  * record nobody typed.
  *
- * `withMould` is off for a lead, and that is not an oversight: a first call names nothing on the
- * register — that is what makes it a lead — and the server's lead schema has no such field.
+ * `withMould` is off for a list whose server schema has no tool on its rows.
  */
 export const itemsForSave = (items = [], { withQuantity = false, withMould = true } = {}) =>
   items.filter(filledItem).map((item) => ({
@@ -386,7 +385,7 @@ export default function ItemCards({
   disabled,
   /** Shows "pieces" on each item. The sample's, and only the sample's — see `itemsForSave`. */
   withQuantity = false,
-  /** Off for a lead, which names nothing on the register — see `itemsForSave`. */
+  /** Off where the rows name no tool — see `itemsForSave`. */
   withMould = true,
 }) {
   /*

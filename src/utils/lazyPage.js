@@ -4,7 +4,7 @@ import { lazy } from 'react';
  * A screen loaded on demand, that survives the site being deployed underneath it.
  *
  * **What goes wrong without this, and it is not rare.** The app is split per screen, so opening
- * Lead analytics fetches `assets/LeadAnalytics-CcLORf42.js` at the moment somebody clicks it.
+ * Sample analytics fetches `assets/SampleAnalytics-<hash>.js` at the moment somebody clicks it.
  * The name carries a hash of the contents, so every deploy renames every changed chunk — and
  * `deploy/on-box.sh` swaps the whole directory in one `mv`. A tab that was open across that
  * rename is holding an `index.html` listing filenames that no longer exist on the box. The next

@@ -120,7 +120,6 @@ test('the fields the server insists on are marked', () => {
    */
   const expected = {
     'pages/Customers.jsx': ['Company name'],
-    'components/LeadForm.jsx': ['Company'],
     'components/OwnerPicker.jsx': [],           // its label is passed in; checked below
     'components/EnquiryForm.jsx': ['Customer'],
     'components/TaskEscalation.jsx': ['Who has to do it', 'Why it is going to them'],

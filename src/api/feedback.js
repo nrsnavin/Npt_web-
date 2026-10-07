@@ -1,7 +1,7 @@
 const listeners = new Set();
 let sequence = 0;
 const pending = new Map();
-const nouns = { components: 'Component', customers: 'Customer', leads: 'Lead', enquiries: 'Enquiry', samples: 'Sample', orders: 'Order', dispatches: 'Dispatch', payments: 'Payment', pricings: 'Costing', quotations: 'Quotation', production: 'Production', quality: 'Quality check', users: 'User', moulds: 'Model', materials: 'Material', hooks: 'Hook', clips: 'Clip', prints: 'Print', todos: 'Task', notes: 'Note', announcements: 'Announcement', whatsapp: 'Conversation', escalations: 'Escalation', queries: 'Query', profile: 'Profile' };
+const nouns = { components: 'Component', customers: 'Customer', enquiries: 'Enquiry', samples: 'Sample', orders: 'Order', dispatches: 'Dispatch', payments: 'Payment', pricings: 'Costing', quotations: 'Quotation', production: 'Production', quality: 'Quality check', users: 'User', moulds: 'Model', materials: 'Material', hooks: 'Hook', clips: 'Clip', prints: 'Print', todos: 'Task', notes: 'Note', announcements: 'Announcement', whatsapp: 'Conversation', escalations: 'Escalation', queries: 'Query', profile: 'Profile' };
 export function actionLabel(config) {
   const parts = String(config.url || '').split(/[/?]/).filter(Boolean);
   const noun = nouns[parts[0] === 'workspace' ? parts[1] : parts[0]] || 'Record';
@@ -23,8 +23,8 @@ export function actionLabel(config) {
   if (last === 'urgent') return 'Urgency updated';
   if (last === 'labels') return 'Labels saved';
   if (last === 'numbering') return 'Quote numbering saved';
-  if (parts[0] === 'lead-cards') {
-    if (last === 'confirm') return 'Lead saved from the draft';
+  if (parts[0] === 'buyer-cards') {
+    if (last === 'confirm') return 'Enquiry saved from the draft';
     if (last === 'discard') return 'Draft dropped';
     return 'Draft saved';
   }

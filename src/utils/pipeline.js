@@ -251,23 +251,6 @@ export const PRE_LOAD_DISPATCH_STAGES = [
 
 export const dispatchStageLabel = (value) => label(DISPATCH_STAGES, value);
 
-export const LEAD_STAGES = [
-  { value: 'new', label: 'New' },
-  { value: 'contacted', label: 'Contacted' },
-  { value: 'qualified', label: 'Qualified' },
-  { value: 'converted', label: 'Converted' },
-  { value: 'disqualified', label: 'Disqualified' },
-];
-
-/**
- * The two lead stages that are finished with — the lead vocabulary's `won` and `lost`.
- *
- * Named beside `CLOSED_STAGES` above rather than written out wherever it is wanted, because
- * the two lists answer the same question about two halves of one pipeline and a copy of either
- * is a copy that drifts.
- */
-export const CLOSED_LEAD_STAGES = ['converted', 'disqualified'];
-
 export const LOST_REASONS = [
   { value: 'price', label: 'Price' },
   { value: 'lead_time', label: 'Lead time' },
@@ -276,17 +259,6 @@ export const LOST_REASONS = [
   { value: 'competitor', label: 'Lost to a competitor' },
   { value: 'requirement_dropped', label: 'Requirement dropped' },
   { value: 'no_response', label: 'No response' },
-  { value: 'other', label: 'Other' },
-];
-
-export const DISQUALIFY_REASONS = [
-  { value: 'not_our_product', label: 'Not our product' },
-  { value: 'price_shopper', label: 'Price shopper' },
-  { value: 'volume_too_low', label: 'Volume too low' },
-  { value: 'credit_risk', label: 'Credit risk' },
-  { value: 'no_response', label: 'No response' },
-  { value: 'competitor', label: 'Committed to a competitor' },
-  { value: 'duplicate', label: 'Duplicate' },
   { value: 'other', label: 'Other' },
 ];
 
@@ -422,7 +394,6 @@ const label = (options, value) =>
   options.find((option) => option.value === value)?.label || value || '—';
 
 export const stageLabel = (value) => label(ENQUIRY_STAGES, value);
-export const leadStageLabel = (value) => label(LEAD_STAGES, value);
 export const sampleStageLabel = (value) => label(SAMPLE_STAGES, value);
 export const optionLabel = label;
 
@@ -564,7 +535,7 @@ export const text = (value) => (value === '' || value === null ? undefined : val
  * and copies its first row onto `requirement`, `mould` and `isNewDevelopment`, so sending the
  * list alone says the same thing with one source instead of two.
  *
- * Shared by the enquiry form and by lead conversion, which posts the same shape one level down.
+ * Used by the enquiry form.
  *
  * `items` arrives already wire-shaped, from `itemsForSave` in the editor that collected it.
  * This module has no imports on purpose — it is enum labels and pure functions that the forms,
@@ -707,7 +678,7 @@ export const departmentLabel = (key) =>
   String(key || '').replace(/_/g, ' ');
 
 /**
- * Whether somebody may hold a buyer — own a lead, customer, enquiry or quotation. The server's
+ * Whether somebody may hold a buyer — own a customer, enquiry or quotation. The server's
  * rule, mirrored so pickers only offer people it will accept: marketing, or an administrator.
  */
 export const mayHoldBuyers = (person) =>

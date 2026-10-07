@@ -149,7 +149,7 @@ export function CustomerForm({ customer, onClose, onSaved }) {
         >
           <textarea rows={2} className="input" {...register('address')} />
         </Field>
-        {/* The same suggestion list the lead form uses. Suggesting on one and not the other
+        {/* The same suggestion list the other forms use. Suggesting on one and not the other
             would leave half the records free text, and the by-city report reads both. */}
         <Field label="City">
           <PlaceInput
@@ -329,7 +329,7 @@ export default function Customers() {
       {!loading && !error && (data.length === 0 ? (
         <EmptyState
           title="No customers yet"
-          description="Customers usually arrive by converting a qualified lead, but you can also add one directly."
+          description="Customers arrive from IndiaMART and from WhatsApp chat screenshots saved as draft enquiries, or you can add one directly."
         />
       ) : (
         <>

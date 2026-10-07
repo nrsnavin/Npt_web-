@@ -1,6 +1,6 @@
 /**
- * The rule for making a draft a lead, said before it is sent — the server holds the same one
- * (leadCard.service `confirmProblem` and the phone check in `confirmCard`). What was recognised in
+ * The rule for saving a draft, said before it is sent — the server holds the same one
+ * (buyerCard.service `confirmProblem` and the phone check in `confirmCard`). What was recognised in
  * the picture is only a start: the next step, when to follow up and how we met them are always
  * the salesperson's to give.
  */
@@ -36,11 +36,11 @@ export const todayIso = () => {
 const digits = (value) => String(value || '').replace(/\D/g, '');
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-/** Why these fields cannot become a lead yet, or null. */
+/** Why these fields cannot be saved yet, or null. */
 export function cardProblem(fields) {
-  if (String(fields.company || '').trim().length < 2) return 'A lead needs a company name.';
+  if (String(fields.company || '').trim().length < 2) return 'A customer needs a company name.';
   const phones = ['mobile', 'whatsapp'].map((key) => fields[key]).filter((value) => String(value || '').trim());
-  if (!phones.length && !String(fields.email || '').trim()) return 'A lead needs a phone number or an email to reach them on.';
+  if (!phones.length && !String(fields.email || '').trim()) return 'A customer needs a phone number or an email to reach them on.';
   const bad = phones.find((value) => digits(value).length < 8 || digits(value).length > 15);
   if (bad) return `${bad} is not a phone number.`;
   if (String(fields.email || '').trim() && !EMAIL.test(String(fields.email).trim())) return 'That email address is not valid.';
@@ -57,6 +57,6 @@ export const CARD_STATUS = {
   reading: { label: 'Reading…', tone: 'info' },
   ready: { label: 'Draft', tone: 'info' },
   unreadable: { label: 'Draft — fill in', tone: 'warn' },
-  confirmed: { label: 'Made a lead', tone: 'neutral' },
+  confirmed: { label: 'Saved as enquiry', tone: 'neutral' },
   discarded: { label: 'Dropped', tone: 'neutral' },
 };

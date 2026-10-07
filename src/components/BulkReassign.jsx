@@ -73,7 +73,7 @@ export function RowCheckbox({ checked, onChange, label }) {
 /**
  * The bar that appears once something is ticked, and the dialog behind it.
  *
- * `collection` is the URL segment the server knows: customers, leads, enquiries or samples.
+ * `collection` is the URL segment the server knows: customers, enquiries or samples.
  */
 export default function BulkBar({ collection, selection, noun = 'records', onDone }) {
   const [open, setOpen] = useState(false);

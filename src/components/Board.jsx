@@ -9,7 +9,7 @@ import { formatCompactCurrency, formatNumber } from '../utils/format.js';
 /**
  * One kanban board, drawn for whichever of the three it is handed.
  *
- * The three boards — leads, enquiries, sample follow-ups — are the same shape: a record with a
+ * The boards — enquiries and sample follow-ups — are the same shape: a record with a
  * status, an owner, a promise about when it is next touched, and a number behind it. Three
  * implementations would be three places to fix a drag bug once and miss it twice, so this is
  * one component and the differences live in `utils/boards.js` as data.
@@ -131,8 +131,8 @@ function MoveDialog({ open, card, to, label, needs, noteField, onClose, onConfir
           * history beside the move, which is the only place the reason a card jumped two columns
           * on a Tuesday survives long enough to answer a question a month later.
           *
-          * Drawn only when there is a field for it: a lead has nowhere to put a general note, so
-          * offering the box would collect something the next request quietly drops.
+          * Drawn only when there is a field for it: a record with nowhere to put a general note
+          * would collect something the next request quietly drops.
           */}
         {noteField && !noteRequired && (
           <Field label="Note" hint="Goes into the history with the move">

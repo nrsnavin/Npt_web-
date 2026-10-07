@@ -101,7 +101,7 @@ function Entry({ row }) {
 }
 
 /**
- * `model` is the server's own name for the record type — Customer, Lead, Enquiry, Sample,
+ * `model` is the server's own name for the record type — Customer, Enquiry, Sample,
  * Mould — because the history route is one route across all of them.
  */
 /**

@@ -118,7 +118,7 @@ export default function EnquiryForm({ enquiry, onClose, onSaved }) {
           hint={
             editing
               ? 'Fixed — an enquiry for a different buyer is a different enquiry'
-              : 'Not a customer yet? Start it as a lead instead.'
+              : 'Not a customer yet? Add them from the picker, or send a chat screenshot to the WhatsApp number.'
           } required>
           <CustomerSelect
             value={customer}

@@ -30,7 +30,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
  * Remembered rather than reset each visit because it is a preference, not a filter: somebody
  * who works the enquiry funnel as a board wants it as a board tomorrow morning too, and being
  * handed the table again every time is the sort of small friction that stops a feature being
- * used at all. Kept per screen, since the same person may well want the leads as a board and
+ * used at all. Kept per screen, since the same person may well want the enquiries as a board and
  * the sample bench as a queue.
  *
  * Every read and write is guarded: a private window, cleared site data, or a browser set to
@@ -103,7 +103,7 @@ export function useBoard(fetcher, params = {}) {
   /**
    * Moves a card between columns and asks the server to agree.
    *
-   * `apply` is the caller's — `enquiries.setStatus`, `samples.setStatus`, `leads.update` — so
+   * `apply` is the caller's — `enquiries.setStatus`, `samples.setStatus` — so
    * every move goes through the ordinary write route with every rule it carries. The board has
    * no endpoint of its own to move anything, which is the point: a second write path would be a
    * second place for the §3 floor and the §9 gate to be enforced, or forgotten.

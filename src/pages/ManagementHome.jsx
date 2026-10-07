@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   enquiries as enquiriesApi,
-  leads as leadsApi,
   pricings as pricingsApi,
   queries as queriesApi,
   quotations as quotationsApi,
@@ -143,7 +142,7 @@ const EMPTY = {
   sent: 0,
   won: { count: 0, value: 0 },
   openQueries: 0,
-  openLeads: 0,
+  openEnquiries: 0,
   openSamples: 0,
 };
 
@@ -170,7 +169,7 @@ export default function ManagementHome() {
     const safe = (promise, fallback) => promise.then((value) => value).catch(() => fallback);
 
     try {
-      const [approvals, enquiries, sent, won, openQueries, openLeads, openSamples] =
+      const [approvals, enquiries, sent, won, openQueries, openEnquiries, openSamples] =
         await Promise.all([
           seesPricing
             ? safe(pricingsApi.list({ awaitingApproval: 'true', limit: 10 }), { data: [] })
@@ -181,7 +180,7 @@ export default function ManagementHome() {
           seesQueries
             ? safe(queriesApi.list({ status: 'open', limit: 1 }), { pagination: { total: 0 } })
             : { pagination: { total: 0 } },
-          safe(leadsApi.list({ open: 'true', limit: 1 }), { pagination: { total: 0 } }),
+          safe(enquiriesApi.list({ open: 'true', limit: 1 }), { pagination: { total: 0 } }),
           safe(samplesApi.list({ open: 'true', limit: 1 }), { pagination: { total: 0 } }),
         ]);
 
@@ -193,7 +192,7 @@ export default function ManagementHome() {
            the quotations controller; a count of accepted quotes is not a figure anybody quotes. */
         won: { count: won?.pagination?.total || 0, value: won?.wonTotal || 0 },
         openQueries: openQueries?.pagination?.total || 0,
-        openLeads: openLeads?.pagination?.total || 0,
+        openEnquiries: openEnquiries?.pagination?.total || 0,
         openSamples: openSamples?.pagination?.total || 0,
       });
     } catch (loadError) {
@@ -217,10 +216,10 @@ export default function ManagementHome() {
   if (loading) return <DashboardSkeleton label="Reading the business" />;
   if (error) return <ErrorState error={error} onRetry={load} />;
 
-  const { approvals, funnel, sent, won, openQueries, openLeads, openSamples } = data;
+  const { approvals, funnel, sent, won, openQueries, openEnquiries, openSamples } = data;
 
   /*
-   * A stage is `{ leads, value }`, not a number.
+   * A stage is `{ leads, value }` — `leads` being the server's word for the count — not a number.
    *
    * Read as a number this rendered an object into a `<p>`, which React refuses — and the whole
    * screen went to the error boundary. It only showed up when somebody opened it as an admin,
@@ -389,10 +388,10 @@ export default function ManagementHome() {
 
         <Panel title="The two registers behind it" subtitle="What marketing and the bench hold">
           <div className="space-y-3">
-            <FunnelRow label="Leads still being worked" count={openLeads} widest={Math.max(1, openLeads, openSamples)} to="/leads" />
-            <FunnelRow label="Samples on the bench" count={openSamples} widest={Math.max(1, openLeads, openSamples)} to="/samples" />
+            <FunnelRow label="Enquiries still open" count={openEnquiries} widest={Math.max(1, openEnquiries, openSamples)} to="/enquiries" />
+            <FunnelRow label="Samples on the bench" count={openSamples} widest={Math.max(1, openEnquiries, openSamples)} to="/samples" />
           </div>
-          {openLeads === 0 && openSamples === 0 && (
+          {openEnquiries === 0 && openSamples === 0 && (
             <Notice tone="warn">
               Nothing is being worked in either register. That is worth a look rather than a
               celebration — it usually means nobody is filling the top of the funnel.

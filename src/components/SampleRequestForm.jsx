@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { samples as samplesApi } from '../api/endpoints.js';
 import { Field, FormError, Notice } from './ui.jsx';
@@ -12,16 +11,10 @@ import { SAMPLE_PURPOSES, itemForEdit, numeric, text } from '../utils/pipeline.j
 /**
  * Raising a sample request, from wherever it is being asked for.
  *
- * One form for three starting points, because they differ only in what is already decided:
- * from the sample queue nothing is, and the enquiry and the customer are both pickers; from a
- * lead the party is settled and neither picker is drawn.
- *
- * A lead's request is "standalone" in the sense the bench cares about — there is no enquiry to
- * inherit a specification from, and a lead carries a free-text interest rather than a model —
- * so the block asking what to make is shown for it too. That is the only thing the bench
- * actually needs; who asked is a link, not a specification.
+ * The enquiry and the customer are both pickers; with no enquiry the request is standalone and
+ * has to say what to make itself.
  */
-export default function SampleRequestForm({ lead, sample, onClose, onSaved, onConverted }) {
+export default function SampleRequestForm({ sample, onClose, onSaved }) {
   /*
    * The same form raises a request and corrects one.
    *
@@ -59,7 +52,7 @@ export default function SampleRequestForm({ lead, sample, onClose, onSaved, onCo
    * The other models going in the same bag.
    *
    * The fields above are the first of them — the server keeps the two in step — so this holds
-   * rows two onward, exactly as the lead and enquiry forms do. A buyer comparing three hangers
+   * rows two onward, exactly as the enquiry form does. A buyer comparing three hangers
    * asks for one envelope, and raising three requests for it gives the bench three jobs, three
    * required dates and three couriers for one padded bag.
    */
@@ -76,8 +69,6 @@ export default function SampleRequestForm({ lead, sample, onClose, onSaved, onCo
     ? sample.items.map(itemForEdit)
     : (sample ? [itemForEdit(sample)] : [])));
   const [error, setError] = useState(null);
-  /* What the request turned this lead into, once it has. See the panel below the submit. */
-  const [made, setMade] = useState(null);
 
   const {
     register,
@@ -100,16 +91,10 @@ export default function SampleRequestForm({ lead, sample, onClose, onSaved, onCo
   });
 
   const modelNumber = watch('modelNumber');
-  /*
-   * Standalone means "nothing to inherit a specification from", which is true of a lead's
-   * request as much as of a counter request — a lead has a free-text interest, not a model. So
-   * the block asking what to make is shown in both cases, and the enquiry and customer pickers
-   * are simply not drawn when the party is already decided.
-   */
+  /* Standalone means "nothing to inherit a specification from". */
   const standalone = !enquiry;
-  const forLead = Boolean(lead);
   /* Where the bench has to be told what to make — and so where a list of models belongs. */
-  const asksWhatToMake = standalone || forLead;
+  const asksWhatToMake = standalone;
 
   const submit = async (values) => {
     setError(null);
@@ -134,10 +119,8 @@ export default function SampleRequestForm({ lead, sample, onClose, onSaved, onCo
     const fields = editing
       ? {}
       : {
-          enquiry: forLead ? undefined : enquiry,
-          /* A lead is not a customer yet, and the server refuses a request naming both. */
-          customer: forLead ? undefined : customer,
-          lead: lead?._id,
+          enquiry,
+          customer,
         };
 
     /*
@@ -180,27 +163,10 @@ export default function SampleRequestForm({ lead, sample, onClose, onSaved, onCo
       purpose: values.purpose,
       requiredDate: text(values.requiredDate),
       remarks: text(values.remarks),
-      standaloneReason: forLead ? undefined : (standalone ? text(values.standaloneReason) : undefined),
+      standaloneReason: standalone ? text(values.standaloneReason) : undefined,
     };
 
     try {
-      /*
-       * A lead's request is the one that does more than it says, so it is the one whose whole
-       * answer is read — see `samples.createForLead`. The lists are refreshed straight away and
-       * the form then stays open to report the conversion rather than vanishing: the records
-       * that came into being are named here, once, where the person can follow them.
-       */
-      if (!editing && forLead) {
-        const answer = await samplesApi.createForLead(payload);
-        onSaved(answer.data);
-        if (answer.converted) {
-          setMade(answer.converted);
-          return;
-        }
-        onClose();
-        return;
-      }
-
       onSaved(
         editing
           ? await samplesApi.update({ id: sample._id, ...payload })
@@ -212,85 +178,8 @@ export default function SampleRequestForm({ lead, sample, onClose, onSaved, onCo
     }
   };
 
-  /*
-   * Said afterwards, because it was not asked for. The customer and the enquiry are named and
-   * linked rather than described: "the lead was converted" leaves somebody hunting for what it
-   * became, and the two records are the whole of what there is to check.
-   */
-  if (made) {
-    return (
-      <div className="space-y-4">
-        <Notice tone="success">
-          <p className="font-semibold">Request raised — and {lead.company} is now a customer.</p>
-          <p className="mt-1">
-            An enquiry needs a buyer, so raising this lead&rsquo;s first enquiry put them on the
-            customer list{made.attached ? ' — against the record that was already there' : ''}.
-          </p>
-        </Notice>
-
-        <dl className="divide-y divide-line/[0.06] rounded-lg border border-line/[0.06]">
-          <div className="flex items-baseline justify-between gap-3 px-3 py-2.5">
-            <dt className="text-xs uppercase tracking-wide text-steel-500">Customer</dt>
-            <dd className="text-sm">
-              <Link to={`/customers/${made.customer.id}`} className="font-semibold text-steel-100 hover:text-accent">
-                {made.customer.code} · {made.customer.name}
-              </Link>
-            </dd>
-          </div>
-          <div className="flex items-baseline justify-between gap-3 px-3 py-2.5">
-            <dt className="text-xs uppercase tracking-wide text-steel-500">Enquiry</dt>
-            <dd className="text-sm">
-              <Link to={`/enquiries/${made.enquiry.id}`} className="font-semibold text-steel-100 hover:text-accent">
-                {made.enquiry.number}
-              </Link>
-            </dd>
-          </div>
-        </dl>
-
-        {/*
-          * The lead is reloaded on the way out, not on the way in.
-          *
-          * The page this dialog sits on is redrawn from that record, and it shows a spinner
-          * while it reloads — which takes this panel down with it before anybody has read it.
-          * So the refresh waits for the dismissal, which is also the better order: the two
-          * records are named here, and the page behind is correct by the time it is seen.
-          */}
-        <div className="flex justify-end gap-2 border-t border-line/[0.06] pt-4">
-          <button
-            type="button"
-            className="btn-primary"
-            onClick={() => { onClose(); onConverted?.(made); }}
-          >
-            Done
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <form onSubmit={handleSubmit(submit)} className="space-y-5">
-      {/*
-        * What raising this does, before it is raised.
-        *
-        * Asking for a sample for a lead converts that lead: an enquiry needs a customer, so
-        * raising the buyer's first enquiry is the same act as putting them on the master. That
-        * is the right behaviour and it is more than the button says, so the form says it — a
-        * consequence read for the first time in the confirmation afterwards is one that felt
-        * like a mistake.
-        */}
-      {forLead && (
-        <p className="rounded-lg border border-line/[0.06] bg-ink-800/40 p-3 text-sm text-steel-300">
-          For <span className="font-semibold text-steel-100">{lead.company}</span> — a lead, so
-          there is no enquiry to take the specification from.
-          <span className="mt-1.5 block text-steel-400">
-            Raising this makes them a customer and opens their first enquiry, from what you
-            fill in below. If they are already on the customer list, the enquiry goes there.
-          </span>
-        </p>
-      )}
-
-      {!forLead && (
       <div className="grid gap-4 sm:grid-cols-2">
         <Field
           label="Enquiry"
@@ -326,7 +215,6 @@ export default function SampleRequestForm({ lead, sample, onClose, onSaved, onCo
           </>
         )}
       </div>
-      )}
 
       {asksWhatToMake && (
         <div className="space-y-5 rounded-lg border border-line/[0.06] p-4">

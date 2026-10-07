@@ -44,7 +44,7 @@ import { humanise } from '../utils/format.js';
  *
  * Two things that lived under it are kept, because neither of them was ever Home:
  *
- *   My dashboard        marketing's own figures, filed here under Leads & enquiries, which is
+ *   My dashboard        marketing's own figures, filed here under Enquiries, which is
  *                       the module it reports on.
  *   Profile and access  in the header beside the name, and in the drawer on a phone where the
  *                       header has no room for it.
@@ -71,16 +71,16 @@ const MODULES = [
   },
   {
     key: 'enquiries',
-    label: 'Leads & enquiries',
+    label: 'Enquiries',
     module: 'enquiries',
-    /* Analytics nests under the register it is about. A parent with children is `end`, or it
-       stays lit while a child is open and two rows claim to be the current page at once. */
+    /* A parent with children is `end`, or it stays lit while a child is open and two rows claim
+       to be the current page at once. */
     features: [
       {
-        to: '/leads', label: 'Leads', end: true,
-        children: [{ to: '/leads/analytics', label: 'Lead analytics' }],
+        to: '/enquiries', label: 'Enquiries', end: true,
+        /* Chat screenshots and cards sent to the WhatsApp number, waiting to be saved. */
+        children: [{ to: '/enquiries/drafts', label: 'Draft enquiries' }],
       },
-      { to: '/enquiries', label: 'Enquiries' },
       /*
        * "How am I doing" — marketing's own figures over weeks rather than a day. It sat under
        * Home, which is what made it hard to find: it is a report on this module, so it belongs

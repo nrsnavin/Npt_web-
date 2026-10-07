@@ -17,8 +17,8 @@ import { normaliseLabel, labelProblem } from './labels.js';
 export const PAGES = [
   { key: 'home', label: 'Home', path: '/', words: ['home', 'dashboard', 'today'] },
   { key: 'queries', label: 'Queries', path: '/queries', module: 'queries', words: ['queries', 'questions', 'inbox'] },
-  { key: 'leads', label: 'Leads', path: '/leads', module: 'enquiries', words: ['leads', 'prospects'] },
-  { key: 'enquiries', label: 'Enquiries', path: '/enquiries', module: 'enquiries', words: ['enquiries', 'enquiry', 'pipeline'] },
+  { key: 'enquiries', label: 'Enquiries', path: '/enquiries', module: 'enquiries', words: ['enquiries', 'enquiry', 'pipeline', 'leads', 'prospects'] },
+  { key: 'drafts', label: 'Draft enquiries', path: '/enquiries/drafts', module: 'customers', words: ['drafts', 'screenshots', 'cards', 'visiting'] },
   { key: 'samples', label: 'Sample queue', path: '/samples', module: 'samples', words: ['samples', 'sampling', 'bench'] },
   { key: 'pricings', label: 'Costing sheets', path: '/pricings', module: 'pricing', words: ['costing', 'pricing', 'costings'] },
   { key: 'quotations', label: 'Quotations', path: '/quotations', module: 'pricing', words: ['quotations', 'quotes'] },
@@ -34,7 +34,6 @@ export const CREATES = [
   { key: 'query', label: 'New query', path: '/queries?new=1', module: 'queries', read: true, words: ['query', 'question'] },
   { key: 'sample', label: 'New sample request', path: '/samples?new=1', module: 'samples', words: ['sample'] },
   { key: 'enquiry', label: 'New enquiry', path: '/enquiries?new=1', module: 'enquiries', words: ['enquiry'] },
-  { key: 'lead', label: 'New lead', path: '/leads?new=1', module: 'enquiries', words: ['lead'] },
   { key: 'customer', label: 'New customer', path: '/customers?new=1', module: 'customers', words: ['customer', 'buyer'] },
   { key: 'costing', label: 'New costing', path: '/pricings?new=1', module: 'pricing', words: ['costing', 'pricing'] },
 ];

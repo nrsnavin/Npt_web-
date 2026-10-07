@@ -7,10 +7,10 @@ import { isOwnershipScoped, selfId } from '../utils/pipeline.js';
 /**
  * Who is going to chase this buyer — asked, not assumed.
  *
- * A lead and a customer each belong to one marketing person [§29], and that ownership is not a
+ * A customer belongs to one marketing person [§29], and that ownership is not a
  * label: it decides whose list the record appears on, who the follow-up reminder goes to, and
  * under §29 who can see it at all. It used to be filled in without anybody choosing — a new
- * customer went to whoever created it, a new lead went round-robin across marketing — so the
+ * customer went to whoever created it — so the
  * most consequential field on the form was the one nobody looked at.
  *
  * Two things follow from that, and both are on the screen rather than in a comment:
@@ -152,7 +152,7 @@ export default function OwnerPicker({ register, error, watch, load, label = 'Who
       {/*
         The consequence of the other answer, said as plainly as the hand-over above it.
         §3 and §29 assume a marketing person is chasing the relationship — the follow-up
-        reminders, the scoreboard, the untouched-leads count all read from the owner. Keeping a
+        reminders and the due lists all read from the owner. Keeping a
         buyer yourself is a legitimate thing to do and it takes them off all of that, which is
         worth knowing before pressing save rather than after wondering why nobody rang them.
       */}

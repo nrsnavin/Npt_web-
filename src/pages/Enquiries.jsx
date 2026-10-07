@@ -70,10 +70,12 @@ export default function Enquiries() {
   // Arriving from a customer's history: that customer's enquiries, all stages. The whole
   // history is what was asked for, so the open-only default would hide most of the answer.
   const forCustomer = searchParams.get('customer') || undefined;
+  /* Arriving from the IndiaMART screen: what that feed raised. */
+  const source = searchParams.get('source') || undefined;
 
   /*
    * Whose enquiries. In the address so a manager can send somebody the view they are talking
-   * about, and so it survives the trip from another screen — the same rule the lead list holds.
+   * about, and so it survives the trip from another screen.
    */
   const owner = searchParams.get('assignedTo') || '';
 
@@ -92,7 +94,8 @@ export default function Enquiries() {
     search: term || undefined,
     status: status || undefined,
     customer: forCustomer,
-    open: !forCustomer && (view === 'open' || view === 'due') ? 'true' : undefined,
+    source,
+    open: !forCustomer && !source && (view === 'open' || view === 'due') ? 'true' : undefined,
     dueBy: view === 'due' ? endOfToday() : undefined,
     assignedTo: owner || undefined,
   };
@@ -233,7 +236,7 @@ export default function Enquiries() {
             <option value="">Everyone&rsquo;s enquiries</option>
             {team.map((person) => (
               <option key={person._id} value={person._id}>
-                {person.name} ({person.leads})
+                {person.name} ({person.count})
               </option>
             ))}
           </select>
@@ -271,7 +274,7 @@ export default function Enquiries() {
           description={
             view === 'due'
               ? 'Every open enquiry has its follow-up date still ahead of it.'
-              : 'Raise an enquiry against a customer, or convert a qualified lead.'
+              : 'Raise an enquiry against a customer, or save a draft from a WhatsApp chat screenshot.'
           }
         />
       ) : (

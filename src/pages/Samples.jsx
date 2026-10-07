@@ -309,19 +309,7 @@ export default function Samples() {
                           </p>
                         </td>
                         <td className="px-3 py-3.5 text-steel-200">
-                          {/* The lead sits between a customer and nobody: a request raised for
-                              a party who is not a customer yet still has a company behind it,
-                              and "Internal" would be the column stating something untrue. */}
-                          {sample.customer?.name || (
-                            sample.lead ? (
-                              <>
-                                {sample.lead.company}
-                                <span className="ml-1 text-xs text-steel-500">lead</span>
-                              </>
-                            ) : (
-                              <span className="text-xs text-steel-500">Internal</span>
-                            )
-                          )}
+                          {sample.customer?.name || <span className="text-xs text-steel-500">Internal</span>}
                           {/*
                             Who owns the customer [§29], which is not the same person as who
                             raised the request. A request is often raised by whoever took the

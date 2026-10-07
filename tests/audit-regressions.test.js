@@ -46,17 +46,6 @@ test('a customer shared through a query is not offered for editing', () => {
   );
 });
 
-test('converting a lead judges the enquiry by its items', () => {
-  /*
-   * The check read `mould` and `isNewDevelopment` after that state moved onto each item, and
-   * threw a ReferenceError on every conversion with an enquiry — the press did nothing and said
-   * nothing. CI now runs ESLint for undefined names; this pins the rule it was replaced with.
-   */
-  const lead = source('pages/LeadDetail.jsx');
-  assert.match(lead, /const described = items\.filter\(filledItem\)/);
-  assert.ok(!/!mould &&/.test(lead));
-});
-
 test('a person can change their own password, and stays signed in where they did it', () => {
   /*
    * The server had the door and nothing called it: temporary passwords an admin typed were

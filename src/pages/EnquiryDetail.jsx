@@ -433,8 +433,7 @@ function EnquiryCommercials({ enquiryId, canSeePricing, canSeeQuotes }) {
   /*
    * Drawn even before there is anything in it, which is a change from how this started.
    *
-   * Hiding an empty panel is right where the thing is unusual — most customers never came from
-   * a lead, so that panel stays away until one did. A costing is the opposite: it is the
+   * Hiding an empty panel is right where the thing is unusual. A costing is the opposite: it is the
    * expected next step for every enquiry that goes anywhere, so "nothing priced yet" is a fact
    * about this enquiry rather than an absence of furniture. Hidden, the screen gave a reader
    * looking for the price no answer at all — not the costing, not the news that there is not
@@ -784,14 +783,6 @@ export default function EnquiryDetail() {
                 { label: 'Owner', value: enquiry.assignedTo?.name },
                 { label: 'Source', value: optionLabel(SOURCES, enquiry.source) },
                 { label: 'Probability', value: enquiry.probability != null && `${enquiry.probability}%` },
-                {
-                  label: 'From lead',
-                  value: enquiry.lead && (
-                    <Link to={`/leads/${enquiry.lead._id}`} className="text-accent hover:underline">
-                      {enquiry.lead.number} · {enquiry.lead.company}
-                    </Link>
-                  ),
-                },
                 {
                   label: 'Raised with',
                   value: enquiry.groupRef && `${enquiry.groupRef} — other models from the same conversation`,

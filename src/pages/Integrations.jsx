@@ -8,7 +8,7 @@ import { formatNumber } from '../utils/format.js';
 /**
  * The outside feeds, and whether they are actually working [BLUEPRINT §41 by analogy].
  *
- * This screen exists for one sentence: *"we're not getting IndiaMART leads any more."* Without
+ * This screen exists for one sentence: *"we're not getting IndiaMART enquiries any more."* Without
  * it the only honest answer is to read the server log, so the question goes unanswered and the
  * feed is quietly distrusted long before anybody proves it is broken.
  *
@@ -100,7 +100,7 @@ export default function Integrations() {
       />
 
       <Section
-        title="IndiaMART leads"
+        title="IndiaMART enquiries"
         actions={
           <div className="flex items-center gap-2">
             {!off && (
@@ -164,15 +164,15 @@ export default function Integrations() {
             <div className="grid gap-3 sm:grid-cols-4">
               <Tally label="Fetched" value={data.lastRun?.fetched} hint="in the last run" />
               <Tally
-                label="New leads"
+                label="New buyers"
                 value={data.lastRun?.created}
-                hint="raised and assigned"
+                hint="customer and enquiry raised"
                 tone="text-success-400"
               />
               <Tally
-                label="Added to existing"
+                label="Existing buyers"
                 value={data.lastRun?.attachedToExisting}
-                hint="buyers we already had"
+                hint="enquiry on their record"
               />
               <Tally
                 label="Seen before"
@@ -193,7 +193,7 @@ export default function Integrations() {
               <Fact label="Last success" value={<When value={data.lastSuccessAt} />} />
               {/*
                 The watermark, in plain words. It is the one piece of internal state worth
-                showing: it explains why a lead from this morning has not appeared yet, and why
+                showing: it explains why an enquiry from this morning has not appeared yet, and why
                 re-running will not fetch it twice.
               */}
               <Fact
@@ -202,10 +202,10 @@ export default function Integrations() {
               />
               <Fact label="Pulls every" value={`${data.pollMinutes} minutes`} />
               <Fact
-                label="Leads from this feed"
+                label="Enquiries from this feed"
                 value={
-                  <Link to="/leads?source=indiamart" className="text-steel-100 hover:text-accent">
-                    {formatNumber(data.leadsFromFeed)}
+                  <Link to="/enquiries?source=indiamart" className="text-steel-100 hover:text-accent">
+                    {formatNumber(data.enquiriesFromFeed)}
                   </Link>
                 }
               />
@@ -213,7 +213,7 @@ export default function Integrations() {
                 label="Since it was switched on"
                 value={`${formatNumber(data.totals?.fetched)} fetched · ${formatNumber(
                   data.totals?.created
-                )} became leads`}
+                )} new buyers`}
               />
             </dl>
 
@@ -227,8 +227,8 @@ export default function Integrations() {
               <Notice tone="success">
                 Pulled {formatNumber(lastResult.fetched)} enquir
                 {lastResult.fetched === 1 ? 'y' : 'ies'} — {formatNumber(lastResult.created)} new
-                lead{lastResult.created === 1 ? '' : 's'},{' '}
-                {formatNumber(lastResult.attachedToExisting)} added to buyers we already had,{' '}
+                buyer{lastResult.created === 1 ? '' : 's'},{' '}
+                {formatNumber(lastResult.attachedToExisting)} for buyers we already had,{' '}
                 {formatNumber(lastResult.duplicates)} already seen.
               </Notice>
             )}
@@ -241,13 +241,13 @@ export default function Integrations() {
       <Section title="How it works">
         <ul className="space-y-2 text-sm leading-relaxed text-steel-300">
           <li>
-            A buyer enquires on IndiaMART. Within {data.pollMinutes} minutes the enquiry arrives
-            here as a lead, owned by the next marketing person in the rotation, with a call
-            already set as its next step.
+            A buyer enquires on IndiaMART. Within {data.pollMinutes} minutes the buyer is a
+            customer, owned by the next marketing person in the rotation, with an enquiry in
+            Requirement clarification carrying what they wrote and a call set as its next step.
           </li>
           <li>
-            A buyer who enquires twice does not become two leads. The second enquiry is added to
-            the lead we already have, so nobody rings them twice about the same thing.
+            A buyer we already have does not become a second customer. Matched on phone or email,
+            the enquiry goes on their own record, to whoever already looks after them.
           </li>
           <li>
             The same enquiry is never loaded twice, whatever happens to the connection — each one
@@ -255,7 +255,7 @@ export default function Integrations() {
           </li>
           <li>
             Nothing is lost if this is down. The feed remembers where it read up to and carries on
-            from there, so a lead that arrives while the server is restarting is picked up next
+            from there, so an enquiry that arrives while the server is restarting is picked up next
             time rather than skipped.
           </li>
         </ul>
