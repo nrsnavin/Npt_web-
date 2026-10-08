@@ -8,16 +8,20 @@ import { departmentLabel } from '../utils/pipeline.js';
 import { formatDate } from '../utils/format.js';
 
 /**
- * The enquiry's twelve stages and the buttons that send work to a department — the plant's own
- * screen [server: config/enquiryStages.js, config/handoffs.js].
+ * The enquiry's twelve stages, who has it, and the buttons that move it on — the plant's own
+ * screen [server: config/enquiryStages.js, config/handoffs.js, services/handoff.service.js].
  *
- * A button puts a task on that department's queue, due by the end of the day; anyone there can
- * pick it up, do it, send it back or move the date, and whoever sent it gets it back. Below the
- * buttons is everything that has been asked about this enquiry and what came of it.
+ * The enquiry is the task: one department holds it at a time. A stage button hands it to that
+ * department, due by the end of the day; the department that had it is done with it. Only
+ * whoever has it, its marketing person or Admin may move it, so the buttons are offered only to
+ * them. Below is everything that happened on it — updates, what was done, where it went next.
  */
+
+const BUTTON = 'rounded-lg border border-line/20 px-3 py-1.5 text-sm font-semibold text-steel-100 transition-colors hover:border-success-500/60 hover:text-success-400';
 
 const STATE = (task) => {
   if (task.outcome?.result === 'returned') return { text: 'Sent back', tone: 'text-warn-400' };
+  if (task.outcome?.result === 'moved') return { text: 'Moved on', tone: 'text-steel-400' };
   if (task.completed) return { text: 'Done', tone: 'text-success-400' };
   if (task.user) return { text: `With ${task.user.name}`, tone: 'text-steel-300' };
   return { text: 'Waiting to be picked up', tone: 'text-steel-400' };
@@ -30,9 +34,12 @@ function SendDialog({ button, enquiry, onClose, onSent }) {
   if (!button) return null;
 
   const to = button.department === 'owner'
-    ? (enquiry.assignedTo?.name || 'whoever holds the enquiry')
+    ? (enquiry.assignedTo?.name || 'the marketing person')
     : button.department ? departmentLabel(button.department) : null;
   const needsNote = button.key === 'task_closed';
+  const description = button.moves
+    ? `${to} will have the enquiry from here — due by the end of today. ${button.hint || ''}`
+    : to ? `Asks ${to}, without moving the enquiry. ${button.hint || ''}` : button.hint;
 
   const submit = async (event) => {
     event.preventDefault();
@@ -53,7 +60,7 @@ function SendDialog({ button, enquiry, onClose, onSent }) {
     <Modal
       open
       title={button.label}
-      description={to ? `Goes to ${to} — due by the end of today. ${button.hint || ''}` : button.hint}
+      description={description}
       onClose={onClose}
     >
       <form onSubmit={submit} className="space-y-4">
@@ -71,7 +78,7 @@ function SendDialog({ button, enquiry, onClose, onSent }) {
         <div className="flex justify-end gap-2">
           <button type="button" className="btn-ghost" onClick={onClose} disabled={busy}>Cancel</button>
           <button type="submit" className="btn-primary" disabled={busy || (needsNote && note.trim().length < 3)}>
-            {busy ? 'Sending…' : to ? `Send to ${to}` : 'Save'}
+            {busy ? 'Sending…' : button.moves ? `Move to ${to}` : to ? `Ask ${to}` : 'Save'}
           </button>
         </div>
       </form>
@@ -105,6 +112,16 @@ export default function DepartmentDesk({ enquiry, onChanged }) {
 
   if (!catalogue) return null;
   const stages = catalogue.stages.filter((item) => item.number);
+  const holder = history?.holder || null;
+  const mayMove = Boolean(history?.mayMove);
+  const holderButton = holder && catalogue.buttons.find((item) => item.key === holder.kind);
+  const holderName = holder
+    ? `${departmentLabel(holder.department)}${holder.user?.name ? ` (${holder.user.name})` : ''}`
+    : '';
+  const holderLate = holder?.dueDate && new Date(holder.dueDate) < new Date();
+  const drawn = catalogue.buttons.filter((button) => !button.hidden);
+  const moving = drawn.filter((button) => button.moves);
+  const asking = drawn.filter((button) => !button.moves);
 
   return (
     <Section title="Departments">
@@ -130,20 +147,45 @@ export default function DepartmentDesk({ enquiry, onChanged }) {
         </div>
         {closed && <Notice tone="info">This enquiry is closed.</Notice>}
 
-        {/* The buttons. Each sends a task to a department; two only record. */}
+        {/* Who has it now — the one department whose task this enquiry is. */}
+        {!closed && holder && (
+          <div className="flex flex-wrap items-baseline justify-between gap-2 rounded-lg border border-accent/30 bg-accent/[0.05] px-3 py-2 text-sm">
+            <p className="text-steel-100">
+              <span className="text-steel-400">With </span>
+              <span className="font-semibold">{holderName}</span>
+              {holderButton && <span className="text-steel-400"> · {holderButton.label}</span>}
+            </p>
+            {holder.dueDate && (
+              <span className={`text-xs ${holderLate ? 'text-danger-400' : 'text-steel-400'}`}>
+                {holderLate ? `Late — was due ${formatDate(holder.dueDate)}` : `Due ${formatDate(holder.dueDate)}`}
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* The buttons. Moving ones only for whoever may move it; the rest only record or ask. */}
         {!closed && (
-          <div className="flex flex-wrap gap-2">
-            {catalogue.buttons.map((button) => (
-              <button
-                key={button.key}
-                type="button"
-                title={button.hint}
-                onClick={() => setSending(button)}
-                className="rounded-lg border border-line/20 px-3 py-1.5 text-sm font-semibold text-steel-100 transition-colors hover:border-success-500/60 hover:text-success-400"
-              >
-                {button.label}
-              </button>
-            ))}
+          <div className="space-y-2">
+            {mayMove ? (
+              <div className="flex flex-wrap gap-2">
+                {moving.map((button) => (
+                  <button key={button.key} type="button" title={button.hint} onClick={() => setSending(button)} className={BUTTON}>
+                    {button.label}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-steel-400">
+                {holder ? `${holderName} has this enquiry. ` : ''}Only they, its marketing person or Admin can move it on.
+              </p>
+            )}
+            <div className="flex flex-wrap gap-2">
+              {asking.filter((button) => mayMove || button.key !== 'task_closed').map((button) => (
+                <button key={button.key} type="button" title={button.hint} onClick={() => setSending(button)} className={`${BUTTON} text-steel-300`}>
+                  {button.label}
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
@@ -180,9 +222,16 @@ export default function DepartmentDesk({ enquiry, onChanged }) {
                       Date moved to {formatDate(change.to)} by {change.by?.name || 'someone'}: {change.reason}
                     </p>
                   ))}
+                  {task.updates?.map((update) => (
+                    <p key={`${update.at}-${update.note}`} className="mt-1 text-xs text-steel-300">
+                      <span className="text-steel-500">Update · {update.by?.name || 'someone'} {formatDate(update.at)}: </span>
+                      {update.note}
+                    </p>
+                  ))}
                   {task.outcome?.note && task.kind !== 'photos_sent' && task.kind !== 'task_closed' && (
                     <p className="mt-1 text-xs text-steel-200">
-                      {task.outcome.result === 'returned' ? 'Sent back' : 'Done'} by {task.outcome.by?.name || 'someone'}: {task.outcome.note}
+                      {{ returned: 'Sent back', moved: 'Moved on' }[task.outcome.result] || 'Done'} by {task.outcome.by?.name || 'someone'}: {task.outcome.note}
+                      {task.outcome.next && ` → ${catalogue.buttons.find((item) => item.key === task.outcome.next)?.label || 'next step'}`}
                     </p>
                   )}
                   {fields.length > 0 && (

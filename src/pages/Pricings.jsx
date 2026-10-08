@@ -10,7 +10,7 @@ import StagePipeline from '../components/StagePipeline.jsx';
 import { SortHeader, useSort } from '../components/SortHeader.jsx';
 import PricingDecision from '../components/PricingDecision.jsx';
 import CostingSheetForm from '../components/CostingSheetForm.jsx';
-import { CustomerSelect, MouldSelect } from '../components/pickers.jsx';
+import { CustomerSelect, EnquirySelect, MouldSelect } from '../components/pickers.jsx';
 import QuotationPdf from '../components/QuotationPdf.jsx';
 import QuoteFromCosting from '../components/QuoteFromCosting.jsx';
 import { formatCompactCurrency, formatDate, formatNumber, humanise } from '../utils/format.js';
@@ -41,18 +41,16 @@ const rupees = (value) =>
   value === undefined || value === null ? '—' : `₹${Number(value).toFixed(2)}`;
 
 /**
- * A costing raised by hand, with no enquiry behind it.
+ * A costing raised by hand, on an enquiry.
  *
- * The automation covers an enquiry reaching Pricing required; this covers everything else — a
- * rate wanted for a tender, a standing price refreshed because the resin rate moved, a walk-in
- * asking what a model would cost. Without it the only way to get a number is to invent an
- * enquiry, and a pipeline fills with enquiries nobody is working.
- *
- * The customer is still required: the same hanger costs different money for a buyer taking
- * 40,000 and one taking 2,000, so a cost with no customer on it is not a cost of anything.
+ * The automation covers an enquiry reaching Pricing required; this covers a second sheet for the
+ * same job, or one wanted before the status moved. Every costing is raised on an enquiry — a
+ * tender or a walk-in is an enquiry first — so the price is found where the buyer's job is
+ * [server: services/enquiryLink.service.js]. The customer is the enquiry's.
  */
 function NewCostingForm({ onClose, onSaved }) {
   const [customer, setCustomer] = useState('');
+  const [enquiry, setEnquiry] = useState(undefined);
   /*
    * The models this sheet is to price, a row each [§7].
    *
@@ -75,7 +73,7 @@ function NewCostingForm({ onClose, onSaved }) {
 
   const submit = async (event) => {
     event.preventDefault();
-    if (!customer) return setError('Pick the customer this costing is for.');
+    if (!enquiry) return setError('Pick the enquiry this costing is for. No enquiry yet? Raise it first.');
 
     /* An empty row is somebody who pressed Add another and changed their mind, not a model. */
     const models = rows.filter((row) => row.mould || row.modelNumber.trim());
@@ -90,7 +88,7 @@ function NewCostingForm({ onClose, onSaved }) {
        */
       onSaved(
         await pricingsApi.create({
-          customer,
+          enquiry,
           lines: models.map((row) => ({
             mould: row.mould || undefined,
             modelNumber: row.modelNumber.trim() || undefined,
@@ -110,14 +108,17 @@ function NewCostingForm({ onClose, onSaved }) {
   return (
     <form onSubmit={submit} className="space-y-4">
       <Notice tone="info">
-        No enquiry needed. Raise one here for a tender, a repeat job or a walk-in — it becomes
-        the same costing sheet either way. One sheet holds every model the buyer asked about,
-        and each of them gets its own cost, price and floor.
+        Every costing is raised on an enquiry — a tender or a walk-in is raised as an enquiry
+        first. One sheet holds every model the buyer asked about, and each of them gets its own
+        cost, price and floor.
       </Notice>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Customer">
-          <CustomerSelect value={customer} onChange={setCustomer} aria-label="Customer" />
+        <Field label="Customer" hint="Narrows the enquiries below">
+          <CustomerSelect value={customer} onChange={(next) => { setCustomer(next); setEnquiry(undefined); }} aria-label="Customer" />
+        </Field>
+        <Field label="Enquiry" required>
+          <EnquirySelect value={enquiry} onChange={setEnquiry} customer={customer || undefined} aria-label="Enquiry" />
         </Field>
         <Field label="Target price" hint="What the buyer wants to pay, if they said">
           <input

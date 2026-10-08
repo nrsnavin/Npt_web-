@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { samples as samplesApi } from '../api/endpoints.js';
 import { Field, FormError, Notice } from './ui.jsx';
 import {
-  ColourInput, CustomerSelect, EnquirySelect, MaterialSelect, MouldSelect, PartSelect,
+  ColourInput, EnquirySelect, MaterialSelect, MouldSelect, PartSelect,
 } from './pickers.jsx';
 import ItemCards, { filledItem, itemsForSave } from './ItemCards.jsx';
 import { SAMPLE_PURPOSES, itemForEdit, numeric, text } from '../utils/pipeline.js';
@@ -11,8 +11,9 @@ import { SAMPLE_PURPOSES, itemForEdit, numeric, text } from '../utils/pipeline.j
 /**
  * Raising a sample request, from wherever it is being asked for.
  *
- * The enquiry and the customer are both pickers; with no enquiry the request is standalone and
- * has to say what to make itself.
+ * Always on an enquiry: every sample is raised on one, and the buyer and what to make come from
+ * it [server: services/enquiryLink.service.js]. A request raised before that rule, with no
+ * enquiry behind it, can still be corrected here.
  */
 export default function SampleRequestForm({ sample, onClose, onSaved }) {
   /*
@@ -26,7 +27,7 @@ export default function SampleRequestForm({ sample, onClose, onSaved }) {
   const editing = Boolean(sample);
 
   const [enquiry, setEnquiry] = useState(sample?.enquiry?._id ?? sample?.enquiry ?? undefined);
-  const [customer, setCustomer] = useState(sample?.customer?._id ?? sample?.customer ?? undefined);
+  const [customer] = useState(sample?.customer?._id ?? sample?.customer ?? undefined);
   const [mould, setMould] = useState(sample?.mould?._id ?? sample?.mould ?? undefined);
   /*
    * The register picks [§28], held here like the mould rather than registered with the form:
@@ -85,19 +86,22 @@ export default function SampleRequestForm({ sample, onClose, onSaved }) {
           purpose: sample.purpose || 'existing_model',
           requiredDate: sample.requiredDate ? sample.requiredDate.slice(0, 10) : '',
           remarks: sample.remarks || '',
-          standaloneReason: sample.standaloneReason || '',
         }
       : { quantity: 5, purpose: 'existing_model' },
   });
 
   const modelNumber = watch('modelNumber');
-  /* Standalone means "nothing to inherit a specification from". */
-  const standalone = !enquiry;
+  /* Only a request from before every sample had an enquiry has nothing to inherit from. */
+  const standalone = editing && !enquiry;
   /* Where the bench has to be told what to make — and so where a list of models belongs. */
   const asksWhatToMake = standalone;
 
   const submit = async (values) => {
     setError(null);
+    if (!editing && !enquiry) {
+      setError({ message: 'Pick the enquiry this sample is for. No enquiry yet? Raise it first.' });
+      return;
+    }
 
     // With an enquiry the requirement comes from it; without one it has to be said here.
     if (asksWhatToMake) {
@@ -116,12 +120,7 @@ export default function SampleRequestForm({ sample, onClose, onSaved }) {
     /* The request it is *for* never moves. Re-pointing a sample at a different enquiry or buyer
        is not a correction, it is a different request — and the bench may already have made
        something against this one. */
-    const fields = editing
-      ? {}
-      : {
-          enquiry,
-          customer,
-        };
+    const fields = editing ? {} : { enquiry };
 
     /*
      * The bag as it goes on the wire, and the top line taken from its first model.
@@ -163,7 +162,6 @@ export default function SampleRequestForm({ sample, onClose, onSaved }) {
       purpose: values.purpose,
       requiredDate: text(values.requiredDate),
       remarks: text(values.remarks),
-      standaloneReason: standalone ? text(values.standaloneReason) : undefined,
     };
 
     try {
@@ -184,36 +182,11 @@ export default function SampleRequestForm({ sample, onClose, onSaved }) {
         <Field
           label="Enquiry"
           className="sm:col-span-2"
-          hint="Leave it standalone if nobody has raised one — it can be attached later"
+          required={!editing}
+          hint={editing ? 'A request stays with the enquiry it was raised on' : 'Every sample is raised on an enquiry — the buyer and what to make come from it'}
         >
-          <EnquirySelect value={enquiry} onChange={setEnquiry} customer={customer} aria-label="Enquiry" />
+          <EnquirySelect value={enquiry} onChange={setEnquiry} customer={customer} aria-label="Enquiry" disabled={editing} />
         </Field>
-
-        {standalone && (
-          <>
-            <Field
-              label="Customer"
-              className="sm:col-span-2"
-              hint="Not in the list? Add them here. Leave it as an internal trial if there is no buyer."
-            >
-              <CustomerSelect
-                value={customer}
-                onChange={setCustomer}
-                // Named as a decision, not a prompt: no customer is a legitimate answer here,
-                // and "Select a customer…" reads like a field waiting to be filled.
-                emptyLabel="No customer — internal trial"
-                aria-label="Customer"
-              />
-            </Field>
-            <Field label="Why, without an enquiry" className="sm:col-span-2">
-              <input
-                className="input"
-                placeholder="Asked for one at the counter"
-                {...register('standaloneReason')}
-              />
-            </Field>
-          </>
-        )}
       </div>
 
       {asksWhatToMake && (

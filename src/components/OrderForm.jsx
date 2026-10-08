@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { orders as ordersApi } from '../api/endpoints.js';
 import { Field, FormError, Notice } from './ui.jsx';
 import {
-  ColourInput, CustomerSelect, MaterialSelect, MouldSelect, PartSelect,
+  ColourInput, CustomerSelect, EnquirySelect, MaterialSelect, MouldSelect, PartSelect,
 } from './pickers.jsx';
 import { formatCurrency } from '../utils/format.js';
 import { numeric, text } from '../utils/pipeline.js';
@@ -32,10 +32,12 @@ const blankLine = () => ({
   quantity: '', unitPrice: '', deliveryDate: '',
 });
 
-export default function OrderForm({ order, onClose, onSaved }) {
+export default function OrderForm({ order, onClose, onSaved, enquiry: forEnquiry }) {
   const editing = Boolean(order);
 
-  const [customer, setCustomer] = useState(order?.customer?._id ?? order?.customer ?? undefined);
+  const [customer, setCustomer] = useState(order?.customer?._id ?? order?.customer ?? forEnquiry?.customer?._id ?? forEnquiry?.customer ?? undefined);
+  /* Every order is raised on an enquiry [server: services/enquiryLink.service.js]. */
+  const [enquiry, setEnquiry] = useState(order?.enquiry?._id ?? order?.enquiry ?? forEnquiry?._id ?? undefined);
   const [lines, setLines] = useState(
     order?.lines?.length
       ? order.lines.map((line) => ({
@@ -126,7 +128,7 @@ export default function OrderForm({ order, onClose, onSaved }) {
         editing
           ? /* No customer: an order booked for somebody else is a different order. */
             await ordersApi.update({ id: order._id, ...payload })
-          : await ordersApi.create({ customer, ...payload })
+          : await ordersApi.create({ customer, enquiry, ...payload })
       );
       onClose();
     } catch (saveError) {
@@ -146,7 +148,14 @@ export default function OrderForm({ order, onClose, onSaved }) {
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Customer" required>
-          <CustomerSelect value={customer} onChange={setCustomer} aria-label="Customer" />
+          <CustomerSelect
+            value={customer}
+            onChange={(next) => { setCustomer(next); if (!editing) setEnquiry(undefined); }}
+            aria-label="Customer"
+          />
+        </Field>
+        <Field label="Enquiry" required={!editing} hint="The order is booked on the buyer's enquiry">
+          <EnquirySelect value={enquiry} onChange={setEnquiry} customer={customer} won aria-label="Enquiry" disabled={editing} />
         </Field>
         <Field label="Their PO number" hint="What the buyer calls this order">
           <input
@@ -361,11 +370,13 @@ export default function OrderForm({ order, onClose, onSaved }) {
           booked; without this line the button is simply dead, and the usual response to a dead
           button is to press it again.
         */}
-        {!editing && !customer && (
-          <p className="mr-auto text-xs text-steel-500">Choose the customer first.</p>
+        {!editing && (!customer || !enquiry) && (
+          <p className="mr-auto text-xs text-steel-500">
+            {!customer ? 'Choose the customer first.' : 'Choose the enquiry this order is for.'}
+          </p>
         )}
         <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
-        <button type="submit" className="btn-primary" disabled={busy || (!editing && !customer)}>
+        <button type="submit" className="btn-primary" disabled={busy || (!editing && (!customer || !enquiry))}>
           {busy ? 'Saving…' : editing ? 'Save changes' : 'Book the order'}
         </button>
       </div>

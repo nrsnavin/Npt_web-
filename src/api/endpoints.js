@@ -57,6 +57,8 @@ export const workspace = {
       api.post(`/workspace/todos/${id}/escalate`, payload).then(unwrap),
     /* A department task about an enquiry: done with what was recorded, sent back, re-dated. */
     done: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/done`, payload).then(unwrap),
+    /** Progress on the enquiry's task without moving it on. */
+    progress: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/update`, payload).then(unwrap),
     sendBack: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/send-back`, payload).then(unwrap),
     reschedule: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/reschedule`, payload).then(unwrap),
     remove: (id) => api.delete(`/workspace/todos/${id}`).then(unwrap),

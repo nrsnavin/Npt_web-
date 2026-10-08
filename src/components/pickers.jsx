@@ -304,19 +304,24 @@ export function ColourInput({ value, onChange, list = 'register-colours', ...res
   );
 }
 
-/** Open enquiries only: a sample is never raised against one that is already won or lost. */
-export function EnquirySelect({ value, onChange, customer, ...rest }) {
+/**
+ * The enquiry a record is raised on — every sample, costing, quotation and order is raised on one.
+ *
+ * Open enquiries by default: a sample or a price is never raised on one already won or lost.
+ * `won` also offers the won ones, which is what a sales order is raised on.
+ */
+export function EnquirySelect({ value, onChange, customer, won = false, ...rest }) {
   // Filtered by the server rather than in the browser. Narrowing a page of results locally
   // is how a customer's enquiry goes missing when it happens to fall on the second page.
   const loadOptions = useCallback(
     (search) =>
       enquiriesApi.list({
         search: search || undefined,
-        open: 'true',
+        ...(won ? { status: 'po_expected,customer_decision_pending,negotiation,quote_submitted,won' } : { open: 'true' }),
         customer: customer || undefined,
         limit: PAGE,
       }),
-    [customer]
+    [customer, won]
   );
   const loadOne = useCallback((id) => enquiriesApi.get(id), []);
   const toOption = useCallback(
@@ -335,12 +340,12 @@ export function EnquirySelect({ value, onChange, customer, ...rest }) {
       loadOptions={loadOptions}
       loadOne={loadOne}
       toOption={toOption}
-      placeholder="Search an open enquiry…"
-      emptyLabel="No enquiry — this is a standalone request"
+      placeholder="Search the enquiry…"
+      emptyLabel={null}
       noMatchLabel={
         customer
-          ? 'That customer has no open enquiry. Won and lost ones are not offered.'
-          : 'No open enquiry matches'
+          ? `That customer has no ${won ? '' : 'open '}enquiry to raise this on. Raise the enquiry first.`
+          : 'No enquiry matches. Raise the enquiry first.'
       }
       {...rest}
     />

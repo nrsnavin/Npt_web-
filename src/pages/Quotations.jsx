@@ -10,7 +10,7 @@ import StagePipeline from '../components/StagePipeline.jsx';
 import QuotationPdf from '../components/QuotationPdf.jsx';
 import { SortHeader, useSort } from '../components/SortHeader.jsx';
 import QuoteNumbering from '../components/QuoteNumbering.jsx';
-import { CustomerSelect, MouldSelect } from '../components/pickers.jsx';
+import { CustomerSelect, EnquirySelect, MouldSelect } from '../components/pickers.jsx';
 import { formatCompactCurrency, formatCurrency, formatDate, formatNumber, humanise } from '../utils/format.js';
 /* The shared one, not a second copy of it: this date now decides whether the server takes the
    form, so the two must not be able to drift apart. */
@@ -67,6 +67,8 @@ const rupees = (value) =>
 function QuotationForm({ quotation, onClose, onSaved }) {
   const editing = Boolean(quotation);
   const [customer, setCustomer] = useState(quotation?.customer?._id || quotation?.customer);
+  /* Every quotation is raised on an enquiry [server: services/enquiryLink.service.js]. */
+  const [enquiry, setEnquiry] = useState(quotation?.enquiry?._id ?? quotation?.enquiry ?? undefined);
   const [lines, setLines] = useState(
     quotation?.lines?.length
       ? quotation.lines.map((line) => ({
@@ -128,8 +130,8 @@ function QuotationForm({ quotation, onClose, onSaved }) {
 
   const submit = async (event) => {
     event.preventDefault();
-    if (!customer) {
-      setError('Pick the customer this quote is for.');
+    if (!editing && !enquiry) {
+      setError('Pick the enquiry this quote is for. No enquiry yet? Raise it first.');
       return;
     }
 
@@ -167,7 +169,7 @@ function QuotationForm({ quotation, onClose, onSaved }) {
       onSaved(
         editing
           ? await quotationsApi.update({ id: quotation._id, expectedUpdatedAt: quotation.updatedAt, ...payload })
-          : await quotationsApi.create({ customer, ...payload })
+          : await quotationsApi.create({ enquiry, ...payload })
       );
       onClose();
     } catch (saveError) {
@@ -180,14 +182,19 @@ function QuotationForm({ quotation, onClose, onSaved }) {
   return (
     <form onSubmit={submit} className="space-y-5">
       {/* Fixed once the quote exists: a quote to somebody else is a different offer. */}
-      <Field label="Customer">
-        <CustomerSelect
-          value={customer}
-          onChange={setCustomer}
-          disabled={editing}
-          aria-label="Customer"
-        />
-      </Field>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Customer" hint={editing ? undefined : 'Narrows the enquiries'}>
+          <CustomerSelect
+            value={customer}
+            onChange={(next) => { setCustomer(next); setEnquiry(undefined); }}
+            disabled={editing}
+            aria-label="Customer"
+          />
+        </Field>
+        <Field label="Enquiry" required={!editing}>
+          <EnquirySelect value={enquiry} onChange={setEnquiry} customer={customer || undefined} disabled={editing} aria-label="Enquiry" />
+        </Field>
+      </div>
 
       {/*
         The lines. Each row is a model the buyer is being offered; the terms below belong to the
