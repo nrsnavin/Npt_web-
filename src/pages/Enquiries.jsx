@@ -21,6 +21,7 @@ import {
   CLOSED_STAGES, ENQUIRY_STAGES, SOURCES, buildEnquiryPayload, followUpState, stageLabel,
 } from '../utils/pipeline.js';
 import useOpenFromLink from '../hooks/useOpenFromLink.js';
+import { useHandoffCatalogue } from '../hooks/useHandoffCatalogue.js';
 
 const TONE_TEXT = {
   danger: 'text-danger-400',
@@ -72,6 +73,14 @@ export default function Enquiries() {
   const forCustomer = searchParams.get('customer') || undefined;
   /* Arriving from the IndiaMART screen: what that feed raised. */
   const source = searchParams.get('source') || undefined;
+  /*
+   * Arriving from a department's workspace: the enquiries at its plant stages ("PO & SO").
+   * Past PO & SO the sales status reads Won, so the open-only view would hide all of them.
+   */
+  const plantStage = searchParams.get('stage') || undefined;
+  const catalogue = useHandoffCatalogue();
+  const plantStageNames = plantStage && plantStage.split(',')
+    .map((key) => catalogue?.stages?.find((stage) => stage.key === key)?.label || key).join(' or ');
 
   /*
    * Whose enquiries. In the address so a manager can send somebody the view they are talking
@@ -95,7 +104,8 @@ export default function Enquiries() {
     status: status || undefined,
     customer: forCustomer,
     source,
-    open: !forCustomer && !source && (view === 'open' || view === 'due') ? 'true' : undefined,
+    stage: plantStage,
+    open: !forCustomer && !source && !plantStage && (view === 'open' || view === 'due') ? 'true' : undefined,
     dueBy: view === 'due' ? endOfToday() : undefined,
     assignedTo: owner || undefined,
   };
@@ -244,6 +254,23 @@ export default function Enquiries() {
       </div>
 
       {/* An active filter the reader cannot see is a short list with no explanation. */}
+      {plantStage && (
+        <div className="mb-3 flex items-center gap-2 text-xs text-steel-400">
+          <span>Showing enquiries at {plantStageNames}</span>
+          <button
+            type="button"
+            className="font-semibold text-steel-300 hover:text-accent"
+            onClick={() => {
+              const next = new URLSearchParams(searchParams);
+              next.delete('stage');
+              setSearchParams(next);
+              setPage(1);
+            }}
+          >
+            Clear
+          </button>
+        </div>
+      )}
       {forCustomer && (
         <div className="mb-3 flex items-center gap-2 text-xs text-steel-400">
           <span>

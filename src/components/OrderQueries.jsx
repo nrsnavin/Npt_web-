@@ -3,6 +3,7 @@ import { dispatches as dispatchApi, orderQueries as queriesApi } from '../api/en
 import { useAuth } from '../context/AuthContext.jsx';
 import { Field, FormError, Modal, Notice, Section } from './ui.jsx';
 import { formatDate, humanise } from '../utils/format.js';
+import { DEPARTMENTS } from '../utils/pipeline.js';
 
 /**
  * The questions asked against one order, on the order itself.
@@ -322,15 +323,7 @@ export default function OrderQueries({ order }) {
   const changed = () => load();
 
   /** Every department, so a question can go to whoever actually holds the answer. */
-  const departments = (user?.departments || [
-    { key: 'production', label: 'Production' },
-    { key: 'order_confirmation', label: 'Order confirmation' },
-    { key: 'despatch', label: 'Despatch' },
-    { key: 'quality', label: 'Quality' },
-    { key: 'accounts', label: 'Accounts' },
-    { key: 'sampling', label: 'Sample team' },
-    { key: 'marketing', label: 'Marketing' },
-  ]);
+  const departments = user?.departments || DEPARTMENTS.filter((department) => department.key !== 'management');
 
   return (
     <Section

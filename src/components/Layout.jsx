@@ -9,6 +9,7 @@ import GlobalSearch from './GlobalSearch.jsx';
 import ErrorBoundary from './ErrorBoundary.jsx';
 import { Modal } from './ui.jsx';
 import { humanise } from '../utils/format.js';
+import { departmentLabel } from '../utils/pipeline.js';
 
 /**
  * Modules across the top, and the screens inside one module down the side.
@@ -460,7 +461,8 @@ export default function Layout() {
         >
           <span className="block font-semibold leading-tight text-steel-100">{user?.name}</span>
           <span className="block text-xs text-steel-400">
-            {humanise(user?.department) || humanise(user?.role)}
+            {/* The plant's name for it — "Sales / SO", not the stored key "order_confirmation". */}
+            {(user?.department && departmentLabel(user.department)) || humanise(user?.role)}
           </span>
         </NavLink>
 
