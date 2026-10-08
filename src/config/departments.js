@@ -139,14 +139,15 @@ export const DEPARTMENT_WORKSPACES = {
   quality: {
     purpose: 'Checks what was made before it can be dispatched.',
     pages: [
+      { label: 'Waiting for a check', to: '/enquiries?stage=quality', module: 'enquiries', hint: 'Enquiries sent for Quality Check' },
       { label: 'Quality check queue', to: '/quality', module: 'quality' },
       { label: 'Quality report', to: '/quality/report', module: 'quality' },
       { label: 'Production status', to: '/production', module: 'production' },
     ],
     jobs: [
-      'Record the quality status of what was produced.',
+      'Check what was produced and mark it Passed or Failed.',
       'Record any issue and the correction needed.',
-      'Nothing is dispatched without a quality status.',
+      'Nothing goes to Dispatch until Quality has passed it — and again after any rework.',
     ],
     toConfirm: ['The detailed check fields, and who may approve.'],
   },
@@ -154,6 +155,7 @@ export const DEPARTMENT_WORKSPACES = {
   assembling: {
     purpose: 'Assembles to instruction and reports what is done and what is pending.',
     pages: [
+      { label: 'Enquiries at Assembling', to: '/enquiries?stage=assembling', module: 'enquiries' },
       { label: 'Order / model details', to: '/orders', module: 'orders' },
       { label: 'Production status', to: '/production', module: 'production' },
       { label: 'Models', to: '/moulds', module: 'moulds' },
@@ -179,7 +181,7 @@ export const DEPARTMENT_WORKSPACES = {
       'Record the dispatch date and quantity sent.',
       'Record the courier or transporter and the AWB / docket number.',
       'Attach the proof that is available.',
-      'Show the balance on a part dispatch.',
+      'Keep the enquiry until the whole order has gone — post each lot as an update.',
     ],
     toConfirm: [],
   },
@@ -196,6 +198,7 @@ export const DEPARTMENT_WORKSPACES = {
       'Record who to speak to about payment.',
       'Record each payment call and message.',
       'Record payment status, including TPCF.',
+      'Chase payment when asked (Team Payment Follow-up) — the job stays with whoever has it.',
       'Keep the commitment, callback, promised-payment and next follow-up dates.',
     ],
     toConfirm: ['A full accounting / Tally module is not defined yet.'],

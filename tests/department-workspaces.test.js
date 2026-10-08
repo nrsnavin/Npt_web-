@@ -28,7 +28,7 @@ const MODULES = [
   'tasks', 'reports', 'users',
 ];
 const STAGES = [
-  'enquiry', 'sample', 'pricing_quote', 'po_so', 'production_edd', 'mould', 'team_payment_followup',
+  'enquiry', 'sample', 'pricing_quote', 'po_so', 'production_edd', 'assembling', 'mould', 'team_payment_followup',
   'invoice_dispatch', 'lr_copy', 'quality', 'ac_clarify', 'my_payment_followup', 'closed',
 ];
 

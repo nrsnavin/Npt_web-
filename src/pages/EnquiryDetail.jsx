@@ -570,6 +570,12 @@ export default function EnquiryDetail() {
   if (!enquiry) return null;
 
   const mayWrite = canWrite('enquiries');
+  /*
+   * A department working the enquiry without the enquiry module (Production, Quality, Dispatch,
+   * Accounts) opens it from its task: it sees the enquiry and the department desk, not the
+   * marketing panels that module gates [server: getEnquiry].
+   */
+  const mayReadEnquiries = canRead('enquiries');
   const mayWriteMoulds = canWrite('moulds');
   const mayReadSamples = canRead('samples');
   const mayReadPricing = canRead('pricing');
@@ -661,7 +667,7 @@ export default function EnquiryDetail() {
               department. The sales actions below still move the quote along. */}
           <DepartmentDesk enquiry={enquiry} onChanged={reload} />
 
-          <EnquiryActions enquiry={enquiry} onSaved={setData} canWrite={mayWrite} />
+          {mayReadEnquiries && <EnquiryActions enquiry={enquiry} onSaved={setData} canWrite={mayWrite} />}
 
           <Section
             title={enquiry.items?.length > 1
@@ -730,11 +736,11 @@ export default function EnquiryDetail() {
 
           {/* §27: the print artwork and the buyer's drawing sit with the enquiry that asked
               for them, rather than in the thread they arrived on. */}
-          <Documents collection="enquiries" id={enquiry._id} canWrite={mayWrite} />
+          {mayReadEnquiries && <Documents collection="enquiries" id={enquiry._id} canWrite={mayWrite} />}
 
           {/* The stage history above says how it moved; this says who changed the quantity,
               the target price or the date the buyer is holding us to. */}
-          <HistoryPanel model="Enquiry" id={enquiry._id} refreshKey={enquiry.updatedAt} />
+          {mayReadEnquiries && <HistoryPanel model="Enquiry" id={enquiry._id} refreshKey={enquiry.updatedAt} />}
         </div>
 
         <div className="space-y-5">

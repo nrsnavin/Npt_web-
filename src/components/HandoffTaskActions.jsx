@@ -104,12 +104,24 @@ export function HandoffDialog({ todo, mode, onClose, onChanged }) {
           <div className="grid gap-3 sm:grid-cols-2">
             {button.records.map((record) => (
               <Field key={record.key} label={record.label}>
-                <input
-                  type={record.type === 'date' ? 'date' : 'text'}
-                  className="input"
-                  value={fields[record.key] || ''}
-                  onChange={(event) => setFields((current) => ({ ...current, [record.key]: event.target.value }))}
-                />
+                {/* A choice (Quality's Passed / Failed) is picked, never typed — the server checks it. */}
+                {record.type === 'choice' ? (
+                  <select
+                    className="input"
+                    value={fields[record.key] || ''}
+                    onChange={(event) => setFields((current) => ({ ...current, [record.key]: event.target.value }))}
+                  >
+                    <option value="">Choose…</option>
+                    {record.options.map((option) => <option key={option} value={option}>{option}</option>)}
+                  </select>
+                ) : (
+                  <input
+                    type={record.type === 'date' ? 'date' : 'text'}
+                    className="input"
+                    value={fields[record.key] || ''}
+                    onChange={(event) => setFields((current) => ({ ...current, [record.key]: event.target.value }))}
+                  />
+                )}
               </Field>
             ))}
           </div>

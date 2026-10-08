@@ -53,3 +53,9 @@ test('the stage buttons are drawn only for whoever may move the enquiry', () => 
   assert.match(desk, /\{mayMove \? \(/);
   assert.match(desk, /button\.hidden/, 'the hidden first task is never a button');
 });
+
+test('a choice the server checks (Quality\'s Passed / Failed) is picked from its options, not typed', () => {
+  const actions = read('components/HandoffTaskActions.jsx');
+  assert.match(actions, /record\.type === 'choice'/);
+  assert.match(actions, /record\.options\.map/);
+});

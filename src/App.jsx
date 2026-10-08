@@ -212,11 +212,9 @@ export default function App() {
           />
           <Route
             path="enquiries/:id"
-            element={
-              <RequireModule moduleKey="enquiries">
-                <EnquiryDetail />
-              </RequireModule>
-            }
+            /* No module gate: a department that holds or held the enquiry opens it from its task;
+               the server decides, and anyone else gets "not found". */
+            element={<EnquiryDetail />}
           />
           {/* Phase 3 [§39]. Costings sit on the pricing grant, which marketing holds as read
               — §8's field split decides what actually comes back. */}
