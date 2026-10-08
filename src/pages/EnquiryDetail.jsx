@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import {
   enquiries as enquiriesApi, pricings as pricingsApi, quotations as quotationsApi,
@@ -13,6 +13,7 @@ import {
 import Documents from '../components/Documents.jsx';
 import EnquiryActions from '../components/EnquiryActions.jsx';
 import EnquiryActivities from '../components/EnquiryActivities.jsx';
+import DelegateEnquiry from '../components/DelegateEnquiry.jsx';
 import DepartmentDesk from '../components/DepartmentDesk.jsx';
 import HistoryPanel from '../components/HistoryPanel.jsx';
 import QuotationPdf from '../components/QuotationPdf.jsx';
@@ -558,7 +559,8 @@ function EnquiryCommercials({ enquiryId, canSeePricing, canSeeQuotes }) {
 
 export default function EnquiryDetail() {
   const { id } = useParams();
-  const { canRead, canWrite } = useAuth();
+  const { canRead, canWrite, user } = useAuth();
+  const navigate = useNavigate();
   const [movingStage, setMovingStage] = useState(false);
   const [promoting, setPromoting] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -571,6 +573,10 @@ export default function EnquiryDetail() {
   if (!enquiry) return null;
 
   const mayWrite = canWrite('enquiries');
+  /* Marketing sees only its own enquiries, so whoever hands one on goes back to the list;
+     Admin and the other departments still see it [server: ownership.service.js]. */
+  const ownBookOnly = user?.role !== 'admin' && user?.department === 'marketing';
+  const afterHandover = () => (ownBookOnly ? navigate('/enquiries') : reload());
   /*
    * A department working the enquiry without the enquiry module (Production, Quality, Dispatch,
    * Accounts) opens it from its task: it sees the enquiry and the department desk, not the
@@ -619,6 +625,8 @@ export default function EnquiryDetail() {
                 Edit the enquiry
               </button>
             )}
+            {/* At any stage: the owner or Admin hands it to another marketing person. */}
+            {mayWrite && <DelegateEnquiry enquiry={enquiry} onDone={afterHandover} />}
             {mayWrite && enquiry.isNewDevelopment && mayWriteMoulds && (
               <button type="button" className="btn-secondary" onClick={() => setPromoting(true)}>
                 Add to the register
@@ -779,6 +787,20 @@ export default function EnquiryDetail() {
               columns={1}
               items={[
                 { label: 'Owner', value: enquiry.assignedTo?.name },
+                {
+                  label: 'Handed over',
+                  value: enquiry.handovers?.length ? (
+                    <ul className="space-y-1">
+                      {enquiry.handovers.map((row) => (
+                        <li key={`${row.at}-${row.to?._id}`}>
+                          {formatDate(row.at)}: {row.from?.name || '—'} → {row.to?.name || '—'}
+                          {row.by && row.by._id !== row.from?._id && ` (by ${row.by.name})`}
+                          {row.note && <span className="text-steel-400"> — {row.note}</span>}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : undefined,
+                },
                 { label: 'Source', value: optionLabel(SOURCES, enquiry.source) },
                 { label: 'Probability', value: enquiry.probability != null && `${enquiry.probability}%` },
                 {

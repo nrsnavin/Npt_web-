@@ -378,6 +378,9 @@ export const enquiries = {
   logActivity: ({ id, ...payload }) => api.post(`/enquiries/${id}/activities`, payload).then(unwrap),
   activities: (params) => api.get('/enquiries/activities', { params }).then(listed),
   activityTypes: () => api.get('/enquiries/activity-types').then(unwrap),
+  /** Handing the enquiry to another marketing person: who it may go to, and doing it. */
+  delegateTargets: (id) => api.get(`/enquiries/${id}/delegate`).then((response) => response.data),
+  delegate: ({ id, ...payload }) => api.post(`/enquiries/${id}/delegate`, payload).then(unwrap),
 };
 
 /**
