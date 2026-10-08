@@ -161,7 +161,7 @@ function Entry({ entry, isAdmin, onComment, onRemove, onRemoveComment, onOpenPho
 }
 
 export default function SampleLog({ sampleId }) {
-  const { user, mayDelete } = useAuth();
+  const { mayDelete } = useAuth();
   const [body, setBody] = useState('');
   const [photo, setPhoto] = useState(null);
   const [busy, setBusy] = useState(false);
