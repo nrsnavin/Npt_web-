@@ -46,7 +46,8 @@ export default function Payments() {
    * send a colleague. Held in component state instead, that tile would open the whole ledger
    * beside a figure counting a fraction of it, which is what it did until now.
    */
-  const only = params.get('overdue') === 'true' ? 'overdue'
+  const only = params.get('due') === 'true' ? 'due'
+    : params.get('overdue') === 'true' ? 'overdue'
     : params.get('broken') === 'true' ? 'broken'
       : params.get('open') === 'true' ? 'open' : '';
   const [page, setPage] = useState(1);
@@ -72,6 +73,7 @@ export default function Payments() {
         kind: kind || undefined,
         /* One of the three, or none of them — the server reads whichever is present. */
         open: only === 'open' ? 'true' : undefined,
+        due: only === 'due' ? 'true' : undefined,
         overdue: only === 'overdue' ? 'true' : undefined,
         broken: only === 'broken' ? 'true' : undefined,
         sort: sort || undefined,
@@ -104,9 +106,10 @@ export default function Payments() {
         actions={<Link to="/" className="btn-secondary">Today's chase</Link>}
       />
 
-      <div className="mb-5 grid gap-3 sm:grid-cols-3">
+      <div className="mb-5 grid gap-3 sm:grid-cols-4">
         {[
           { label: 'Owed', value: formatCurrency(meta.outstanding || 0), lit: false },
+          { label: 'Calls due today', value: meta.callsDue || 0, lit: Boolean(meta.callsDue) },
           { label: 'Overdue', value: formatCurrency(meta.overdueValue || 0), lit: Boolean(meta.overdue) },
           { label: 'Promises broken', value: meta.brokenPromises || 0, lit: Boolean(meta.brokenPromises) },
         ].map((tile) => (
@@ -145,7 +148,7 @@ export default function Payments() {
           onChange={(event) => {
             const value = event.target.value;
             const next = new URLSearchParams(params);
-            for (const key of ['overdue', 'broken', 'open']) next.delete(key);
+            for (const key of ['due', 'overdue', 'broken', 'open']) next.delete(key);
             if (value) next.set(value, 'true');
             setParams(next, { replace: true });
             setPage(1);
@@ -153,6 +156,7 @@ export default function Payments() {
         >
           <option value="">The whole ledger</option>
           <option value="open">Still owed</option>
+          <option value="due">Calls due today</option>
           <option value="overdue">Past its date</option>
           <option value="broken">Promise broken</option>
         </select>

@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { payments as paymentsApi } from '../api/endpoints.js';
 import { Field, FormError, Modal } from './ui.jsx';
-import { formatCurrency } from '../utils/format.js';
+import { formatCurrency, humanise } from '../utils/format.js';
 
 /**
  * One conversation about money owed [BLUEPRINT §20].
@@ -27,7 +27,13 @@ import { formatCurrency } from '../utils/format.js';
 export default function FollowUpForm({ receivable, onClose, onSaved }) {
   const [values, setValues] = useState({
     note: '', spokeTo: '', promisedDate: '', promisedAmount: '',
+    mode: 'call', status: '', commitmentDate: '', callbackDate: '', nextFollowUpDate: '',
   });
+  /* The statuses (TPCF and the rest) come from the server's list, so they are edited in one place. */
+  const [options, setOptions] = useState({ statuses: [], modes: [] });
+  useEffect(() => {
+    paymentsApi.followUpOptions().then(setOptions).catch(() => {});
+  }, []);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
@@ -48,6 +54,11 @@ export default function FollowUpForm({ receivable, onClose, onSaved }) {
           values.promisedDate && values.promisedAmount
             ? Number(values.promisedAmount)
             : undefined,
+        mode: values.mode || undefined,
+        status: values.status || undefined,
+        commitmentDate: values.commitmentDate || undefined,
+        callbackDate: values.callbackDate || undefined,
+        nextFollowUpDate: values.nextFollowUpDate || undefined,
       });
       /* The promise is the part worth confirming: it is what the next caller opens with, and
          what puts a reminder on the day it falls due. */
@@ -83,14 +94,27 @@ export default function FollowUpForm({ receivable, onClose, onSaved }) {
             />
           </Field>
 
-          <Field label="Who did you speak to?" hint="A name makes the next call easier">
-            <input
-              className="input"
-              placeholder="Mr Ravi, accounts"
-              value={values.spokeTo}
-              onChange={set('spokeTo')}
-            />
-          </Field>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Who did you speak to?" hint="A name makes the next call easier">
+              <input
+                className="input"
+                placeholder="Mr Ravi, accounts"
+                value={values.spokeTo}
+                onChange={set('spokeTo')}
+              />
+            </Field>
+            <Field label="How">
+              <select className="input" value={values.mode} onChange={set('mode')}>
+                {options.modes.map((mode) => <option key={mode} value={mode}>{humanise(mode)}</option>)}
+              </select>
+            </Field>
+            <Field label="Payment status" className="sm:col-span-2">
+              <select className="input" value={values.status} onChange={set('status')}>
+                <option value="">Choose…</option>
+                {options.statuses.map((status) => <option key={status.key} value={status.key}>{status.label}</option>)}
+              </select>
+            </Field>
+          </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <Field
@@ -118,6 +142,18 @@ export default function FollowUpForm({ receivable, onClose, onSaved }) {
                 />
               </Field>
             )}
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Field label="Commitment date" hint="A cheque date or payment run">
+              <input type="date" className="input" value={values.commitmentDate} onChange={set('commitmentDate')} />
+            </Field>
+            <Field label="Call back on" hint="You get a reminder that day">
+              <input type="date" className="input" value={values.callbackDate} onChange={set('callbackDate')} />
+            </Field>
+            <Field label="Chase next on" hint="Puts it on the calls-due list">
+              <input type="date" className="input" value={values.nextFollowUpDate} onChange={set('nextFollowUpDate')} />
+            </Field>
           </div>
 
           <FormError error={error} />

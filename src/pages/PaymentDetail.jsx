@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { payments as paymentsApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -7,8 +7,9 @@ import {
   Badge, ErrorState, Facts, Field, Modal, Notice, PageHeader, Section, Spinner,
 } from '../components/ui.jsx';
 import FollowUpForm from '../components/FollowUp.jsx';
+import PaymentContact from '../components/PaymentContact.jsx';
 import HistoryPanel from '../components/HistoryPanel.jsx';
-import { formatCurrency, formatDate } from '../utils/format.js';
+import { formatCurrency, formatDate, humanise } from '../utils/format.js';
 
 /**
  * One thing owed [BLUEPRINT §20, §25].
@@ -262,6 +263,11 @@ const fetch = (id) => paymentsApi.get(id);
 export default function PaymentDetail() {
   const { id } = useParams();
   const { canWrite } = useAuth();
+  /* The payment statuses, named as the server lists them (TPCF and the rest). */
+  const [statuses, setStatuses] = useState([]);
+  useEffect(() => {
+    paymentsApi.followUpOptions().then((options) => setStatuses(options.statuses || [])).catch(() => {});
+  }, []);
   const { data, setData, loading, error, reload } = useRecord(fetch, id);
 
   const [calling, setCalling] = useState(false);
@@ -276,6 +282,7 @@ export default function PaymentDetail() {
   const position = data.order;
   /* Accounts writes receipts and judgements; marketing may log a call. */
   const mayWrite = canWrite('payments');
+  const statusLabel = (key) => statuses.find((row) => row.key === key)?.label || key;
 
   const absorb = (next) => setData({ ...data, data: next.data ?? next });
 
@@ -372,7 +379,14 @@ export default function PaymentDetail() {
             is for: the arithmetic above is three numbers and never in question, and what
             actually decides the next call is what was said last time.
           */}
-          <Section title="The chase">
+          <PaymentContact receivable={receivable} canWrite={mayWrite} onSaved={absorb} />
+
+          <Section
+            title="The chase"
+            actions={receivable.nextFollowUpDate && (
+              <span className="text-xs text-steel-400">Chase next {formatDate(receivable.nextFollowUpDate)}</span>
+            )}
+          >
             {receivable.followUps?.length ? (
               <ol className="space-y-3">
                 {[...receivable.followUps]
@@ -386,7 +400,21 @@ export default function PaymentDetail() {
                         </p>
                         <p className="text-xs text-steel-500">{formatDate(entry.at)}</p>
                       </div>
+                      {(entry.status || entry.mode) && (
+                        <p className="mt-1 text-xs font-semibold text-steel-300">
+                          {[entry.status && statusLabel(entry.status), entry.mode && humanise(entry.mode)].filter(Boolean).join(' · ')}
+                        </p>
+                      )}
                       <p className="mt-1 text-sm text-steel-200">{entry.note}</p>
+                      {(entry.commitmentDate || entry.callbackDate || entry.nextFollowUpDate) && (
+                        <p className="mt-1 text-xs text-steel-400">
+                          {[
+                            entry.commitmentDate && `Committed ${formatDate(entry.commitmentDate)}`,
+                            entry.callbackDate && `Call back ${formatDate(entry.callbackDate)}`,
+                            entry.nextFollowUpDate && `Chase next ${formatDate(entry.nextFollowUpDate)}`,
+                          ].filter(Boolean).join(' · ')}
+                        </p>
+                      )}
                       {entry.promisedDate && (
                         <p className="mt-1.5 text-xs font-semibold text-warn-400">
                           Promised {formatDate(entry.promisedDate)}

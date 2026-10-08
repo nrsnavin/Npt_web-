@@ -483,6 +483,10 @@ export const payments = {
   get: (id) => api.get(`/payments/${id}`).then((response) => response.data),
   /** What they said, and what they promised. Either department may log one. */
   followUp: ({ id, ...payload }) => api.post(`/payments/${id}/follow-ups`, payload).then(unwrap),
+  /** The payment statuses (TPCF and the rest) and ways of reaching a buyer, as the server lists them. */
+  followUpOptions: () => api.get('/payments/follow-up-options').then(unwrap),
+  /** Who to speak to about the money — accounts keeps it. */
+  setContact: ({ id, ...payload }) => api.put(`/payments/${id}/contact`, payload).then(unwrap),
   /** Money in — accounts only. */
   receipt: ({ id, ...payload }) => api.post(`/payments/${id}/receipts`, payload).then(unwrap),
   /** Disputed or on hold, and clearing it again. Both stop the escalation ladder. */
