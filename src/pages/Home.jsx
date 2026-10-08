@@ -6,6 +6,10 @@ import DepartmentTasks from '../components/DepartmentTasks.jsx';
 const SampleHome = lazyPage(() => import('./SampleHome.jsx'));
 const ManagementHome = lazyPage(() => import('./ManagementHome.jsx'));
 const TeamHome = lazyPage(() => import('./TeamHome.jsx'));
+const ProductionHome = lazyPage(() => import('./ProductionHome.jsx'));
+const DispatchHome = lazyPage(() => import('./DispatchHome.jsx'));
+const QualityHome = lazyPage(() => import('./QualityHome.jsx'));
+const PaymentsHome = lazyPage(() => import('./PaymentsHome.jsx'));
 
 /**
  * What somebody sees when they open the app.
@@ -47,11 +51,15 @@ const TeamHome = lazyPage(() => import('./TeamHome.jsx'));
  */
 const HOME_BY_DEPARTMENT = {
   sampling: () => <SampleHome />,
+  production: () => <ProductionHome />,
+  despatch: () => <DispatchHome />,
   /* The bench opens on what is held, because a held lot is the only thing on this
      module that stops somebody else working. */
+  quality: () => <QualityHome />,
   /* The follow-up team's whole job is the chase, so it is their front page rather than a
      screen they navigate to. Marketing keeps the general dashboard and reaches payments from
      the nav — chasing is part of their day, not the whole of it. */
+  accounts: () => <PaymentsHome />,
   /*
    * And management, which was the last department still falling through to My day.
    *
@@ -63,16 +71,12 @@ const HOME_BY_DEPARTMENT = {
    */
   management: () => <ManagementHome />,
   /*
-   * The departments the app reaches through questions rather than follow-up dates. My day
-   * counted their to-dos, which were mostly none; their home leads with what is being asked of
+   * The departments without a module screen of their own lead with what is being asked of
    * them — see `TeamHome`.
    */
-  despatch: () => <TeamHome />,
-  accounts: () => <TeamHome />,
-  quality: () => <TeamHome />,
-  production: () => <TeamHome />,
   quotation: () => <TeamHome />,
   assembling: () => <TeamHome />,
+  order_confirmation: () => <TeamHome />,
 };
 
 export default function Home() {

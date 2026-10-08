@@ -126,6 +126,41 @@ const MODULES = [
     ],
   },
   {
+    key: 'orders',
+    label: 'Sales orders',
+    module: 'orders',
+    features: [{ to: '/orders', label: 'All sales orders' }],
+  },
+  {
+    key: 'production',
+    label: 'Production',
+    module: 'production',
+    features: [{ to: '/production', label: 'Production status' }],
+  },
+  {
+    key: 'quality',
+    label: 'Quality',
+    module: 'quality',
+    features: [
+      {
+        to: '/quality', label: 'Inspections', end: true,
+        children: [{ to: '/quality/report', label: 'Quality report' }],
+      },
+    ],
+  },
+  {
+    key: 'dispatch',
+    label: 'Dispatch',
+    module: 'dispatch',
+    features: [{ to: '/dispatches', label: 'Consignments' }],
+  },
+  {
+    key: 'payments',
+    label: 'Payments',
+    module: 'payments',
+    features: [{ to: '/payments', label: 'What is owed' }],
+  },
+  {
     key: 'customers',
     label: 'Customers',
     module: 'customers',

@@ -53,6 +53,16 @@ const SampleDetail = lazyPage(() => import('./pages/SampleDetail.jsx'));
 const SamplingDashboard = lazyPage(() => import('./pages/SamplingDashboard.jsx'));
 const SampleAnalytics = lazyPage(() => import('./pages/SampleAnalytics.jsx'));
 const MarketingDashboard = lazyPage(() => import('./pages/MarketingDashboard.jsx'));
+/* Order to payment: sales orders, production, quality, dispatch and payments. */
+const Orders = lazyPage(() => import('./pages/Orders.jsx'));
+const OrderDetail = lazyPage(() => import('./pages/OrderDetail.jsx'));
+const Production = lazyPage(() => import('./pages/Production.jsx'));
+const Dispatches = lazyPage(() => import('./pages/Dispatches.jsx'));
+const DispatchDetail = lazyPage(() => import('./pages/DispatchDetail.jsx'));
+const Quality = lazyPage(() => import('./pages/Quality.jsx'));
+const QualityReport = lazyPage(() => import('./pages/QualityReport.jsx'));
+const Payments = lazyPage(() => import('./pages/Payments.jsx'));
+const PaymentDetail = lazyPage(() => import('./pages/PaymentDetail.jsx'));
 
 /**
  * Blocks a route unless the reader is an administrator.
@@ -301,6 +311,46 @@ export default function App() {
               </RequireModule>
             }
           />
+          <Route
+            path="orders"
+            element={
+              <RequireModule moduleKey="orders">
+                <Orders />
+              </RequireModule>
+            }
+          />
+          <Route
+            path="orders/:id"
+            element={
+              <RequireModule moduleKey="orders">
+                <OrderDetail />
+              </RequireModule>
+            }
+          />
+          <Route
+            path="production"
+            element={
+              <RequireModule moduleKey="production">
+                <Production />
+              </RequireModule>
+            }
+          />
+          <Route
+            path="dispatches"
+            element={
+              <RequireModule moduleKey="dispatch">
+                <Dispatches />
+              </RequireModule>
+            }
+          />
+          <Route
+            path="dispatches/:id"
+            element={
+              <RequireModule moduleKey="dispatch">
+                <DispatchDetail />
+              </RequireModule>
+            }
+          />
           {/*
             Queries [queries]. Read is the only grant either screen asks for, and that is
             deliberate: a query is a conversation rather than a record anybody owns — the whole
@@ -322,6 +372,52 @@ export default function App() {
             element={
               <RequireModule moduleKey="queries">
                 <QueryDetail />
+              </RequireModule>
+            }
+          />
+          {/*
+            Quality [§15]. On the read grant, which production, despatch and marketing all hold:
+            an inspection is a fact about goods that four departments have to act on, and a
+            verdict only the quality team can see is a verdict that stops nothing. Recording one
+            needs write, and that gate is on the order screen where it is recorded.
+
+            The report sits above the register so its literal path is matched first.
+          */}
+          <Route
+            path="quality/report"
+            element={
+              <RequireModule moduleKey="quality">
+                <QualityReport />
+              </RequireModule>
+            }
+          />
+          <Route
+            path="quality"
+            element={
+              <RequireModule moduleKey="quality">
+                <Quality />
+              </RequireModule>
+            }
+          />
+          {/*
+            Payments [§20]. On the read grant, which the follow-up team and marketing both hold:
+            the buyer knows their marketing person and takes their call, so a chase only accounts
+            could open is a chase where marketing rings anyway and nobody records it. What needs
+            write — a receipt, a dispute — is gated inside the screen.
+          */}
+          <Route
+            path="payments"
+            element={
+              <RequireModule moduleKey="payments">
+                <Payments />
+              </RequireModule>
+            }
+          />
+          <Route
+            path="payments/:id"
+            element={
+              <RequireModule moduleKey="payments">
+                <PaymentDetail />
               </RequireModule>
             }
           />
