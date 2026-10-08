@@ -49,6 +49,7 @@ export const DEPARTMENT_WORKSPACES = {
       { label: 'Active enquiries', to: '/enquiries', module: 'enquiries' },
       { label: 'New enquiries', to: '/enquiries/drafts', module: 'customers', hint: 'Drafts read from chat screenshots and cards' },
       { label: 'Quotations', to: '/quotations', module: 'pricing' },
+      { label: 'Activities', to: '/activities', module: 'enquiries', hint: 'Recent calls, WhatsApps, emails and visits' },
       { label: 'Department updates', to: '/dashboard/marketing', module: 'enquiries', hint: 'Sampling, production and dispatch news' },
     ],
     jobs: [

@@ -62,6 +62,7 @@ const DispatchDetail = lazyPage(() => import('./pages/DispatchDetail.jsx'));
 const Quality = lazyPage(() => import('./pages/Quality.jsx'));
 const QualityReport = lazyPage(() => import('./pages/QualityReport.jsx'));
 const Payments = lazyPage(() => import('./pages/Payments.jsx'));
+const Activities = lazyPage(() => import('./pages/Activities.jsx'));
 const PaymentDetail = lazyPage(() => import('./pages/PaymentDetail.jsx'));
 
 /**
@@ -199,6 +200,15 @@ export default function App() {
             element={
               <RequireModule moduleKey="customers">
                 <BuyerCards />
+              </RequireModule>
+            }
+          />
+          {/* Marketing's call log across the book; each call is logged on its enquiry. */}
+          <Route
+            path="activities"
+            element={
+              <RequireModule moduleKey="enquiries">
+                <Activities />
               </RequireModule>
             }
           />

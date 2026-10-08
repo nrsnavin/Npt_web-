@@ -12,6 +12,7 @@ import {
 } from '../components/ui.jsx';
 import Documents from '../components/Documents.jsx';
 import EnquiryActions from '../components/EnquiryActions.jsx';
+import EnquiryActivities from '../components/EnquiryActivities.jsx';
 import DepartmentDesk from '../components/DepartmentDesk.jsx';
 import HistoryPanel from '../components/HistoryPanel.jsx';
 import QuotationPdf from '../components/QuotationPdf.jsx';
@@ -668,6 +669,9 @@ export default function EnquiryDetail() {
           <DepartmentDesk enquiry={enquiry} onChanged={reload} />
 
           {mayReadEnquiries && <EnquiryActions enquiry={enquiry} onSaved={setData} canWrite={mayWrite} />}
+
+          {/* Marketing's call log: what the buyer said, newest first, and the next step it set. */}
+          {mayReadEnquiries && <EnquiryActivities enquiry={enquiry} canWrite={mayWrite} onSaved={reload} />}
 
           <Section
             title={enquiry.items?.length > 1

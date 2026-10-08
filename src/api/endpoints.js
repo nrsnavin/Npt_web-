@@ -374,6 +374,10 @@ export const enquiries = {
   pipeline: () => api.get('/enquiries/pipeline').then(unwrap),
   /** The funnel as columns you can work in, rather than a strip of counts you can only read. */
   board: (params) => api.get('/enquiries/board', { params }).then(boarded),
+  /** Calls, WhatsApps, emails, visits and meetings logged on an enquiry — and the list of them. */
+  logActivity: ({ id, ...payload }) => api.post(`/enquiries/${id}/activities`, payload).then(unwrap),
+  activities: (params) => api.get('/enquiries/activities', { params }).then(listed),
+  activityTypes: () => api.get('/enquiries/activity-types').then(unwrap),
 };
 
 /**
