@@ -82,7 +82,7 @@ function DocumentRow({ document: file, canRemove, onRemove }) {
 }
 
 export default function Documents({ collection, id, canWrite = true, title = 'Documents' }) {
-  const { user, isAdmin } = useAuth();
+  const { mayDelete } = useAuth();
   const [error, setError] = useState(null);
   const [chosen, setChosen] = useState(null);
   const [uploading, setUploading] = useState(false);
@@ -187,7 +187,7 @@ export default function Documents({ collection, id, canWrite = true, title = 'Do
               document={file}
               /* Only whoever attached it, or an administrator — the server says the same. The
                  person who put it there is the one who knows it is still the right version. */
-              canRemove={canWrite && (isAdmin || String(file.uploadedBy?._id) === String(user?.id))}
+              canRemove={canWrite && mayDelete}
               onRemove={setPendingRemoval}
             />
           ))}

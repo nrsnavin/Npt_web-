@@ -115,6 +115,8 @@ export function AuthProvider({ children }) {
         return Boolean(user?.modules?.find((module) => module.key === moduleKey)?.canQuote);
       },
       isAdmin: user?.role === 'admin',
+      /** Only Admin deletes records — the admin role or the Admin department [server: adminOnly]. */
+      mayDelete: user?.role === 'admin' || user?.department === 'management',
       /** Replaces the cached user after a profile update. */
       applyUser: setUser,
     }),

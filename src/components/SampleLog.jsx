@@ -63,9 +63,8 @@ function CommentForm({ onSubmit }) {
   );
 }
 
-function Entry({ entry, currentUserId, isAdmin, onComment, onRemove, onRemoveComment, onOpenPhoto }) {
+function Entry({ entry, isAdmin, onComment, onRemove, onRemoveComment, onOpenPhoto }) {
   const [showComment, setShowComment] = useState(entry.comments.length > 0);
-  const mine = entry.author?._id === currentUserId || entry.author?.id === currentUserId;
 
   return (
     <li className="rounded-lg border border-line/[0.06] p-3.5">
@@ -106,8 +105,6 @@ function Entry({ entry, currentUserId, isAdmin, onComment, onRemove, onRemoveCom
           {entry.comments.length > 0 && (
             <ul className="mt-3 space-y-2 border-l-2 border-line/[0.08] pl-3">
               {entry.comments.map((comment) => {
-                const myComment =
-                  comment.author?._id === currentUserId || comment.author?.id === currentUserId;
                 return (
                   <li key={comment._id} className="group flex items-start gap-2">
                     <Avatar name={comment.author?.name} />
@@ -120,7 +117,7 @@ function Entry({ entry, currentUserId, isAdmin, onComment, onRemove, onRemoveCom
                         {formatDate(comment.createdAt)}
                       </span>
                     </div>
-                    {(myComment || isAdmin) && (
+                    {isAdmin && (
                       <button
                         type="button"
                         onClick={() => onRemoveComment(comment._id)}
@@ -145,7 +142,7 @@ function Entry({ entry, currentUserId, isAdmin, onComment, onRemove, onRemoveCom
                 Comment
               </button>
             )}
-            {(mine || isAdmin) && (
+            {isAdmin && (
               <button
                 type="button"
                 className="text-xs font-semibold text-steel-500 transition-colors hover:text-danger-400"
@@ -164,7 +161,7 @@ function Entry({ entry, currentUserId, isAdmin, onComment, onRemove, onRemoveCom
 }
 
 export default function SampleLog({ sampleId }) {
-  const { user } = useAuth();
+  const { user, mayDelete } = useAuth();
   const [body, setBody] = useState('');
   const [photo, setPhoto] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -276,8 +273,7 @@ export default function SampleLog({ sampleId }) {
             <Entry
               key={entry._id}
               entry={entry}
-              currentUserId={user?.id}
-              isAdmin={user?.role === 'admin'}
+              isAdmin={mayDelete}
               onOpenPhoto={setViewing}
               onComment={(text) =>
                 act(() => samplesApi.addComment({ id: sampleId, logId: entry._id, body: text }))

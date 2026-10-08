@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useAuth } from '../../context/AuthContext.jsx';
 import { useWorkspace } from './WorkspaceContext.jsx';
 import DockIcon from './DockIcon.jsx';
 import { Badge, Notice } from '../ui.jsx';
@@ -91,6 +92,7 @@ function Composer({ onClose }) {
 
 export default function AnnouncementsPanel() {
   const { announcements, announcementMeta, markAnnouncementRead, removeAnnouncement } = useWorkspace();
+  const { mayDelete } = useAuth();
   const [composing, setComposing] = useState(false);
   const [expanded, setExpanded] = useState(null);
 
@@ -168,7 +170,7 @@ export default function AnnouncementsPanel() {
                           For {item.departments.map(humanise).join(', ')}
                         </span>
                       )}
-                      {announcementMeta.canPublish && (
+                      {announcementMeta.canPublish && mayDelete && (
                         <button
                           type="button"
                           className="ml-auto rounded p-1 text-steel-500 hover:text-danger-400"
