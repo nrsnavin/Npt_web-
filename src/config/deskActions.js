@@ -64,6 +64,15 @@ export const DESK_ACTIONS = {
     { label: 'Payments', to: () => '/payments', primary: true },
     { label: 'Order', to: order },
   ],
+  payment_collection: [
+    { label: 'Payments to chase', to: () => '/payments?open=true', primary: true },
+    { label: 'Order', to: order },
+  ],
+  audit: [
+    { label: 'Open enquiry', to: enquiry, primary: true },
+    { label: 'Order', to: order },
+    { label: 'Quotation', to: quotation },
+  ],
 };
 
 /** The buttons a department's card shows, with the ones that have nowhere to go left out. */

@@ -60,6 +60,8 @@ const HOME_BY_DEPARTMENT = {
      screen they navigate to. Marketing keeps the general dashboard and reaches payments from
      the nav — chasing is part of their day, not the whole of it. */
   accounts: () => <PaymentsHome />,
+  /* Collections chase the same receivables, so they open on the same screen. */
+  payment_collection: () => <PaymentsHome />,
   /*
    * And management, which was the last department still falling through to My day.
    *
@@ -76,6 +78,7 @@ const HOME_BY_DEPARTMENT = {
    */
   quotation: () => <TeamHome />,
   assembling: () => <TeamHome />,
+  audit: () => <TeamHome />,
   order_confirmation: () => <TeamHome />,
 };
 

@@ -675,9 +675,11 @@ export const DEPARTMENTS = [
   { key: 'sampling', label: 'Sampling' },
   { key: 'production', label: 'Production' },
   { key: 'quality', label: 'Quality' },
-  { key: 'assembling', label: 'Assembling' },
+  { key: 'assembling', label: 'Assembly' },
   { key: 'despatch', label: 'Dispatch' },
-  { key: 'accounts', label: 'Accounts / Payment Follow-up' },
+  { key: 'accounts', label: 'Accounts' },
+  { key: 'payment_collection', label: 'Payment Collection' },
+  { key: 'audit', label: 'Audit' },
 ];
 
 export const departmentLabel = (key) =>

@@ -184,5 +184,6 @@ const DEPARTMENTS = [
   'quality',
   'despatch',
   'accounts',
+  'payment_collection',
   'management',
 ];
