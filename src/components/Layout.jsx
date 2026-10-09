@@ -117,9 +117,7 @@ const MODULES = [
     label: 'Pricing',
     module: 'pricing',
     features: [
-      { to: '/pricings', label: 'Costing sheets' },
-      /* Exact, now that a screen lives under it: without this both entries light on the sent
-         board, and two lit links in one section is the nav saying it has lost its place. */
+      /* The quotation carries its costing now — one record from the price request to the buyer. */
       { to: '/quotations', label: 'Quotations', end: true },
       /* What is out there with buyers right now, kept apart from the drafts it would otherwise
          be buried among — and carrying the costing each price was worked out from. */

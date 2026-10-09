@@ -86,8 +86,8 @@ export const DEPARTMENT_WORKSPACES = {
     purpose: 'Costs the model and sends the price — the buyer sees the price, never the costing.',
     pages: [
       { label: 'Waiting for a price', to: '/enquiries?stage=pricing_quote', module: 'enquiries', hint: 'Enquiries at Pricing / Quote' },
-      { label: 'Costing sheets', to: '/pricings', module: 'pricing' },
-      { label: 'Saved quotations / PDF', to: '/quotations', module: 'pricing' },
+      { label: 'To cost', to: '/quotations?status=costing', module: 'pricing', hint: 'Quotations waiting for a price' },
+      { label: 'All quotations / PDF', to: '/quotations', module: 'pricing' },
       { label: 'Model / item selection', to: '/moulds', module: 'moulds' },
       { label: 'Materials', to: '/materials', module: 'materials' },
     ],

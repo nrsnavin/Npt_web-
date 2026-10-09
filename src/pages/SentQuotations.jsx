@@ -60,19 +60,14 @@ const daysLeft = (validUntil) =>
   validUntil ? Math.ceil((new Date(validUntil).getTime() - Date.now()) / 86400000) : null;
 
 /**
- * The costings behind one quotation, line by line.
+ * What each price on one quotation was worked out from, line by line.
  *
- * Opened rather than always shown: eight models is eight sheets, and a table that printed all of
- * them on every row would bury the thing somebody came to this screen for. The summary on the
- * row says whether there is anything to open.
- *
- * What each reader gets is decided by the server and simply rendered here. `totalCost` arriving
- * `undefined` is §8 doing its job, not a gap to fill in — so the costing columns appear only for
- * a reader who actually has figures in them, rather than as a row of dashes that reads like the
- * data is missing.
+ * The cost columns appear only when the server sent costs [§8] — `totalCost` arriving
+ * `undefined` is the rule doing its job, not a gap to fill in.
  */
 function CostingBreakdown({ quotation, seesCost }) {
   const lines = quotation.lines || [];
+  const showCost = seesCost && !quotation.costingHidden;
 
   return (
     <div className="rounded-lg border border-line/[0.06] bg-line/[0.02] px-3.5 py-3">
@@ -83,10 +78,9 @@ function CostingBreakdown({ quotation, seesCost }) {
             <tr className="text-left text-steel-500">
               <th className="py-1.5 pr-4 font-semibold">Model</th>
               <th className="py-1.5 pr-4 text-right font-semibold">Quoted</th>
-              <th className="py-1.5 pr-4 font-semibold">Costing</th>
-              {seesCost && <th className="py-1.5 pr-4 text-right font-semibold">Cost</th>}
-              {seesCost && <th className="py-1.5 pr-4 text-right font-semibold">Floor</th>}
-              {seesCost && <th className="py-1.5 pr-4 text-right font-semibold">Margin</th>}
+              {showCost && <th className="py-1.5 pr-4 text-right font-semibold">Cost</th>}
+              {showCost && <th className="py-1.5 pr-4 text-right font-semibold">Minimum</th>}
+              {showCost && <th className="py-1.5 pr-4 text-right font-semibold">Margin</th>}
             </tr>
           </thead>
           <tbody>
@@ -95,52 +89,21 @@ function CostingBreakdown({ quotation, seesCost }) {
                 <td className="py-1.5 pr-4 text-steel-200">
                   {line.modelNumber || line.mould?.mouldCode || `Line ${index + 1}`}
                   {line.colour ? <span className="text-steel-500"> · {line.colour}</span> : null}
+                  {/* Marketing's one fact about the minimum, and the only one §8 allows. */}
+                  {line.belowMinimum && <span className="ml-1.5 font-semibold text-danger-400">under its minimum</span>}
                 </td>
-                <td className="py-1.5 pr-4 text-right tabular-nums text-steel-100">
-                  {rupees(line.unitPrice)}
-                </td>
-                <td className="py-1.5 pr-4">
-                  {line.pricing ? (
-                    <>
-                      <Link
-                        to={`/pricings/${line.pricing._id}`}
-                        className="font-semibold text-accent hover:underline"
-                      >
-                        {line.pricing.number}
-                      </Link>
-                      {/*
-                        Marketing's one fact about the floor, and the only one §8 allows: whether
-                        this price is under it. A block nobody can explain reads as a fault.
-                      */}
-                      {line.pricing.belowFloor && (
-                        <span className="ml-1.5 font-semibold text-danger-400">under its floor</span>
-                      )}
-                    </>
-                  ) : (
-                    /* Honest rather than blank. Plenty of repeat jobs are quoted from a known
-                       price, and a line with no sheet behind it is a fact about the quote. */
-                    <span className="text-steel-500">Quoted from a known price</span>
-                  )}
-                </td>
-                {seesCost && (
+                <td className="py-1.5 pr-4 text-right tabular-nums text-steel-100">{rupees(line.unitPrice)}</td>
+                {showCost && (
                   <td className="py-1.5 pr-4 text-right tabular-nums text-steel-400">
-                    {rupees(line.pricing?.totalCost)}
+                    {line.totalCost ? rupees(line.totalCost) : 'Known price'}
                   </td>
                 )}
-                {seesCost && (
-                  <td className="py-1.5 pr-4 text-right tabular-nums text-steel-400">
-                    {rupees(line.pricing?.minimumSellingPrice)}
-                  </td>
+                {showCost && (
+                  <td className="py-1.5 pr-4 text-right tabular-nums text-steel-400">{rupees(line.minimumSellingPrice)}</td>
                 )}
-                {seesCost && (
-                  <td
-                    className={`py-1.5 pr-4 text-right tabular-nums ${
-                      line.pricing?.belowFloor ? 'text-danger-400' : 'text-steel-100'
-                    }`}
-                  >
-                    {line.pricing?.marginPercent === undefined || line.pricing?.marginPercent === null
-                      ? '—'
-                      : `${line.pricing.marginPercent}%`}
+                {showCost && (
+                  <td className={`py-1.5 pr-4 text-right tabular-nums ${line.belowMinimum ? 'text-danger-400' : 'text-steel-100'}`}>
+                    {line.grossMarginPercent == null ? '—' : `${line.grossMarginPercent}%`}
                   </td>
                 )}
               </tr>
@@ -280,8 +243,8 @@ export default function SentQuotations() {
                 <tbody className="divide-y divide-line/[0.04]">
                   {data.map((row) => {
                     const lines = row.lines || [];
-                    const sheets = lines.filter((line) => line.pricing);
-                    const under = sheets.filter((line) => line.pricing.belowFloor).length;
+                    const costed = lines.filter((line) => line.totalCost || line.costingHidden || row.costingHidden);
+                    const under = lines.filter((line) => line.belowMinimum).length;
                     const left = daysLeft(row.validUntil);
                     const waiting = row.sentAt ? -daysLeft(row.sentAt) : null;
                     const expanded = Boolean(open[row._id]);
@@ -330,24 +293,18 @@ export default function SentQuotations() {
                           not describe.
                         */}
                         <td className="whitespace-nowrap px-3 py-3.5">
-                          {sheets.length === 0 ? (
-                            <span className="text-xs text-steel-500">No costing</span>
-                          ) : (
-                            <button
-                              type="button"
-                              className="row-action text-left"
-                              onClick={() => toggle(row._id)}
-                              aria-expanded={expanded}
-                            >
-                              {sheets.length === 1
-                                ? sheets[0].pricing.number
-                                : `${sheets.length} costings`}
-                              <span className="ml-1 text-steel-500">{expanded ? '▾' : '▸'}</span>
-                            </button>
-                          )}
+                          <button
+                            type="button"
+                            className="row-action text-left"
+                            onClick={() => toggle(row._id)}
+                            aria-expanded={expanded}
+                          >
+                            {costed.length || lines.length === 1 ? 'Costing' : `${lines.length} lines`}
+                            <span className="ml-1 text-steel-500">{expanded ? '▾' : '▸'}</span>
+                          </button>
                           {under > 0 && (
                             <p className="text-xs font-semibold text-danger-400">
-                              {under === 1 ? '1 line under its floor' : `${under} lines under their floor`}
+                              {under === 1 ? '1 line under its minimum' : `${under} lines under their minimum`}
                             </p>
                           )}
                         </td>

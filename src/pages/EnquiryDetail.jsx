@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import {
-  enquiries as enquiriesApi, pricings as pricingsApi, quotations as quotationsApi,
+  enquiries as enquiriesApi, quotations as quotationsApi,
   samples as samplesApi,
 } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -11,7 +11,6 @@ import {
   Badge, ErrorState, Facts, Field, FormError, Modal, Notice, PageHeader, Section, Spinner,
 } from '../components/ui.jsx';
 import Documents from '../components/Documents.jsx';
-import EnquiryActions from '../components/EnquiryActions.jsx';
 import EnquiryActivities from '../components/EnquiryActivities.jsx';
 import DelegateEnquiry from '../components/DelegateEnquiry.jsx';
 import DepartmentDesk from '../components/DepartmentDesk.jsx';
@@ -19,7 +18,7 @@ import HistoryPanel from '../components/HistoryPanel.jsx';
 import QuotationPdf from '../components/QuotationPdf.jsx';
 import ItemList from '../components/ItemList.jsx';
 import EnquiryForm from '../components/EnquiryForm.jsx';
-import { formatCurrency, formatDate, formatNumber, humanise } from '../utils/format.js';
+import { formatCurrency, formatDate, humanise } from '../utils/format.js';
 import { GRAM_STEP } from '../utils/grams.js';
 import {
   CLOSED_STAGES, HANGER_CATEGORIES, LOST_REASONS, MATERIALS,
@@ -410,149 +409,76 @@ function EnquirySamples({ enquiryId }) {
  * The costings arrive already redacted [§8] — marketing sees the price, never the cost base —
  * so nothing here has to remember to hide anything.
  */
-function EnquiryCommercials({ enquiryId, canSeePricing, canSeeQuotes }) {
-  const [pricings, setPricings] = useState(null);
+function EnquiryCommercials({ enquiryId, canSeeQuotes }) {
   const [quotes, setQuotes] = useState(null);
   const [viewing, setViewing] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
-
-    const load = (allowed, call, set) => {
-      if (!allowed) return set([]);
-      return call
-        .then((response) => !cancelled && set(response.data || []))
-        .catch(() => !cancelled && set([]));
-    };
-
-    load(canSeePricing, pricingsApi.list({ enquiry: enquiryId, limit: 20 }), setPricings);
-    load(canSeeQuotes, quotationsApi.list({ enquiry: enquiryId, limit: 20 }), setQuotes);
-
+    if (!canSeeQuotes) {
+      setQuotes([]);
+      return undefined;
+    }
+    quotationsApi.list({ enquiry: enquiryId, limit: 20 })
+      .then((response) => !cancelled && setQuotes(response.data || []))
+      .catch(() => !cancelled && setQuotes([]));
     return () => {
       cancelled = true;
     };
-  }, [enquiryId, canSeePricing, canSeeQuotes]);
+  }, [enquiryId, canSeeQuotes]);
 
-  /*
-   * Drawn even before there is anything in it, which is a change from how this started.
-   *
-   * Hiding an empty panel is right where the thing is unusual. A costing is the opposite: it is the
-   * expected next step for every enquiry that goes anywhere, so "nothing priced yet" is a fact
-   * about this enquiry rather than an absence of furniture. Hidden, the screen gave a reader
-   * looking for the price no answer at all — not the costing, not the news that there is not
-   * one — and they went to the costings list to search by customer, which is the work having
-   * the relation was supposed to remove.
-   */
-  if (!pricings || !quotes) return null;
+  if (!quotes) return null;
 
   const rupees = (value) =>
     value === undefined || value === null ? '—' : `₹${Number(value).toFixed(2)}`;
+  const rateOf = (row) => {
+    const rates = (row.lines || []).map((line) => line.unitPrice).filter((price) => price != null);
+    if (!rates.length) return 'not priced yet';
+    const low = Math.min(...rates);
+    const high = Math.max(...rates);
+    return low === high ? rupees(low) : `${rupees(low)} – ${rupees(high)}`;
+  };
 
   return (
     <>
-      <Section title={`Pricing and quotations (${pricings.length + quotes.length})`}>
-        {/*
-          * Said only to somebody who may actually see costings. To a reader without the grant
-          * the list is empty because it was never fetched, and telling them nothing has been
-          * priced would be the screen stating something it does not know.
-          */}
-        {canSeePricing && pricings.length === 0 && (
-          <div className="mb-4 rounded-lg border border-dashed border-line/10 px-3.5 py-3">
+      <Section title={`Quotations (${quotes.length})`}>
+        {quotes.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-line/10 px-3.5 py-3">
             <p className="text-sm text-steel-300">Nothing priced yet.</p>
             <p className="mt-0.5 text-xs text-steel-500">
-              <span className="font-semibold text-steel-400">Ask for a price</span> raises the
-              costing and puts it on the queue — it appears here once it does.
+              <span className="font-semibold text-steel-400">Create Quotation</span> raises the
+              quotation for the Quotation department to cost — it appears here once it does.
             </p>
           </div>
-        )}
-
-        {pricings.length > 0 && (
-          <>
-            <p className="eyebrow mb-2">Costings</p>
-            <ul className="mb-4 space-y-2">
-              {pricings.map((row) => (
-                <li
-                  key={row._id}
-                  className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line/[0.06] px-3.5 py-3"
-                >
-                  <div className="min-w-0">
-                    <Link
-                      to={`/pricings/${row._id}`}
-                      className="text-sm font-semibold text-steel-100 hover:text-accent"
-                    >
-                      {row.number}
-                    </Link>
-                    <p className="text-xs text-steel-400">
-                      {formatNumber(row.quantity)} pcs
-                      {row.approvedSellingPrice ? ` · ${rupees(row.approvedSellingPrice)}` : ''}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {/*
-                      No separate "needs approval" flag here: unlike the costings list, this
-                      shows the status itself, and `Approval pending` beside `Needs approval`
-                      is the same sentence twice.
-                    */}
-                    <Badge status={row.status}>{humanise(row.status)}</Badge>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </>
-        )}
-
-        {quotes.length > 0 && (
-          <>
-            <p className="eyebrow mb-2">Quotations</p>
-            <ul className="space-y-2">
-              {quotes.map((row) => (
-                <li
-                  key={row._id}
-                  className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line/[0.06] px-3.5 py-3"
-                >
-                  <div className="min-w-0">
-                    <Link
-                      to={`/quotations/${row._id}`}
-                      className="text-sm font-semibold text-steel-100 hover:text-accent"
-                    >
-                      {row.number}
-                    </Link>
-                    <p className="text-xs text-steel-400">
-                      {/* One price where there is one, a count where there are several. */}
-                      Rev {row.revision ?? 0} ·{' '}
-                      {row.lines?.length === 1
-                        ? `${formatNumber(row.lines[0].quantity)} pcs · ${rupees(row.lines[0].unitPrice)}${
-                            row.lines[0].moq ? ` · MOQ ${formatNumber(row.lines[0].moq)}` : ''
-                          }`
-                        : `${row.lines?.length ?? 0} models · ${formatCurrency(
-                            (row.lines || []).reduce((sum, line) => sum + line.quantity * line.unitPrice, 0)
-                          )}`}
-                      {row.validUntil ? ` · valid to ${formatDate(row.validUntil)}` : ''}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {/* The document, from the record it belongs to. */}
-                    <button
-                      type="button"
-                      className="btn-secondary px-3 py-1 text-xs"
-                      onClick={() => setViewing(row)}
-                    >
-                      PDF
-                    </button>
-                    <Badge status={row.status}>{humanise(row.status)}</Badge>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </>
+        ) : (
+          <ul className="space-y-2">
+            {quotes.map((row) => (
+              <li
+                key={row._id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line/[0.06] px-3.5 py-3"
+              >
+                <div className="min-w-0">
+                  <Link to={`/quotations/${row._id}`} className="text-sm font-semibold text-steel-100 hover:text-accent">
+                    {row.number}
+                  </Link>
+                  <p className="text-xs text-steel-400">
+                    Rev {row.revision ?? 0} · {row.lines?.length === 1 ? row.lines[0].modelNumber : `${row.lines?.length ?? 0} models`} · {rateOf(row)}
+                    {row.validUntil ? ` · valid to ${formatDate(row.validUntil)}` : ''}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button type="button" className="btn-secondary px-3 py-1 text-xs" onClick={() => setViewing(row)}>
+                    PDF
+                  </button>
+                  <Badge status={row.status}>{humanise(row.status === 'draft' ? 'ready_to_send' : row.status)}</Badge>
+                </div>
+              </li>
+            ))}
+          </ul>
         )}
       </Section>
 
-      <QuotationPdf
-        quotation={viewing}
-        open={Boolean(viewing)}
-        onClose={() => setViewing(null)}
-      />
+      <QuotationPdf quotation={viewing} open={Boolean(viewing)} onClose={() => setViewing(null)} />
     </>
   );
 }
@@ -676,7 +602,6 @@ export default function EnquiryDetail() {
               department. The sales actions below still move the quote along. */}
           <DepartmentDesk enquiry={enquiry} onChanged={reload} />
 
-          {mayReadEnquiries && <EnquiryActions enquiry={enquiry} onSaved={setData} canWrite={mayWrite} />}
 
           {/* Marketing's call log: what the buyer said, newest first, and the next step it set. */}
           {mayReadEnquiries && <EnquiryActivities enquiry={enquiry} canWrite={mayWrite} onSaved={reload} />}
@@ -719,7 +644,6 @@ export default function EnquiryDetail() {
           {(mayReadPricing || mayReadQuotes) && (
             <EnquiryCommercials
               enquiryId={enquiry._id}
-              canSeePricing={mayReadPricing}
               canSeeQuotes={mayReadQuotes}
             />
           )}

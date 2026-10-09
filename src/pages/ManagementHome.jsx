@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   enquiries as enquiriesApi,
-  pricings as pricingsApi,
   queries as queriesApi,
   quotations as quotationsApi,
   samples as samplesApi,
@@ -172,7 +171,7 @@ export default function ManagementHome() {
       const [approvals, enquiries, sent, won, openQueries, openEnquiries, openSamples] =
         await Promise.all([
           seesPricing
-            ? safe(pricingsApi.list({ awaitingApproval: 'true', limit: 10 }), { data: [] })
+            ? safe(quotationsApi.list({ awaitingApproval: 'true', limit: 10 }), { data: [] })
             : { data: [] },
           safe(enquiriesApi.list({ limit: 1 }), { stageCounts: {} }),
           safe(quotationsApi.list({ sent: 'true', limit: 1 }), { pagination: { total: 0 } }),
@@ -272,8 +271,7 @@ export default function ManagementHome() {
         >
           {approvals.length === 0 ? (
             <p className="py-5 text-center text-sm text-steel-400">
-              No costing is waiting on a decision. Marketing can quote everything that has been
-              priced.
+              No price is waiting on your signature. Everything priced can go to the buyer.
             </p>
           ) : (
             <ul className="space-y-2">
@@ -284,22 +282,22 @@ export default function ManagementHome() {
                 >
                   <div className="min-w-0">
                     <Link
-                      to={`/pricings/${row._id}`}
+                      to={`/quotations/${row._id}`}
                       className="text-sm font-semibold text-steel-100 hover:text-accent"
                     >
                       {row.number}
                     </Link>
                     <p className="text-xs text-steel-400">
                       {row.customer?.name || 'No customer'}
-                      {row.modelNumber ? ` · ${row.modelNumber}` : ''}
-                      {row.quantity ? ` · ${formatNumber(row.quantity)} pcs` : ''}
+                      {' · '}
+                      {(row.lines || []).filter((line) => line.status === 'approval_pending').map((line) => line.modelNumber).filter(Boolean).join(', ') || 'a model'}
                     </p>
                   </div>
                   <div className="flex shrink-0 items-center gap-3">
                     {/* The figure the decision is about, so the row is readable without opening
                         anything. §8 lets management see it. */}
                     <span className="text-sm font-bold tabular-nums text-warn-400">
-                      ₹{Number(row.approvedSellingPrice ?? 0).toFixed(2)}
+                      ₹{Number((row.lines || []).find((line) => line.status === 'approval_pending')?.unitPrice ?? 0).toFixed(2)}
                     </span>
                     {mayDecide && (
                       <button
@@ -407,12 +405,12 @@ export default function ManagementHome() {
       <Modal
         open={Boolean(deciding)}
         title={`Approve ${deciding?.number || ''}?`}
-        description="This price is below the approved minimum, so nothing can be quoted until it is settled"
+        description="This price is below its minimum, so the quotation cannot be sent until it is settled"
         onClose={() => setDeciding(null)}
       >
         {deciding && (
           <PricingDecision
-            pricing={deciding}
+            quotation={deciding}
             onClose={() => setDeciding(null)}
             onSaved={load}
           />

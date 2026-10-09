@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { pricings as pricingsApi } from '../api/endpoints.js';
+import { quotations as quotationsApi } from '../api/endpoints.js';
 import { Field, Notice } from './ui.jsx';
 
 /* Two decimals, because a rate per piece is quoted in paise. The same flavour the costing
@@ -8,7 +8,7 @@ const rupees = (value) =>
   value === undefined || value === null ? '—' : `₹${Number(value).toFixed(2)}`;
 
 /**
- * Signing off a price under the floor, or sending it back [BLUEPRINT §9].
+ * Admin signing off a price under its line's minimum, or sending it back [BLUEPRINT §9].
  *
  * Extracted from the costings register because it is wanted in two places now: there, and on
  * management's own home screen, where "what is waiting on my signature" is the first thing the
@@ -20,7 +20,7 @@ const rupees = (value) =>
  * the sheet: the cost, the floor and what is being asked are what the decision turns on, and
  * they fit in a row. Anything more and the reader is being asked to re-do the costing.
  */
-export default function PricingDecision({ pricing, line, onClose, onSaved }) {
+export default function PricingDecision({ quotation: pricing, line, onClose, onSaved }) {
   /*
    * One price, not one sheet [§9].
    *
@@ -45,9 +45,9 @@ export default function PricingDecision({ pricing, line, onClose, onSaved }) {
     setError(null);
     try {
       onSaved(
-        await pricingsApi.decide({
+        await quotationsApi.decide({
           id: pricing._id,
-          line: row._id === pricing._id ? undefined : row._id,
+          lineId: row._id,
           approve,
           note: note || undefined,
         })
@@ -72,8 +72,8 @@ export default function PricingDecision({ pricing, line, onClose, onSaved }) {
           <span className="font-semibold text-steel-100">{row.modelNumber || 'This model'}</span>
           {' '}— one of {pricing.lines.length} on {pricing.number}.
           {waiting.length > 1
-            ? ` ${waiting.length - 1} other price on this sheet is also waiting, and needs its own decision.`
-            : ' Nothing else on the sheet is affected.'}
+            ? ` ${waiting.length - 1} other price on this quotation is also waiting, and needs its own decision.`
+            : ' Nothing else on the quotation is affected.'}
         </p>
       )}
 
@@ -88,7 +88,7 @@ export default function PricingDecision({ pricing, line, onClose, onSaved }) {
         </div>
         <div className="card px-4 py-3">
           <p className="eyebrow">Asking</p>
-          <p className="stat-value mt-1 text-warn-400">{rupees(row.approvedSellingPrice)}</p>
+          <p className="stat-value mt-1 text-warn-400">{rupees(row.unitPrice)}</p>
           <p className="mt-0.5 text-xs text-steel-500">
             {row.grossMarginPercent}% margin
           </p>

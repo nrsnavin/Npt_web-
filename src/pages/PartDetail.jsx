@@ -135,14 +135,17 @@ export default function PartDetail({ kind }) {
                     >
                       <div className="min-w-0">
                         <Link
-                          to={`/pricings/${row._id}`}
+                          to={`/quotations/${row._id}`}
                           className="text-sm font-semibold text-steel-100 hover:text-accent"
                         >
                           {row.number}
                         </Link>
                         <p className="text-xs text-steel-400">
                           {row.customer?.name || 'No customer'}
-                          {row.modelNumber ? ` · ${row.modelNumber}` : ''}
+                          {(() => {
+                            const named = (row.lines || []).filter((line) => [line.hookRef, line.clipRef, line.printRef].map(String).includes(String(part._id)));
+                            return named.length ? ` · ${named.map((line) => line.modelNumber).filter(Boolean).join(', ')}` : '';
+                          })()}
                         </p>
                       </div>
                       <Badge status={row.status}>{humanise(row.status)}</Badge>

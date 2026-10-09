@@ -41,8 +41,6 @@ const CustomerDetail = lazyPage(() => import('./pages/CustomerDetail.jsx'));
 const BuyerCards = lazyPage(() => import('./pages/BuyerCards.jsx'));
 const DepartmentDashboard = lazyPage(() => import('./pages/DepartmentDashboard.jsx'));
 const DepartmentsOverview = lazyPage(() => import('./pages/DepartmentsOverview.jsx'));
-const Pricings = lazyPage(() => import('./pages/Pricings.jsx'));
-const PricingDetail = lazyPage(() => import('./pages/PricingDetail.jsx'));
 const Quotations = lazyPage(() => import('./pages/Quotations.jsx'));
 const SentQuotations = lazyPage(() => import('./pages/SentQuotations.jsx'));
 const QuotationDetail = lazyPage(() => import('./pages/QuotationDetail.jsx'));
@@ -226,24 +224,8 @@ export default function App() {
                the server decides, and anyone else gets "not found". */
             element={<EnquiryDetail />}
           />
-          {/* Phase 3 [§39]. Costings sit on the pricing grant, which marketing holds as read
-              — §8's field split decides what actually comes back. */}
-          <Route
-            path="pricings"
-            element={
-              <RequireModule moduleKey="pricing">
-                <Pricings />
-              </RequireModule>
-            }
-          />
-          <Route
-            path="pricings/:id"
-            element={
-              <RequireModule moduleKey="pricing">
-                <PricingDetail />
-              </RequireModule>
-            }
-          />
+          {/* Costing sheets were merged into quotations: an old link lands on the quotations. */}
+          <Route path="pricings/*" element={<Navigate to="/quotations" replace />} />
           <Route
             path="quotations"
             element={

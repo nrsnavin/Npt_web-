@@ -41,7 +41,7 @@ test('a first costing sends every part that was picked', () => {
 
 test('the sheet actually sends them', () => {
   const form = readFileSync(new URL('../src/components/CostingSheetForm.jsx', import.meta.url), 'utf8');
-  const submit = form.slice(form.indexOf('await pricingsApi.cost('), form.indexOf('onClose();', form.indexOf('await pricingsApi.cost(')));
+  const submit = form.slice(form.indexOf('await quotationsApi.cost('), form.indexOf('onClose();', form.indexOf('await quotationsApi.cost(')));
   assert.match(submit, /\.\.\.chosenParts\(\)/, 'the save leaves the chosen parts behind');
   assert.match(form, /changedParts\(\{ mould, materialRef, hookRef, clipRef, printRef \}, row\)/);
 });
@@ -60,12 +60,8 @@ test('what a model was costed with reads as one line, naming only what was chose
   assert.equal(costedWith({}), '');
 });
 
-test('the review step, the quote and the detail page all name the parts', () => {
+test('the quotation names what each line was costed with', () => {
+  /* The costing sheet and the quotation are one record now; its lines name the parts. */
   const read = (path) => readFileSync(new URL(`../src/${path}`, import.meta.url), 'utf8');
-  assert.match(read('components/CostingSteps.jsx'), /costedWith\(line\)/);
-  assert.match(read('components/QuoteFromCosting.jsx'), /costedWith\(row\)/);
-  const detail = read('pages/PricingDetail.jsx');
-  for (const part of ['hookRef', 'clipRef', 'printRef']) {
-    assert.match(detail, new RegExp(`partLabel\\('[^']+', line\\.${part}\\)`), `the breakdown does not name the ${part}`);
-  }
+  assert.match(read('pages/QuotationDetail.jsx'), /costedWith\(line\)/);
 });

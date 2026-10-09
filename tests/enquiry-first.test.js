@@ -20,7 +20,6 @@ const read = (path) => readFileSync(new URL(`../src/${path}`, import.meta.url), 
 test('every create form picks an enquiry and sends it', () => {
   for (const [file, call] of [
     ['components/SampleRequestForm.jsx', /fields = editing \? \{\} : \{ enquiry \}/],
-    ['pages/Pricings.jsx', /pricingsApi\.create\(\{\s*enquiry,/],
     ['pages/Quotations.jsx', /quotationsApi\.create\(\{ enquiry, \.\.\.payload \}\)/],
     ['components/OrderForm.jsx', /ordersApi\.create\(\{ customer, enquiry, \.\.\.payload \}\)/],
   ]) {
@@ -32,7 +31,6 @@ test('every create form picks an enquiry and sends it', () => {
 
 test('no create form offers a standalone record any more', () => {
   assert.doesNotMatch(read('components/SampleRequestForm.jsx'), /standaloneReason|internal trial/);
-  assert.doesNotMatch(read('pages/Pricings.jsx'), /No enquiry needed/);
   assert.doesNotMatch(read('components/pickers.jsx'), /standalone request/);
 });
 

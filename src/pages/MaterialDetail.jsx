@@ -159,7 +159,9 @@ export default function MaterialDetail() {
                 )}
                 <ul className="space-y-2">
                   {rows.map((row) => {
-                    const onOldRate = row.cost?.rawMaterialRate !== material.ratePerKg;
+                    /* The line on that quotation costed in this resin. */
+                    const line = (row.lines || []).find((entry) => String(entry.materialRef) === String(material._id)) || {};
+                    const onOldRate = line.cost?.rawMaterialRate !== material.ratePerKg;
                     return (
                       <li
                         key={row._id}
@@ -167,16 +169,16 @@ export default function MaterialDetail() {
                       >
                         <div className="min-w-0">
                           <Link
-                            to={`/pricings/${row._id}`}
+                            to={`/quotations/${row._id}`}
                             className="text-sm font-semibold text-steel-100 hover:text-accent"
                           >
                             {row.number}
                           </Link>
                           <p className="text-xs text-steel-400">
                             {row.customer?.name || 'No customer'}
-                            {row.modelNumber ? ` · ${row.modelNumber}` : ''}
-                            {row.cost?.rawMaterialRate
-                              ? ` · costed at ₹${Number(row.cost.rawMaterialRate).toFixed(2)}/kg`
+                            {line.modelNumber ? ` · ${line.modelNumber}` : ''}
+                            {line.cost?.rawMaterialRate
+                              ? ` · costed at ₹${Number(line.cost.rawMaterialRate).toFixed(2)}/kg`
                               : ''}
                           </p>
                         </div>

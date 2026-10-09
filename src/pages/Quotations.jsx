@@ -30,9 +30,9 @@ import { inDays } from '../utils/pipeline.js';
  */
 
 const QUOTATION_STAGES = [
-  { value: 'draft', label: 'Draft' },
-  { value: 'approval_pending', label: 'Needs approval' },
-  { value: 'approved', label: 'Approved' },
+  { value: 'costing', label: 'Being costed' },
+  { value: 'approval_pending', label: 'Waiting on Admin' },
+  { value: 'draft', label: 'Ready to send' },
   { value: 'sent', label: 'Sent' },
   { value: 'revised', label: 'Revised' },
   { value: 'accepted', label: 'Accepted' },
@@ -64,8 +64,10 @@ const rupees = (value) =>
  * under one number, one validity and one set of payment terms. Everything below the lines
  * belongs to the document; everything in a row belongs to that model.
  */
-function QuotationForm({ quotation, onClose, onSaved }) {
+export function QuotationForm({ quotation, onClose, onSaved }) {
   const editing = Boolean(quotation);
+  /* Prices are edited freely until the buyer has it; after that only a revision moves them. */
+  const sent = Boolean(quotation?.sentAt);
   const [customer, setCustomer] = useState(quotation?.customer?._id || quotation?.customer);
   /* Every quotation is raised on an enquiry [server: services/enquiryLink.service.js]. */
   const [enquiry, setEnquiry] = useState(quotation?.enquiry?._id ?? quotation?.enquiry ?? undefined);
@@ -74,13 +76,12 @@ function QuotationForm({ quotation, onClose, onSaved }) {
       ? quotation.lines.map((line) => ({
           _id: line._id,
           mould: line.mould?._id ?? line.mould ?? '',
-          pricing: line.pricing?._id ?? line.pricing ?? '',
           modelNumber: line.modelNumber ?? '',
           colour: line.colour ?? '',
           moq: line.moq ?? '',
           unitPrice: line.unitPrice ?? '',
         }))
-      : [{ mould: '', pricing: '', modelNumber: '', colour: '', moq: '', unitPrice: '' }]
+      : [{ mould: '', modelNumber: '', colour: '', moq: '', unitPrice: '' }]
   );
   const [values, setValues] = useState(quotation ? {
     gstPercent: quotation.gstPercent ?? 18,
@@ -113,7 +114,7 @@ function QuotationForm({ quotation, onClose, onSaved }) {
   const setLine = (index, key) => (event) => setLineValue(index, key)(event.target.value);
 
   const addLine = () =>
-    setLines([...lines, { mould: '', pricing: '', modelNumber: '', colour: '', moq: '', unitPrice: '' }]);
+    setLines([...lines, { mould: '', modelNumber: '', colour: '', moq: '', unitPrice: '' }]);
 
   /* Never below one: the server refuses an empty quotation, and it is right to. */
   const removeLine = (index) =>
@@ -135,6 +136,13 @@ function QuotationForm({ quotation, onClose, onSaved }) {
       return;
     }
 
+    /* Blank rows on a new quotation mean "the enquiry's models" — the server fills them in. */
+    const named = lines.filter((line) => line._id || line.mould || line.modelNumber.trim());
+    if (named.length && named.length !== lines.length) {
+      setError('Name the model on every line, or leave them all blank to take the enquiry’s models.');
+      return;
+    }
+
     setBusy(true);
     setError(null);
     try {
@@ -147,10 +155,9 @@ function QuotationForm({ quotation, onClose, onSaved }) {
          * §9 floor attached to the model it belongs to — a revision that dropped `pricing`
          * would silently detach the costing and stop the floor check applying.
          */
-        lines: lines.map((line) => ({
+        lines: named.length ? lines.map((line) => ({
           ...(line._id ? { _id: line._id } : {}),
           ...(line.mould ? { mould: line.mould } : {}),
-          ...(line.pricing ? { pricing: line.pricing } : {}),
           modelNumber: line.modelNumber || undefined,
           colour: line.colour || undefined,
           /*
@@ -162,8 +169,9 @@ function QuotationForm({ quotation, onClose, onSaved }) {
            */
           ...(line.quantity ? { quantity: Number(line.quantity) } : {}),
           moq: line.moq === '' ? undefined : Number(line.moq),
-          unitPrice: Number(line.unitPrice),
-        })),
+          /* Blank is "the Quotation department prices it". */
+          unitPrice: line.unitPrice === '' || line.unitPrice === null ? undefined : Number(line.unitPrice),
+        })) : undefined,
       };
 
       onSaved(
@@ -263,14 +271,13 @@ function QuotationForm({ quotation, onClose, onSaved }) {
                 </Field>
                 <Field
                   label={index === 0 ? 'Unit price (₹)' : ''}
-                  hint={index === 0 && editing ? 'Changed by raising a revision' : undefined}
+                  hint={index === 0 ? (sent ? 'Changed by raising a revision' : 'Blank — the Quotation department prices it') : undefined}
                 >
                   <input
                     type="number"
                     step="0.01"
                     min="0"
-                    required={!editing}
-                    disabled={editing}
+                    disabled={sent}
                     className="input"
                     value={line.unitPrice}
                     onChange={setLine(index, 'unitPrice')}
@@ -299,11 +306,6 @@ function QuotationForm({ quotation, onClose, onSaved }) {
                   ×
                 </button>
               </div>
-              {line.pricing && (
-                <p className="mt-1 text-xs text-steel-500">
-                  Priced off a costing — the floor still applies to this line [§9]
-                </p>
-              )}
             </div>
           ))}
         </div>
@@ -330,7 +332,7 @@ function QuotationForm({ quotation, onClose, onSaved }) {
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Valid until" hint="Today at the earliest">
           {/* `min` today: the server refuses a date already gone, on this door and on the
-              revision door beside it. See the note in QuoteFromCosting. */}
+              revision door beside it. */}
           <input
             type="date"
             className="input"
@@ -395,7 +397,7 @@ function QuotationForm({ quotation, onClose, onSaved }) {
  * discount on two models out of eight — and the whole set is what gets recorded, so the next
  * round is argued from the document rather than from memory. Lines left alone keep their price.
  */
-function RevisionForm({ quotation, onClose, onSaved }) {
+export function RevisionForm({ quotation, onClose, onSaved }) {
   const [prices, setPrices] = useState(
     Object.fromEntries((quotation.lines || []).map((line) => [line._id, String(line.unitPrice)]))
   );
@@ -428,13 +430,11 @@ function RevisionForm({ quotation, onClose, onSaved }) {
         await quotationsApi.revise({
           id: quotation._id,
           /*
-           * The whole set, with each line's own id and costing carried across — that is what
-           * keeps §9's floor attached to the model it belongs to on the next send.
+           * The whole set, each line by its own id — that is what keeps its cost, and so §9's
+           * minimum, attached to the model it belongs to.
            */
           lines: (quotation.lines || []).map((line) => ({
             _id: line._id,
-            ...(line.mould ? { mould: line.mould._id ?? line.mould } : {}),
-            ...(line.pricing ? { pricing: line.pricing._id ?? line.pricing } : {}),
             modelNumber: line.modelNumber || undefined,
             /* Carried across like everything else on the line. A revision rebuilds the whole
                set, so a field left out here is not left alone — it is erased, and the shade the
@@ -563,7 +563,7 @@ function RevisionForm({ quotation, onClose, onSaved }) {
 }
 
 /** What the customer said. Accepting one is what moves the enquiry towards a PO. */
-function ResponseForm({ quotation, onClose, onSaved }) {
+export function ResponseForm({ quotation, onClose, onSaved }) {
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -612,8 +612,10 @@ function ResponseForm({ quotation, onClose, onSaved }) {
 
 export default function Quotations() {
   const { canQuote } = useAuth();
+  const [params] = useSearchParams();
   const [search, setSearch] = useState('');
-  const [status, setStatus] = useState('');
+  /* From the address too, so a department's "To cost" link opens on its queue. */
+  const [status, setStatus] = useState(params.get('status') || '');
   const [page, setPage] = useState(1);
   const [creating, setCreating] = useState(false);
   const [revising, setRevising] = useState(null);
@@ -630,7 +632,6 @@ export default function Quotations() {
     toggle(field);
     setPage(1);
   };
-  const [params] = useSearchParams();
 
   const mayWrite = canQuote('pricing');
   const term = useDebounced(search);
@@ -718,7 +719,7 @@ export default function Quotations() {
       {!loading && !error && (data.length === 0 ? (
         <EmptyState
           title="No quotations here"
-          description="Quote against an enquiry once its costing is approved."
+          description="A quotation is raised from its enquiry — by Create Quotation, or when the enquiry needs a price."
         />
       ) : (
         <>
@@ -785,8 +786,8 @@ export default function Quotations() {
                         */}
                       <td className="whitespace-nowrap px-3 py-3.5 text-right tabular-nums text-steel-100">
                         {(() => {
-                          const offered = (row.lines || []).map((line) => line.unitPrice);
-                          if (!offered.length) return '—';
+                          const offered = (row.lines || []).map((line) => line.unitPrice).filter((price) => price != null);
+                          if (!offered.length) return row.status === 'costing' ? 'Being costed' : '—';
                           const low = Math.min(...offered);
                           const high = Math.max(...offered);
                           return low === high ? rupees(low) : `${rupees(low)} – ${rupees(high)}`;
@@ -847,14 +848,21 @@ export default function Quotations() {
                                 Edit
                               </button>
                             )}
-                            <button
-                              type="button"
-                              className="btn-secondary px-2.5 py-1 text-xs"
-                              onClick={() => setRevising(row)}
-                            >
-                              Revise
-                            </button>
-                            {row.status !== 'sent' ? (
+                            {row.sentAt && (
+                              <button
+                                type="button"
+                                className="btn-secondary px-2.5 py-1 text-xs"
+                                onClick={() => setRevising(row)}
+                              >
+                                Revise
+                              </button>
+                            )}
+                            {/* Costing and Admin's sign-off happen on the quotation itself. */}
+                            {['costing', 'approval_pending'].includes(row.status) ? (
+                              <Link to={`/quotations/${row._id}`} className="btn-primary px-2.5 py-1 text-xs">
+                                {row.status === 'costing' ? 'Cost it' : 'Review'}
+                              </Link>
+                            ) : row.status !== 'sent' ? (
                               <button
                                 type="button"
                                 className="btn-primary px-2.5 py-1 text-xs"
@@ -888,7 +896,7 @@ export default function Quotations() {
       <Modal
         open={creating}
         title="New quotation"
-        description="This price becomes Rev 0 — every later one keeps it"
+        description="Leave a price blank and the Quotation department costs it"
         size="lg"
         onClose={() => setCreating(false)}
       >

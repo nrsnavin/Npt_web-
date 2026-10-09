@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { components as componentsApi, materials as materialsApi, moulds as mouldsApi, pricings as pricingsApi } from '../api/endpoints.js';
+import { components as componentsApi, materials as materialsApi, moulds as mouldsApi, quotations as quotationsApi } from '../api/endpoints.js';
 import { Field, Notice } from './ui.jsx';
 import Combobox from './Combobox.jsx';
 import { MINIMUM_TIER, STANDARD_TIERS, priceAt as priceFor } from '../utils/pricing.js';
@@ -39,7 +39,7 @@ const partOption = (row) => ({
  * is saving. Left out, the server builds the first — which is the whole of a one-model sheet and
  * what every caller written before the lines existed meant.
  */
-export default function CostingSheetForm({ pricing, line, onClose, onSaved }) {
+export default function CostingSheetForm({ quotation: pricing, line, onClose, onSaved }) {
   /* The model being costed. The sheet itself is the fallback for a record with no lines yet. */
   const row = line || pricing.lines?.[0] || pricing;
 
@@ -63,7 +63,7 @@ export default function CostingSheetForm({ pricing, line, onClose, onSaved }) {
   const [procurement, setProcurement] = useState(row.procurement ?? 'manufacture');
   /* Blank means "the standing floor" — the 10% tier. Only a job with its own floor fills it. */
   const [minimumOverride, setMinimumOverride] = useState(row.minimumOverride ?? '');
-  const [approved, setApproved] = useState(row.approvedSellingPrice ?? '');
+  const [approved, setApproved] = useState(row.unitPrice ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
@@ -227,17 +227,15 @@ export default function CostingSheetForm({ pricing, line, onClose, onSaved }) {
     setError(null);
     try {
       onSaved(
-        await pricingsApi.cost({
-          id: pricing._id, expectedUpdatedAt: pricing.updatedAt,
-          /* Which model on the sheet this is. Undefined on a record with no lines, where the
-             server builds the first and there is only one. */
-          line: row._id === pricing._id ? undefined : row._id,
+        await quotationsApi.cost({
+          id: pricing._id, lineId: row._id, expectedUpdatedAt: pricing.updatedAt,
           cost: Object.fromEntries(
             Object.entries(cost).map(([key, value]) => [key, number(value)])
           ),
           markupPercent: number(markupPercent),
           minimumOverride: number(minimumOverride),
-          approvedSellingPrice: number(approved),
+          /* Only before it goes out: after that the price moves through a revision. */
+          ...(pricing.sentAt ? {} : { unitPrice: number(approved) }),
           printing: printing || undefined,
           procurement,
           ...chosenParts(),
@@ -455,14 +453,14 @@ export default function CostingSheetForm({ pricing, line, onClose, onSaved }) {
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="card px-4 py-3">
-          <p className="eyebrow">Markup on the approved price</p>
+          <p className="eyebrow">Markup on the price</p>
           <p className="stat-value mt-1 text-steel-50">
             {approved && total ? `${(((approved - total) / total) * 100).toFixed(1)}%` : '—'}
           </p>
           <p className="mt-0.5 text-xs text-steel-500">What is being added to cost</p>
         </div>
         <div className="card px-4 py-3">
-          <p className="eyebrow">Margin on the approved price</p>
+          <p className="eyebrow">Margin on the price</p>
           <p className="stat-value mt-1 text-steel-50">
             {approved && total ? `${(((approved - total) / approved) * 100).toFixed(1)}%` : '—'}
           </p>
@@ -502,7 +500,7 @@ export default function CostingSheetForm({ pricing, line, onClose, onSaved }) {
             aria-invalid={belowCost ? 'true' : undefined}
           />
         </Field>
-        <Field label="Approved selling price" hint="What marketing may quote. Blank uses the calculated price">
+        <Field label="Price to the buyer" hint={pricing.sentAt ? "Already with the buyer — a new price is a revision" : "On the quotation. Blank uses the calculated price"}>
           <input
             type="number"
             step="0.01"
@@ -510,6 +508,7 @@ export default function CostingSheetForm({ pricing, line, onClose, onSaved }) {
             className="input"
             placeholder={calculated ? calculated.toFixed(2) : ''}
             value={approved}
+            disabled={Boolean(pricing.sentAt)}
             onChange={(event) => setApproved(event.target.value)}
           />
         </Field>
@@ -526,9 +525,8 @@ export default function CostingSheetForm({ pricing, line, onClose, onSaved }) {
         <Notice tone="danger">
           A floor of {rupees(Number(minimumOverride))} is under the {rupees(total)} the piece
           costs to make, so every price would clear it and nothing would ever go for approval
-          again. To let one job through cheaply, put the price in <strong>Approved selling
-          price</strong> — under the floor it goes to management, which is the decision being
-          made.
+          again. To let one job through cheaply, put the price in <strong>Price to the
+          buyer</strong> — under the minimum it goes to Admin, which is the decision being made.
         </Notice>
       )}
 
@@ -536,8 +534,8 @@ export default function CostingSheetForm({ pricing, line, onClose, onSaved }) {
           before saving rather than discovered after. */}
       {!belowCost && approved !== '' && floor > 0 && Number(approved) < floor && (
         <Notice tone="warn">
-          {rupees(Number(approved))} is below the floor of {rupees(floor)}, so this goes to
-          management for approval and nothing can be quoted until they sign it off.
+          {rupees(Number(approved))} is below the minimum of {rupees(floor)}, so this goes to
+          Admin for approval and the quotation cannot be sent until they sign it off.
         </Notice>
       )}
 

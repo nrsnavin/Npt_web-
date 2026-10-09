@@ -605,47 +605,18 @@ export const dispatches = {
 };
 
 /**
- * Phase 3: costings and the quotations priced off them [§7, §9, §10].
+ * Quotations, with their costing on their lines [§7, §9, §10].
  *
- * A costing comes back redacted for anyone without `pricing: write` — the cost base, the
- * margin and the minimum are management's [§8] — and carries `costingHidden` so the screen can
- * say why it is thin rather than looking broken.
+ * A quotation comes back redacted for anyone without `pricing: write` — the cost, the margin and
+ * the minimum are the Quotation department's and Admin's [§8] — and carries `costingHidden` so
+ * the screen can say why it is thin rather than looking broken.
  */
-export const pricings = {
-  list: (params) => api.get('/pricings', { params }).then(listed),
-  /**
-   * One costing, with the model master behind it and what has been quoted off it.
-   *
-   * Keeps the whole envelope rather than unwrapping to `data`: the detail screen answers "is
-   * this price right?", and that question needs the model's own standard and the offers
-   * already made as much as it needs the sheet.
-   */
-  get: (id) => api.get(`/pricings/${id}`).then((response) => response.data),
-  create: (payload) => api.post('/pricings', payload).then(unwrap),
-  /**
-   * What the costing is *of* — the quantity, the model, the target price.
-   *
-   * A different door from `cost` on purpose: correcting a quantity must not re-open an
-   * approved price, and changing a price must not skip §9's floor.
-   */
-  update: ({ id, ...payload }) => api.patch(`/pricings/${id}`, payload).then(unwrap),
-  /** Building the sheet. The calculated price is derived, never posted. */
-  cost: ({ id, ...payload }) => api.patch(`/pricings/${id}/cost`, payload).then(unwrap),
-  /** Signing off, or refusing, a price below the floor. */
-  decide: ({ id, ...payload }) => api.post(`/pricings/${id}/decision`, payload).then(unwrap),
-  /**
-   * Turning an approved costing into a quotation [§7 → §10].
-   *
-   * The quantity may be left out, and usually is: the server starts it at the MOQ, which is the
-   * smallest lot the approved price actually holds for.
-   */
-  quote: ({ id, ...payload }) => api.post(`/pricings/${id}/quotation`, payload).then(unwrap),
-  /** What this sheet has already been quoted at. */
-  quotations: (id) => api.get(`/pricings/${id}/quotations`).then(unwrap),
-};
-
 export const quotations = {
   list: (params) => api.get('/quotations', { params }).then(listed),
+  /** Costing one line — the Quotation department and Admin. The calculated price is never posted. */
+  cost: ({ id, lineId, ...payload }) => api.patch(`/quotations/${id}/lines/${lineId}/cost`, payload).then(unwrap),
+  /** Admin signs off, or refuses, a price under its line's minimum [§9]. */
+  decide: ({ id, lineId, ...payload }) => api.post(`/quotations/${id}/lines/${lineId}/decision`, payload).then(unwrap),
   get: (id) => api.get(`/quotations/${id}`).then(unwrap),
   create: (payload) => api.post('/quotations', payload).then(unwrap),
   update: ({ id, ...payload }) => api.patch(`/quotations/${id}`, payload).then(unwrap),

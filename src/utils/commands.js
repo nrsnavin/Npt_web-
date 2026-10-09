@@ -20,7 +20,7 @@ export const PAGES = [
   { key: 'enquiries', label: 'Enquiries', path: '/enquiries', module: 'enquiries', words: ['enquiries', 'enquiry', 'pipeline', 'leads', 'prospects'] },
   { key: 'drafts', label: 'Draft enquiries', path: '/enquiries/drafts', module: 'customers', words: ['drafts', 'screenshots', 'cards', 'visiting'] },
   { key: 'samples', label: 'Sample queue', path: '/samples', module: 'samples', words: ['samples', 'sampling', 'bench'] },
-  { key: 'pricings', label: 'Costing sheets', path: '/pricings', module: 'pricing', words: ['costing', 'pricing', 'costings'] },
+  { key: 'to-cost', label: 'Quotations to cost', path: '/quotations?status=costing', module: 'pricing', words: ['costing', 'pricing', 'costings', 'to cost'] },
   { key: 'quotations', label: 'Quotations', path: '/quotations', module: 'pricing', words: ['quotations', 'quotes'] },
   { key: 'customers', label: 'Customers', path: '/customers', module: 'customers', words: ['customers', 'buyers'] },
   { key: 'moulds', label: 'Models (moulds)', path: '/moulds', module: 'moulds', words: ['moulds', 'models', 'tools'] },
@@ -35,7 +35,6 @@ export const CREATES = [
   { key: 'sample', label: 'New sample request', path: '/samples?new=1', module: 'samples', words: ['sample'] },
   { key: 'enquiry', label: 'New enquiry', path: '/enquiries?new=1', module: 'enquiries', words: ['enquiry'] },
   { key: 'customer', label: 'New customer', path: '/customers?new=1', module: 'customers', words: ['customer', 'buyer'] },
-  { key: 'costing', label: 'New costing', path: '/pricings?new=1', module: 'pricing', words: ['costing', 'pricing'] },
 ];
 
 const VERBS = ['label', 'close', 'reopen', 'urgent'];
@@ -121,7 +120,7 @@ export function suggestCommands(text, { canRead = () => true, canWrite = () => t
 
   if (!raw) {
     /* A short, useful starting set rather than every page. */
-    return out.filter((entry) => ['new-query', 'new-sample', 'go-queries', 'go-samples', 'go-pricings'].includes(entry.id)).slice(0, 5);
+    return out.filter((entry) => ['new-query', 'new-sample', 'go-queries', 'go-samples', 'go-to-cost'].includes(entry.id)).slice(0, 5);
   }
   return out.slice(0, 8);
 }

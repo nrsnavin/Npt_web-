@@ -7,7 +7,7 @@ export const VIEW_PATHS = {
   enquiries: '/enquiries',
   samples: '/samples',
   customers: '/customers',
-  pricings: '/pricings',
+  quotations: '/quotations',
 };
 
 /** Only the filters that are set, as strings, in a stable order — so two equal views are equal. */
