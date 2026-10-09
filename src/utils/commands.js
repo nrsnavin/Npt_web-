@@ -25,6 +25,7 @@ export const PAGES = [
   { key: 'customers', label: 'Customers', path: '/customers', module: 'customers', words: ['customers', 'buyers'] },
   { key: 'moulds', label: 'Models (moulds)', path: '/moulds', module: 'moulds', words: ['moulds', 'models', 'tools'] },
   { key: 'materials', label: 'Materials', path: '/materials', module: 'materials', words: ['materials', 'resin'] },
+  { key: 'trading', label: 'Trading master', path: '/trading', module: 'materials', words: ['trading', 'traded', 'bought in', 'inward price', 'supplier'] },
   { key: 'users', label: 'Users', path: '/users', module: 'users', words: ['users', 'people', 'staff'] },
   { key: 'profile', label: 'My profile', path: '/profile', words: ['profile', 'password', 'me'] },
 ];

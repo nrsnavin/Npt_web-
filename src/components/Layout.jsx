@@ -179,6 +179,7 @@ const MODULES = [
       { to: '/hooks', label: 'Hook register', module: 'materials' },
       { to: '/clips', label: 'Clip register', module: 'materials' },
       { to: '/prints', label: 'Print register', module: 'materials' },
+      { to: '/trading', label: 'Trading master', module: 'materials' },
     ],
   },
   {

@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { components as componentsApi, materials as materialsApi, moulds as mouldsApi, quotations as quotationsApi } from '../api/endpoints.js';
+import {
+  components as componentsApi, materials as materialsApi, moulds as mouldsApi, quotations as quotationsApi,
+  tradedItems as tradedItemsApi,
+} from '../api/endpoints.js';
 import { Field, Notice } from './ui.jsx';
 import Combobox from './Combobox.jsx';
 import { MINIMUM_TIER, STANDARD_TIERS, priceAt as priceFor } from '../utils/pricing.js';
@@ -52,7 +55,11 @@ export default function CostingSheetForm({ quotation: pricing, line, onClose, on
     printingCost: row.cost?.printingCost ?? '',
     packingCost: row.cost?.packingCost ?? '',
     otherCost: row.cost?.otherCost ?? '',
+    inwardPrice: row.cost?.inwardPrice ?? '',
   });
+  /* The trading master's item, for a bought-in piece: picking one brings its inward price. */
+  const openedItem = row.tradedItem?._id ?? row.tradedItem ?? '';
+  const [tradedItem, setTradedItem] = useState(openedItem);
   const [mould, setMould] = useState(row.mould?._id ?? row.mould ?? '');
   const [materialRef, setMaterialRef] = useState(row.materialRef?._id ?? row.materialRef ?? '');
   const [hookRef, setHookRef] = useState(row.hookRef?._id ?? row.hookRef ?? '');
@@ -167,6 +174,10 @@ export default function CostingSheetForm({ quotation: pricing, line, onClose, on
     (term) => materialsApi.list({ search: term || undefined, isActive: true, limit: 20 }),
     []
   );
+  const loadTradedItems = useCallback(
+    (term) => tradedItemsApi.list({ search: term || undefined, isActive: true, limit: 20 }),
+    []
+  );
   /* One loader per register, because `kind` is which register rather than a filter on one. */
   const loadParts = (kind) => (term) =>
     componentsApi.list({ kind, search: term || undefined, isActive: true, limit: 20 });
@@ -176,7 +187,7 @@ export default function CostingSheetForm({ quotation: pricing, line, onClose, on
   const material = (Number(cost.gramWeight) * Number(cost.rawMaterialRate)) / 1000 || 0;
   const total =
     material +
-    ['jobWorkCost', 'hookCost', 'metalClipsCost', 'printingCost', 'packingCost', 'otherCost'].reduce(
+    ['jobWorkCost', 'hookCost', 'metalClipsCost', 'printingCost', 'packingCost', 'otherCost', 'inwardPrice'].reduce(
       (sum, key) => sum + (Number(cost[key]) || 0),
       0
     );
@@ -239,6 +250,8 @@ export default function CostingSheetForm({ quotation: pricing, line, onClose, on
           printing: printing || undefined,
           procurement,
           ...chosenParts(),
+          /* Only when the pick changed: an unchanged item would re-fill a price typed by hand. */
+          ...(tradedItem !== openedItem ? { tradedItem: tradedItem || null } : {}),
         })
       );
       onClose();
@@ -278,6 +291,52 @@ export default function CostingSheetForm({ quotation: pricing, line, onClose, on
             {' '}— one of {pricing.lines.length} on {pricing.number}. Each has its own cost and its
             own floor, so the rest are untouched by what is saved here.
           </p>
+        </div>
+      )}
+
+      {/*
+        Made here or bought in. A bought-in piece is costed at what the supplier is paid — the
+        inward price on the trading master — so picking the item fills it, and it stays editable
+        for a one-off price.
+      */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Trade or manufacture" hint="Bought in and resold, or made here">
+          <select
+            className="input"
+            value={procurement}
+            onChange={(event) => setProcurement(event.target.value)}
+          >
+            <option value="manufacture">Manufacture</option>
+            <option value="trade">Trade</option>
+          </select>
+        </Field>
+        {procurement === 'trade' && (
+          <Field label="Trading master item" hint="Brings its inward price">
+            <Combobox
+              value={tradedItem}
+              onChange={(value) => {
+                setTradedItem(value);
+                if (!value) return;
+                tradedItemsApi.get(value)
+                  .then((item) => setCost((current) => ({ ...current, inwardPrice: item.inwardPrice ?? current.inwardPrice })))
+                  .catch(() => {});
+              }}
+              loadOptions={loadTradedItems}
+              loadOne={tradedItemsApi.get}
+              toOption={(item) => ({
+                value: item._id,
+                label: `${item.modelNumber}${item.inwardPrice != null ? ` — ₹${item.inwardPrice}` : ''}${item.supplier ? ` · ${item.supplier}` : ''}`,
+              })}
+              placeholder="Search the trading master…"
+              emptyLabel="No item — type the inward price below"
+              noMatchLabel="Not on the trading master"
+            />
+          </Field>
+        )}
+      </div>
+      {procurement === 'trade' && (
+        <div className="grid gap-4 sm:grid-cols-2">
+          {costField('inwardPrice', 'Inward price', '₹ per piece paid to the supplier')}
         </div>
       )}
 
@@ -398,16 +457,6 @@ export default function CostingSheetForm({ quotation: pricing, line, onClose, on
             value={printing}
             onChange={(event) => setPrinting(event.target.value)}
           />
-        </Field>
-        <Field label="Trade or manufacture" hint="Bought in and resold, or made here">
-          <select
-            className="input"
-            value={procurement}
-            onChange={(event) => setProcurement(event.target.value)}
-          >
-            <option value="manufacture">Manufacture</option>
-            <option value="trade">Trade</option>
-          </select>
         </Field>
       </div>
 

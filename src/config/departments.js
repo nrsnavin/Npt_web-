@@ -87,6 +87,7 @@ export const DEPARTMENT_WORKSPACES = {
     pages: [
       { label: 'Waiting for a price', to: '/enquiries?stage=pricing_quote', module: 'enquiries', hint: 'Enquiries at Pricing / Quote' },
       { label: 'To cost', to: '/quotations?status=costing', module: 'pricing', hint: 'Quotations waiting for a price' },
+      { label: 'Trading master', to: '/trading', module: 'materials', hint: 'Bought-in items at their inward price' },
       { label: 'All quotations / PDF', to: '/quotations', module: 'pricing' },
       { label: 'Model / item selection', to: '/moulds', module: 'moulds' },
       { label: 'Materials', to: '/materials', module: 'materials' },
