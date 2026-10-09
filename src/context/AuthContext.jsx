@@ -115,8 +115,14 @@ export function AuthProvider({ children }) {
         return Boolean(user?.modules?.find((module) => module.key === moduleKey)?.canQuote);
       },
       isAdmin: user?.role === 'admin',
+      /** Every department this person works in, their main one first [server: utils/departments.js]. */
+      departments: user?.departments || (user?.department ? [user.department] : []),
+      /** True when they work in that department, as their main one or an extra one. */
+      worksIn(key) {
+        return Boolean(key) && (user?.departments || [user?.department]).includes(key);
+      },
       /** Only Admin deletes records — the admin role or the Admin department [server: adminOnly]. */
-      mayDelete: user?.role === 'admin' || user?.department === 'management',
+      mayDelete: user?.role === 'admin' || (user?.departments || [user?.department]).includes('management'),
       /** Replaces the cached user after a profile update. */
       applyUser: setUser,
     }),

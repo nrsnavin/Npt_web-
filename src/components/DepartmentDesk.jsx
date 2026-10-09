@@ -88,7 +88,7 @@ function SendDialog({ button, enquiry, onClose, onSent }) {
 
 export default function DepartmentDesk({ enquiry, onChanged }) {
   const catalogue = useHandoffCatalogue();
-  const { user } = useAuth();
+  const { user, worksIn } = useAuth();
   const [history, setHistory] = useState(null);
   const [problem, setProblem] = useState(null);
   const [sending, setSending] = useState(null);
@@ -102,7 +102,7 @@ export default function DepartmentDesk({ enquiry, onChanged }) {
   const closed = stage === 'closed';
   const tasks = history?.data || [];
   const mayAct = (task) => user?.role === 'admin'
-    || task.department === user?.department
+    || worksIn(task.department)
     || String(task.user?._id || task.user || '') === String(user?.id || user?._id || '');
 
   const refresh = () => {

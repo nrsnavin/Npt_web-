@@ -9,6 +9,7 @@ import { WorkspaceBrief, WorkspaceLinks } from '../components/DepartmentWorkspac
 import { DashboardSkeleton, ErrorState, PageHeader } from '../components/ui.jsx';
 import { deskActionsFor } from '../config/deskActions.js';
 import { formatDate } from '../utils/format.js';
+import { departmentLabel } from '../utils/pipeline.js';
 
 /**
  * A department's desk [server: handoff.service `enquiriesHeldBy`, `departmentDashboard`].
@@ -165,7 +166,7 @@ const FILTERS = [
 
 export default function DepartmentDashboard() {
   const { key = 'mine' } = useParams();
-  const { user } = useAuth();
+  const { user, departments, mayDelete } = useAuth();
   const fetch = useCallback(() => departmentsApi.dashboard(key), [key]);
   const { data, loading, error, reload } = useRecord(fetch, `department-${key}`);
   const [tab, setTab] = useState('enquiries');
@@ -191,7 +192,9 @@ export default function DepartmentDashboard() {
   if (error) return <ErrorState error={error} onRetry={reload} />;
 
   const { figures, requests = [], recentlyDone, waitingOnOthers, cameBack, atStages } = data;
-  const seesAll = user?.role === 'admin' || user?.department === 'management';
+  const seesAll = mayDelete;
+  /* The person's other desks, when they work in more than one department. */
+  const otherDesks = departments.filter((entry) => entry !== figures.department);
   const late = enquiries.filter((row) => row.late).length;
   const today = enquiries.filter((row) => row.dueToday).length;
   const unclaimed = enquiries.filter((row) => !row.task.user).length;
@@ -216,6 +219,11 @@ export default function DepartmentDashboard() {
         subtitle="The enquiries with your department now, and what to do with each"
         actions={
           <div className="flex flex-wrap gap-2">
+            {otherDesks.map((entry) => (
+              <Link key={entry} to={`/departments/${entry}`} className="btn-secondary">
+                {departmentLabel(entry)} desk
+              </Link>
+            ))}
             <button type="button" className="btn-secondary" onClick={reload}>Refresh</button>
             {seesAll && <Link to="/departments" className="btn-secondary">All departments</Link>}
           </div>
