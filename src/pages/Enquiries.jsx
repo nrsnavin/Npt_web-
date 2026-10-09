@@ -16,9 +16,10 @@ import { useViewMode } from '../hooks/useBoard.js';
 import { CustomerSelect } from '../components/pickers.jsx';
 import BulkBar, { RowCheckbox, useSelection } from '../components/BulkReassign.jsx';
 import ExportButton from '../components/ExportButton.jsx';
+import MarketingStatusSelect from '../components/MarketingStatusSelect.jsx';
 import { formatCompactCurrency, formatDate, formatNumber } from '../utils/format.js';
 import {
-  CLOSED_STAGES, ENQUIRY_STAGES, SOURCES, buildEnquiryPayload, followUpState, stageLabel,
+  CLOSED_STAGES, ENQUIRY_STAGES, MARKETING_STATUSES, SOURCES, buildEnquiryPayload, followUpState, stageLabel,
 } from '../utils/pipeline.js';
 import useOpenFromLink from '../hooks/useOpenFromLink.js';
 import { useHandoffCatalogue } from '../hooks/useHandoffCatalogue.js';
@@ -43,6 +44,8 @@ export default function Enquiries() {
   const { canWrite, isAdmin } = useAuth();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
+  /* Marketing's own status — the "Current Marketing Status" on each enquiry. */
+  const [marketing, setMarketing] = useState('');
   const [view, setView] = useState('open');
   const [mode, setMode] = useViewMode('enquiries');
   const [page, setPage] = useState(1);
@@ -102,6 +105,7 @@ export default function Enquiries() {
   const filters = {
     search: term || undefined,
     status: status || undefined,
+    marketingStatus: marketing || undefined,
     customer: forCustomer,
     source,
     stage: plantStage,
@@ -226,6 +230,18 @@ export default function Enquiries() {
           </select>
         )}
 
+        <select
+          className="input w-56"
+          aria-label="Marketing status"
+          value={marketing}
+          onChange={(event) => change(setMarketing)(event.target.value)}
+        >
+          <option value="">All marketing statuses</option>
+          {MARKETING_STATUSES.map((entry) => (
+            <option key={entry.value} value={entry.value}>{entry.label}</option>
+          ))}
+        </select>
+
         {/*
           * Drawn only when there is a choice to make. A marketing person is offered one name —
           * their own — and a dropdown with a single option can only waste a click.
@@ -292,7 +308,7 @@ export default function Enquiries() {
 
       {board && <EnquiryBoard filters={filters} canMove={mayWrite} />}
 
-      {!board && loading && <TableSkeleton columns={8} />}
+      {!board && loading && <TableSkeleton columns={9} />}
       {!board && error && <ErrorState error={error} onRetry={reload} />}
 
       {!board && !loading && !error && (data.length === 0 ? (
@@ -329,6 +345,7 @@ export default function Enquiries() {
                     <SortHeader field="estimatedValue" label="Value" sort={sort} onToggle={sortBy} align="right" />
                     <SortHeader field="nextFollowUpDate" label="Next action" sort={sort} onToggle={sortBy} />
                     <th className="px-3 py-3">Owner</th>
+                    <th className="px-3 py-3">Marketing status</th>
                     <SortHeader field="status" label="Stage" sort={sort} onToggle={sortBy} />
                   </tr>
                 </thead>
@@ -377,6 +394,10 @@ export default function Enquiries() {
                             somebody else's, and previously answerable only by opening it. */}
                         <td className="whitespace-nowrap px-3 py-3.5 text-steel-300">
                           {enquiry.assignedTo?.name || <span className="text-warn-400">Unassigned</span>}
+                        </td>
+                        {/* Changed right here, without opening the enquiry. */}
+                        <td className="px-3 py-2.5">
+                          <MarketingStatusSelect enquiry={enquiry} canWrite={mayWrite} onChanged={reload} compact />
                         </td>
                         <td className="whitespace-nowrap px-3 py-3.5">
                           <Badge status={enquiry.status}>{stageLabel(enquiry.status)}</Badge>

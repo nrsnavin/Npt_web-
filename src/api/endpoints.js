@@ -380,6 +380,9 @@ export const enquiries = {
   messages: (id) => api.get(`/enquiries/${id}/messages`).then((response) => response.data),
   /** WhatsApp from the company number, or email from the company mail: `{ channel, subject?, body }`. */
   sendMessage: ({ id, ...payload }) => api.post(`/enquiries/${id}/messages`, payload).then(unwrap),
+  /** Marketing's own status for the enquiry; two of them also start work (see MARKETING_STATUSES). */
+  setMarketingStatus: ({ id, ...payload }) =>
+    api.post(`/enquiries/${id}/marketing-status`, payload).then((response) => response.data),
   /** Everything that happened on the enquiry, newest first. */
   timeline: (id) => api.get(`/enquiries/${id}/timeline`).then(unwrap),
   activities: (params) => api.get('/enquiries/activities', { params }).then(listed),

@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { enquiries as enquiriesApi } from '../api/endpoints.js';
 import { FormError } from './ui.jsx';
+import MarketingStatusSelect from './MarketingStatusSelect.jsx';
 import { formatWhen } from './EnquiryActivities.jsx';
-import { stageLabel } from '../utils/pipeline.js';
+import { marketingStatusLabel, stageLabel } from '../utils/pipeline.js';
 
 /**
  * The enquiry's side panel: where it stands with marketing, writing to the buyer on the company
@@ -21,9 +22,11 @@ export function describeEntry(entry) {
   switch (entry.kind) {
     case 'stage':
       return {
-        title: entry.from ? `Marketing: ${stageLabel(entry.from)} → ${stageLabel(entry.to)}` : `Marketing: raised as ${stageLabel(entry.to)}`,
+        title: entry.from ? `Stage: ${stageLabel(entry.from)} → ${stageLabel(entry.to)}` : `Stage: raised as ${stageLabel(entry.to)}`,
         detail: entry.note,
       };
+    case 'marketing':
+      return { title: `Marketing: ${entry.title || marketingStatusLabel(entry.to)}`, detail: entry.note };
     case 'activity':
       return {
         title: `${ACTIVITY_LABEL[entry.type] || entry.type}${entry.spokeTo ? ` · ${entry.spokeTo}` : ''}`,
@@ -75,7 +78,7 @@ function Fold({ title, count, open, onToggle, children }) {
   );
 }
 
-export default function EnquiryContactPanel({ enquiry, isOwner, canWrite, stageOptions, onPickStage, onSent, refreshKey }) {
+export default function EnquiryContactPanel({ enquiry, isOwner, canWrite, onSent, refreshKey }) {
   const [whatsapp, setWhatsapp] = useState('');
   const [email, setEmail] = useState({ subject: '', body: '' });
   const [busy, setBusy] = useState(null);
@@ -122,22 +125,11 @@ export default function EnquiryContactPanel({ enquiry, isOwner, canWrite, stageO
   };
 
   const mayMessage = isOwner && canWrite;
-  const options = stageOptions.some((option) => option.value === enquiry.status)
-    ? stageOptions
-    : [{ value: enquiry.status, label: stageLabel(enquiry.status) }, ...stageOptions];
 
   return (
     <div className="space-y-4">
       <Card title="Current Marketing Status">
-        <select
-          aria-label="Current marketing status"
-          className="input"
-          value={enquiry.status}
-          disabled={!canWrite}
-          onChange={(event) => onPickStage(event.target.value)}
-        >
-          {options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-        </select>
+        <MarketingStatusSelect enquiry={enquiry} canWrite={canWrite} onChanged={() => onSent?.()} />
       </Card>
 
       {mayMessage ? (

@@ -41,11 +41,9 @@ const TONE_TEXT = {
  * chase. Any other move insists on the next step, which is what keeps an enquiry from
  * going quiet halfway down the funnel.
  */
-function StageForm({ enquiry, initialStatus, onClose, onSaved }) {
+function StageForm({ enquiry, onClose, onSaved }) {
   const options = nextStagesFrom(enquiry);
-  const [status, setStatus] = useState(
-    options.some((option) => option.value === initialStatus) ? initialStatus : options[0]?.value || ''
-  );
+  const [status, setStatus] = useState(options[0]?.value || '');
   const [note, setNote] = useState('');
   const [lostReason, setLostReason] = useState('price');
   const [holdReason, setHoldReason] = useState('');
@@ -491,8 +489,6 @@ export default function EnquiryDetail() {
   const { canRead, canWrite, user } = useAuth();
   const navigate = useNavigate();
   const [movingStage, setMovingStage] = useState(false);
-  /* The stage picked in the side panel's status dropdown, pre-chosen in the move form. */
-  const [stageChoice, setStageChoice] = useState(null);
   const [promoting, setPromoting] = useState(false);
   const [editing, setEditing] = useState(false);
 
@@ -670,11 +666,6 @@ export default function EnquiryDetail() {
             enquiry={enquiry}
             isOwner={String(enquiry.assignedTo?._id || '') === String(user?.id || user?._id || '')}
             canWrite={mayWrite}
-            stageOptions={nextStagesFrom(enquiry)}
-            onPickStage={(status) => {
-              setStageChoice(status);
-              setMovingStage(true);
-            }}
             onSent={reload}
             refreshKey={enquiry.updatedAt}
           />
@@ -744,21 +735,9 @@ export default function EnquiryDetail() {
             ? 'It comes back with its history intact — the note explains why to whoever reads it next'
             : 'Every move is recorded, and the departments that pick up the work are notified'
         }
-        onClose={() => {
-          setMovingStage(false);
-          setStageChoice(null);
-        }}
+        onClose={() => setMovingStage(false)}
       >
-        <StageForm
-          key={stageChoice || 'stage'}
-          enquiry={enquiry}
-          initialStatus={stageChoice}
-          onClose={() => {
-            setMovingStage(false);
-            setStageChoice(null);
-          }}
-          onSaved={setData}
-        />
+        <StageForm enquiry={enquiry} onClose={() => setMovingStage(false)} onSaved={setData} />
       </Modal>
 
       <Modal
