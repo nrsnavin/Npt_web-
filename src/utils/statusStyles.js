@@ -98,6 +98,7 @@ const STATUS_TONES = {
   disqualified: 'danger',
   lost: 'danger',
   cancelled: 'danger',
+  not_available: 'danger',
   expired: 'danger',
   /*
    * A held line is a delay, and §36 colours a delay red. Amber would put it alongside "work

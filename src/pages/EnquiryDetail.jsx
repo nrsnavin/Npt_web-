@@ -12,6 +12,7 @@ import {
 } from '../components/ui.jsx';
 import Documents from '../components/Documents.jsx';
 import EnquiryActivities from '../components/EnquiryActivities.jsx';
+import EnquiryContactPanel from '../components/EnquiryContactPanel.jsx';
 import DelegateEnquiry from '../components/DelegateEnquiry.jsx';
 import DepartmentDesk from '../components/DepartmentDesk.jsx';
 import HistoryPanel from '../components/HistoryPanel.jsx';
@@ -40,9 +41,11 @@ const TONE_TEXT = {
  * chase. Any other move insists on the next step, which is what keeps an enquiry from
  * going quiet halfway down the funnel.
  */
-function StageForm({ enquiry, onClose, onSaved }) {
+function StageForm({ enquiry, initialStatus, onClose, onSaved }) {
   const options = nextStagesFrom(enquiry);
-  const [status, setStatus] = useState(options[0]?.value || '');
+  const [status, setStatus] = useState(
+    options.some((option) => option.value === initialStatus) ? initialStatus : options[0]?.value || ''
+  );
   const [note, setNote] = useState('');
   const [lostReason, setLostReason] = useState('price');
   const [holdReason, setHoldReason] = useState('');
@@ -488,13 +491,16 @@ export default function EnquiryDetail() {
   const { canRead, canWrite, user } = useAuth();
   const navigate = useNavigate();
   const [movingStage, setMovingStage] = useState(false);
+  /* The stage picked in the side panel's status dropdown, pre-chosen in the move form. */
+  const [stageChoice, setStageChoice] = useState(null);
   const [promoting, setPromoting] = useState(false);
   const [editing, setEditing] = useState(false);
 
   const fetch = useCallback((enquiryId) => enquiriesApi.get(enquiryId), []);
   const { data: enquiry, setData, loading, error, reload } = useRecord(fetch, id);
 
-  if (loading) return <Spinner label="Loading enquiry" />;
+  /* Only the first load blanks the page; a reload after an action keeps it, and what is typed in it. */
+  if (loading && !enquiry) return <Spinner label="Loading enquiry" />;
   if (error) return <ErrorState error={error} onRetry={reload} />;
   if (!enquiry) return null;
 
@@ -648,28 +654,6 @@ export default function EnquiryDetail() {
             />
           )}
 
-          <Section title={`Stage history (${enquiry.statusHistory?.length || 0})`}>
-            {enquiry.statusHistory?.length ? (
-              <ol className="space-y-3">
-                {[...enquiry.statusHistory].reverse().map((entry, index) => (
-                  <li key={`${entry.to}-${entry.at}-${index}`} className="flex gap-3">
-                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-flame-500" />
-                    <div className="min-w-0">
-                      <p className="text-sm text-steel-100">
-                        {entry.from ? `${stageLabel(entry.from)} → ` : 'Raised as '}
-                        <span className="font-semibold">{stageLabel(entry.to)}</span>
-                      </p>
-                      <p className="text-xs text-steel-500">{formatDate(entry.at)}</p>
-                      {entry.note && <p className="mt-1 text-xs text-steel-400">{entry.note}</p>}
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            ) : (
-              <p className="text-sm text-steel-500">No moves recorded.</p>
-            )}
-          </Section>
-
           {/* §27: the print artwork and the buyer's drawing sit with the enquiry that asked
               for them, rather than in the thread they arrived on. */}
           {mayReadEnquiries && <Documents collection="enquiries" id={enquiry._id} canWrite={mayWrite} />}
@@ -680,6 +664,21 @@ export default function EnquiryDetail() {
         </div>
 
         <div className="space-y-5">
+          {/* Where it stands with marketing, the buyer on the company WhatsApp and mail, and
+              everything that happened — the timeline folds away. */}
+          <EnquiryContactPanel
+            enquiry={enquiry}
+            isOwner={String(enquiry.assignedTo?._id || '') === String(user?.id || user?._id || '')}
+            canWrite={mayWrite}
+            stageOptions={nextStagesFrom(enquiry)}
+            onPickStage={(status) => {
+              setStageChoice(status);
+              setMovingStage(true);
+            }}
+            onSent={reload}
+            refreshKey={enquiry.updatedAt}
+          />
+
           <Section title="Next step">
             {open ? (
               <>
@@ -745,9 +744,21 @@ export default function EnquiryDetail() {
             ? 'It comes back with its history intact — the note explains why to whoever reads it next'
             : 'Every move is recorded, and the departments that pick up the work are notified'
         }
-        onClose={() => setMovingStage(false)}
+        onClose={() => {
+          setMovingStage(false);
+          setStageChoice(null);
+        }}
       >
-        <StageForm enquiry={enquiry} onClose={() => setMovingStage(false)} onSaved={setData} />
+        <StageForm
+          key={stageChoice || 'stage'}
+          enquiry={enquiry}
+          initialStatus={stageChoice}
+          onClose={() => {
+            setMovingStage(false);
+            setStageChoice(null);
+          }}
+          onSaved={setData}
+        />
       </Modal>
 
       <Modal

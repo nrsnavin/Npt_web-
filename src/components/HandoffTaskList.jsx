@@ -27,11 +27,11 @@ function stateOf(task) {
 const OUTCOME_WORDS = { returned: 'Sent back', moved: 'Moved on', done: 'Done' };
 
 export default function HandoffTaskList({ tasks, onChanged, perspective = 'holder', empty }) {
-  const { user } = useAuth();
+  const { user, worksIn } = useAuth();
   const catalogue = useHandoffCatalogue();
   const me = String(user?.id || user?._id || '');
   const mayAct = (task) => user?.role === 'admin'
-    || task.department === user?.department
+    || worksIn(task.department)
     || String(task.user?._id || task.user || '') === me;
 
   const claim = async (task) => {

@@ -85,7 +85,7 @@ const FEEDBACK_WHY =
 export const SAMPLE_BOARD = {
   key: 'samples',
   ladder: [
-    'request_received', 'checking_stock', 'sample_available', 'production_required',
+    'request_received', 'checking_stock', 'sample_available', 'not_available', 'production_required',
     'printing_required', 'sample_ready', 'dispatched', 'delivered', 'customer_feedback_pending',
   ],
   /* The four the bench may not move a card into, drawn because they are what it is all for. */

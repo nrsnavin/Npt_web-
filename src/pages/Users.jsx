@@ -13,6 +13,48 @@ import { SortHeader, useSort } from '../components/SortHeader.jsx';
 const grantsToMap = (moduleAccess = []) =>
   Object.fromEntries(moduleAccess.map((grant) => [grant.module, grant.level]));
 
+/** Several departments' suggested access together — the higher level wins on a module both name. */
+const RANK = { read: 1, quote: 2, write: 3 };
+const mergedTemplate = (catalogue, keys) => {
+  const merged = {};
+  for (const key of keys) {
+    const template = catalogue.departments.find((entry) => entry.key === key);
+    for (const [module, level] of Object.entries(grantsToMap(template?.defaultAccess))) {
+      if (!merged[module] || RANK[level] > RANK[merged[module]]) merged[module] = level;
+    }
+  }
+  return merged;
+};
+
+/**
+ * The other departments a person also works in — their queues, hand-overs and desks follow them
+ * there [server: utils/departments.js]. The main department is left out of the choice.
+ */
+function AlsoWorksIn({ catalogue, main, value, onChange, disabled }) {
+  const toggle = (key) => onChange(value.includes(key) ? value.filter((entry) => entry !== key) : [...value, key]);
+  return (
+    <fieldset className="rounded-lg border border-line/[0.06] p-3">
+      <legend className="px-1 text-xs font-semibold text-steel-400">Also works in</legend>
+      <div className="flex flex-wrap gap-2">
+        {catalogue.departments.filter((entry) => entry.key !== main).map((entry) => (
+          <label
+            key={entry.key}
+            className={`flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold transition ${
+              value.includes(entry.key) ? 'border-flame-500 bg-flame-500/10 text-flame-300' : 'border-line/[0.1] text-steel-300'
+            }`}
+          >
+            <input type="checkbox" className="sr-only" checked={value.includes(entry.key)} onChange={() => toggle(entry.key)} disabled={disabled} />
+            {entry.label}
+          </label>
+        ))}
+      </div>
+      <p className="mt-2 text-xs text-steel-500">
+        Their queue and desk include these departments too. Adding one adds its usual access.
+      </p>
+    </fieldset>
+  );
+}
+
 const mapToGrants = (map) =>
   Object.entries(map)
     .filter(([, level]) => level && level !== 'none')
@@ -111,6 +153,7 @@ function AccessPicker({ modules, value, onChange, disabled }) {
 
 function UserForm({ catalogue, onClose, onSaved }) {
   const [grants, setGrants] = useState({});
+  const [extras, setExtras] = useState([]);
   const [error, setError] = useState(null);
   const {
     register,
@@ -122,11 +165,10 @@ function UserForm({ catalogue, onClose, onSaved }) {
   const department = watch('department');
   const role = watch('role');
 
-  // Choosing a department proposes its template; the admin can still adjust every row.
+  // Choosing departments proposes their templates together; the admin can still adjust every row.
   useEffect(() => {
-    const template = catalogue.departments.find((entry) => entry.key === department);
-    setGrants(grantsToMap(template?.defaultAccess));
-  }, [department, catalogue.departments]);
+    setGrants(mergedTemplate(catalogue, [department, ...extras.filter((key) => key !== department)]));
+  }, [department, extras, catalogue]);
 
   const submit = async (values) => {
     setError(null);
@@ -134,6 +176,7 @@ function UserForm({ catalogue, onClose, onSaved }) {
       const { data, invitation } = await usersApi.create({
         ...values,
         phone: values.phone || undefined,
+        extraDepartments: extras.filter((key) => key !== values.department),
         moduleAccess: values.role === 'admin' ? [] : mapToGrants(grants),
       });
       onSaved(data, invitation);
@@ -176,6 +219,8 @@ function UserForm({ catalogue, onClose, onSaved }) {
         </Field>
       </div>
 
+      <AlsoWorksIn catalogue={catalogue} main={department} value={extras} onChange={setExtras} />
+
       {role === 'admin' ? (
         <Notice tone="info">
           Administrators have read and write access to every module, so there is nothing to
@@ -213,8 +258,28 @@ function UserForm({ catalogue, onClose, onSaved }) {
 
 function AccessForm({ user, catalogue, onClose, onSaved }) {
   const [grants, setGrants] = useState(() => grantsToMap(user.moduleAccess));
+  const [main, setMain] = useState(user.department || '');
+  const [extras, setExtras] = useState(user.extraDepartments || []);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+
+  const departmentsChanged = main !== (user.department || '')
+    || [...extras].sort().join() !== [...(user.extraDepartments || [])].sort().join();
+
+  /* The departments first; adding one brings its usual access, which the grid then shows. */
+  const saveDepartments = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const updated = await usersApi.update({ id: user.id, department: main || undefined, extraDepartments: extras.filter((key) => key !== main) });
+      setGrants(grantsToMap(updated.moduleAccess));
+      onSaved(updated);
+    } catch (saveError) {
+      setError(saveError.message);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const save = async () => {
     setBusy(true);
@@ -247,11 +312,29 @@ function AccessForm({ user, catalogue, onClose, onSaved }) {
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-steel-400">
-          {user.name} · {humanise(user.department)}
+          {user.name} · {(user.departments || [user.department]).map(humanise).join(' + ')}
         </p>
         <button type="button" className="btn-secondary py-1.5" onClick={resetToDepartment} disabled={busy}>
           Reset to department default
         </button>
+      </div>
+
+      <div className="space-y-3 rounded-lg border border-line/[0.06] p-4">
+        <Field label="Main department" hint="The desk My department opens, and where their own tasks go">
+          <select className="input" value={main} onChange={(event) => setMain(event.target.value)} disabled={busy}>
+            {catalogue.departments.map((entry) => (
+              <option key={entry.key} value={entry.key}>{entry.label}</option>
+            ))}
+          </select>
+        </Field>
+        <AlsoWorksIn catalogue={catalogue} main={main} value={extras} onChange={setExtras} disabled={busy} />
+        {departmentsChanged && (
+          <div className="flex justify-end">
+            <button type="button" className="btn-primary py-1.5" onClick={saveDepartments} disabled={busy}>
+              Save departments
+            </button>
+          </div>
+        )}
       </div>
 
       <AccessPicker modules={catalogue.modules} value={grants} onChange={setGrants} disabled={busy} />
@@ -495,7 +578,7 @@ export default function Users() {
                         <p className="text-xs text-steel-400">{row.email}</p>
                       </td>
                       <td className="px-4 py-3.5 text-steel-200">
-                        {departmentLabel(row.department)}
+                        {departmentLabel(row.department)}{row.extraDepartments?.length ? ` + ${row.extraDepartments.map(departmentLabel).join(', ')}` : ''}
                       </td>
                       <td className="px-4 py-3.5">
                         <Badge tone={row.role === 'admin' ? 'accent' : 'neutral'}>

@@ -323,7 +323,7 @@ export default function OrderQueries({ order }) {
   const changed = () => load();
 
   /** Every department, so a question can go to whoever actually holds the answer. */
-  const departments = user?.departments || DEPARTMENTS.filter((department) => department.key !== 'management');
+  const departments = DEPARTMENTS.filter((department) => department.key !== 'management');
 
   return (
     <Section
