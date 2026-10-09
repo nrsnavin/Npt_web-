@@ -690,3 +690,28 @@ export const departmentLabel = (key) =>
  */
 export const mayHoldBuyers = (person) =>
   Boolean(person) && person.isActive !== false && (person.role === 'admin' || person.department === 'marketing');
+
+/**
+ * Where the conversation with the buyer stands, in marketing's words — the "Current Marketing
+ * Status" [server: config/marketingStatuses.js, the list to edit]. `starts` says what choosing
+ * it also does: the two that raise work move the sales stage, which asks the department.
+ */
+export const MARKETING_STATUSES = [
+  { value: 'enquiry_received', label: 'Enquiry received' },
+  { value: 'photos_to_send', label: 'Photos to send' },
+  { value: 'photos_sent', label: 'Photos sent' },
+  { value: 'model_selection_requested', label: 'Model selection requested' },
+  { value: 'sample_requested', label: 'Sample requested', starts: 'Asks the sampling team for a sample' },
+  { value: 'sample_sent', label: 'Sample sent' },
+  { value: 'quotation_preparing', label: 'Quotation preparing', starts: 'Opens the quotation for the Quotation department' },
+  { value: 'quotation_sent', label: 'Quotation sent' },
+  { value: 'pricing_discussion', label: 'Pricing discussion' },
+  { value: 'price_approved', label: 'Price approved' },
+  { value: 'po_awaiting', label: 'PO awaiting' },
+  { value: 'po_received', label: 'PO received' },
+  { value: 'sales_order_sent', label: 'Sales order sent' },
+  { value: 'task_closed', label: 'Task Closed' },
+];
+
+export const marketingStatusLabel = (value) =>
+  MARKETING_STATUSES.find((entry) => entry.value === value)?.label || value || '—';
