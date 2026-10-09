@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { useRecord } from '../hooks/useRecords.js';
 import HandoffTaskList from '../components/HandoffTaskList.jsx';
 import HandoffTaskActions from '../components/HandoffTaskActions.jsx';
+import SamplingWorkQueue from '../components/SamplingWorkQueue.jsx';
 import { WorkspaceBrief, WorkspaceLinks } from '../components/DepartmentWorkspace.jsx';
 import { DashboardSkeleton, ErrorState, PageHeader } from '../components/ui.jsx';
 import { deskActionsFor } from '../config/deskActions.js';
@@ -169,7 +170,7 @@ export default function DepartmentDashboard() {
   const { user, departments, mayDelete } = useAuth();
   const fetch = useCallback(() => departmentsApi.dashboard(key), [key]);
   const { data, loading, error, reload } = useRecord(fetch, `department-${key}`);
-  const [tab, setTab] = useState('enquiries');
+  const [chosenTab, setTab] = useState(null);
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
   const me = String(user?.id || user?._id || '');
@@ -192,6 +193,9 @@ export default function DepartmentDashboard() {
   if (error) return <ErrorState error={error} onRetry={reload} />;
 
   const { figures, requests = [], recentlyDone, waitingOnOthers, cameBack, atStages } = data;
+  /* Sampling works from its own queue — the sample requests, as the team designed it. */
+  const isSampling = figures.department === 'sampling';
+  const tab = chosenTab || (isSampling ? 'queue' : 'enquiries');
   const seesAll = mayDelete;
   /* The person's other desks, when they work in more than one department. */
   const otherDesks = departments.filter((entry) => entry !== figures.department);
@@ -200,7 +204,8 @@ export default function DepartmentDashboard() {
   const unclaimed = enquiries.filter((row) => !row.task.user).length;
 
   const TABS = [
-    { key: 'enquiries', label: 'With us', count: enquiries.length },
+    ...(isSampling ? [{ key: 'queue', label: 'Work queue', count: null }] : []),
+    { key: 'enquiries', label: isSampling ? 'Enquiries with us' : 'With us', count: enquiries.length },
     { key: 'requests', label: 'Requests', count: requests.length },
     { key: 'waiting', label: 'Waiting on others', count: waitingOnOthers.length },
     { key: 'back', label: 'Came back', count: cameBack.length },
@@ -230,7 +235,7 @@ export default function DepartmentDashboard() {
         }
       />
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      {!isSampling && <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Tile label="With us" value={enquiries.length} hint={`${figures.open} open tasks in all`} active={tab === 'enquiries' && filter === 'all'} onClick={() => pick('all')} />
         <Tile label="Late" value={late} tone={late ? 'text-danger-400' : 'text-success-400'} hint="Past the day they were due" active={filter === 'late'} onClick={() => pick('late')} />
         <Tile label="Due today" value={today} tone={today ? 'text-warn-400' : 'text-steel-50'} hint="By the end of today" active={filter === 'today'} onClick={() => pick('today')} />
@@ -242,7 +247,7 @@ export default function DepartmentDashboard() {
           active={filter === 'unclaimed'}
           onClick={() => pick('unclaimed')}
         />
-      </div>
+      </div>}
 
       <div className="flex flex-wrap gap-1 rounded-xl border border-line/[0.06] bg-line/[0.02] p-1" role="tablist">
         {TABS.map((entry) => (
@@ -257,10 +262,14 @@ export default function DepartmentDashboard() {
             }`}
           >
             {entry.label}
-            <span className={`ml-2 rounded-full px-1.5 text-xs tabular-nums ${tab === entry.key ? 'bg-white/20' : 'bg-line/[0.08] text-steel-400'}`}>{entry.count}</span>
+            {entry.count !== null && (
+              <span className={`ml-2 rounded-full px-1.5 text-xs tabular-nums ${tab === entry.key ? 'bg-white/20' : 'bg-line/[0.08] text-steel-400'}`}>{entry.count}</span>
+            )}
           </button>
         ))}
       </div>
+
+      {tab === 'queue' && <SamplingWorkQueue />}
 
       {tab === 'enquiries' && (
         <section className="space-y-4">

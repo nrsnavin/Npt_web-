@@ -126,7 +126,7 @@ test('steps back along the run are told apart from steps on and sideways moves',
   assert.ok(moves.onward.every((stage) => !isBackwardSampleMove('printing_required', stage.value)));
   assert.deepEqual(
     moves.back.map((stage) => stage.value),
-    ['sample_available', 'production_required', 'checking_stock', 'request_received'],
+    ['sample_available', 'not_available', 'production_required', 'checking_stock', 'request_received'],
     'steps back are not nearest first'
   );
   assert.equal(moves.cancel, true);

@@ -240,7 +240,7 @@ function StageForm({ sample, to, onClose, onSaved }) {
 const RUN = [
   ['request_received'],
   ['checking_stock'],
-  ['sample_available', 'production_required'],
+  ['sample_available', 'not_available', 'production_required'],
   ['printing_required'],
   ['sample_ready'],
   ['dispatched'],

@@ -376,6 +376,12 @@ export const enquiries = {
   board: (params) => api.get('/enquiries/board', { params }).then(boarded),
   /** Calls, WhatsApps, emails, visits and meetings logged on an enquiry — and the list of them. */
   logActivity: ({ id, ...payload }) => api.post(`/enquiries/${id}/activities`, payload).then(unwrap),
+  /** The conversation with the buyer — the owner's only; `meta.mayRead` says whether it is yours. */
+  messages: (id) => api.get(`/enquiries/${id}/messages`).then((response) => response.data),
+  /** WhatsApp from the company number, or email from the company mail: `{ channel, subject?, body }`. */
+  sendMessage: ({ id, ...payload }) => api.post(`/enquiries/${id}/messages`, payload).then(unwrap),
+  /** Everything that happened on the enquiry, newest first. */
+  timeline: (id) => api.get(`/enquiries/${id}/timeline`).then(unwrap),
   activities: (params) => api.get('/enquiries/activities', { params }).then(listed),
   activityTypes: () => api.get('/enquiries/activity-types').then(unwrap),
   /** Handing the enquiry to another marketing person: who it may go to, and doing it. */
@@ -658,6 +664,10 @@ export const samples = {
    * travel with the rows rather than being recounted on screen.
    */
   day: () => api.get('/samples/day').then((response) => response.data),
+  /** The sampling department's work queue: rows, tiles and the six statuses the team uses. */
+  queue: () => api.get('/samples/queue').then(unwrap),
+  /** The sample team closing its task; a reason when the sample never went out (it cancels). */
+  closeTask: ({ id, note }) => api.post(`/samples/${id}/close-task`, { note }).then(unwrap),
   get: (id) => api.get(`/samples/${id}`).then(unwrap),
   create: (payload) => api.post('/samples', payload).then(unwrap),
   update: ({ id, ...payload }) => api.patch(`/samples/${id}`, payload).then(unwrap),
