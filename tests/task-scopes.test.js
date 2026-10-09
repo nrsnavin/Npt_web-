@@ -34,7 +34,7 @@ test('every department is offered, sampling included', () => {
    */
   assert.deepEqual(
     DEPARTMENTS.map((entry) => entry.key).sort(),
-    ['accounts', 'assembling', 'audit', 'despatch', 'management', 'marketing', 'order_confirmation',
+    ['accounts', 'assembling', 'audit', 'despatch', 'management', 'marketing', 'mould', 'order_confirmation',
       'payment_collection', 'production', 'quality', 'quotation', 'sampling']
   );
 });

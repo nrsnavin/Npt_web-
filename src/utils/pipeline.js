@@ -674,6 +674,7 @@ export const DEPARTMENTS = [
   { key: 'quotation', label: 'Quotation' },
   { key: 'sampling', label: 'Sampling' },
   { key: 'production', label: 'Production' },
+  { key: 'mould', label: 'Mould' },
   { key: 'quality', label: 'Quality' },
   { key: 'assembling', label: 'Assembly' },
   { key: 'despatch', label: 'Dispatch' },
