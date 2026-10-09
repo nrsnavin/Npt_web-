@@ -275,7 +275,6 @@ export default function QuotationDetail() {
                     {seesCost && <th className="px-3 py-2 text-right">Cost</th>}
                     {seesCost && <th className="px-3 py-2 text-right">Margin</th>}
                     <th className="px-3 py-2 text-left">State</th>
-                    <th className="px-3 py-2" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line/[0.04]">
@@ -321,9 +320,7 @@ export default function QuotationDetail() {
                           {line.status === 'rejected' && line.rejectionNote && (
                             <p className="text-xs text-steel-500">{line.rejectionNote}</p>
                           )}
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-3 text-right">
-                          <div className="flex justify-end gap-1.5">
+                          <div className="mt-1.5 flex flex-wrap gap-1.5">
                             {seesCost && !closed && (
                               <button type="button" className={`${line.status === 'requested' ? 'btn-primary' : 'btn-secondary'} px-2.5 py-1 text-xs`} onClick={() => setCosting(line)}>
                                 {line.status === 'requested' ? 'Cost it' : 'Cost'}
