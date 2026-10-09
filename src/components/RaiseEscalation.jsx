@@ -181,6 +181,7 @@ const DEPARTMENTS = [
   'marketing',
   'order_confirmation',
   'production',
+  'mould',
   'quality',
   'despatch',
   'accounts',

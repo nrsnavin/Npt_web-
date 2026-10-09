@@ -10,7 +10,7 @@ import { readFileSync } from 'node:fs';
 import { DESK_ACTIONS, deskActionsFor } from '../src/config/deskActions.js';
 
 const read = (path) => readFileSync(new URL(`../src/${path}`, import.meta.url), 'utf8');
-const DEPARTMENTS = ['management', 'marketing', 'order_confirmation', 'quotation', 'sampling', 'production', 'assembling', 'quality', 'despatch', 'accounts', 'payment_collection', 'audit'];
+const DEPARTMENTS = ['management', 'marketing', 'order_confirmation', 'quotation', 'sampling', 'production', 'mould', 'assembling', 'quality', 'despatch', 'accounts', 'payment_collection', 'audit'];
 
 const row = (records = {}) => ({
   enquiry: { _id: 'e1' },
@@ -59,4 +59,12 @@ test('Assembly, Payment Collection and Audit are departments with their own desk
   assert.ok(workspaceFor('payment_collection').pages.some((page) => page.to === '/payments?overdue=true'));
   assert.ok(workspaceFor('audit').pages.some((page) => page.to === '/enquiries?stage=audit'));
   assert.deepEqual(deskActionsFor('payment_collection', row()).map((action) => action.label), ['Payments to chase']);
+});
+
+test('the Mould department has its desk and workspace', async () => {
+  const { departmentLabel } = await import('../src/utils/pipeline.js');
+  const { workspaceFor } = await import('../src/config/departments.js');
+  assert.equal(departmentLabel('mould'), 'Mould');
+  assert.ok(workspaceFor('mould').pages.some((page) => page.to === '/enquiries?stage=mould'));
+  assert.deepEqual(deskActionsFor('mould', row()).map((action) => action.label), ['Mould register']);
 });

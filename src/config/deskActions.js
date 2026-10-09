@@ -49,6 +49,10 @@ export const DESK_ACTIONS = {
     { label: 'Open order', to: order, primary: true },
     { label: 'Production board', to: () => '/production' },
   ],
+  mould: [
+    { label: 'Mould register', to: () => '/moulds', primary: true },
+    { label: 'Order', to: order },
+  ],
   assembling: [
     { label: 'Open order', to: order, primary: true },
   ],

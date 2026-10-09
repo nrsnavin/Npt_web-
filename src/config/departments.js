@@ -138,6 +138,23 @@ export const DEPARTMENT_WORKSPACES = {
     toConfirm: [],
   },
 
+  mould: {
+    purpose: 'Keeps the tools running: looks at a mould when it has a problem, and says when it will be back.',
+    pages: [
+      { label: 'Mould issues', to: '/enquiries?stage=mould', module: 'enquiries', hint: 'Enquiries sent with a Mould Issue' },
+      { label: 'Mould register', to: '/moulds', module: 'moulds', hint: 'Cavities, weights and condition' },
+      { label: 'Production status', to: '/production', module: 'production' },
+      { label: 'Orders', to: '/orders', module: 'orders' },
+    ],
+    jobs: [
+      'Look at the tool when a Mould Issue is sent here, and record what is wrong.',
+      'Give the date it will be fixed, and update it if that moves.',
+      'Keep the mould register true — active cavities and the tool’s condition.',
+      'Send it back to Production, or on to Quality, when the tool is running again.',
+    ],
+    toConfirm: ['Planned maintenance — whether tools are serviced on a schedule.'],
+  },
+
   quality: {
     purpose: 'Checks what was made before it can be dispatched.',
     pages: [

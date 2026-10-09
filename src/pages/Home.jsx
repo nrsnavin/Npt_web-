@@ -78,6 +78,7 @@ const HOME_BY_DEPARTMENT = {
    */
   quotation: () => <TeamHome />,
   assembling: () => <TeamHome />,
+  mould: () => <TeamHome />,
   audit: () => <TeamHome />,
   order_confirmation: () => <TeamHome />,
 };
