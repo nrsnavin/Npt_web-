@@ -838,6 +838,29 @@ async function save(path, params, fallbackName) {
  * rather than a second query that drifts from it. Exporting "overdue follow-ups" and getting
  * every enquiry would be worse than having no export at all, because the file looks right.
  */
+/**
+ * The trading master: bought-in items and what we pay for them. The price comes back only to
+ * the Quotation department and Admin; everyone else gets the item with `priceHidden`.
+ */
+export const tradedItems = {
+  list: (params) => api.get('/traded-items', { params }).then(listed),
+  get: (id) => api.get(`/traded-items/${id}`).then(unwrap),
+  create: (payload) => api.post('/traded-items', payload).then(unwrap),
+  update: ({ id, ...payload }) => api.patch(`/traded-items/${id}`, payload).then(unwrap),
+  /** An Excel/CSV upload: `commit: false` answers the preview, `true` writes it. */
+  importSheet: ({ file, commit }) => {
+    const form = new FormData();
+    form.append('file', file);
+    if (commit) form.append('commit', 'true');
+    return api.post('/traded-items/import', form, { feedback: commit }).then(unwrap);
+  },
+  quotations: (id) =>
+    api.get(`/traded-items/${id}/quotations`).then((response) => ({
+      rows: response.data.data || [],
+      stale: response.data.stale || 0,
+    })),
+};
+
 export const downloads = {
   customers: (params) => save('/customers/export', params, 'customers.csv'),
   enquiries: (params) => save('/enquiries/export', params, 'enquiries.csv'),
@@ -847,6 +870,8 @@ export const downloads = {
   moulds: (params) => save('/moulds/export', params, 'moulds.csv'),
   materials: (params) => save('/materials/export', params, 'materials.csv'),
   components: (params) => save('/components/export', params, `${params?.kind || 'parts'}s.csv`),
+  tradedItems: (params) => save('/traded-items/export', params, 'trading-master.csv'),
+  tradingTemplate: () => save('/traded-items/template', {}, 'trading-master-template.csv'),
 };
 
 

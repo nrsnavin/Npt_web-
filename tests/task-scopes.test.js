@@ -26,7 +26,7 @@ const read = (path) => readFileSync(new URL(`../src/${path}`, import.meta.url), 
 
 /* ------------------------------- The departments ------------------------------- */
 
-test('all ten departments are offered, sampling included', () => {
+test('every department is offered, sampling included', () => {
   /*
    * There were two hand-written copies of this list in the app and *both* had lost `sampling` —
    * which is what happens to a list written out wherever it is needed. A handover dialog that
@@ -34,8 +34,8 @@ test('all ten departments are offered, sampling included', () => {
    */
   assert.deepEqual(
     DEPARTMENTS.map((entry) => entry.key).sort(),
-    ['accounts', 'assembling', 'despatch', 'management', 'marketing', 'order_confirmation',
-      'production', 'quality', 'quotation', 'sampling']
+    ['accounts', 'assembling', 'audit', 'despatch', 'management', 'marketing', 'order_confirmation',
+      'payment_collection', 'production', 'quality', 'quotation', 'sampling']
   );
 });
 

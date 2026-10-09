@@ -87,6 +87,7 @@ export const DEPARTMENT_WORKSPACES = {
     pages: [
       { label: 'Waiting for a price', to: '/enquiries?stage=pricing_quote', module: 'enquiries', hint: 'Enquiries at Pricing / Quote' },
       { label: 'To cost', to: '/quotations?status=costing', module: 'pricing', hint: 'Quotations waiting for a price' },
+      { label: 'Trading master', to: '/trading', module: 'materials', hint: 'Bought-in items at their inward price' },
       { label: 'All quotations / PDF', to: '/quotations', module: 'pricing' },
       { label: 'Model / item selection', to: '/moulds', module: 'moulds' },
       { label: 'Materials', to: '/materials', module: 'materials' },
@@ -156,17 +157,17 @@ export const DEPARTMENT_WORKSPACES = {
   assembling: {
     purpose: 'Assembles to instruction and reports what is done and what is pending.',
     pages: [
-      { label: 'Enquiries at Assembling', to: '/enquiries?stage=assembling', module: 'enquiries' },
+      { label: 'Enquiries at Assembly', to: '/enquiries?stage=assembling', module: 'enquiries' },
       { label: 'Order / model details', to: '/orders', module: 'orders' },
       { label: 'Production status', to: '/production', module: 'production' },
       { label: 'Models', to: '/moulds', module: 'moulds' },
     ],
     jobs: [
-      'Work from the assembling instructions on each task.',
+      'Work from the assembly instructions on each task.',
       'Update completed and pending work.',
       'Tell the next department and marketing when it is done.',
     ],
-    toConfirm: ['The assembling fields to record.'],
+    toConfirm: ['The assembly fields to record.'],
   },
 
   despatch: {
@@ -188,7 +189,23 @@ export const DEPARTMENT_WORKSPACES = {
   },
 
   accounts: {
-    purpose: 'Follows up payment until it is in.',
+    purpose: 'Keeps the books: invoices, GST, receipts and A/C Clarify.',
+    pages: [
+      { label: 'Receivables', to: '/payments', module: 'payments' },
+      { label: 'Enquiries at A/C Clarify', to: '/enquiries?stage=ac_clarify', module: 'enquiries' },
+      { label: 'Orders', to: '/orders', module: 'orders' },
+      { label: 'Customers', to: '/customers', module: 'customers' },
+    ],
+    jobs: [
+      'Record receipts against the invoice they pay.',
+      'Clarify an account when it is sent here (A/C Clarify).',
+      'Correct an invoice or GST the Audit team sends back.',
+    ],
+    toConfirm: ['A full accounting / Tally module is not defined yet.'],
+  },
+
+  payment_collection: {
+    purpose: 'Rings the buyer until the money is in.',
     pages: [
       { label: 'Follow-up list', to: '/payments?open=true', module: 'payments' },
       { label: 'Overdue', to: '/payments?overdue=true', module: 'payments' },
@@ -202,7 +219,24 @@ export const DEPARTMENT_WORKSPACES = {
       'Chase payment when asked (Team Payment Follow-up) — the job stays with whoever has it.',
       'Keep the commitment, callback, promised-payment and next follow-up dates.',
     ],
-    toConfirm: ['A full accounting / Tally module is not defined yet.'],
+    toConfirm: ['Whether collections are split by buyer or by area.'],
+  },
+
+  audit: {
+    purpose: 'Checks the GST and the invoices, and may look at any record to do it.',
+    pages: [
+      { label: 'Enquiries at Audit', to: '/enquiries?stage=audit', module: 'enquiries' },
+      { label: 'Receivables', to: '/payments', module: 'payments' },
+      { label: 'Orders', to: '/orders', module: 'orders' },
+      { label: 'Dispatches', to: '/dispatches', module: 'dispatch' },
+      { label: 'Quotations', to: '/quotations', module: 'pricing' },
+    ],
+    jobs: [
+      'Check the GST and invoice on each enquiry sent here (GST / Invoice Audit).',
+      'Mark it Correct, or say what to correct and send it back.',
+      'Read anything needed — Audit sees every record but changes none of them.',
+    ],
+    toConfirm: ['What else the Audit team checks, and how often.'],
   },
 };
 

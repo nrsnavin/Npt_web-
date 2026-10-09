@@ -10,7 +10,7 @@ import { readFileSync } from 'node:fs';
 import { DESK_ACTIONS, deskActionsFor } from '../src/config/deskActions.js';
 
 const read = (path) => readFileSync(new URL(`../src/${path}`, import.meta.url), 'utf8');
-const DEPARTMENTS = ['management', 'marketing', 'order_confirmation', 'quotation', 'sampling', 'production', 'assembling', 'quality', 'despatch', 'accounts'];
+const DEPARTMENTS = ['management', 'marketing', 'order_confirmation', 'quotation', 'sampling', 'production', 'assembling', 'quality', 'despatch', 'accounts', 'payment_collection', 'audit'];
 
 const row = (records = {}) => ({
   enquiry: { _id: 'e1' },
@@ -49,4 +49,14 @@ test('the desk lists the enquiries as cards with their own buttons and the hand-
   for (const tab of ['With us', 'Requests', 'Waiting on others', 'Came back', 'Done this week']) {
     assert.ok(page.includes(`'${tab}'`), `no ${tab} tab`);
   }
+});
+
+test('Assembly, Payment Collection and Audit are departments with their own desk and workspace', async () => {
+  const { DEPARTMENTS: listed, departmentLabel } = await import('../src/utils/pipeline.js');
+  const { workspaceFor } = await import('../src/config/departments.js');
+  assert.deepEqual(listed.slice(-3).map((entry) => entry.label), ['Accounts', 'Payment Collection', 'Audit']);
+  assert.equal(departmentLabel('assembling'), 'Assembly');
+  assert.ok(workspaceFor('payment_collection').pages.some((page) => page.to === '/payments?overdue=true'));
+  assert.ok(workspaceFor('audit').pages.some((page) => page.to === '/enquiries?stage=audit'));
+  assert.deepEqual(deskActionsFor('payment_collection', row()).map((action) => action.label), ['Payments to chase']);
 });

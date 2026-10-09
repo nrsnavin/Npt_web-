@@ -32,6 +32,8 @@ const Queries = lazyPage(() => import('./pages/Queries.jsx'));
 const QueryDetail = lazyPage(() => import('./pages/QueryDetail.jsx'));
 const Moulds = lazyPage(() => import('./pages/Moulds.jsx'));
 const Materials = lazyPage(() => import('./pages/Materials.jsx'));
+const TradingMaster = lazyPage(() => import('./pages/TradingMaster.jsx'));
+const TradedItemDetail = lazyPage(() => import('./pages/TradedItemDetail.jsx'));
 const PartsRegister = lazyPage(() => import('./pages/PartsRegister.jsx'));
 const MouldDetail = lazyPage(() => import('./pages/MouldDetail.jsx'));
 const MaterialDetail = lazyPage(() => import('./pages/MaterialDetail.jsx'));
@@ -441,6 +443,23 @@ export default function App() {
             element={
               <RequireModule moduleKey="materials">
                 <MaterialDetail />
+              </RequireModule>
+            }
+          />
+          {/* The trading master: bought-in items at their inward price. */}
+          <Route
+            path="trading"
+            element={
+              <RequireModule moduleKey="materials">
+                <TradingMaster />
+              </RequireModule>
+            }
+          />
+          <Route
+            path="trading/:id"
+            element={
+              <RequireModule moduleKey="materials">
+                <TradedItemDetail />
               </RequireModule>
             }
           />

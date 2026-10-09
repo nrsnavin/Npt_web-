@@ -29,10 +29,10 @@ const MODULES = [
 ];
 const STAGES = [
   'enquiry', 'sample', 'pricing_quote', 'po_so', 'production_edd', 'assembling', 'mould', 'team_payment_followup',
-  'invoice_dispatch', 'lr_copy', 'quality', 'ac_clarify', 'my_payment_followup', 'closed',
+  'invoice_dispatch', 'lr_copy', 'quality', 'ac_clarify', 'audit', 'my_payment_followup', 'closed',
 ];
 
-test('every one of the ten departments has a workspace, and nothing else does', () => {
+test('every department has a workspace, and nothing else does', () => {
   assert.deepEqual(Object.keys(DEPARTMENT_WORKSPACES).sort(), DEPARTMENTS.map((d) => d.key).sort());
 });
 
