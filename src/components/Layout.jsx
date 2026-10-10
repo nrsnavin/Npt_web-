@@ -10,6 +10,7 @@ import ErrorBoundary from './ErrorBoundary.jsx';
 import { Modal } from './ui.jsx';
 import { humanise } from '../utils/format.js';
 import { departmentLabel } from '../utils/pipeline.js';
+import { simpleNavFor } from '../config/simpleNav.js';
 
 /**
  * Modules across the top, and the screens inside one module down the side.
@@ -52,6 +53,28 @@ import { departmentLabel } from '../utils/pipeline.js';
  */
 const MODULES = [
   /*
+   * The dashboard: everyone's one screen [pages/DepartmentDashboard.jsx] — the enquiries with
+   * their department now, and every enquiry they may see (all of them for Admin, their own for
+   * marketing). The enquiry list, its drafts and marketing's figures live under it, because
+   * everything in this plant is an enquiry. The dashboard itself carries no grant; the enquiry
+   * screens keep theirs.
+   */
+  {
+    key: 'dashboard',
+    label: 'Dashboard',
+    features: [
+      { to: '/departments/mine', label: 'Dashboard' },
+      {
+        to: '/enquiries', label: 'All enquiries', end: true, module: 'enquiries',
+        /* Chat screenshots and cards sent to the WhatsApp number, waiting to be saved. */
+        children: [{ to: '/enquiries/drafts', label: 'Draft enquiries' }],
+      },
+      /* "How am I doing" — marketing's own figures over weeks rather than a day. */
+      { to: '/dashboard/marketing', label: 'My figures', module: 'enquiries' },
+      { to: '/departments', label: 'All departments', admin: true, end: true },
+    ],
+  },
+  /*
    * First on the strip, because it is the front door: `/` redirects here [App.jsx].
    *
    * Queries belong to no one department — a thread about a disputed invoice needs accounts,
@@ -68,29 +91,6 @@ const MODULES = [
       /* The day by role — the bench queue, the plant's numbers, what is waiting on my team —
          for whoever wants a morning screen before the list. See `Home`. */
       { to: '/today', label: 'Today' },
-      /* What other departments have sent mine, and what mine is waiting on [DepartmentDashboard]. */
-      { to: '/departments/mine', label: 'My department' },
-      { to: '/departments', label: 'All departments', admin: true, end: true },
-    ],
-  },
-  {
-    key: 'enquiries',
-    label: 'Enquiries',
-    module: 'enquiries',
-    /* A parent with children is `end`, or it stays lit while a child is open and two rows claim
-       to be the current page at once. */
-    features: [
-      {
-        to: '/enquiries', label: 'Enquiries', end: true,
-        /* Chat screenshots and cards sent to the WhatsApp number, waiting to be saved. */
-        children: [{ to: '/enquiries/drafts', label: 'Draft enquiries' }],
-      },
-      /*
-       * "How am I doing" — marketing's own figures over weeks rather than a day. It sat under
-       * Home, which is what made it hard to find: it is a report on this module, so it belongs
-       * beside the two registers it counts.
-       */
-      { to: '/dashboard/marketing', label: 'My dashboard' },
     ],
   },
   {
@@ -365,7 +365,7 @@ function ModuleTabs({ modules, active }) {
 }
 
 export default function Layout() {
-  const { user, logout, canRead, isAdmin } = useAuth();
+  const { user, logout, canRead, isAdmin, departments } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -411,8 +411,25 @@ export default function Layout() {
    * an empty sidebar would read as broken, so the sidebar falls back; the strip does not, and
    * nothing is lit rather than something wrong.
    */
+  /*
+   * The simple menu [config/simpleNav.js]: a department's own tabs on the strip, and everything
+   * else it may open under "More" — nothing taken away, just out of the way. Admin and Audit keep
+   * the full strip.
+   */
+  const shown = useMemo(() => {
+    const keys = simpleNavFor(departments, { isAdmin });
+    if (!keys) return readable;
+    const primary = keys.map((key) => readable.find((entry) => entry.key === key)).filter(Boolean);
+    const rest = readable.filter((entry) => !keys.includes(entry.key));
+    const more = rest.length
+      ? [{ key: 'more', label: 'More', features: rest.flatMap((entry) => entry.features), from: rest.map((entry) => entry.key) }]
+      : [];
+    return [...primary, ...more];
+  }, [readable, departments, isAdmin]);
+
   const routed = moduleFor(location.pathname);
-  const active = (routed && readable.find((entry) => entry.key === routed.key)) || readable[0];
+  const active =
+    (routed && shown.find((entry) => entry.key === routed.key || entry.from?.includes(routed.key))) || shown[0];
   const lit = routed ? active?.key : undefined;
 
   /* One titleless section: the module's name is already lit on the strip above, and repeating
@@ -445,7 +462,7 @@ export default function Layout() {
         {/* The modules. Hidden on a narrow screen, where the drawer carries them instead —
             a strip that has to be scrolled to find anything is worse than a list. */}
         <div className="hidden min-w-0 flex-1 lg:flex">
-          <ModuleTabs modules={readable} active={lit} />
+          <ModuleTabs modules={shown} active={lit} />
         </div>
 
         <div className="min-w-0 flex-1 lg:flex-none 2xl:w-72"><GlobalSearch /></div>
@@ -522,7 +539,7 @@ export default function Layout() {
       <Modal open={menuOpen} title="Navigate" onClose={() => setMenuOpen(false)} size="sm">
         <SidebarNav
           sections={[
-            ...readable.map((entry) => ({ title: entry.label, items: entry.features })),
+            ...shown.map((entry) => ({ title: entry.label, items: entry.features })),
             /*
               Profile last, and only here.
 

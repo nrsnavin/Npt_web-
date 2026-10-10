@@ -22,6 +22,7 @@ import lazyPage from './utils/lazyPage.js';
 import Login from './pages/Login.jsx';
 import Home from './pages/Home.jsx';
 import { startPage } from './utils/startPage.js';
+import { homeFor } from './config/simpleNav.js';
 
 const Profile = lazyPage(() => import('./pages/Profile.jsx'));
 const ForgotPassword = lazyPage(() => import('./pages/ForgotPassword.jsx'));
@@ -92,10 +93,13 @@ function RequireAdmin({ children }) {
  * a better answer than an apology.
  */
 function Landing() {
-  const { canRead } = useAuth();
-  /* Somebody who chose Today as their start page on their profile opens on it instead. */
-  if (startPage() === 'today') return <Navigate to="/today" replace />;
-  return canRead('queries') ? <Navigate to="/queries" replace /> : <Home />;
+  const { canRead, departments, isAdmin } = useAuth();
+  const page = startPage();
+  /* Somebody who chose Today or Queries as their start page on their profile opens on it instead. */
+  if (page === 'today') return <Navigate to="/today" replace />;
+  if (page === 'queries' && canRead('queries')) return <Navigate to="/queries" replace />;
+  /* Everything is an enquiry: everyone opens on their dashboard, which holds them. */
+  return <Navigate to={homeFor(departments, { isAdmin })} replace />;
 }
 
 /** Blocks a route unless the user may read the module behind it. */
@@ -183,6 +187,8 @@ export default function App() {
           <Route path="departments/:key" element={<DepartmentDashboard />} />
 
           {/* Phase 1: the pipeline that runs from a customer to an enquiry. */}
+          {/* "Dashboard" is everyone's one screen: their department's enquiries and all they may see. */}
+          <Route path="dashboard" element={<Navigate to="/departments/mine" replace />} />
           <Route
             path="dashboard/marketing"
             element={

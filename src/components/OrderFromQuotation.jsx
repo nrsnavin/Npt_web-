@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import PaymentTermsPicker from './PaymentTermsPicker.jsx';
 import { orders as ordersApi } from '../api/endpoints.js';
 import { Field, Notice } from './ui.jsx';
 import { formatCurrency, formatNumber } from '../utils/format.js';
@@ -24,6 +25,8 @@ import { text } from '../utils/pipeline.js';
  */
 export default function OrderFromQuotation({ quotation, onClose, onOrdered }) {
   const [po, setPo] = useState({ number: '', date: '' });
+  /* What Payment Collection collects before production and dispatch. Credit until chosen. */
+  const [plan, setPlan] = useState({ advancePercent: 0, beforeDispatchPercent: 0 });
   const [rows, setRows] = useState(() =>
     (quotation.lines || []).map((line) => ({
       _id: line._id,
@@ -63,6 +66,8 @@ export default function OrderFromQuotation({ quotation, onClose, onOrdered }) {
         await ordersApi.fromQuotation({
           id: quotation._id,
           customerPo: { number: text(po.number), date: text(po.date) },
+          paymentPlan: { advancePercent: Number(plan.advancePercent) || 0, beforeDispatchPercent: Number(plan.beforeDispatchPercent) || 0 },
+          ...(plan.label ? { paymentTerms: plan.label } : {}),
           lines: chosen.map((row) => ({
             quotationLine: row._id,
             quantity: Number(row.quantity),
@@ -86,6 +91,8 @@ export default function OrderFromQuotation({ quotation, onClose, onOrdered }) {
         Everything but the quantity comes off {quotation.number}. A quotation states a rate
         against a minimum, so the purchase order is the first document that says how many.
       </Notice>
+
+      <PaymentTermsPicker value={plan} onChange={setPlan} />
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Their PO number">
