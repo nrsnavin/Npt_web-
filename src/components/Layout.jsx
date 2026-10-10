@@ -53,14 +53,24 @@ import { simpleNavFor } from '../config/simpleNav.js';
  */
 const MODULES = [
   /*
-   * The department's desk: the enquiries with it now, and what to do with each
-   * [pages/DepartmentDashboard.jsx]. Everyone has one, so it carries no grant.
+   * The dashboard: everyone's one screen [pages/DepartmentDashboard.jsx] — the enquiries with
+   * their department now, and every enquiry they may see (all of them for Admin, their own for
+   * marketing). The enquiry list, its drafts and marketing's figures live under it, because
+   * everything in this plant is an enquiry. The dashboard itself carries no grant; the enquiry
+   * screens keep theirs.
    */
   {
-    key: 'desk',
-    label: 'My desk',
+    key: 'dashboard',
+    label: 'Dashboard',
     features: [
-      { to: '/departments/mine', label: 'My department' },
+      { to: '/departments/mine', label: 'Dashboard' },
+      {
+        to: '/enquiries', label: 'All enquiries', end: true, module: 'enquiries',
+        /* Chat screenshots and cards sent to the WhatsApp number, waiting to be saved. */
+        children: [{ to: '/enquiries/drafts', label: 'Draft enquiries' }],
+      },
+      /* "How am I doing" — marketing's own figures over weeks rather than a day. */
+      { to: '/dashboard/marketing', label: 'My figures', module: 'enquiries' },
       { to: '/departments', label: 'All departments', admin: true, end: true },
     ],
   },
@@ -81,26 +91,6 @@ const MODULES = [
       /* The day by role — the bench queue, the plant's numbers, what is waiting on my team —
          for whoever wants a morning screen before the list. See `Home`. */
       { to: '/today', label: 'Today' },
-    ],
-  },
-  {
-    key: 'enquiries',
-    label: 'Enquiries',
-    module: 'enquiries',
-    /* A parent with children is `end`, or it stays lit while a child is open and two rows claim
-       to be the current page at once. */
-    features: [
-      {
-        to: '/enquiries', label: 'Enquiries', end: true,
-        /* Chat screenshots and cards sent to the WhatsApp number, waiting to be saved. */
-        children: [{ to: '/enquiries/drafts', label: 'Draft enquiries' }],
-      },
-      /*
-       * "How am I doing" — marketing's own figures over weeks rather than a day. It sat under
-       * Home, which is what made it hard to find: it is a report on this module, so it belongs
-       * beside the two registers it counts.
-       */
-      { to: '/dashboard/marketing', label: 'My dashboard' },
     ],
   },
   {

@@ -98,10 +98,8 @@ function Landing() {
   /* Somebody who chose Today or Queries as their start page on their profile opens on it instead. */
   if (page === 'today') return <Navigate to="/today" replace />;
   if (page === 'queries' && canRead('queries')) return <Navigate to="/queries" replace />;
-  /* Everything is an enquiry: Admin and Marketing open on them, every other department on its desk. */
-  const home = homeFor(departments, { isAdmin });
-  if (home === '/enquiries' && !canRead('enquiries')) return <Navigate to="/departments/mine" replace />;
-  return <Navigate to={home} replace />;
+  /* Everything is an enquiry: everyone opens on their dashboard, which holds them. */
+  return <Navigate to={homeFor(departments, { isAdmin })} replace />;
 }
 
 /** Blocks a route unless the user may read the module behind it. */
@@ -189,6 +187,8 @@ export default function App() {
           <Route path="departments/:key" element={<DepartmentDashboard />} />
 
           {/* Phase 1: the pipeline that runs from a customer to an enquiry. */}
+          {/* "Dashboard" is everyone's one screen: their department's enquiries and all they may see. */}
+          <Route path="dashboard" element={<Navigate to="/departments/mine" replace />} />
           <Route
             path="dashboard/marketing"
             element={

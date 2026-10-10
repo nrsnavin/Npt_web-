@@ -40,7 +40,11 @@ const TONE_TEXT = {
  */
 const idle = async () => ({ data: [], pagination: null });
 
-export default function Enquiries() {
+/**
+ * `embedded` draws it inside the dashboard [pages/DepartmentDashboard.jsx]: the same list, filters
+ * and buttons, without a page title of its own.
+ */
+export default function Enquiries({ embedded = false }) {
   const { canWrite, isAdmin } = useAuth();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
@@ -153,13 +157,11 @@ export default function Enquiries() {
         * is the thing a board exists to show. It still scrolls when it has to; it just does not
         * start out having to.
         */
-      board ? 'mx-auto w-full' : 'mx-auto max-w-6xl'
+      embedded || board ? 'w-full' : 'mx-auto max-w-6xl'
     }>
-      <PageHeader
-        title="Enquiries"
-        subtitle="One enquiry per model, each carrying a next action until it closes"
-        actions={
-          <div className="flex items-center gap-2">
+      {(() => {
+        const actions = (
+          <div className="flex flex-wrap items-center gap-2">
             <ViewSwitch mode={mode} onChange={setMode} boardLabel="Funnel board" />
             <ExportButton download={downloads.enquiries} params={filters} />
             {mayWrite && (
@@ -168,8 +170,17 @@ export default function Enquiries() {
               </button>
             )}
           </div>
-        }
-      />
+        );
+        return embedded ? (
+          <div className="mb-4 flex justify-end">{actions}</div>
+        ) : (
+          <PageHeader
+            title="Enquiries"
+            subtitle="One enquiry per model, each carrying a next action until it closes"
+            actions={actions}
+          />
+        );
+      })()}
 
       {/*
         * The stage strip, fed by the tally that came back with the rows. It used to fetch its

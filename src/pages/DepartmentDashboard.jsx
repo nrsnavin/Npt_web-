@@ -6,6 +6,8 @@ import { useRecord } from '../hooks/useRecords.js';
 import HandoffTaskList from '../components/HandoffTaskList.jsx';
 import HandoffTaskActions from '../components/HandoffTaskActions.jsx';
 import SamplingWorkQueue from '../components/SamplingWorkQueue.jsx';
+import Enquiries from './Enquiries.jsx';
+import { firstDashboardTab } from '../config/simpleNav.js';
 import { WorkspaceBrief, WorkspaceLinks } from '../components/DepartmentWorkspace.jsx';
 import { DashboardSkeleton, ErrorState, PageHeader } from '../components/ui.jsx';
 import { deskActionsFor } from '../config/deskActions.js';
@@ -167,7 +169,7 @@ const FILTERS = [
 
 export default function DepartmentDashboard() {
   const { key = 'mine' } = useParams();
-  const { user, departments, mayDelete } = useAuth();
+  const { user, departments, mayDelete, canRead, isAdmin } = useAuth();
   const fetch = useCallback(() => departmentsApi.dashboard(key), [key]);
   const { data, loading, error, reload } = useRecord(fetch, `department-${key}`);
   const [chosenTab, setTab] = useState(null);
@@ -195,7 +197,10 @@ export default function DepartmentDashboard() {
   const { figures, requests = [], recentlyDone, waitingOnOthers, cameBack, atStages } = data;
   /* Sampling works from its own queue — the sample requests, as the team designed it. */
   const isSampling = figures.department === 'sampling';
-  const tab = chosenTab || (isSampling ? 'queue' : 'enquiries');
+  /* Every enquiry this person may see — all of them for Admin, their own for marketing. */
+  const seesEnquiries = canRead('enquiries');
+  const everyone = isAdmin || figures.department === 'management';
+  const tab = chosenTab || firstDashboardTab(figures.department, { isAdmin: everyone, seesEnquiries });
   const seesAll = mayDelete;
   /* The person's other desks, when they work in more than one department. */
   const otherDesks = departments.filter((entry) => entry !== figures.department);
@@ -205,6 +210,9 @@ export default function DepartmentDashboard() {
 
   const TABS = [
     ...(isSampling ? [{ key: 'queue', label: 'Work queue', count: null }] : []),
+    ...(seesEnquiries
+      ? [{ key: 'all', label: everyone ? 'All enquiries' : figures.department === 'marketing' ? 'My enquiries' : 'All enquiries', count: null }]
+      : []),
     { key: 'enquiries', label: isSampling ? 'Enquiries with us' : 'With us', count: enquiries.length },
     { key: 'requests', label: 'Requests', count: requests.length },
     { key: 'waiting', label: 'Waiting on others', count: waitingOnOthers.length },
@@ -220,8 +228,8 @@ export default function DepartmentDashboard() {
   return (
     <div className="mx-auto max-w-7xl space-y-5">
       <PageHeader
-        title={figures.label}
-        subtitle="The enquiries with your department now, and what to do with each"
+        title={`${figures.label} dashboard`}
+        subtitle={seesEnquiries ? 'Your enquiries — the ones with your department now, and every one you can see' : 'The enquiries with your department now'}
         actions={
           <div className="flex flex-wrap gap-2">
             {otherDesks.map((entry) => (
@@ -235,7 +243,7 @@ export default function DepartmentDashboard() {
         }
       />
 
-      {!isSampling && <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      {tab === 'enquiries' && <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Tile label="With us" value={enquiries.length} hint={`${figures.open} open tasks in all`} active={tab === 'enquiries' && filter === 'all'} onClick={() => pick('all')} />
         <Tile label="Late" value={late} tone={late ? 'text-danger-400' : 'text-success-400'} hint="Past the day they were due" active={filter === 'late'} onClick={() => pick('late')} />
         <Tile label="Due today" value={today} tone={today ? 'text-warn-400' : 'text-steel-50'} hint="By the end of today" active={filter === 'today'} onClick={() => pick('today')} />
@@ -270,6 +278,8 @@ export default function DepartmentDashboard() {
       </div>
 
       {tab === 'queue' && <SamplingWorkQueue />}
+
+      {tab === 'all' && <Enquiries embedded />}
 
       {tab === 'enquiries' && (
         <section className="space-y-4">
