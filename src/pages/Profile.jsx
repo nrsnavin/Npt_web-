@@ -257,7 +257,7 @@ function DeviceNotifications() {
   );
 }
 
-/** Where the app opens for this person: the query list, or Today. Kept on this device. */
+/** Where the app opens for this person: their home, the query list, or Today. Kept on this device. */
 function StartPageChoice() {
   const [page, setPage] = useState(startPage);
   const choose = (next) => {
@@ -269,11 +269,11 @@ function StartPageChoice() {
       <div>
         <h2 className="text-base font-bold tracking-tight text-steel-50">Open the app on</h2>
         <p className="mt-1 text-sm text-steel-400">
-          Today is your day by role — what is waiting on you and your team. On this device only.
+          Home is the enquiries (Admin, Marketing) or your department’s desk. Today is your day by role. On this device only.
         </p>
       </div>
       <div role="radiogroup" aria-label="Start page" className="tab-track grid-flow-col">
-        {[['queries', 'Queries'], ['today', 'Today']].map(([value, label]) => (
+        {[['home', 'Home'], ['queries', 'Queries'], ['today', 'Today']].map(([value, label]) => (
           <button
             key={value}
             type="button"

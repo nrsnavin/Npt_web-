@@ -22,6 +22,7 @@ import lazyPage from './utils/lazyPage.js';
 import Login from './pages/Login.jsx';
 import Home from './pages/Home.jsx';
 import { startPage } from './utils/startPage.js';
+import { homeFor } from './config/simpleNav.js';
 
 const Profile = lazyPage(() => import('./pages/Profile.jsx'));
 const ForgotPassword = lazyPage(() => import('./pages/ForgotPassword.jsx'));
@@ -92,10 +93,15 @@ function RequireAdmin({ children }) {
  * a better answer than an apology.
  */
 function Landing() {
-  const { canRead } = useAuth();
-  /* Somebody who chose Today as their start page on their profile opens on it instead. */
-  if (startPage() === 'today') return <Navigate to="/today" replace />;
-  return canRead('queries') ? <Navigate to="/queries" replace /> : <Home />;
+  const { canRead, departments, isAdmin } = useAuth();
+  const page = startPage();
+  /* Somebody who chose Today or Queries as their start page on their profile opens on it instead. */
+  if (page === 'today') return <Navigate to="/today" replace />;
+  if (page === 'queries' && canRead('queries')) return <Navigate to="/queries" replace />;
+  /* Everything is an enquiry: Admin and Marketing open on them, every other department on its desk. */
+  const home = homeFor(departments, { isAdmin });
+  if (home === '/enquiries' && !canRead('enquiries')) return <Navigate to="/departments/mine" replace />;
+  return <Navigate to={home} replace />;
 }
 
 /** Blocks a route unless the user may read the module behind it. */
