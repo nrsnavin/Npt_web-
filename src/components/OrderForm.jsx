@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { orders as ordersApi } from '../api/endpoints.js';
 import { Field, FormError, Notice } from './ui.jsx';
+import PaymentTermsPicker from './PaymentTermsPicker.jsx';
 import {
   ColourInput, CustomerSelect, EnquirySelect, MaterialSelect, MouldSelect, PartSelect,
 } from './pickers.jsx';
@@ -55,6 +56,10 @@ export default function OrderForm({ order, onClose, onSaved, enquiry: forEnquiry
         }))
       : [blankLine()]
   );
+  const [plan, setPlan] = useState({
+    advancePercent: order?.paymentPlan?.advancePercent ?? 0,
+    beforeDispatchPercent: order?.paymentPlan?.beforeDispatchPercent ?? 0,
+  });
   const [terms, setTerms] = useState({
     paymentTerms: order?.paymentTerms ?? '',
     gstPercent: order?.gstPercent ?? 18,
@@ -106,6 +111,7 @@ export default function OrderForm({ order, onClose, onSaved, enquiry: forEnquiry
             : {}),
           gstPercent: numeric(terms.gstPercent),
           paymentTerms: text(terms.paymentTerms),
+          paymentPlan: { advancePercent: Number(plan.advancePercent) || 0, beforeDispatchPercent: Number(plan.beforeDispatchPercent) || 0 },
           remarks: text(terms.remarks),
           lines: lines.map((line) => ({
             mould: line.mould || undefined,
@@ -325,8 +331,17 @@ export default function OrderForm({ order, onClose, onSaved, enquiry: forEnquiry
         </button>
       </div>
 
+      {/* The terms decide what is collected before production and before dispatch. */}
+      <PaymentTermsPicker
+        value={plan}
+        onChange={(next) => {
+          setPlan(next);
+          if (next.label) setTerms((current) => ({ ...current, paymentTerms: next.label }));
+        }}
+      />
+
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Payment terms">
+        <Field label="Payment terms, as written on the order">
           <input
             className="input"
             placeholder="45 days from invoice"

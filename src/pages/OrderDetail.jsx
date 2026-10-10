@@ -13,6 +13,7 @@ import { MouldThumb } from '../components/MouldPhoto.jsx';
 import OrderForm from '../components/OrderForm.jsx';
 import OrderPriority from '../components/OrderPriority.jsx';
 import OrderQuality from '../components/OrderQuality.jsx';
+import OrderPayment from '../components/OrderPayment.jsx';
 import DispatchTracker from '../components/DispatchTracker.jsx';
 import { ProductionLineDialog, ProductionStatusPicker } from '../components/ProductionLine.jsx';
 import { formatCurrency, formatDate, formatNumber } from '../utils/format.js';
@@ -791,6 +792,9 @@ export default function OrderDetail() {
             mayRaise={mayRaise}
             onSaved={(next) => absorb({ data: next })}
           />
+
+          {/* What must be in before production and dispatch, and whether it is. */}
+          <OrderPayment order={order} />
 
           <PurchaseOrder order={order} onSaved={(next) => absorb({ data: next })} mayWrite={mayWrite} />
 

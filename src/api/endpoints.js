@@ -414,6 +414,10 @@ export const orders = {
   /** What can be done from here, and doing one — verbs rather than a ladder of fourteen. */
   actions: (id) => api.get(`/orders/${id}/actions`).then(unwrap),
   act: ({ id, ...payload }) => api.post(`/orders/${id}/actions`, payload).then(unwrap),
+  /** Where the order stands against its payment terms, before production and before dispatch. */
+  payment: (id) => api.get(`/orders/${id}/payment`).then(unwrap),
+  /** Admin lets production or dispatch go on before the money is in: `{ stage, reason }`. */
+  waivePayment: ({ id, ...payload }) => api.post(`/orders/${id}/payment-waiver`, payload).then(unwrap),
   /** The customer's own paperwork. Multipart, so it goes as a form rather than JSON. */
   setPo: (id, file) => {
     const form = new FormData();
