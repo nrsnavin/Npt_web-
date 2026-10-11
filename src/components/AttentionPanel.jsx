@@ -15,6 +15,10 @@ import { Notice } from './ui.jsx';
  *                       GSTIN) — answered right here; the answer goes back onto their task
  *   Replies             an answer that came back on one of this department's tasks — with the
  *                       task's status beside it, and "Got it"; it stays until somebody acts
+ *   Updates on enquiries a department moved its task on one of your enquiries (Admin: any) —
+ *                       Production to Planning, with its remark and ready date. Mark it read,
+ *                       then dismiss it; a read one clears itself a day later anyway
+ *                       [server: models/TaskNotice.js]
  */
 
 function Question({ task, onChanged }) {
@@ -98,16 +102,60 @@ function Reply({ task, onChanged }) {
   );
 }
 
+function Update({ notice, onChanged }) {
+  const [busy, setBusy] = useState(false);
+  const read = Boolean(notice.readAt);
+  const act = (call) => async () => {
+    setBusy(true);
+    try {
+      await call(notice._id);
+      onChanged();
+    } finally {
+      setBusy(false);
+    }
+  };
+  /* Opening the enquiry is reading it. */
+  const opened = () => { if (!read) workspace.notices.read(notice._id).catch(() => {}); };
+  return (
+    <div aria-label={`${notice.statusLabel} on ${notice.enquiry?.number || 'the enquiry'}`} className={`rounded-xl border p-3 ${read ? 'border-line/[0.1] bg-line/[0.02]' : 'border-accent/40 bg-accent/[0.07]'}`}>
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <p className={`text-sm text-steel-50 ${read ? 'font-semibold' : 'font-bold'}`}>
+          {!read && <span className="mr-1.5 inline-block h-2 w-2 rounded-full bg-accent align-middle" aria-label="Unread" />}
+          {departmentLabel(notice.department)} · {notice.statusLabel}
+          {' · '}
+          <Link to={`/enquiries/${notice.enquiry?._id || notice.enquiry}`} onClick={opened} className="text-accent hover:underline">{notice.enquiry?.number}</Link>
+          {notice.customer?.name && <span className="font-normal text-steel-300"> · {notice.customer.name}</span>}
+        </p>
+        <span className="text-xs text-steel-400">{notice.by?.name ? `${notice.by.name} · ` : ''}{formatDate(notice.at)}</span>
+      </div>
+      {notice.note && <p className="mt-1 text-sm text-steel-100">“{notice.note}”</p>}
+      {notice.date && <p className="mt-1 text-xs font-semibold text-steel-200">Ready date {formatDate(notice.date)}</p>}
+      <div className="mt-2 flex flex-wrap items-center gap-3">
+        {read ? (
+          <>
+            <button type="button" className="btn-secondary px-3 py-1.5 text-xs" disabled={busy} onClick={act(workspace.notices.dismiss)}>Dismiss</button>
+            <span className="text-xs text-steel-500">Read · clears itself a day after reading</span>
+          </>
+        ) : (
+          <button type="button" className="btn-secondary px-3 py-1.5 text-xs" disabled={busy} onClick={act(workspace.notices.read)}>Mark as read</button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function AttentionPanel({ attention, onChanged }) {
   const questions = attention?.questions || [];
   const replies = attention?.replies || [];
-  if (!questions.length && !replies.length) return null;
+  const notices = attention?.notices || [];
+  const unread = notices.filter((notice) => !notice.readAt).length;
+  if (!questions.length && !replies.length && !notices.length) return null;
   return (
     <section aria-label="Needs your action" className="card space-y-3 border-warn-500/40 p-4">
       <h2 className="flex items-center gap-2 text-base font-bold text-steel-50">
         <span className="h-2.5 w-2.5 rounded-full bg-warn-400" aria-hidden="true" />
         Needs your action
-        <span className="rounded-full bg-warn-500/15 px-2 text-xs font-semibold tabular-nums text-warn-400">{questions.length + replies.length}</span>
+        <span className="rounded-full bg-warn-500/15 px-2 text-xs font-semibold tabular-nums text-warn-400">{questions.length + replies.length + unread}</span>
       </h2>
       {questions.length > 0 && (
         <div className="space-y-2">
@@ -119,6 +167,12 @@ export default function AttentionPanel({ attention, onChanged }) {
         <div className="space-y-2">
           <p className="eyebrow">Replies to your department</p>
           {replies.map((task) => <Reply key={task._id} task={task} onChanged={onChanged} />)}
+        </div>
+      )}
+      {notices.length > 0 && (
+        <div className="space-y-2">
+          <p className="eyebrow">Updates on your enquiries</p>
+          {notices.map((notice) => <Update key={notice._id} notice={notice} onChanged={onChanged} />)}
         </div>
       )}
     </section>

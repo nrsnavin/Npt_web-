@@ -159,6 +159,9 @@ export default function DepartmentDesk({ enquiry, onChanged }) {
                 )}
               </p>
             )}
+            {production.asked?.status && (
+              <p className="mt-0.5 text-xs text-steel-300">Production status: <span className="font-semibold text-steel-100">{production.asked.status}</span></p>
+            )}
             {production.lines?.some((line) => line.expectedCompletion || line.dueToBuyer) && (
               <ul className="mt-1 space-y-0.5 text-xs text-steel-300">
                 {production.lines.map((line) => (

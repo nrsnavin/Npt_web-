@@ -33,6 +33,12 @@ export const workspace = {
    * which scope answered and whether this person has a customer view at all — the screen cannot
    * draw the tabs without it.
    */
+  /** What departments did on my enquiries — read, then dismissed; read ones clear in a day. */
+  notices: {
+    list: () => api.get('/workspace/notices').then(unwrap),
+    read: (id) => api.post(`/workspace/notices/${id}/read`, {}, { feedback: false }).then(unwrap),
+    dismiss: (id) => api.delete(`/workspace/notices/${id}`, { feedback: false }).then(unwrap),
+  },
   todos: {
     list: (params) => api.get('/workspace/todos', { params }).then((response) => response.data),
     reminders: () => api.get('/workspace/todos/reminders').then(unwrap),
