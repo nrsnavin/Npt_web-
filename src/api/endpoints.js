@@ -393,6 +393,17 @@ export const departments = {
   overview: () => api.get('/departments/overview').then(unwrap),
 };
 
+/**
+ * The overview dashboard [pages/OverviewDashboard.jsx]: the figures and new enquiries, the
+ * department tasks this person follows, and the customer / party master — each the reader's own.
+ */
+export const overview = {
+  summary: () => api.get('/dashboard/overview').then(unwrap),
+  /** `department` (Admin: any) and `state` — open, done or all. */
+  tasks: (params) => api.get('/dashboard/tasks', { params }).then(unwrap),
+  parties: (params) => api.get('/dashboard/parties', { params }).then(unwrap),
+};
+
 export const enquiries = {
   /** Who is holding enquiries, for the owner filter. Scoped like the list itself. */
   owners: () => api.get('/enquiries/owners').then(unwrap),

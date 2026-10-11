@@ -46,11 +46,13 @@ const idle = async () => ({ data: [], pagination: null });
  */
 export default function Enquiries({ embedded = false }) {
   const { canWrite, isAdmin } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
-  /* Marketing's own status — the "Current Marketing Status" on each enquiry. */
-  const [marketing, setMarketing] = useState('');
-  const [view, setView] = useState('open');
+  /* Marketing's own status — the "Current Marketing Status" on each enquiry. Opens on the one a
+     link asks for (the dashboard's "New Enquiries — View all"), and on Due now for "Due today". */
+  const [marketing, setMarketing] = useState(() => searchParams.get('marketingStatus') || '');
+  const [view, setView] = useState(() => (['open', 'due', 'all'].includes(searchParams.get('view')) ? searchParams.get('view') : 'open'));
   const [mode, setMode] = useViewMode('enquiries');
   const [page, setPage] = useState(1);
   const { sort, toggle } = useSort();
@@ -64,7 +66,6 @@ export default function Enquiries({ embedded = false }) {
   const [creating, setCreating] = useState(false);
   /* The command bar's "New …" arrives as `?new=1` with the form to open. */
   useOpenFromLink(() => setCreating(true));
-  const [searchParams, setSearchParams] = useSearchParams();
 
   const term = useDebounced(search);
 

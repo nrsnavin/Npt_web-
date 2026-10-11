@@ -14,6 +14,7 @@ import DispatchBaskets from '../components/DispatchBaskets.jsx';
 import { buttonFor, useHandoffCatalogue } from '../hooks/useHandoffCatalogue.js';
 import SamplingWorkQueue from '../components/SamplingWorkQueue.jsx';
 import Enquiries from './Enquiries.jsx';
+import OverviewDashboard from './OverviewDashboard.jsx';
 import { firstDashboardTab } from '../config/simpleNav.js';
 import { WorkspaceBrief, WorkspaceLinks } from '../components/DepartmentWorkspace.jsx';
 import { DashboardSkeleton, ErrorState, PageHeader } from '../components/ui.jsx';
@@ -188,7 +189,7 @@ const FILTERS = [
   { key: 'mine', label: 'Mine' },
 ];
 
-export default function DepartmentDashboard() {
+function DepartmentDesk() {
   const { key = 'mine' } = useParams();
   const { user, departments, mayDelete, canRead, isAdmin } = useAuth();
   const fetch = useCallback(() => departmentsApi.dashboard(key), [key]);
@@ -393,4 +394,17 @@ export default function DepartmentDashboard() {
       <WorkspaceBrief department={figures.department} label={figures.label} />
     </div>
   );
+}
+
+/**
+ * `/departments/mine` is the Dashboard on the bar. For Admin and marketing it is the overview
+ * [pages/OverviewDashboard.jsx] — figures, new enquiries, the department tasks they follow and
+ * the party master; their department desks stay one link away (`/departments/<key>`). Every
+ * other department opens on its own desk.
+ */
+export default function DepartmentDashboard() {
+  const { key = 'mine' } = useParams();
+  const { isAdmin, departments = [] } = useAuth();
+  if (key === 'mine' && (isAdmin || departments.includes('marketing'))) return <OverviewDashboard />;
+  return <DepartmentDesk />;
 }
