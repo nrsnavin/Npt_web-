@@ -146,3 +146,12 @@ test('customers carry area and landmark; Dispatch plans vehicles from baskets of
   assert.match(baskets, /Nearby, same PIN: \{basket\.nearby\.join\(' · '\)\}/);
   assert.match(baskets, /' — one vehicle'/);
 });
+
+test('the enquiry shows each sample’s team log: its status trail, despatch and the notes and photos', () => {
+  const page = read('pages/EnquiryDetail.jsx');
+  assert.match(page, /if \(response\.data\?\.\[0\]\) setOpen\(new Set\(\[response\.data\[0\]\._id\]\)\);/);
+  assert.match(page, /\{open\.has\(sample\._id\) \? 'Hide sample team log' : 'Sample team log'\}/);
+  assert.match(page, /sample\.statusHistory\.map\(\(entry, index\) =>/);
+  assert.match(page, /<SampleLog sampleId=\{sample\._id\} title=\{`Sample team notes & photos — \$\{sample\.number\}`\} \/>/);
+  assert.match(read('components/SampleLog.jsx'), /export default function SampleLog\(\{ sampleId, title = 'Log' \}\)/);
+});

@@ -160,7 +160,7 @@ function Entry({ entry, isAdmin, onComment, onRemove, onRemoveComment, onOpenPho
   );
 }
 
-export default function SampleLog({ sampleId }) {
+export default function SampleLog({ sampleId, title = 'Log' }) {
   const { mayDelete } = useAuth();
   const [body, setBody] = useState('');
   const [photo, setPhoto] = useState(null);
@@ -209,14 +209,14 @@ export default function SampleLog({ sampleId }) {
     }
   };
 
-  if (loading) return <Section title="Log"><Spinner label="Loading the log" /></Section>;
+  if (loading) return <Section title={title}><Spinner label="Loading the log" /></Section>;
 
   // The count is the whole feed's, not what happens to be loaded — "Log (15)" on a sample
   // with sixty entries is the screen quietly disagreeing with the record.
   const total = pagination?.total ?? entries.length;
 
   return (
-    <Section title={`Log (${total})`}>
+    <Section title={`${title} (${total})`}>
       <form onSubmit={submit} className="mb-4 space-y-2">
         <textarea
           rows={2}
