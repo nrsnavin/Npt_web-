@@ -28,6 +28,17 @@ const PRIORITIES = [['normal', 'Normal'], ['high', 'High'], ['low', 'Low']];
 
 function Answer({ field, value, prefill, onChange }) {
   const options = optionsOf(field, prefill);
+  /* No enquiry to fill it from (a team task): the register's list — moulds, materials, parts. */
+  const register = field.register && prefill?.registers?.[field.register];
+  if (register) {
+    const choices = value && !register.includes(value) ? [value, ...register] : register;
+    return (
+      <select className="input" value={value || ''} onChange={(event) => onChange(event.target.value)}>
+        <option value="">{choices.length ? `Choose from the ${field.register === 'moulds' ? 'mould register' : `${field.register} register`}…` : 'Nothing in the register yet'}</option>
+        {choices.map((option) => <option key={option} value={option}>{option}</option>)}
+      </select>
+    );
+  }
   /* A person of a department — the PRT member who visits; the task becomes theirs by name. */
   if (field.type === 'member') {
     const people = prefill?.members?.[field.department] || [];
@@ -67,7 +78,7 @@ function Answer({ field, value, prefill, onChange }) {
 }
 
 /** A table of rows — a sample's models, each with its parts, colour rule and pieces. */
-function Rows({ field, rows, onChange }) {
+function Rows({ field, rows, prefill, onChange }) {
   const set = (index, key, value) => onChange(rows.map((row, at) => (at === index ? { ...row, [key]: value } : row)));
   const blank = Object.fromEntries(field.columns.map((column) => [column.key, column.key === 'quantity' ? '3' : '']));
   return (
@@ -87,7 +98,7 @@ function Rows({ field, rows, onChange }) {
           {field.columns.map((column) => (
             <label key={column.key} className={`text-[0.7rem] text-steel-500 ${column.key === 'model' ? 'col-span-2' : ''}`}>
               {column.label}{column.required ? ' *' : ''}
-              <Answer field={column} value={row[column.key]} onChange={(value) => set(index, column.key, value)} />
+              <Answer field={column} value={row[column.key]} prefill={prefill} onChange={(value) => set(index, column.key, value)} />
             </label>
           ))}
           {rows.length > 1 && (
@@ -222,7 +233,7 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
             return (
               <div key={field.key} className="contents">
                 {heading && <p className="pt-1 text-sm font-bold text-steel-100 sm:col-span-2">{heading}</p>}
-                {field.type === 'items' && <Rows field={field} rows={answers[field.key] || []} onChange={answer(field.key)} />}
+                {field.type === 'items' && <Rows field={field} rows={answers[field.key] || []} prefill={prefill} onChange={answer(field.key)} />}
                 {field.type === 'info' && (
                   <div className="rounded-xl border border-accent/30 bg-accent/[0.05] px-3 py-2 sm:col-span-2">
                     <p className="text-sm font-bold text-steel-100">{field.label}</p>

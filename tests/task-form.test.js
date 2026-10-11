@@ -81,3 +81,11 @@ test('a member question picks a person of its department — the PRT member to v
   assert.match(dialog, /prefill\?\.members\?\.\[field\.department\]/);
   assert.match(dialog, /<option key=\{person\._id\} value=\{person\._id\}>\{person\.name\}<\/option>/);
 });
+
+test('with no enquiry to fill from, register questions are dropdowns of the register — sample rows too', () => {
+  const dialog = readFileSync(new URL('../src/components/DepartmentTaskDialog.jsx', import.meta.url), 'utf8');
+  assert.match(dialog, /const register = field\.register && prefill\?\.registers\?\.\[field\.register\];/);
+  assert.match(dialog, /field\.register === 'moulds' \? 'mould register'/);
+  assert.match(dialog, /<Answer field=\{column\} value=\{row\[column\.key\]\} prefill=\{prefill\}/);
+  assert.match(dialog, /<Rows field=\{field\} rows=\{answers\[field\.key\] \|\| \[\]\} prefill=\{prefill\}/);
+});
