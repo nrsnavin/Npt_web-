@@ -66,6 +66,8 @@ export function finishFeedback(config, response, error) {
   if (!config?.feedbackId || !pending.delete(config.feedbackId)) return;
   /* Still emitted, so the pending count drops and the spinner stops — just with nothing said. */
   if (error && isAQuestion(response)) { emit({}); return; }
+  /* Added to a task the department already had: the screen says so itself, not "Task sent". */
+  if (!error && response?.data?.data?.addedTo) { emit({}); return; }
   emit({ message: error ? 'Action could not be completed' : response.status === 202 ? 'Saved — completion pending' : actionLabel(config),
     detail: error?.message || (response.status === 202 ? response.data?.message || 'The app will retry the remaining steps. Refresh to check progress.' : [response.data?.data?.number, /\/workspace\/todos\//.test(config.url || '') ? null : response.data?.data?.status?.replaceAll('_', ' ')].filter(Boolean).join(' · ') || undefined),
     tone: error ? 'danger' : response.status === 202 ? 'info' : 'success' });

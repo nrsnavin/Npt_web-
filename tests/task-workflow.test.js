@@ -51,3 +51,18 @@ test('the departments panel reloads when the enquiry is handed to someone else',
 test('only Admin is offered "Hand to someone" on the enquiry', () => {
   assert.match(read('pages/EnquiryDetail.jsx'), /\{isAdmin && <DelegateEnquiry enquiry=\{enquiry\} onDone=\{afterHandover\} \/>\}/);
 });
+
+test('in Production the enquiry shows the EDD, or that it was asked and not given', () => {
+  const desk = read('components/DepartmentDesk.jsx');
+  assert.match(desk, /const inProduction = \['production_edd', 'assembling'\]\.includes\(stage\) \|\| Boolean\(production\?\.asked\);/);
+  assert.match(desk, /EDD \{formatDate\(production\.edd\.edd\)\}/);
+  assert.match(desk, /EDD not given yet/);
+  assert.match(desk, /plant expects \$\{formatDate\(line\.expectedCompletion\)\}/);
+});
+
+test('raising a task the department already has adds to it, and says so', () => {
+  const dialog = read('components/DepartmentTaskDialog.jsx');
+  assert.match(dialog, /addToOpen: true/);
+  assert.match(dialog, /if \(sent\.addedTo\) \{/);
+  assert.match(dialog, /open task`/);
+});

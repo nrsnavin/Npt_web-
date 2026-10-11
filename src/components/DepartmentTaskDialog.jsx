@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { handoffs as handoffsApi } from '../api/endpoints.js';
+import { useToast } from '../context/ToastContext.jsx';
 import { Field, Modal, Notice } from './ui.jsx';
 import {
   briefToSend, departmentOptions, missingAnswer, noteNeeded, optionOf, optionsOf, prefillValue, startingAnswers, todayInIndia,
@@ -98,6 +99,7 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
   const [file, setFile] = useState(null);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState(null);
+  const { toast, warn } = useToast();
 
   const buttons = catalogue?.buttons || [];
   const button = buttons.find((entry) => entry.key === kind);
@@ -135,11 +137,19 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
     setBusy(true);
     setProblem(null);
     try {
+      /* A department that already has this task open gets the request added to it. */
       const sent = await handoffsApi.send({
-        id: enquiry._id, kind, note, brief: briefToSend(button, answers),
+        id: enquiry._id, kind, note, brief: briefToSend(button, answers), addToOpen: true,
         ...(form.priority ? { priority } : {}),
         ...(requiredDate ? { requiredDate } : {}),
       });
+      if (sent.addedTo) {
+        toast(`Added to ${form.team || 'the department'}’s open task`, 'They already had this task — your request is on it as an update.');
+        if (file) warn('The PDF was not attached', 'Attach it on the task they already have, or send it in the note.');
+        onSent();
+        onClose();
+        return;
+      }
       if (file) {
         try {
           await handoffsApi.attach({ id: enquiry._id, taskId: sent.task._id, file });
