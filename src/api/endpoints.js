@@ -63,6 +63,8 @@ export const workspace = {
     reschedule: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/reschedule`, payload).then(unwrap),
     /** The department's own status on its task — SO Waiting, Preparing, Needs Clarification. */
     status: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/status`, payload).then(unwrap),
+    /** "Got it" on an answer that came back to the department — it leaves the top of the dashboard. */
+    seen: (id) => api.post(`/workspace/todos/${id}/seen`, {}, { feedback: false }).then(unwrap),
     /** Correcting the contact details the task was given. */
     brief: ({ id, brief }) => api.post(`/workspace/todos/${id}/brief`, { brief }).then(unwrap),
     /** The work as a PDF — the sales order — which finishes the task; keeps `next` / `nextProblem`. */
