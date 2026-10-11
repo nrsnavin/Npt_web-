@@ -8,6 +8,7 @@ import HandoffTaskActions from '../components/HandoffTaskActions.jsx';
 import { describeBrief } from '../utils/taskForm.js';
 import TaskPdfLink from '../components/TaskPdfLink.jsx';
 import TaskWorkflow from '../components/TaskWorkflow.jsx';
+import AttentionPanel from '../components/AttentionPanel.jsx';
 import { buttonFor, useHandoffCatalogue } from '../hooks/useHandoffCatalogue.js';
 import SamplingWorkQueue from '../components/SamplingWorkQueue.jsx';
 import Enquiries from './Enquiries.jsx';
@@ -255,6 +256,9 @@ export default function DepartmentDashboard() {
           </div>
         }
       />
+
+      {/* Questions for this person and answers back to the department — acted on here, on every tab. */}
+      <AttentionPanel attention={data.attention} onChanged={reload} />
 
       {tab === 'enquiries' && <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Tile label="Open tasks" value={enquiries.length} hint={`${figures.open} on the department in all`} active={tab === 'enquiries' && filter === 'all'} onClick={() => pick('all')} />
