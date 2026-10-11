@@ -12,21 +12,21 @@
 :root,
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --primary-bg: #3c9aa1;
-  --primary-hover: #4fb0b7;
-  --primary-text: #071416;
+  --primary-bg: #f76800;
+  --primary-hover: #ff8124;
+  --primary-text: #0c141a;
 
-  /* Brand accent: the plant's dark teal, lightened to read on a dark canvas. */
-  --flame-50: 232 245 245;
-  --flame-100: 204 233 234;
-  --flame-200: 153 209 212;
-  --flame-300: 110 190 195;
-  --flame-400: 79 176 183;
-  --flame-500: 60 154 161;
-  --flame-600: 45 128 134;
-  --flame-700: 34 102 107;
-  --flame-800: 25 78 82;
-  --flame-900: 16 52 55;
+  /* Brand accent — identical in both themes at 500. */
+  --flame-50: 255 241 230;
+  --flame-100: 255 220 194;
+  --flame-200: 255 190 138;
+  --flame-300: 255 158 82;
+  --flame-400: 255 129 36;
+  --flame-500: 247 104 0;
+  --flame-600: 217 90 0;
+  --flame-700: 178 74 0;
+  --flame-800: 138 58 0;
+  --flame-900: 94 40 0;
 
   --aqua-300: 95 211 228;
   --aqua-400: 54 181 201;
@@ -76,7 +76,7 @@
   /* Hairlines and hover washes lighten the surface they sit on. */
   --line: 255 255 255;
   --scrim: 8 13 17;
-  --accent: 110 190 195;
+  --accent: 255 129 36;
 
   /* Depth on a dark canvas comes from shadow. */
   --shadow-raised: 0 1px 2px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.25);
@@ -84,9 +84,9 @@
   --shadow-modal: 0 24px 64px rgba(0, 0, 0, 0.65);
 
   /* The primary button lightens on hover here, and darkens in light mode. */
-  --flame-hover: 79 176 183;
+  --flame-hover: 255 129 36;
   /* Ambient wash behind the canvas. */
-  --canvas-wash: rgba(60, 154, 161, 0.06);
+  --canvas-wash: rgba(247, 104, 0, 0.07);
 
   /* Fields sit darker than their card here, so a faint border is enough. */
   --field-bg: rgb(8 13 17 / 0.6);
@@ -100,21 +100,21 @@
 
 :root[data-theme='light'] {
   color-scheme: light;
-  --primary-bg: #23575d;
-  --primary-hover: #1a454a;
+  --primary-bg: #a94400;
+  --primary-hover: #8a3a00;
   --primary-text: #ffffff;
 
-  /* Brand accent: the plant's dark teal (#23575d), with pale washes for chips and selection. */
-  --flame-50: 234 244 243;
-  --flame-100: 211 232 230;
-  --flame-200: 169 209 205;
-  --flame-300: 35 87 93;
-  --flame-400: 30 78 84;
-  --flame-500: 35 87 93;
-  --flame-600: 27 72 77;
-  --flame-700: 21 58 62;
-  --flame-800: 16 45 48;
-  --flame-900: 11 32 34;
+  /* The accent holds its brand value; only the shades used as text move, for contrast. */
+  --flame-50: 255 241 230;
+  --flame-100: 255 220 194;
+  --flame-200: 255 190 138;
+  --flame-300: 217 90 0;
+  --flame-400: 194 81 10;
+  --flame-500: 247 104 0;
+  --flame-600: 217 90 0;
+  --flame-700: 178 74 0;
+  --flame-800: 138 58 0;
+  --flame-900: 94 40 0;
 
   --aqua-300: 16 112 127;
   --aqua-400: 33 120 134;
@@ -124,7 +124,7 @@
 
   /* Same roles, inverted lightness: white cards on a cool off-white canvas. */
   --ink-950: 255 255 255;
-  --ink-900: 243 245 245;
+  --ink-900: 240 244 247;
   --ink-850: 255 255 255;
   --ink-800: 247 250 251;
   --ink-750: 237 242 246;
@@ -155,15 +155,15 @@
   /* Hairlines and hover washes darken the surface they sit on. */
   --line: 15 30 41;
   --scrim: 12 20 26;
-  --accent: 29 85 91;
+  --accent: 194 81 10;
 
   /* Lift on a light canvas is a soft, tinted drop shadow rather than a black one. */
   --shadow-raised: 0 1px 2px rgba(15, 30, 41, 0.05), 0 1px 3px rgba(15, 30, 41, 0.06);
   --shadow-float: 0 4px 10px rgba(15, 30, 41, 0.07), 0 12px 28px rgba(15, 30, 41, 0.09);
   --shadow-modal: 0 24px 64px rgba(15, 30, 41, 0.22);
 
-  --flame-hover: 27 72 77;
-  --canvas-wash: rgba(35, 87, 93, 0.04);
+  --flame-hover: 217 90 0;
+  --canvas-wash: rgba(247, 104, 0, 0.05);
 
   /* A white field on a white card is only a border, so the border has to carry it. */
   --field-bg: rgb(255 255 255);
@@ -178,17 +178,12 @@
 @media (prefers-color-scheme: light) {
   :root:not([data-theme]) {
     color-scheme: light;
-  --primary-bg: #23575d;
-  --primary-hover: #1a454a;
+  --primary-bg: #a94400;
+  --primary-hover: #8a3a00;
   --primary-text: #ffffff;
 
-    --flame-50: 234 244 243;
-    --flame-100: 211 232 230;
-    --flame-200: 169 209 205;
-    --flame-300: 35 87 93;
-    --flame-400: 30 78 84;
-    --flame-500: 35 87 93;
-    --flame-600: 27 72 77;
+    --flame-300: 217 90 0;
+    --flame-400: 194 81 10;
 
     --aqua-300: 16 112 127;
     --aqua-400: 33 120 134;
@@ -196,7 +191,7 @@
     --aqua-700: 226 243 246;
 
     --ink-950: 255 255 255;
-    --ink-900: 243 245 245;
+    --ink-900: 240 244 247;
     --ink-850: 255 255 255;
     --ink-800: 247 250 251;
     --ink-750: 237 242 246;
@@ -220,14 +215,14 @@
     --danger-600: 158 22 41;
 
     --line: 15 30 41;
-    --accent: 29 85 91;
+    --accent: 194 81 10;
 
     --shadow-raised: 0 1px 2px rgba(15, 30, 41, 0.05), 0 1px 3px rgba(15, 30, 41, 0.06);
     --shadow-float: 0 4px 10px rgba(15, 30, 41, 0.07), 0 12px 28px rgba(15, 30, 41, 0.09);
     --shadow-modal: 0 24px 64px rgba(15, 30, 41, 0.22);
 
-    --flame-hover: 27 72 77;
-    --canvas-wash: rgba(35, 87, 93, 0.04);
+    --flame-hover: 217 90 0;
+    --canvas-wash: rgba(247, 104, 0, 0.05);
 
     /* A white field on a white card is only a border, so the border has to carry it. */
     --field-bg: rgb(255 255 255);

@@ -3,17 +3,14 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 const STORAGE_KEY = 'npt.theme';
 const ThemeContext = createContext(null);
 
-/**
- * Reads the stored preference. With none, the light theme — the plant's chosen look (white
- * cards, dark teal bar); dark is a choice somebody makes with the toggle.
- */
+/** Reads the stored preference. 'system' means follow the operating system. */
 const storedPreference = () => {
   try {
     const value = localStorage.getItem(STORAGE_KEY);
-    return value === 'light' || value === 'dark' || value === 'system' ? value : 'light';
+    return value === 'light' || value === 'dark' ? value : 'system';
   } catch {
     // Private browsing and blocked site data both throw here.
-    return 'light';
+    return 'system';
   }
 };
 

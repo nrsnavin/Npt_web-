@@ -228,7 +228,7 @@ function BarItem({ item, lit }) {
   }, [open]);
 
   const tone = `flex items-center gap-2 whitespace-nowrap rounded-lg px-3.5 py-2 text-[0.95rem] font-semibold transition-colors ${
-    lit ? 'bg-white/[0.14] text-white' : 'text-white/80 hover:bg-white/[0.08] hover:text-white'
+    lit ? 'bg-line/[0.08] text-flame-500' : 'text-steel-300 hover:bg-line/[0.05] hover:text-steel-50'
   }`;
   const icon = item.icon ? <span aria-hidden className="text-sm opacity-80">{item.icon}</span> : null;
   const screens = item.features.flatMap((feature) => [feature, ...(feature.children || []).map((child) => ({ ...child, child: true }))]);
@@ -370,17 +370,17 @@ export default function Layout() {
       <a href="#main-content" className="skip-link">Skip to main content</a>
 
       {/* `relative z-30` so the menus open over the main pane, which comes later in the DOM. */}
-      <header className="relative z-30 flex min-h-14 shrink-0 items-center gap-2 bg-[#17383d] px-3 text-white sm:px-4">
+      <header className="relative z-30 flex min-h-14 shrink-0 items-center gap-2 border-b border-line/10 bg-ink-850 px-3 sm:px-4">
         <button
           type="button"
-          className="rounded-lg px-3 py-2 text-white hover:bg-white/[0.08] lg:hidden"
+          className="btn-secondary px-3 lg:hidden"
           onClick={() => setMenuOpen(true)}
           aria-label="Open navigation"
           aria-expanded={menuOpen}
         >
           <span aria-hidden>☰</span>
         </button>
-        <span className="font-extrabold tracking-tight lg:hidden">Navin Hangers</span>
+        <div className="lg:hidden"><Wordmark /></div>
 
         {/* The bar. Hidden on a narrow screen, where the drawer carries it instead. */}
         <nav aria-label="Main" className="hidden min-w-0 flex-1 items-center gap-1 lg:flex">

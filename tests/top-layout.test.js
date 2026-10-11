@@ -61,17 +61,17 @@ test('the lit item is the longest match', () => {
   assert.equal(litItem('/profile', items), undefined, 'a screen on no item lights nothing');
 });
 
-test('the layout: dark bar, account bar with email · role and initials, no sidebar', () => {
+test('the layout: the bar, account bar with email · role and initials, no sidebar', () => {
   const layout = read('components/Layout.jsx');
-  assert.match(layout, /bg-\[#17383d\]/);
+  assert.match(layout, /<header className="[^"]*bg-ink-850/, "the bar keeps the app’s own theme");
   assert.match(layout, /<BarItem key=\{item\.key\} item=\{item\} lit=\{lit === item\.key\} \/>/);
   assert.match(layout, /<AccountBar/);
   assert.match(layout, /\{who\}\{roleLabel \? ` · \$\{roleLabel\}` : ''\}/);
   assert.match(layout, /initialsOf\(user\?\.name, who\)/);
   assert.doesNotMatch(layout, /<aside/, 'no left sidebar');
   assert.doesNotMatch(layout, /ModuleTabs/);
-  /* The light theme is the default, as in the reference. */
-  assert.match(read('context/ThemeContext.jsx'), /'light'/);
+  /* The reference is for the layout only: no colour of its own, the theme is the app's. */
+  assert.doesNotMatch(layout, /#17383d|bg-white\/|text-white\/80/i);
 });
 
 test('Admin and marketing open on the overview; every other department on its desk', () => {
