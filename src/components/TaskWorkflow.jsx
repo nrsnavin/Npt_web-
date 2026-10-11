@@ -258,7 +258,8 @@ export default function TaskWorkflow({ todo, onChanged }) {
         {editable.length > 0 && (
           <button type="button" className="btn-secondary px-3 py-1.5 text-xs" onClick={() => setEditing(true)}>{button.form.editLabel || 'Edit contact details'}</button>
         )}
-        {(button.form.actions || []).map((action) => (
+        {/* Asking another department raises its task on the enquiry — a team task has none. */}
+        {todo.enquiry && (button.form.actions || []).map((action) => (
           <button key={action.kind} type="button" className="btn-secondary px-3 py-1.5 text-xs" onClick={() => setAskingDepartment(action)}>
             {action.label}
           </button>
