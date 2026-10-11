@@ -105,7 +105,7 @@ function PriorityCell({ row }) {
         {row.priority === 'urgent' ? 'Urgent' : 'Normal'}
       </span>
       <p className={`mt-1 text-xs tabular-nums ${row.late ? 'font-semibold text-danger-400' : row.dueToday ? 'font-semibold text-warn-400' : 'text-steel-400'}`}>
-        {row.requiredDate ? new Date(row.requiredDate).toISOString().slice(0, 10) : 'No date'}
+        {row.requiredDate ? formatDate(row.requiredDate) : 'No date'}
         {row.late && ' · late'}
         {row.dueToday && ' · today'}
       </p>

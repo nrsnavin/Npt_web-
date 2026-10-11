@@ -168,7 +168,7 @@ export default function DepartmentTasksBoard({
           aria-label="Open or done"
           className={`input w-auto py-1.5 text-sm ${isAdmin ? '' : 'sm:ml-auto'}`}
           value={state}
-          onChange={(event) => setFilter({ state: event.target.value })}
+          onChange={(event) => { setFilter({ state: event.target.value }); setChip('all'); }}
         >
           {STATES.map((entry) => <option key={entry.key} value={entry.key}>{entry.label}</option>)}
         </select>

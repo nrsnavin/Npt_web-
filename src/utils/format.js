@@ -19,6 +19,18 @@ export const formatCompactCurrency = (value) => {
   return currencyFormatter.format(amount);
 };
 
+/**
+ * A day as a date input wants it — "2026-10-12" — on the calendar of whoever is looking.
+ *
+ * Not the ISO string cut to ten characters: that is the day in Greenwich, which in India is yesterday until
+ * 05:30. Defaults built that way offered yesterday as "today", and the server refused them as past.
+ */
+export const isoDay = (value = new Date()) => {
+  const date = new Date(value);
+  const pad = (number) => String(number).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+};
+
 export const formatDate = (value) => {
   if (!value) return '—';
   return new Date(value).toLocaleDateString('en-IN', {

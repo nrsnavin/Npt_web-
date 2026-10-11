@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { quality as qualityApi } from '../api/endpoints.js';
 import { ErrorState, PageHeader, Section, Spinner } from '../components/ui.jsx';
-import { formatCurrency, formatDate, formatNumber } from '../utils/format.js';
+import { formatCurrency, formatDate, formatNumber, isoDay } from '../utils/format.js';
 import { inspectionStageLabel } from '../utils/pipeline.js';
 
 /**
@@ -36,7 +36,7 @@ const RANGES = [
 const sinceFor = (days) => {
   const date = new Date();
   date.setDate(date.getDate() - Number(days));
-  return date.toISOString().slice(0, 10);
+  return isoDay(date);
 };
 
 function Headline({ label, value, hint, lit }) {
