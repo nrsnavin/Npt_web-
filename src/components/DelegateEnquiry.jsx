@@ -4,8 +4,8 @@ import { Field, FormError, Modal } from './ui.jsx';
 
 /**
  * Handing the enquiry to another marketing person, an Admin, or taking it yourself, at any stage
- * [server: services/delegation.service.js]. Offered to the owner and Admin only — the server says
- * which — and its open tasks, samples, quotes and orders go with it.
+ * [server: services/delegation.service.js]. Admin only — the server refuses anyone else — and its
+ * open tasks, samples, quotes and orders go with it.
  */
 export default function DelegateEnquiry({ enquiry, onDone }) {
   const [targets, setTargets] = useState([]);

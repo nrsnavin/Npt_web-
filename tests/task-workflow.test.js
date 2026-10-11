@@ -47,3 +47,7 @@ test('an enquiry may be handed to marketing, to an Admin, or taken by the reader
 test('the departments panel reloads when the enquiry is handed to someone else', () => {
   assert.match(read('components/DepartmentDesk.jsx'), /\}, \[enquiry\._id, owner\]\);/);
 });
+
+test('only Admin is offered "Hand to someone" on the enquiry', () => {
+  assert.match(read('pages/EnquiryDetail.jsx'), /\{isAdmin && <DelegateEnquiry enquiry=\{enquiry\} onDone=\{afterHandover\} \/>\}/);
+});

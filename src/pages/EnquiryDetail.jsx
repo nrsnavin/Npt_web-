@@ -486,7 +486,7 @@ function EnquiryCommercials({ enquiryId, canSeeQuotes }) {
 
 export default function EnquiryDetail() {
   const { id } = useParams();
-  const { canRead, canWrite, user } = useAuth();
+  const { canRead, canWrite, user, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [movingStage, setMovingStage] = useState(false);
   const [promoting, setPromoting] = useState(false);
@@ -553,8 +553,8 @@ export default function EnquiryDetail() {
                 Edit the enquiry
               </button>
             )}
-            {/* At any stage: the owner or Admin hands it to another marketing person. */}
-            {mayWrite && <DelegateEnquiry enquiry={enquiry} onDone={afterHandover} />}
+            {/* At any stage, Admin only: hand it to marketing, another Admin, or take it on. */}
+            {isAdmin && <DelegateEnquiry enquiry={enquiry} onDone={afterHandover} />}
             {mayWrite && enquiry.isNewDevelopment && mayWriteMoulds && (
               <button type="button" className="btn-secondary" onClick={() => setPromoting(true)}>
                 Add to the register

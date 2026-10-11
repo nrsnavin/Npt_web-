@@ -32,9 +32,9 @@ test('the Activities page is routed behind the enquiries module and linked for m
   assert.match(read('api/endpoints.js'), /activities: \(params\) => api\.get\('\/enquiries\/activities'/);
 });
 
-test('the owner or Admin can hand the enquiry to a colleague from the enquiry page, at any stage', () => {
+test('only Admin can hand the enquiry to someone from the enquiry page, at any stage', () => {
   const page = read('pages/EnquiryDetail.jsx');
-  assert.match(page, /mayWrite && <DelegateEnquiry enquiry=\{enquiry\} onDone=\{afterHandover\} \/>/);
+  assert.match(page, /isAdmin && <DelegateEnquiry enquiry=\{enquiry\} onDone=\{afterHandover\} \/>/);
   const delegate = read('components/DelegateEnquiry.jsx');
   assert.match(delegate, /if \(!may \|\| !targets\.length\) return null;/, 'shown only when the server says they may');
   assert.match(delegate, /enquiriesApi\.delegate\(\{ id: enquiry\._id, to,/);
