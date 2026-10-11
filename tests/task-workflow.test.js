@@ -87,3 +87,12 @@ test('department moves on an enquiry show under "Needs your action": read, then 
 test('the enquiry shows where Production has its task', () => {
   assert.match(read('components/DepartmentDesk.jsx'), /Production status: .*\{production\.asked\.status\}/);
 });
+
+test('marketing’s enquiry list shows the stage, the mould’s ERD, Production’s EDD and the open issues', () => {
+  const list = read('pages/Enquiries.jsx');
+  assert.match(list, /<th className="px-3 py-3">Stage<\/th>/);
+  assert.match(list, /catalogue\?\.stages\?\.find\(\(stage\) => stage\.key === enquiry\.stage\)\?\.label/);
+  assert.match(list, /formatDate\(enquiry\.progress\.erd\.date\)/);
+  assert.match(list, /formatDate\(enquiry\.progress\.edd\.date\)/);
+  assert.match(list, /\{departmentLabel\(issue\.department\)\}: \{issue\.label\}/);
+});

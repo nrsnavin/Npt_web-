@@ -19,7 +19,7 @@ import ExportButton from '../components/ExportButton.jsx';
 import MarketingStatusSelect from '../components/MarketingStatusSelect.jsx';
 import { formatCompactCurrency, formatDate, formatNumber } from '../utils/format.js';
 import {
-  CLOSED_STAGES, ENQUIRY_STAGES, MARKETING_STATUSES, SOURCES, buildEnquiryPayload, followUpState, stageLabel,
+  CLOSED_STAGES, ENQUIRY_STAGES, MARKETING_STATUSES, SOURCES, buildEnquiryPayload, departmentLabel, followUpState, stageLabel,
 } from '../utils/pipeline.js';
 import useOpenFromLink from '../hooks/useOpenFromLink.js';
 import { useHandoffCatalogue } from '../hooks/useHandoffCatalogue.js';
@@ -319,7 +319,7 @@ export default function Enquiries({ embedded = false }) {
 
       {board && <EnquiryBoard filters={filters} canMove={mayWrite} />}
 
-      {!board && loading && <TableSkeleton columns={9} />}
+      {!board && loading && <TableSkeleton columns={13} />}
       {!board && error && <ErrorState error={error} onRetry={reload} />}
 
       {!board && !loading && !error && (data.length === 0 ? (
@@ -357,7 +357,12 @@ export default function Enquiries({ embedded = false }) {
                     <SortHeader field="nextFollowUpDate" label="Next action" sort={sort} onToggle={sortBy} />
                     <th className="px-3 py-3">Owner</th>
                     <th className="px-3 py-3">Marketing status</th>
-                    <SortHeader field="status" label="Stage" sort={sort} onToggle={sortBy} />
+                    {/* Where it is with the departments [server: handoff.service `enquiryProgress`]. */}
+                    <th className="px-3 py-3">Stage</th>
+                    <th className="px-3 py-3" title="Expected ready date of the mould">ERD</th>
+                    <th className="px-3 py-3" title="Expected date Production gave">EDD</th>
+                    <th className="px-3 py-3">Issues</th>
+                    <SortHeader field="status" label="Sales stage" sort={sort} onToggle={sortBy} />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line/[0.04]">
@@ -409,6 +414,26 @@ export default function Enquiries({ embedded = false }) {
                         {/* Changed right here, without opening the enquiry. */}
                         <td className="px-3 py-2.5">
                           <MarketingStatusSelect enquiry={enquiry} canWrite={mayWrite} onChanged={reload} compact />
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-3.5 text-steel-200">
+                          {catalogue?.stages?.find((stage) => stage.key === enquiry.stage)?.label || '—'}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-3.5 text-steel-300" aria-label={`ERD of ${enquiry.number}`}>
+                          {enquiry.progress?.erd ? formatDate(enquiry.progress.erd.date) : '—'}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-3.5 text-steel-300" aria-label={`EDD of ${enquiry.number}`}>
+                          {enquiry.progress?.edd ? formatDate(enquiry.progress.edd.date) : '—'}
+                        </td>
+                        <td className="px-3 py-3.5" aria-label={`Issues on ${enquiry.number}`}>
+                          {enquiry.progress?.issues?.length ? (
+                            <div className="flex flex-col items-start gap-1">
+                              {enquiry.progress.issues.map((issue) => (
+                                <span key={`${issue.department}-${issue.label}`} className="whitespace-nowrap rounded-full bg-danger-500/15 px-2 py-0.5 text-xs font-semibold text-danger-400">
+                                  {departmentLabel(issue.department)}: {issue.label}
+                                </span>
+                              ))}
+                            </div>
+                          ) : <span className="text-steel-500">—</span>}
                         </td>
                         <td className="whitespace-nowrap px-3 py-3.5">
                           <Badge status={enquiry.status}>{stageLabel(enquiry.status)}</Badge>
