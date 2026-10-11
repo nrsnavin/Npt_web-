@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { workspace } from '../api/endpoints.js';
 import { buttonFor, useHandoffCatalogue } from '../hooks/useHandoffCatalogue.js';
 import { Field, Modal, Notice } from './ui.jsx';
+import { describeBrief } from '../utils/taskForm.js';
 
 /**
  * What a department does with its task [server: services/handoff.service.js]:
@@ -36,7 +37,7 @@ export function HandoffDialog({ todo, mode, onClose, onChanged }) {
 
   const holds = Boolean(todo.holds);
   const name = button?.label || 'task';
-  const asked = todo.brief ? Object.entries(todo.brief) : [];
+  const asked = describeBrief(button, todo.brief);
 
   const titles = {
     done: holds ? `Done — back to marketing — ${name}` : `Done — ${name}`,
@@ -84,9 +85,7 @@ export function HandoffDialog({ todo, mode, onClose, onChanged }) {
       <form onSubmit={submit} className="space-y-4">
         {(todo.notes || asked.length > 0) && (
           <div className="space-y-1 rounded-lg border border-line/[0.06] bg-ink-800/40 p-3 text-sm text-steel-300">
-            {asked.map(([key, value]) => (
-              <p key={key}><span className="text-steel-500">{button?.asks?.find((field) => field.key === key)?.label || key}: </span>{value}</p>
-            ))}
+            {asked.map((line) => <p key={line}>{line}</p>)}
             {todo.notes && <p><span className="text-steel-500">Asked: </span>{todo.notes}</p>}
           </div>
         )}

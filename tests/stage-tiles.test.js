@@ -8,19 +8,26 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const desk = readFileSync(new URL('../src/components/DepartmentDesk.jsx', import.meta.url), 'utf8');
+const read = (path) => readFileSync(new URL(`../src/${path}`, import.meta.url), 'utf8');
+const desk = read('components/DepartmentDesk.jsx');
 
-test('a tile raises the department’s task, through the same dialog as the buttons below', () => {
+test('a tile opens that department’s task form; the record-only buttons keep the short dialog', () => {
   assert.match(desk, /catalogue\.buttons\.find\(\(button\) => button\.key === item\.kind\)/);
   assert.match(desk, /onClick=\{\(\) => setSending\(\{ \.\.\.sends, heading: `\$\{item\.number\}\. \$\{item\.label\} — \$\{sends\.label\}` \}\)\}/);
-  assert.match(desk, /title=\{button\.heading \|\| button\.label\}/);
-  assert.match(desk, /The enquiry stays with \$\{owner\}/);
+  assert.match(desk, /sending\.department \? \(\s*<DepartmentTaskDialog enquiry=\{enquiry\} catalogue=\{catalogue\} kind=\{sending\.key\}/);
+  assert.match(desk, /<SendDialog button=\{sending\}/);
 });
 
-test('the dialog asks the task’s questions, filled from the enquiry, and will not send unanswered', async () => {
-  assert.match(desk, /\{asks\.length > 0 && \(/);
-  assert.match(desk, /handoffsApi\.send\(\{ id: enquiry\._id, kind: button\.key, note, \.\.\.\(asks\.length \? \{ brief \} : \{\}\) \}\)/);
-  assert.match(desk, /disabled=\{busy \|\| unanswered/);
+test('the task form: department list, filled from the enquiry, the common fields, and no sending unanswered', () => {
+  const dialog = read('components/DepartmentTaskDialog.jsx');
+  assert.match(dialog, /handoffsApi\.prefill\(enquiry\._id\)/);
+  assert.match(dialog, /setAnswers\(startingAnswers\(button, prefill\)\)/);
+  assert.match(dialog, /<Field label="Workflow \/ Department">/);
+  assert.match(dialog, /<Field label="Attach PDF" hint="Optional, 1 MB at most"/);
+  assert.match(dialog, /const PDF_LIMIT = 1024 \* 1024;/);
+  assert.match(dialog, /handoffsApi\.attach\(\{ id: enquiry\._id, taskId: sent\.task\._id, file \}\)/);
+  assert.match(dialog, /disabled=\{busy \|\| blocked\}/);
+  assert.match(dialog, /const blocked = !prefill \|\| Boolean\(missing\) \|\| mustExplain \|\| tooBig \|\| notPdf;/);
 });
 
 test('a closed enquiry, or someone who may not raise tasks, gets plain tiles; open tasks show on their tile', () => {
