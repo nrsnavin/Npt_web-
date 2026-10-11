@@ -9,6 +9,7 @@ import { describeBrief } from '../utils/taskForm.js';
 import TaskPdfLink from '../components/TaskPdfLink.jsx';
 import TaskWorkflow from '../components/TaskWorkflow.jsx';
 import AttentionPanel from '../components/AttentionPanel.jsx';
+import DepartmentTaskDialog from '../components/DepartmentTaskDialog.jsx';
 import { buttonFor, useHandoffCatalogue } from '../hooks/useHandoffCatalogue.js';
 import SamplingWorkQueue from '../components/SamplingWorkQueue.jsx';
 import Enquiries from './Enquiries.jsx';
@@ -71,7 +72,8 @@ function EnquiryCard({ row, department, me, onChanged }) {
   const asked = describeBrief(button, task.brief);
   const holder = task.user?._id ? task.user : null;
   const lastUpdate = (task.updates || []).at(-1);
-  const actions = deskActionsFor(department, row);
+  /* A team task raised without an enquiry has no enquiry screens to open. */
+  const actions = enquiry ? deskActionsFor(department, row) : [];
   const days = daysSince(row.since);
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
@@ -97,10 +99,14 @@ function EnquiryCard({ row, department, me, onChanged }) {
     <article className={`card flex flex-col gap-3 p-4 transition hover:border-flame-500/30 ${row.late ? 'border-danger-500/30' : ''}`}>
       <header className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <Link to={`/enquiries/${enquiry._id}`} className="text-base font-bold text-steel-50 hover:text-accent">
-            {enquiry.number}
-          </Link>
-          <p className="truncate text-sm text-steel-300">{enquiry.customer?.name || '—'}</p>
+          {enquiry ? (
+            <Link to={`/enquiries/${enquiry._id}`} className="text-base font-bold text-steel-50 hover:text-accent">
+              {enquiry.number}
+            </Link>
+          ) : (
+            <p className="text-base font-bold text-steel-50">Team task</p>
+          )}
+          <p className="truncate text-sm text-steel-300">{(enquiry ? enquiry.customer?.name : task.customer?.name) || (enquiry ? '—' : 'No enquiry')}</p>
         </div>
         <DuePill row={row} />
       </header>
@@ -110,10 +116,10 @@ function EnquiryCard({ row, department, me, onChanged }) {
       <TaskPdfLink file={task.attachment} className="-mt-2 self-start" />
 
       <div className="flex flex-wrap gap-1.5">
-        <span className="rounded-md bg-flame-500/10 px-2 py-0.5 text-xs font-semibold text-flame-300">{enquiry.stageLabel}</span>
-        {enquiry.requirement?.modelNumber && <Chip>{enquiry.requirement.modelNumber}</Chip>}
-        {enquiry.items?.length > 1 && <Chip>+{enquiry.items.length - 1} more</Chip>}
-        {enquiry.requirement?.colour && <Chip>{enquiry.requirement.colour}</Chip>}
+        <span className="rounded-md bg-flame-500/10 px-2 py-0.5 text-xs font-semibold text-flame-300">{enquiry ? enquiry.stageLabel : `From ${task.createdBy?.name || 'Admin'}`}</span>
+        {enquiry?.requirement?.modelNumber && <Chip>{enquiry.requirement.modelNumber}</Chip>}
+        {enquiry?.items?.length > 1 && <Chip>+{enquiry.items.length - 1} more</Chip>}
+        {enquiry?.requirement?.colour && <Chip>{enquiry.requirement.colour}</Chip>}
         {row.records.quotation && <Chip>{row.records.quotation.number}</Chip>}
         {row.records.order && <Chip>{row.records.order.number}</Chip>}
       </div>
@@ -135,7 +141,7 @@ function EnquiryCard({ row, department, me, onChanged }) {
         Here {days === 0 ? 'since today' : days === 1 ? '1 day' : `${days} days`}
         {' · '}
         {holder ? `with ${String(holder._id) === me ? 'you' : holder.name}` : 'nobody has picked it up'}
-        {enquiry.assignedTo?.name && department !== 'marketing' ? ` · ${enquiry.assignedTo.name}’s buyer` : ''}
+        {enquiry?.assignedTo?.name && department !== 'marketing' ? ` · ${enquiry.assignedTo.name}’s buyer` : ''}
       </p>
 
       <div className="mt-auto flex flex-wrap items-center gap-2 border-t border-line/[0.06] pt-3">
@@ -189,6 +195,10 @@ export default function DepartmentDashboard() {
   const [chosenTab, setTab] = useState(null);
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
+  /* "New team task": Admin and marketing ask a team for something with no enquiry behind it. */
+  const [newTeamTask, setNewTeamTask] = useState(false);
+  const catalogue = useHandoffCatalogue();
+  const firstTask = (catalogue?.buttons || []).find((button) => button.department && !button.hidden && button.form)?.key;
   const me = String(user?.id || user?._id || '');
 
   const enquiries = data?.enquiries || [];
@@ -200,7 +210,7 @@ export default function DepartmentDashboard() {
       if (filter === 'unclaimed' && row.task.user) return false;
       if (filter === 'mine' && String(row.task.user?._id || '') !== me) return false;
       if (!term) return true;
-      return [row.enquiry.number, row.enquiry.customer?.name, row.enquiry.requirement?.modelNumber]
+      return [row.enquiry?.number, row.enquiry?.customer?.name || row.task.customer?.name, row.enquiry?.requirement?.modelNumber, row.task.title]
         .filter(Boolean).some((text) => text.toLowerCase().includes(term));
     });
   }, [enquiries, filter, search, me]);
@@ -251,11 +261,18 @@ export default function DepartmentDashboard() {
                 {departmentLabel(entry)} desk
               </Link>
             ))}
+            {(isAdmin || departments?.includes('marketing')) && firstTask && (
+              <button type="button" className="btn-primary" onClick={() => setNewTeamTask(true)}>New team task</button>
+            )}
             <button type="button" className="btn-secondary" onClick={reload}>Refresh</button>
             {seesAll && <Link to="/departments" className="btn-secondary">All departments</Link>}
           </div>
         }
       />
+
+      {newTeamTask && (
+        <DepartmentTaskDialog enquiry={null} catalogue={catalogue} kind={firstTask} onClose={() => setNewTeamTask(false)} onSent={reload} />
+      )}
 
       {/* Questions for this person and answers back to the department — acted on here, on every tab. */}
       <AttentionPanel attention={data.attention} onChanged={reload} />

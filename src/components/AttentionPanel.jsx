@@ -117,13 +117,17 @@ function Update({ notice, onChanged }) {
   /* Opening the enquiry is reading it. */
   const opened = () => { if (!read) workspace.notices.read(notice._id).catch(() => {}); };
   return (
-    <div aria-label={`${notice.statusLabel} on ${notice.enquiry?.number || 'the enquiry'}`} className={`rounded-xl border p-3 ${read ? 'border-line/[0.1] bg-line/[0.02]' : 'border-accent/40 bg-accent/[0.07]'}`}>
+    <div aria-label={`${notice.statusLabel} on ${notice.enquiry?.number || 'a team task'}`} className={`rounded-xl border p-3 ${read ? 'border-line/[0.1] bg-line/[0.02]' : 'border-accent/40 bg-accent/[0.07]'}`}>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <p className={`text-sm text-steel-50 ${read ? 'font-semibold' : 'font-bold'}`}>
           {!read && <span className="mr-1.5 inline-block h-2 w-2 rounded-full bg-accent align-middle" aria-label="Unread" />}
           {departmentLabel(notice.department)} · {notice.statusLabel}
           {' · '}
-          <Link to={`/enquiries/${notice.enquiry?._id || notice.enquiry}`} onClick={opened} className="text-accent hover:underline">{notice.enquiry?.number}</Link>
+          {notice.enquiry ? (
+            <Link to={`/enquiries/${notice.enquiry?._id || notice.enquiry}`} onClick={opened} className="text-accent hover:underline">{notice.enquiry?.number}</Link>
+          ) : (
+            <span className="font-normal text-steel-300">Team task</span>
+          )}
           {notice.customer?.name && <span className="font-normal text-steel-300"> · {notice.customer.name}</span>}
         </p>
         <span className="text-xs text-steel-400">{notice.by?.name ? `${notice.by.name} · ` : ''}{formatDate(notice.at)}</span>

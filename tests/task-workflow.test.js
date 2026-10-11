@@ -104,7 +104,7 @@ test('a task’s own asks (Dispatch’s Ask Production) open that department’s
   const dialog = read('components/DepartmentTaskDialog.jsx');
   assert.match(dialog, /fromTask\s*\? await workspace\.todos\.ask\(\{ id: fromTask\._id, \.\.\.payload \}\)/);
   assert.match(dialog, /disabled=\{Boolean\(fromTask\)\}/);
-  assert.match(dialog, /\(noteNeeded\(button, answers\) \|\| Boolean\(fromTask\)\) && note\.trim\(\)\.length < 3/);
+  assert.match(dialog, /\(noteNeeded\(button, answers\) \|\| Boolean\(fromTask\) \|\| team\) && note\.trim\(\)\.length < 3/);
   assert.match(read('api/endpoints.js'), /ask: \(\{ id, \.\.\.payload \}\) => api\.post\(`\/workspace\/todos\/\$\{id\}\/ask`/);
 });
 
@@ -116,4 +116,18 @@ test('the LR copy uploads as a PDF or photo and says per channel whether it reac
   assert.match(workflow, /'Upload and send to buyer'/);
   assert.match(workflow, /sent to the buyer`, went\.map/);
   assert.match(workflow, /not sent`, missed\.map/);
+});
+
+test('Admin and marketing raise a team task with no enquiry; the desk shows it without enquiry links', () => {
+  const dashboard = read('pages/DepartmentDashboard.jsx');
+  assert.match(dashboard, /\(isAdmin \|\| departments\?\.includes\('marketing'\)\) && firstTask &&/);
+  assert.match(dashboard, /<DepartmentTaskDialog enquiry=\{null\}/);
+  assert.match(dashboard, /const actions = enquiry \? deskActionsFor\(department, row\) : \[\];/);
+  assert.match(dashboard, /<p className="text-base font-bold text-steel-50">Team task<\/p>/);
+  const dialog = read('components/DepartmentTaskDialog.jsx');
+  assert.match(dialog, /const team = !enquiry;/);
+  assert.match(dialog, /\? await workspace\.teamTasks\.create\(\{ \.\.\.payload, \.\.\.\(customer \? \{ customer \} : \{\}\) \}\)/);
+  assert.match(dialog, /if \(team\) await workspace\.teamTasks\.attach\(\{ id: sent\.task\._id, file \}\);/);
+  assert.match(read('api/endpoints.js'), /create: \(payload\) => api\.post\('\/workspace\/team-tasks', payload, \{ feedback: false \}\)/);
+  assert.match(read('components/AttentionPanel.jsx'), /<span className="font-normal text-steel-300">Team task<\/span>/);
 });

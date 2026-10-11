@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { handoffs as handoffsApi, workspace } from '../api/endpoints.js';
 import { useToast } from '../context/ToastContext.jsx';
 import { Field, Modal, Notice } from './ui.jsx';
+import { CustomerSelect } from './pickers.jsx';
 import {
   briefToSend, departmentOptions, missingAnswer, noteNeeded, optionOf, optionsOf, prefillValue, startingAnswers, todayInIndia,
 } from '../utils/taskForm.js';
@@ -17,6 +18,9 @@ import {
  *
  * Opened from another department's task (`fromTask` — Dispatch's "Ask Production"), it asks
  * that one department only, says what is needed, and the asking task records it.
+ *
+ * Opened with no enquiry (`enquiry` null — "New team task" on the dashboard), it is a task for a
+ * team on its own: a customer may be picked, and the form fills only what that gives.
  */
 
 const PDF_LIMIT = 1024 * 1024;
@@ -113,6 +117,9 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState(null);
   const { toast, warn } = useToast();
+  /* No enquiry: a team task, with an optional customer instead of the enquiry's answers. */
+  const team = !enquiry;
+  const [customer, setCustomer] = useState('');
 
   const buttons = catalogue?.buttons || [];
   const button = buttons.find((entry) => entry.key === kind);
@@ -121,11 +128,11 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
 
   useEffect(() => {
     let live = true;
-    handoffsApi.prefill(enquiry._id)
+    (team ? workspace.teamTasks.prefill(customer || undefined) : handoffsApi.prefill(enquiry._id))
       .then((data) => { if (live) setPrefill(data || {}); })
       .catch(() => { if (live) setPrefill({}); });
     return () => { live = false; };
-  }, [enquiry._id]);
+  }, [team, enquiry?._id, customer]);
 
   /* A new department, or the enquiry's answers arriving: the form starts again from the enquiry. */
   useEffect(() => {
@@ -140,7 +147,7 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
   const pickDepartment = (value) => setKind(value);
   const answer = (key) => (value) => setAnswers((current) => ({ ...current, [key]: value }));
   const missing = missingAnswer(button, answers);
-  const mustExplain = (noteNeeded(button, answers) || Boolean(fromTask)) && note.trim().length < 3;
+  const mustExplain = (noteNeeded(button, answers) || Boolean(fromTask) || team) && note.trim().length < 3;
   const tooBig = file && file.size > PDF_LIMIT;
   const notPdf = file && file.type !== 'application/pdf';
   const blocked = !prefill || Boolean(missing) || mustExplain || tooBig || notPdf;
@@ -158,7 +165,10 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
       };
       const sent = fromTask
         ? await workspace.todos.ask({ id: fromTask._id, ...payload }).then((answer) => ({ task: answer.raised, addedTo: answer.addedTo }))
-        : await handoffsApi.send({ id: enquiry._id, addToOpen: true, ...payload });
+        : team
+          ? await workspace.teamTasks.create({ ...payload, ...(customer ? { customer } : {}) })
+          : await handoffsApi.send({ id: enquiry._id, addToOpen: true, ...payload });
+      if (team) toast(`Sent to ${form.team || 'the team'}`, 'It is on their dashboard now — no enquiry needed.');
       if (fromTask && !sent.addedTo) toast(`${form.team || 'The department'} asked`, 'Their task is raised, and this task says so.');
       if (sent.addedTo) {
         toast(`Added to ${form.team || 'the department'}’s open task`, 'They already had this task — your request is on it as an update.');
@@ -169,7 +179,8 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
       }
       if (file) {
         try {
-          await handoffsApi.attach({ id: enquiry._id, taskId: sent.task._id, file });
+          if (team) await workspace.teamTasks.attach({ id: sent.task._id, file });
+          else await handoffsApi.attach({ id: enquiry._id, taskId: sent.task._id, file });
         } catch (failure) {
           onSent();
           setProblem(`The task was sent, but the PDF did not attach: ${failure.message}`);
@@ -188,11 +199,13 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
 
   let section = null;
   return (
-    <Modal open title={title || form.title || 'Assign department task'} onClose={onClose} size="lg">
+    <Modal open title={title || (team ? 'New team task' : form.title) || 'Assign department task'} onClose={onClose} size="lg">
       <form onSubmit={submit} className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Customer / Company">
-            <input className="input" value={enquiry.customer?.name || prefill?.customer?.name || ''} readOnly />
+          <Field label="Customer / Company" hint={team ? 'Optional — a team task needs no enquiry' : undefined}>
+            {team
+              ? <CustomerSelect value={customer} onChange={(value) => setCustomer(value?._id || value || '')} allowCreate={false} emptyLabel="No customer" />
+              : <input className="input" value={enquiry.customer?.name || prefill?.customer?.name || ''} readOnly />}
           </Field>
           <Field label="Workflow / Department">
             <select className="input" value={optionOf(button)} disabled={Boolean(fromTask)} onChange={(event) => pickDepartment(event.target.value)}>
@@ -252,13 +265,13 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
               <input type="date" className="input" min={todayInIndia()} value={requiredDate} onChange={(event) => setRequiredDate(event.target.value)} />
             </Field>
           )}
-          <Field label={form.note?.label || 'Additional instruction / Question'} required={noteNeeded(button, answers) || Boolean(fromTask)} className="sm:col-span-2">
+          <Field label={form.note?.label || 'Additional instruction / Question'} required={noteNeeded(button, answers) || Boolean(fromTask) || team} className="sm:col-span-2">
             <textarea rows={3} className="input" placeholder={form.note?.placeholder || ''} value={note} onChange={(event) => setNote(event.target.value)} />
           </Field>
         </div>
 
         {missing && prefill && <p className="text-xs text-warn-400">Still needed: {missing}</p>}
-        {mustExplain && <p className="text-xs text-warn-400">{fromTask ? 'Say what you need from them' : button.form.noteRequired.message}</p>}
+        {mustExplain && <p className="text-xs text-warn-400">{fromTask || team ? 'Say what you need from them' : button.form.noteRequired.message}</p>}
         {problem && <Notice tone="danger">{problem}</Notice>}
         <div className="flex justify-end gap-2">
           <button type="button" className="btn-ghost" onClick={onClose} disabled={busy}>Cancel</button>
