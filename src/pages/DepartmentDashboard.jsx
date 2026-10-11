@@ -5,6 +5,8 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { useRecord } from '../hooks/useRecords.js';
 import HandoffTaskList from '../components/HandoffTaskList.jsx';
 import HandoffTaskActions from '../components/HandoffTaskActions.jsx';
+import { describeBrief } from '../components/DepartmentDesk.jsx';
+import { buttonFor, useHandoffCatalogue } from '../hooks/useHandoffCatalogue.js';
 import SamplingWorkQueue from '../components/SamplingWorkQueue.jsx';
 import Enquiries from './Enquiries.jsx';
 import { firstDashboardTab } from '../config/simpleNav.js';
@@ -15,12 +17,12 @@ import { formatDate } from '../utils/format.js';
 import { departmentLabel } from '../utils/pipeline.js';
 
 /**
- * A department's desk [server: handoff.service `enquiriesHeldBy`, `departmentDashboard`].
+ * A department's dashboard [server: handoff.service `enquiriesHeldBy`, `departmentDashboard`].
  *
- * Leads with the enquiries the department holds right now, each a card with what it is, how
- * long it has been here, and the buttons the department presses — its own (from
- * `config/deskActions.js`, the list to edit) and the hand-over actions every department has:
- * Update, Move on, Send back, Change date. Late ones first.
+ * Leads with the department tasks open on its queue — raised by clicking the department on an
+ * enquiry — each a card with the enquiry, what was asked, how long it has been here, and the
+ * buttons the department presses: its own (from `config/deskActions.js`, the list to edit) and
+ * the task actions every department has: Update, Done, Send back, Change date. Late ones first.
  *
  * Beside them, in tabs: side requests sent to the department, what it is waiting on from others,
  * what came back, and what it finished this week.
@@ -61,6 +63,9 @@ function Chip({ children }) {
 /** One enquiry on the desk. */
 function EnquiryCard({ row, department, me, onChanged }) {
   const { enquiry, task } = row;
+  const catalogue = useHandoffCatalogue();
+  const button = buttonFor(catalogue, task.kind);
+  const asked = describeBrief(button, task.brief);
   const holder = task.user?._id ? task.user : null;
   const lastUpdate = (task.updates || []).at(-1);
   const actions = deskActionsFor(department, row);
@@ -96,6 +101,9 @@ function EnquiryCard({ row, department, me, onChanged }) {
         </div>
         <DuePill row={row} />
       </header>
+
+      <p className="text-sm font-semibold text-steel-100">{button?.label || task.title}</p>
+      {asked && <p className="-mt-2 text-xs text-steel-300">{asked}</p>}
 
       <div className="flex flex-wrap gap-1.5">
         <span className="rounded-md bg-flame-500/10 px-2 py-0.5 text-xs font-semibold text-flame-300">{enquiry.stageLabel}</span>
@@ -213,7 +221,7 @@ export default function DepartmentDashboard() {
     ...(seesEnquiries
       ? [{ key: 'all', label: everyone ? 'All enquiries' : figures.department === 'marketing' ? 'My enquiries' : 'All enquiries', count: null }]
       : []),
-    { key: 'enquiries', label: isSampling ? 'Enquiries with us' : 'With us', count: enquiries.length },
+    { key: 'enquiries', label: 'Department tasks', count: enquiries.length },
     { key: 'requests', label: 'Requests', count: requests.length },
     { key: 'waiting', label: 'Waiting on others', count: waitingOnOthers.length },
     { key: 'back', label: 'Came back', count: cameBack.length },
@@ -229,7 +237,7 @@ export default function DepartmentDashboard() {
     <div className="mx-auto max-w-7xl space-y-5">
       <PageHeader
         title={`${figures.label} dashboard`}
-        subtitle={seesEnquiries ? 'Your enquiries — the ones with your department now, and every one you can see' : 'The enquiries with your department now'}
+        subtitle={seesEnquiries ? 'Your department’s tasks, and every enquiry you can see' : 'The tasks raised for your department'}
         actions={
           <div className="flex flex-wrap gap-2">
             {otherDesks.map((entry) => (
@@ -244,7 +252,7 @@ export default function DepartmentDashboard() {
       />
 
       {tab === 'enquiries' && <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Tile label="With us" value={enquiries.length} hint={`${figures.open} open tasks in all`} active={tab === 'enquiries' && filter === 'all'} onClick={() => pick('all')} />
+        <Tile label="Open tasks" value={enquiries.length} hint={`${figures.open} on the department in all`} active={tab === 'enquiries' && filter === 'all'} onClick={() => pick('all')} />
         <Tile label="Late" value={late} tone={late ? 'text-danger-400' : 'text-success-400'} hint="Past the day they were due" active={filter === 'late'} onClick={() => pick('late')} />
         <Tile label="Due today" value={today} tone={today ? 'text-warn-400' : 'text-steel-50'} hint="By the end of today" active={filter === 'today'} onClick={() => pick('today')} />
         <Tile
@@ -314,10 +322,10 @@ export default function DepartmentDashboard() {
           ) : (
             <div className="card px-6 py-10 text-center">
               <p className="text-base font-semibold text-steel-200">
-                {enquiries.length ? 'Nothing matches this filter.' : 'No enquiry is with your department right now.'}
+                {enquiries.length ? 'Nothing matches this filter.' : 'No department task open right now.'}
               </p>
               <p className="mt-1 text-sm text-steel-500">
-                {enquiries.length ? 'Pick another, or clear the search.' : 'When another department sends one here, it appears on this desk.'}
+                {enquiries.length ? 'Pick another, or clear the search.' : 'When someone clicks your department on an enquiry, its task appears here.'}
               </p>
             </div>
           )}
