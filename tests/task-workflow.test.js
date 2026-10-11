@@ -29,3 +29,25 @@ test('it is on the dashboard card and the enquiry; the PDF task has no plain Don
   assert.match(endpoints, /api\.post\(`\/workspace\/todos\/\$\{id\}\/status`, payload\)/);
   assert.match(endpoints, /api\.post\(`\/workspace\/todos\/\$\{id\}\/result`, form, \{ feedback: false \}\)/);
 });
+
+test('an uploaded sales order shows at the top of the enquiry’s departments, with who and when', () => {
+  const desk = read('components/DepartmentDesk.jsx');
+  assert.match(desk, /const results = tasks\.filter\(\(task\) => task\.resultFile\?\.key\);/);
+  assert.match(desk, /\{button\?\.form\?\.resultTitle \|\| button\?\.label \|\| 'Document'\} uploaded/);
+  assert.match(desk, /<TaskPdfLink file=\{task\.resultFile\} className="text-sm" \/>/);
+});
+
+test('an enquiry may be handed to marketing, to an Admin, or taken by the reader', () => {
+  const delegate = read('components/DelegateEnquiry.jsx');
+  assert.match(delegate, /<optgroup label="Marketing">/);
+  assert.match(delegate, /<optgroup label="Admin">/);
+  assert.match(delegate, /person\.self \? ' \(you\)' : ''/);
+});
+
+test('the departments panel reloads when the enquiry is handed to someone else', () => {
+  assert.match(read('components/DepartmentDesk.jsx'), /\}, \[enquiry\._id, owner\]\);/);
+});
+
+test('only Admin is offered "Hand to someone" on the enquiry', () => {
+  assert.match(read('pages/EnquiryDetail.jsx'), /\{isAdmin && <DelegateEnquiry enquiry=\{enquiry\} onDone=\{afterHandover\} \/>\}/);
+});

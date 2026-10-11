@@ -3,9 +3,9 @@ import { enquiries as enquiriesApi } from '../api/endpoints.js';
 import { Field, FormError, Modal } from './ui.jsx';
 
 /**
- * Handing the enquiry to another marketing person, at any stage [server:
- * services/delegation.service.js]. Offered to the owner and Admin only — the server says which —
- * and its open tasks, samples, quotes and orders go with it.
+ * Handing the enquiry to another marketing person, an Admin, or taking it yourself, at any stage
+ * [server: services/delegation.service.js]. Admin only — the server refuses anyone else — and its
+ * open tasks, samples, quotes and orders go with it.
  */
 export default function DelegateEnquiry({ enquiry, onDone }) {
   const [targets, setTargets] = useState([]);
@@ -31,6 +31,9 @@ export default function DelegateEnquiry({ enquiry, onDone }) {
   }, [enquiry._id, enquiry.assignedTo?._id]);
 
   if (!may || !targets.length) return null;
+  const named = (person) => `${person.name}${person.self ? ' (you)' : ''}`;
+  const marketing = targets.filter((person) => person.group !== 'admin');
+  const admins = targets.filter((person) => person.group === 'admin');
 
   const submit = async (event) => {
     event.preventDefault();
@@ -50,19 +53,28 @@ export default function DelegateEnquiry({ enquiry, onDone }) {
   return (
     <>
       <button type="button" className="btn-secondary" onClick={() => setOpen(true)}>
-        Hand to a colleague
+        Hand to someone
       </button>
       <Modal
         open={open}
-        title="Hand this enquiry to a colleague"
+        title="Hand this enquiry to someone"
         description="It becomes theirs at whatever stage it is in, with its open tasks, samples, quotes and orders"
         onClose={() => setOpen(false)}
       >
         <form onSubmit={submit} className="space-y-4">
           <Field label="Who takes it" required>
             <select className="input" value={to} onChange={(event) => setTo(event.target.value)} autoFocus>
-              <option value="">Choose a marketing colleague…</option>
-              {targets.map((person) => <option key={person._id} value={person._id}>{person.name}</option>)}
+              <option value="">Choose who takes it…</option>
+              {marketing.length > 0 && (
+                <optgroup label="Marketing">
+                  {marketing.map((person) => <option key={person._id} value={person._id}>{named(person)}</option>)}
+                </optgroup>
+              )}
+              {admins.length > 0 && (
+                <optgroup label="Admin">
+                  {admins.map((person) => <option key={person._id} value={person._id}>{named(person)}</option>)}
+                </optgroup>
+              )}
             </select>
           </Field>
           <Field label="Why" hint="They read this first — what the buyer is waiting for, what was promised">
