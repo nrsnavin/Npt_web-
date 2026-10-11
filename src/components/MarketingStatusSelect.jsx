@@ -44,8 +44,9 @@ export default function MarketingStatusSelect({ enquiry, canWrite, onChanged, co
     }
   };
 
+  /* Compact: wide enough for the longest status, so "Quotation preparing" is not cut to "Quotation preparin". */
   return (
-    <div className={compact ? 'min-w-[11rem]' : ''}>
+    <div className={compact ? 'min-w-[13.5rem]' : ''}>
       <select
         aria-label={`Marketing status of ${enquiry.number}`}
         className={`input ${compact ? 'py-1 text-xs' : ''}`}

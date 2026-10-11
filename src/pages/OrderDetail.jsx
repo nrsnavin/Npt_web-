@@ -16,7 +16,7 @@ import OrderQuality from '../components/OrderQuality.jsx';
 import OrderPayment from '../components/OrderPayment.jsx';
 import DispatchTracker from '../components/DispatchTracker.jsx';
 import { ProductionLineDialog, ProductionStatusPicker } from '../components/ProductionLine.jsx';
-import { formatCurrency, formatDate, formatNumber } from '../utils/format.js';
+import { formatCurrency, formatDate, formatNumber, isoDay } from '../utils/format.js';
 import {
   CLOSED_ORDER_STAGES, PRE_RELEASE_STAGES, orderStageLabel,
 } from '../utils/pipeline.js';
@@ -102,7 +102,7 @@ function Checklist({ order, checks, onChanged, mayWrite }) {
             >
               <span
                 aria-hidden="true"
-                className={`mt-0.5 flex h-[1.05rem] w-[1.05rem] flex-none items-center justify-center rounded border text-[0.7rem] font-bold ${
+                className={`mt-0.5 flex h-[1.05rem] w-[1.05rem] flex-none items-center justify-center rounded border text-[0.75rem] font-bold ${
                   check.done
                     ? 'border-success-500/60 bg-success-500/15 text-success-400'
                     : 'border-line/20 text-transparent'
@@ -341,8 +341,8 @@ function RePromiseDialog({ order, line, onClose, onSaved }) {
   /* Later than what is currently owed, which is what the server enforces — a picker offering
      earlier dates is one that invites the refusal. `min` is the day after the standing date. */
   const earliest = standing
-    ? new Date(new Date(standing).getTime() + 86400000).toISOString().slice(0, 10)
-    : new Date().toISOString().slice(0, 10);
+    ? isoDay(new Date(new Date(standing).getTime() + 86400000))
+    : isoDay();
 
   return (
     <Modal

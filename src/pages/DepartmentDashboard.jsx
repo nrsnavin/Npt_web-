@@ -54,12 +54,12 @@ function Tile({ label, value, hint, tone = 'text-steel-50', active, onClick }) {
 /** When it is due, as a coloured pill. */
 function DuePill({ row }) {
   if (row.late) {
-    return <span className="rounded-full bg-danger-500/15 px-2.5 py-1 text-[0.7rem] font-bold uppercase tracking-wide text-danger-400">Late</span>;
+    return <span className="rounded-full bg-danger-500/15 px-2.5 py-1 text-[0.75rem] font-bold uppercase tracking-wide text-danger-400">Late</span>;
   }
   if (row.dueToday) {
-    return <span className="rounded-full bg-warn-500/15 px-2.5 py-1 text-[0.7rem] font-bold uppercase tracking-wide text-warn-400">Due today</span>;
+    return <span className="rounded-full bg-warn-500/15 px-2.5 py-1 text-[0.75rem] font-bold uppercase tracking-wide text-warn-400">Due today</span>;
   }
-  return <span className="rounded-full bg-line/[0.06] px-2.5 py-1 text-[0.7rem] font-semibold text-steel-400">Due {formatDate(row.task.dueDate)}</span>;
+  return <span className="rounded-full bg-line/[0.06] px-2.5 py-1 text-[0.75rem] font-semibold text-steel-400">Due {formatDate(row.task.dueDate)}</span>;
 }
 
 function Chip({ children }) {
@@ -118,7 +118,7 @@ function EnquiryCard({ row, department, me, onChanged }) {
       <TaskPdfLink file={task.attachment} className="-mt-2 self-start" />
 
       <div className="flex flex-wrap gap-1.5">
-        <span className="rounded-md bg-flame-500/10 px-2 py-0.5 text-xs font-semibold text-flame-300">{enquiry ? enquiry.stageLabel : `From ${task.createdBy?.name || 'Admin'}`}</span>
+        <span className="rounded-md bg-flame-500/10 px-2 py-0.5 text-xs font-semibold text-flame-400">{enquiry ? enquiry.stageLabel : `From ${task.createdBy?.name || 'Admin'}`}</span>
         {enquiry?.requirement?.modelNumber && <Chip>{enquiry.requirement.modelNumber}</Chip>}
         {enquiry?.items?.length > 1 && <Chip>+{enquiry.items.length - 1} more</Chip>}
         {enquiry?.requirement?.colour && <Chip>{enquiry.requirement.colour}</Chip>}
@@ -304,7 +304,7 @@ function DepartmentDesk() {
             aria-selected={tab === entry.key}
             onClick={() => setTab(entry.key)}
             className={`rounded-lg px-3.5 py-2 text-sm font-semibold transition ${
-              tab === entry.key ? 'bg-flame-500 text-white shadow' : 'text-steel-300 hover:bg-line/[0.06]'
+              tab === entry.key ? 'fill-primary shadow' : 'text-steel-300 hover:bg-line/[0.06]'
             }`}
           >
             {entry.label}
@@ -328,13 +328,13 @@ function DepartmentDesk() {
                 type="button"
                 onClick={() => setFilter(entry.key)}
                 className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
-                  filter === entry.key ? 'border-flame-500 bg-flame-500/10 text-flame-300' : 'border-line/[0.1] text-steel-400 hover:text-steel-200'
+                  filter === entry.key ? 'border-flame-500 bg-flame-500/10 text-flame-400' : 'border-line/[0.1] text-steel-400 hover:text-steel-200'
                 }`}
               >
                 {entry.label}
               </button>
             ))}
-            <input
+            <input aria-label="Search enquiry, buyer or model"
               type="search"
               className="input ml-auto w-full sm:w-64"
               placeholder="Search enquiry, buyer or model…"

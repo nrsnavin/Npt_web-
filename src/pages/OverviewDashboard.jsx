@@ -95,14 +95,14 @@ function PartyMaster({ isAdmin, onAdd }) {
             aria-pressed={filter === chip.key}
             onClick={() => { setFilter(chip.key); setPage(1); }}
             className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
-              filter === chip.key ? 'border-flame-500 bg-flame-500 text-white' : 'border-line/[0.12] text-steel-300 hover:border-line/25'
+              filter === chip.key ? 'fill-primary border-transparent' : 'border-line/[0.12] text-steel-300 hover:border-line/25'
             }`}
           >
             {chip.label}
             {data?.counts?.[chip.key] !== undefined && <span className="ml-1 tabular-nums opacity-75">{data.counts[chip.key]}</span>}
           </button>
         ))}
-        <input
+        <input aria-label="Search party"
           type="search"
           className="input ml-auto w-full sm:w-60"
           placeholder="Search party…"
@@ -123,7 +123,7 @@ function PartyMaster({ isAdmin, onAdd }) {
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="truncate font-semibold text-steel-50">{row.name}</p>
-                  {row.isNew && <span className="rounded-full bg-aqua-500/15 px-2 py-0.5 text-[0.7rem] font-semibold text-aqua-600">New Enquiry</span>}
+                  {row.isNew && <span className="rounded-full bg-aqua-500/15 px-2 py-0.5 text-[0.75rem] font-semibold text-aqua-600">New Enquiry</span>}
                 </div>
                 <p className="truncate text-xs text-steel-400">{row.line}{isAdmin && row.owner ? ` · ${row.owner}` : ''}</p>
                 <p className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-steel-300">
@@ -135,7 +135,7 @@ function PartyMaster({ isAdmin, onAdd }) {
               <button
                 type="button"
                 aria-label={`Open ${row.name}`}
-                className="shrink-0 rounded-lg px-2 py-1.5 text-lg leading-none text-steel-400 hover:bg-line/[0.05] hover:text-steel-100"
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-lg leading-none text-steel-400 hover:bg-line/[0.05] hover:text-steel-100"
                 onClick={() => navigate(row.enquiry ? `/enquiries/${row.enquiry}` : `/customers/${row._id}`)}
               >
                 ›
@@ -211,7 +211,7 @@ export default function OverviewDashboard() {
           </p>
           <p className="text-sm text-steel-400">{user?.email}{user?.email ? ' · ' : ''}{access}</p>
         </div>
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-flame-500/10 px-3 py-1 text-sm font-semibold text-flame-500">
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-flame-500/10 px-3 py-1 text-sm font-semibold text-accent">
           <span aria-hidden className="h-2 w-2 rounded-full bg-flame-500" />
           {role}
         </span>
@@ -232,7 +232,7 @@ export default function OverviewDashboard() {
             <h2 className="text-lg font-bold text-steel-50">New Enquiries ({newEnquiries.total})</h2>
             <p className="text-sm text-steel-400">Enquiry received: {newEnquiries.total}</p>
           </div>
-          <Link to="/enquiries?marketingStatus=enquiry_received" className="text-sm font-semibold text-flame-500 hover:underline">View all →</Link>
+          <Link to="/enquiries?marketingStatus=enquiry_received" className="text-sm font-semibold text-accent hover:underline">View all →</Link>
         </div>
         {newEnquiries.rows.length ? (
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -243,7 +243,7 @@ export default function OverviewDashboard() {
                   Enquiry received · {row.assignedTo?.name || 'Unassigned'}
                   {row.requirement?.modelNumber ? ` · ${row.requirement.modelNumber}` : ''}
                 </p>
-                <Link to={`/enquiries/${row._id}`} className="mt-2 inline-block text-sm font-semibold text-flame-500 hover:underline">
+                <Link to={`/enquiries/${row._id}`} className="mt-2 inline-block text-sm font-semibold text-accent hover:underline">
                   Edit / Verify enquiry →
                 </Link>
               </div>

@@ -182,7 +182,7 @@ export default function CustomerDetail() {
                       from this check-in
                     </Link>
                   </p>
-                  <p className="mt-0.5 font-mono text-[0.7rem] text-steel-600">
+                  <p className="mt-0.5 font-mono text-[0.75rem] text-steel-600">
                     {Number(customer.site.lat).toFixed(5)}, {Number(customer.site.lng).toFixed(5)}
                   </p>
                   <FormError error={siteError} />

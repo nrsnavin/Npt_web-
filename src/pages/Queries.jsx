@@ -117,7 +117,7 @@ function Urgency({ reading }) {
       <p className="text-xs leading-snug text-steel-500">{reading.why}</p>
       {/* Not upper case: this is a footnote, and shouting it would make the attribution louder
           than the reason it attributes. */}
-      <p className="text-[0.7rem] text-steel-600">
+      <p className="text-[0.75rem] text-steel-600">
         {reading.readBy === 'model' ? 'Read by the model' : 'From the record'}
       </p>
     </div>
@@ -740,7 +740,7 @@ export default function Queries() {
                     }}
                     className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-bold transition-colors ${
                       selected.includes(row._id)
-                        ? 'bg-flame-500 text-white'
+                        ? 'fill-primary'
                         : 'bg-line/[0.07] text-steel-300 hover:bg-flame-500/20'
                     }`}
                   >
@@ -783,7 +783,7 @@ export default function Queries() {
                       <span className="flex shrink-0 items-center gap-1.5">
                       {tagged && (
                         <span
-                          className={`shrink-0 rounded-full px-2 py-0.5 text-[0.7rem] font-bold ring-1 ring-inset ${
+                          className={`shrink-0 rounded-full px-2 py-0.5 text-[0.75rem] font-bold ring-1 ring-inset ${
                             taggedUnread
                               ? 'bg-aqua-600 text-white ring-aqua-600'
                               : 'bg-aqua-500/15 text-aqua-300 ring-aqua-500/25'
@@ -797,7 +797,7 @@ export default function Queries() {
                       {unread > 0 && (
                         <span
                           className="flex h-5 min-w-[1.25rem] shrink-0 items-center justify-center
-                            rounded-full bg-flame-500 px-1.5 text-[0.7rem] font-bold text-white"
+                            rounded-full bg-flame-500 px-1.5 text-[0.75rem] font-bold text-white"
                           aria-label={`${unread} unread`}
                         >
                           {unread > 99 ? '99+' : unread}
@@ -815,7 +815,7 @@ export default function Queries() {
                       <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-steel-400">
                         {lineOf(row).writtenBy === 'model' && (
                           <span
-                            className="mr-1.5 rounded bg-aqua-500/15 px-1 py-px text-[0.65rem] font-bold uppercase tracking-wide text-aqua-300"
+                            className="mr-1.5 rounded bg-aqua-500/15 px-1 py-px text-[0.75rem] font-bold uppercase tracking-wide text-aqua-300"
                             title="Summarised by AI from the thread — open it to read every message"
                           >
                             AI
@@ -830,7 +830,7 @@ export default function Queries() {
                       {(row.labels || []).map((name) => (
                         <span
                           key={name}
-                          className="group/label inline-flex items-center gap-1.5 rounded-full bg-line/[0.05] py-0.5 pl-2 pr-1 text-[0.7rem] font-semibold text-steel-300 ring-1 ring-inset ring-line/10"
+                          className="group/label inline-flex items-center gap-1.5 rounded-full bg-line/[0.05] py-0.5 pl-2 pr-1 text-[0.75rem] font-semibold text-steel-300 ring-1 ring-inset ring-line/10"
                         >
                           <LabelDot label={name} />
                           {name}

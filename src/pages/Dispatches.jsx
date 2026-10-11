@@ -106,7 +106,7 @@ function ReadyQueue({ mayWrite }) {
         ))}
       </div>
 
-      <input
+      <input aria-label="Search order, model or customer"
         type="search"
         className="input mb-5 max-w-xs"
         placeholder="Search order, model or customer…"
@@ -315,7 +315,7 @@ function Consignments({ mayWrite }) {
       />
 
       <div className="mb-5 flex flex-wrap items-center gap-2">
-        <input
+        <input aria-label="Search consignment, invoice, lorry receipt or vehicle"
           type="search"
           className="input max-w-xs"
           placeholder="Search consignment, invoice, lorry receipt or vehicle…"

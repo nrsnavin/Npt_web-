@@ -146,7 +146,7 @@ export default function Production() {
       />
 
       <div className="mb-5 flex flex-wrap items-center gap-2">
-        <input
+        <input aria-label="Search order, PO number or model"
           type="search"
           className="input max-w-xs"
           placeholder="Search order, PO number or model…"

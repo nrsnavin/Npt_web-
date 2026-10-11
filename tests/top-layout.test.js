@@ -102,6 +102,8 @@ test('Admin filters Department Tasks by any department, and open / done / all', 
   assert.match(board, /\{isAdmin && \(\s*<select\s+aria-label="Department"/);
   assert.match(board, /\{DEPARTMENTS\.map\(\(entry\) => <option key=\{entry\.key\} value=\{entry\.key\}>\{entry\.label\}<\/option>\)\}/, 'every department listed, even with nothing open');
   assert.match(board, /aria-label="Open or done"/);
+  /* A department chip picked on Open may have nothing under Done: the chips start over. */
+  assert.match(board, /setFilter\(\{ state: event\.target\.value \}\); setChip\('all'\);/);
   assert.match(board, /overview\.tasks\(\{ \.\.\.\(department \? \{ department \} : \{\}\), state \}\)/);
   assert.match(board, /if \(!statuses\.length \|\| !mayWork \|\| task\.completed\)/, 'a finished task is read, not moved');
   assert.match(board, /const isLate = \(task\) => Boolean\(!task\.completed &&/);

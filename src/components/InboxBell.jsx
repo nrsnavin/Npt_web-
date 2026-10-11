@@ -85,7 +85,7 @@ export default function InboxBell() {
           <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
         </svg>
         {count > 0 && (
-          <span className="absolute -right-0.5 -top-0.5 flex h-[1.1rem] min-w-[1.1rem] items-center justify-center rounded-full bg-flame-500 px-1 text-[0.65rem] font-bold text-white">
+          <span className="absolute -right-0.5 -top-0.5 flex h-[1.1rem] min-w-[1.1rem] items-center justify-center rounded-full bg-flame-500 px-1 text-[0.75rem] font-bold text-white">
             {count > 9 ? '9+' : count}
           </span>
         )}
@@ -113,7 +113,7 @@ export default function InboxBell() {
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-semibold leading-snug text-steel-100">{item.title}</p>
                       {item.detail && <p className="mt-0.5 line-clamp-2 text-xs text-steel-400">{item.detail}</p>}
-                      <p className="mt-0.5 text-[0.7rem] text-steel-500">{formatDate(item.at)}</p>
+                      <p className="mt-0.5 text-[0.75rem] text-steel-500">{formatDate(item.at)}</p>
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-1">
                       <Link to={item.link} onClick={() => setOpen(false)} className="text-xs font-bold text-accent hover:underline">

@@ -469,7 +469,7 @@ export function DispatchStatusPicker({ dispatch, onDone, canAct = true }) {
       >
         {badge}
         {/* A caret, so the badge reads as something that opens rather than something that is. */}
-        <span aria-hidden className="text-[0.6rem] leading-none text-steel-500 group-hover:text-steel-300">▾</span>
+        <span aria-hidden className="text-[0.75rem] leading-none text-steel-500 group-hover:text-steel-300">▾</span>
       </button>
 
       {open && at && createPortal(

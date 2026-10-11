@@ -71,6 +71,8 @@ function StatusReply({ task, statuses, mayWork, onPick }) {
 export default function DepartmentTasksBoard({
   title = 'Department Tasks',
   subtitle = 'Follow the progress of requests for your customers.',
+  /* The page's own heading when the board is the whole page (/tasks); a section heading on the dashboard. */
+  headingAs = 'h2',
   department: chosenDepartment = '',
   state: chosenState = 'open',
   onFilter,
@@ -127,7 +129,9 @@ export default function DepartmentTasksBoard({
     <section className="card space-y-4 p-4 sm:p-5" aria-label={title}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-bold text-steel-50">{title}</h2>
+          {headingAs === 'h1'
+            ? <h1 className="text-lg font-bold text-steel-50">{title}</h1>
+            : <h2 className="text-lg font-bold text-steel-50">{title}</h2>}
           <p className="text-sm text-steel-400">{subtitle}</p>
         </div>
         {mayAssign && firstTask && (
@@ -143,7 +147,7 @@ export default function DepartmentTasksBoard({
             aria-pressed={chip === entry.key}
             onClick={() => setChip(entry.key)}
             className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
-              chip === entry.key ? 'border-flame-500 bg-flame-500 text-white' : 'border-line/[0.12] text-steel-300 hover:border-line/25'
+              chip === entry.key ? 'fill-primary border-transparent' : 'border-line/[0.12] text-steel-300 hover:border-line/25'
             }`}
           >
             {entry.label} <span className="tabular-nums opacity-75">{entry.count}</span>
@@ -164,11 +168,11 @@ export default function DepartmentTasksBoard({
           aria-label="Open or done"
           className={`input w-auto py-1.5 text-sm ${isAdmin ? '' : 'sm:ml-auto'}`}
           value={state}
-          onChange={(event) => setFilter({ state: event.target.value })}
+          onChange={(event) => { setFilter({ state: event.target.value }); setChip('all'); }}
         >
           {STATES.map((entry) => <option key={entry.key} value={entry.key}>{entry.label}</option>)}
         </select>
-        <input
+        <input aria-label="Search customer, model or person"
           type="search"
           className="input w-full sm:w-60"
           placeholder="Search customer, model or person…"
@@ -202,7 +206,7 @@ export default function DepartmentTasksBoard({
                       <p className="text-xs text-steel-400">
                         {task.label}
                         {modelOf(task) ? ` · ${modelOf(task)}` : ''}
-                        {task.enquiry?.number && <> · <Link className="text-flame-500 hover:underline" to={`/enquiries/${task.enquiry._id}`}>{task.enquiry.number}</Link></>}
+                        {task.enquiry?.number && <> · <Link className="text-accent hover:underline" to={`/enquiries/${task.enquiry._id}`}>{task.enquiry.number}</Link></>}
                       </p>
                     </td>
                     <td className="px-4 py-3">

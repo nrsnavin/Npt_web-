@@ -13,7 +13,7 @@ import { FormError } from './ui.jsx';
 
 const ACTION = {
   create: { label: 'New', tone: 'bg-success-500/15 text-success-400' },
-  update: { label: 'Changes', tone: 'bg-flame-500/15 text-flame-300' },
+  update: { label: 'Changes', tone: 'bg-flame-500/15 text-flame-400' },
   unchanged: { label: 'Same', tone: 'bg-line/[0.08] text-steel-400' },
   error: { label: 'Refused', tone: 'bg-danger-500/15 text-danger-400' },
 };
@@ -109,7 +109,7 @@ export default function TradingUpload({ onClose, onDone }) {
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {[
               ['New items', summary.create, 'text-success-400'],
-              ['Changes', summary.update, 'text-flame-300'],
+              ['Changes', summary.update, 'text-flame-400'],
               ['Same', summary.unchanged, 'text-steel-300'],
               ['Refused', summary.error, summary.error ? 'text-danger-400' : 'text-steel-300'],
             ].map(([label, value, tone]) => (
@@ -142,7 +142,7 @@ export default function TradingUpload({ onClose, onDone }) {
                     <td className="px-3 py-2 tabular-nums text-steel-500">{entry.row}</td>
                     <td className="px-3 py-2">
                       <span className="font-semibold text-steel-100">{entry.fields?.modelNumber || entry.modelNumber || '—'}</span>
-                      <span className={`ml-2 rounded-full px-2 py-0.5 text-[0.68rem] font-bold ${ACTION[entry.action].tone}`}>
+                      <span className={`ml-2 rounded-full px-2 py-0.5 text-[0.75rem] font-bold ${ACTION[entry.action].tone}`}>
                         {ACTION[entry.action].label}
                       </span>
                     </td>

@@ -155,7 +155,7 @@ export default function WorkspaceRail() {
           >
             <header className="flex shrink-0 items-center justify-between gap-2 border-b border-line/[0.06] px-4 py-2.5">
               <div className="flex items-center gap-2 text-steel-100">
-                <DockIcon name={active.icon} className="h-4 w-4 text-flame-500" />
+                <DockIcon name={active.icon} className="h-4 w-4 text-accent" />
                 <h2 className="text-xs font-bold tracking-tight">{active.label}</h2>
               </div>
               <button
@@ -196,7 +196,7 @@ export default function WorkspaceRail() {
                 onClick={() => toggle(item.key)}
                 className={`relative flex w-[3.4rem] flex-col items-center gap-1 rounded-lg px-1 py-2 text-[0.75rem] font-semibold transition-colors ${
                   current
-                    ? 'bg-line/[0.08] text-flame-500'
+                    ? 'bg-line/[0.08] text-accent'
                     : 'text-steel-400 hover:bg-line/[0.05] hover:text-steel-100'
                 }`}
               >

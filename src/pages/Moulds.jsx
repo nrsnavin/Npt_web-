@@ -95,7 +95,7 @@ export default function Moulds() {
       />
 
       <div className="mb-5 flex flex-wrap gap-2">
-        <input
+        <input aria-label="Search mould number, name or press"
           type="search"
           className="input max-w-xs"
           placeholder="Search mould number, name or press…"

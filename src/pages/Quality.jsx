@@ -93,7 +93,7 @@ export default function Quality() {
       />
 
       <div className="mb-5 flex flex-wrap items-center gap-2">
-        <input
+        <input aria-label="Search reference, model or remarks"
           type="search"
           className="input max-w-xs"
           placeholder="Search reference, model or remarks…"

@@ -386,7 +386,7 @@ export function ProductionStatusPicker({ order, line, onSaved, canRecord = true 
       >
         <Badge status={current}>{productionStageLabel(current)}</Badge>
         {/* A caret, so the badge reads as something that opens rather than something that is. */}
-        <span aria-hidden className="text-[0.6rem] leading-none text-steel-500 group-hover:text-steel-300">▾</span>
+        <span aria-hidden className="text-[0.75rem] leading-none text-steel-500 group-hover:text-steel-300">▾</span>
       </button>
 
       {open && at && createPortal(
@@ -398,12 +398,12 @@ export function ProductionStatusPicker({ order, line, onSaved, canRecord = true 
             style={{ left: at.left, top: at.top, bottom: at.bottom, width: at.width }}
             className="fixed z-50 animate-scale-in rounded-xl border border-line/[0.08] bg-ink-800 p-1.5 shadow-modal"
           >
-            <p className="px-3 pb-1 pt-1.5 text-[0.68rem] font-bold uppercase tracking-wide text-steel-500">
+            <p className="px-3 pb-1 pt-1.5 text-[0.75rem] font-bold uppercase tracking-wide text-steel-500">
               Moving
             </p>
             {moving.map(item)}
 
-            <p className="mt-1 border-t border-line/[0.06] px-3 pb-1 pt-2 text-[0.68rem] font-bold uppercase tracking-wide text-steel-500">
+            <p className="mt-1 border-t border-line/[0.06] px-3 pb-1 pt-2 text-[0.75rem] font-bold uppercase tracking-wide text-steel-500">
               Stopped
             </p>
             {stopped.map(item)}

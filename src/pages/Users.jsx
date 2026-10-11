@@ -40,7 +40,7 @@ function AlsoWorksIn({ catalogue, main, value, onChange, disabled }) {
           <label
             key={entry.key}
             className={`flex cursor-pointer items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold transition ${
-              value.includes(entry.key) ? 'border-flame-500 bg-flame-500/10 text-flame-300' : 'border-line/[0.1] text-steel-300'
+              value.includes(entry.key) ? 'border-flame-500 bg-flame-500/10 text-flame-400' : 'border-line/[0.1] text-steel-300'
             }`}
           >
             <input type="checkbox" className="sr-only" checked={value.includes(entry.key)} onChange={() => toggle(entry.key)} disabled={disabled} />
@@ -471,7 +471,7 @@ export default function Users() {
           load(search, sort, { department, role, active }, 1);
         }}
       >
-        <input
+        <input aria-label="Search name, email or phone"
           type="search"
           className="input max-w-xs"
           placeholder="Search name, email or phone…"

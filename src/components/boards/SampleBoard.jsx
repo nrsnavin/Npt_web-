@@ -106,16 +106,16 @@ export default function SampleBoard({ filters, canMove, perColumn = 20 }) {
             <p className="truncate text-xs font-semibold text-steel-100">
               {card.customer?.name || 'Internal trial'}
             </p>
-            <p className="truncate text-[11px] text-steel-400">
+            <p className="truncate text-[0.75rem] text-steel-400">
               {card.number} · {card.modelNumber || card.mould?.mouldCode || 'New development'}
             </p>
 
-            <div className="mt-1.5 flex flex-wrap items-center gap-x-2 text-[11px] tabular-nums text-steel-300">
+            <div className="mt-1.5 flex flex-wrap items-center gap-x-2 text-[0.75rem] tabular-nums text-steel-300">
               <span>{formatNumber(card.quantity)} pcs</span>
               {card.colour && <span className="text-steel-400">{card.colour}</span>}
             </div>
 
-            <div className="mt-1.5 flex items-center justify-between gap-2 text-[11px]">
+            <div className="mt-1.5 flex items-center justify-between gap-2 text-[0.75rem]">
               {/* An answered or cancelled request is not waiting on a date. */}
               {isSettled(SAMPLE_BOARD, card.status) ? (
                 <span className="text-steel-500" />
@@ -129,7 +129,7 @@ export default function SampleBoard({ filters, canMove, perColumn = 20 }) {
               )}
             </div>
 
-            <p className="mt-1 truncate text-[11px] text-steel-500">
+            <p className="mt-1 truncate text-[0.75rem] text-steel-500">
               {card.assignedTo?.name || <span className="text-warn-400">Nobody on it</span>}
             </p>
           </>

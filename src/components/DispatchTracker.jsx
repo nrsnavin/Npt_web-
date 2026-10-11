@@ -137,7 +137,7 @@ function Consignment({ dispatch }) {
         className="mt-2 text-xs font-semibold text-steel-400 transition-colors hover:text-accent"
       >
         {open ? 'Hide the paperwork' : 'Everything on this consignment'}
-        <span aria-hidden className="ml-1 text-[0.6rem]">{open ? '▴' : '▾'}</span>
+        <span aria-hidden className="ml-1 text-[0.75rem]">{open ? '▴' : '▾'}</span>
       </button>
 
       {open && (

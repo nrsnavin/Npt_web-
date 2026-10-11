@@ -170,7 +170,7 @@ export default function JarvisPanel() {
           type="submit"
           disabled={!question.trim() || busy}
           aria-label="Ask"
-          className="rounded-md p-1.5 text-flame-500 transition-colors hover:bg-line/[0.06] disabled:opacity-40"
+          className="rounded-md p-1.5 text-accent transition-colors hover:bg-line/[0.06] disabled:opacity-40"
         >
           <DockIcon name="send" className="h-4 w-4" />
         </button>

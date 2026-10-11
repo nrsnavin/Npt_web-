@@ -20,7 +20,7 @@ import HistoryPanel from '../components/HistoryPanel.jsx';
 import QuotationPdf from '../components/QuotationPdf.jsx';
 import ItemList from '../components/ItemList.jsx';
 import EnquiryForm from '../components/EnquiryForm.jsx';
-import { formatCurrency, formatDate, humanise } from '../utils/format.js';
+import { formatCurrency, formatDate, humanise, isoDay } from '../utils/format.js';
 import { GRAM_STEP } from '../utils/grams.js';
 import {
   CLOSED_STAGES, HANGER_CATEGORIES, LOST_REASONS, MATERIALS,
@@ -60,8 +60,8 @@ function StageForm({ enquiry, onClose, onSaved }) {
    * offered a fresh one instead of one that lands overdue the moment it is saved.
    */
   const [nextFollowUpDate, setNextFollowUpDate] = useState(() => {
-    const today = new Date().toISOString().slice(0, 10);
-    const existing = enquiry.nextFollowUpDate ? enquiry.nextFollowUpDate.slice(0, 10) : null;
+    const today = isoDay();
+    const existing = enquiry.nextFollowUpDate ? isoDay(enquiry.nextFollowUpDate) : null;
     return existing && existing >= today ? existing : inDays(3);
   });
   const [busy, setBusy] = useState(false);
@@ -164,7 +164,7 @@ function StageForm({ enquiry, onClose, onSaved }) {
               type="date"
               className="input"
               required
-              min={new Date().toISOString().slice(0, 10)}
+              min={isoDay()}
               value={nextFollowUpDate}
               onChange={(event) => setNextFollowUpDate(event.target.value)}
             />

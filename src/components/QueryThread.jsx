@@ -185,7 +185,7 @@ function Said({ entry, mine, me, pin }) {
                     key={index}
                     className={`rounded px-0.5 font-semibold ${
                       String(piece.person._id) === String(me)
-                        ? 'bg-flame-500/20 text-flame-300'
+                        ? 'bg-flame-500/20 text-flame-400'
                         : 'text-aqua-300'
                     }`}
                     title={piece.person.department ? `Tagged · ${piece.person.department}` : 'Tagged'}

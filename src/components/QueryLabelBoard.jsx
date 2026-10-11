@@ -23,7 +23,7 @@ function Card({ row, column }) {
           {row.subject}
         </p>
         {row.unread > 0 && (
-          <span className="flex h-5 min-w-[1.25rem] shrink-0 items-center justify-center rounded-full bg-flame-500 px-1.5 text-[0.7rem] font-bold text-white">
+          <span className="flex h-5 min-w-[1.25rem] shrink-0 items-center justify-center rounded-full bg-flame-500 px-1.5 text-[0.75rem] font-bold text-white">
             {row.unread}
           </span>
         )}
@@ -32,7 +32,7 @@ function Card({ row, column }) {
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         {row.isUrgent && <Badge tone="danger">Urgent</Badge>}
         <Badge status={row.status} />
-        <span className="text-[0.7rem] text-steel-500">{row.number}</span>
+        <span className="text-[0.75rem] text-steel-500">{row.number}</span>
       </div>
     </Link>
   );

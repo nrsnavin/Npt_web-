@@ -263,7 +263,7 @@ export default function TodoPanel() {
         </p>
       ) : (
       <form onSubmit={submit} className="border-b border-line/[0.06] px-4 py-3">
-        <input
+        <input aria-label="Add a task"
           className="input py-1.5 text-xs"
           placeholder="Add a task…"
           value={title}

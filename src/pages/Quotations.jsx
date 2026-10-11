@@ -701,7 +701,7 @@ export default function Quotations() {
       />
 
       <div className="mb-5 flex flex-wrap gap-2">
-        <input
+        <input aria-label="Search number or model"
           type="search"
           className="input max-w-xs"
           placeholder="Search number or model…"

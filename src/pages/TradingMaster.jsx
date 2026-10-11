@@ -81,7 +81,7 @@ export default function TradingMaster() {
       )}
 
       <div className="mb-5 flex flex-wrap gap-2">
-        <input
+        <input aria-label="Search model, code, supplier"
           type="search"
           className="input max-w-xs"
           placeholder="Search model, code, supplier…"

@@ -354,7 +354,7 @@ export function LabelPicker({ known = [], current = null, onToggle, onClose, ali
         )}
       </ul>
       {current === null && known.length > 0 && (
-        <p className="border-t border-line/[0.06] px-2.5 pt-1.5 text-[0.7rem] text-steel-500">
+        <p className="border-t border-line/[0.06] px-2.5 pt-1.5 text-[0.75rem] text-steel-500">
           Adds to every selected query. Remove a label from a row with its ×.
         </p>
       )}

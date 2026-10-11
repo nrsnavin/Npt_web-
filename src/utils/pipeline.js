@@ -1,3 +1,4 @@
+import { isoDay } from './format.js';
 /**
  * Enum labels and stage order for Phase 1, mirroring the server's models. Kept here rather
  * than fetched, because these are part of the process and change with the code, not with
@@ -522,7 +523,7 @@ export const nextStagesFrom = (enquiry) => {
 export const inDays = (days) => {
   const date = new Date();
   date.setDate(date.getDate() + days);
-  return date.toISOString().slice(0, 10);
+  return isoDay(date);
 };
 
 /** Empty inputs arrive as '', which the server's schema rejects — drop them instead. */

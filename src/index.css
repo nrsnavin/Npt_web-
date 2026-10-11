@@ -132,6 +132,15 @@
     color: var(--primary-text);
   }
 
+  /*
+   * The selected chip or tab, filled. The theme's own primary fill and its text colour, not white
+   * on the bright brand orange — that pairing is 3:1, under the 4.5:1 small text needs.
+   */
+  .fill-primary {
+    background-color: var(--primary-bg);
+    color: var(--primary-text);
+  }
+
   .btn-primary:hover {
     background-color: var(--primary-hover);
   }
@@ -208,7 +217,7 @@
 
   /* A granted level earns the accent; "none" is just the resting state. */
   .tab[aria-checked='true'].tab-granted {
-    @apply text-flame-500;
+    @apply text-accent;
   }
 
   select.input {
@@ -315,4 +324,13 @@
   .skip-link { @apply fixed left-4 top-2 z-[80] -translate-y-20 rounded-lg bg-ink-800 px-4 py-3 font-semibold focus:translate-y-0; }
   .input[aria-invalid="true"] { border-color: rgb(var(--danger-400)); }
   .table-head th { white-space: nowrap; }
+  /*
+   * A register on a phone. The table already scrolls sideways as one piece; what it must not do
+   * is squeeze every column to fit first, which stood a customer's name on three lines of one
+   * word each and made every row four times as tall. Each text cell keeps room for a short
+   * phrase, and the table scrolls for the rest. A checkbox cell keeps its own width.
+   */
+  @media (max-width: 639px) {
+    tbody td:not(:has(input[type='checkbox'])):not(.col-actions) { min-width: 10rem; }
+  }
 }

@@ -3,6 +3,7 @@ import { workspace } from '../api/endpoints.js';
 import { buttonFor, useHandoffCatalogue } from '../hooks/useHandoffCatalogue.js';
 import { Field, Modal, Notice } from './ui.jsx';
 import { describeBrief } from '../utils/taskForm.js';
+import { isoDay } from '../utils/format.js';
 
 /**
  * What a department does with its task [server: services/handoff.service.js]:
@@ -19,7 +20,7 @@ import { describeBrief } from '../utils/taskForm.js';
  * ordinary task actions beside these.
  */
 
-const todayIso = () => new Date().toISOString().slice(0, 10);
+const todayIso = () => isoDay();
 
 /** Marketing's holding task is the enquiry itself, not work anybody was asked to do. */
 const isTheEnquiry = (todo, button) => Boolean(todo?.holds && button?.department === 'owner');

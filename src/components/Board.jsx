@@ -395,9 +395,9 @@ export default function Board({
               {folded ? (
                 /* The spine: the stage still exists and is still nameable, in a twelfth of the room. */
                 <div className="flex flex-1 flex-col items-center gap-2 py-3">
-                  <span className="text-[11px] font-semibold tabular-nums text-steel-500">0</span>
+                  <span className="text-[0.75rem] font-semibold tabular-nums text-steel-500">0</span>
                   <span
-                    className="whitespace-nowrap text-[11px] font-semibold uppercase tracking-wide text-steel-500"
+                    className="whitespace-nowrap text-[0.75rem] font-semibold uppercase tracking-wide text-steel-500"
                     style={{ writingMode: 'vertical-rl' }}
                   >
                     {board.labels[status]}
@@ -429,7 +429,7 @@ export default function Board({
                   * columns it is eleven lines of noise around the one that matters.
                   */}
                 {valueLabel && column.value > 0 && (
-                  <p className="mt-1.5 text-[11px] tabular-nums text-steel-400">
+                  <p className="mt-1.5 text-[0.75rem] tabular-nums text-steel-400">
                     {valueLabel === 'pieces'
                       ? `${formatNumber(column.value)} pcs`
                       : formatCompactCurrency(column.value)}
@@ -438,7 +438,7 @@ export default function Board({
 
                 {/* Why this column will not take a card, said on the column rather than after the drop. */}
                 {refusal && (
-                  <p className="mt-1.5 text-[11px] leading-snug text-steel-500">{refusal}</p>
+                  <p className="mt-1.5 text-[0.75rem] leading-snug text-steel-500">{refusal}</p>
                 )}
               </header>
 

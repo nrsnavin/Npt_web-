@@ -116,7 +116,9 @@ export default function StagePipeline({
     <div
       role="tablist"
       aria-label="Filter by stage"
-      className="mb-5 grid gap-2 sm:grid-cols-3 lg:grid-cols-5"
+      /* Two across on a phone, so the strip is a glance and not a screen of its own before the
+         list; six across on a wide screen, so six stages are one row and not five and an orphan. */
+      className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6"
     >
       {rows.map((row) => {
         const chosen = selected === row.value;
