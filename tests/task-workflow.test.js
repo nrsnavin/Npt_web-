@@ -51,3 +51,39 @@ test('the departments panel reloads when the enquiry is handed to someone else',
 test('only Admin is offered "Hand to someone" on the enquiry', () => {
   assert.match(read('pages/EnquiryDetail.jsx'), /\{isAdmin && <DelegateEnquiry enquiry=\{enquiry\} onDone=\{afterHandover\} \/>\}/);
 });
+
+test('in Production the enquiry shows the EDD, or that it was asked and not given', () => {
+  const desk = read('components/DepartmentDesk.jsx');
+  assert.match(desk, /const inProduction = \['production_edd', 'assembling'\]\.includes\(stage\) \|\| Boolean\(production\?\.asked\);/);
+  assert.match(desk, /EDD \{formatDate\(production\.edd\.edd\)\}/);
+  assert.match(desk, /EDD not given yet/);
+  assert.match(desk, /plant expects \$\{formatDate\(line\.expectedCompletion\)\}/);
+});
+
+test('raising a task the department already has adds to it, and says so', () => {
+  const dialog = read('components/DepartmentTaskDialog.jsx');
+  assert.match(dialog, /addToOpen: true/);
+  assert.match(dialog, /if \(sent\.addedTo\) \{/);
+  assert.match(dialog, /open task`/);
+});
+
+test('a workflow whose moves need a remark asks for it, with the ready date, before the move', () => {
+  const workflow = read('components/TaskWorkflow.jsx');
+  assert.match(workflow, /if \(button\.form\.remarkRequired \|\| button\.form\.statusDate\) return setMoving/);
+  assert.match(workflow, /status: step\.key, note, \.\.\.\(date \? \{ date \} : \{\}\)/);
+  assert.match(workflow, /step\.date === 'tomorrow' \? tomorrowInIndia\(\) : ''/);
+  assert.match(workflow, /disabled=\{busy \|\| dateNeeded \|\| remarkNeeded\}/);
+});
+
+test('department moves on an enquiry show under "Needs your action": read, then dismiss', () => {
+  const panel = read('components/AttentionPanel.jsx');
+  assert.match(panel, /Updates on your enquiries/);
+  assert.match(panel, /act\(workspace\.notices\.read\)\}>Mark as read/);
+  assert.match(panel, /read \? \(\s*<>\s*<button[^>]*act\(workspace\.notices\.dismiss\)\}>Dismiss/);
+  assert.match(panel, /clears itself a day after reading/);
+  assert.match(read('api/endpoints.js'), /dismiss: \(id\) => api\.delete\(`\/workspace\/notices\/\$\{id\}`/);
+});
+
+test('the enquiry shows where Production has its task', () => {
+  assert.match(read('components/DepartmentDesk.jsx'), /Production status: .*\{production\.asked\.status\}/);
+});

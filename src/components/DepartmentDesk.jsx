@@ -129,10 +129,53 @@ export default function DepartmentDesk({ enquiry, onChanged }) {
   const openFor = (department) => openTasks.filter((task) => task.department === department).length;
   /* The work the departments sent back as a file — the sales order — newest first, at the top. */
   const results = tasks.filter((task) => task.resultFile?.key);
+  /*
+   * When the goods will be ready, while the enquiry is in Production (or Assembly): the EDD
+   * Production gave, or that it has been asked and not given yet, and each order line's own date.
+   */
+  const production = history?.production;
+  const inProduction = ['production_edd', 'assembling'].includes(stage) || Boolean(production?.asked);
 
   return (
     <Section title="Departments">
       <div className="space-y-4">
+        {!closed && inProduction && production && (
+          <div className="rounded-xl border border-accent/40 bg-accent/[0.07] px-3 py-2.5" aria-label="Expected delivery">
+            {production.edd ? (
+              <p className="text-sm text-steel-100">
+                <span className="font-bold">EDD {formatDate(production.edd.edd)}</span>
+                <span className="text-steel-400">
+                  {' · '}{departmentLabel(production.edd.department)}
+                  {production.edd.by ? ` · ${production.edd.by}` : ''}
+                  {production.edd.at ? `, ${formatDate(production.edd.at)}` : ''}
+                  {production.edd.pending ? ` · ${Number(production.edd.pending).toLocaleString('en-IN')} pcs pending` : ''}
+                </span>
+              </p>
+            ) : (
+              <p className="text-sm text-steel-100">
+                <span className="font-bold">EDD not given yet</span>
+                {production.asked && (
+                  <span className="text-steel-400"> · {departmentLabel(production.asked.department)} asked {formatDate(production.asked.at)}</span>
+                )}
+              </p>
+            )}
+            {production.asked?.status && (
+              <p className="mt-0.5 text-xs text-steel-300">Production status: <span className="font-semibold text-steel-100">{production.asked.status}</span></p>
+            )}
+            {production.lines?.some((line) => line.expectedCompletion || line.dueToBuyer) && (
+              <ul className="mt-1 space-y-0.5 text-xs text-steel-300">
+                {production.lines.map((line) => (
+                  <li key={`${line.order}-${line.model}`}>
+                    {line.order} · {line.model || 'Line'}
+                    {line.expectedCompletion ? ` — plant expects ${formatDate(line.expectedCompletion)}` : ''}
+                    {line.dueToBuyer ? ` (buyer ${formatDate(line.dueToBuyer)})` : ''}
+                    {line.quantity ? ` · ${Number(line.produced || 0).toLocaleString('en-IN')} / ${Number(line.quantity).toLocaleString('en-IN')} made` : ''}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
         {results.length > 0 && (
           <div className="space-y-2" aria-label="Uploaded by departments">
             {results.map((task) => {

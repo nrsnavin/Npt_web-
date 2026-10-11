@@ -26,3 +26,15 @@ test('ordinary reads remain quiet and labels use business language', () => {
 test('moving the quote sequence says so, not "quotation updated"', () => {
   assert.equal(actionLabel({ method: 'put', url: '/quotations/numbering' }), 'Quote numbering saved');
 });
+
+test('a request added to a task the department already had is not also reported as "Task sent"', () => {
+  let event; const unsubscribe = subscribeFeedback((e) => { event = e; });
+  try {
+    const added = { method: 'post', url: '/enquiries/123/handoffs' };
+    beginFeedback(added); finishFeedback(added, { status: 200, data: { data: { addedTo: true } } });
+    assert.equal(event.message, undefined); assert.equal(event.pending, 0);
+    const raised = { method: 'post', url: '/enquiries/123/handoffs' };
+    beginFeedback(raised); finishFeedback(raised, { status: 201, data: { data: { addedTo: false } } });
+    assert.equal(event.message, 'Task sent');
+  } finally { unsubscribe(); }
+});

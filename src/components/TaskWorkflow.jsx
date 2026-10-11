@@ -4,6 +4,7 @@ import { buttonFor, useHandoffCatalogue } from '../hooks/useHandoffCatalogue.js'
 import { Field, Modal, Notice } from './ui.jsx';
 import TaskPdfLink from './TaskPdfLink.jsx';
 import { useToast } from '../context/ToastContext.jsx';
+import { todayInIndia } from '../utils/taskForm.js';
 
 /**
  * A department's own workflow on its task [server: config/departmentTaskForms.js `statuses`]:
@@ -13,7 +14,61 @@ import { useToast } from '../context/ToastContext.jsx';
  * For the SO team: SO Waiting → SO Preparing → Needs Clarification (a comment; the enquiry's
  * marketing person gets a task to answer, and the answer comes back here) → SO Prepared, which
  * is reached by uploading the sales order and moves the enquiry on to Production.
+ *
+ * For Production: EDD Request Received → … → Task Closed, every move with a remark and, where
+ * it says when, the ERD / ready date — which becomes the enquiry's EDD. The enquiry's marketing
+ * person and Admin see each move under "Needs your action".
  */
+
+const tomorrowInIndia = () => todayInIndia(new Date(Date.now() + 24 * 60 * 60 * 1000));
+
+/**
+ * The move itself, beside the list: the ready date and the remark, then Update status
+ * [server: handoff.service `setTaskStatus`].
+ */
+function MoveForm({ todo, form, step, onCancel, onMoved }) {
+  const [date, setDate] = useState(step.date === 'tomorrow' ? tomorrowInIndia() : '');
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState(null);
+  const dateNeeded = step.date === 'required' && !date;
+  const remarkNeeded = form.remarkRequired && note.trim().length < 3;
+  const save = async (event) => {
+    event.preventDefault();
+    setBusy(true);
+    setProblem(null);
+    try {
+      onMoved(await workspace.todos.status({ id: todo._id, status: step.key, note, ...(date ? { date } : {}) }));
+    } catch (failure) {
+      setProblem(failure.message);
+      setBusy(false);
+    }
+  };
+  return (
+    <form onSubmit={save} aria-label={`Move to ${step.label}`} className="space-y-2 rounded-xl border border-accent/30 bg-accent/[0.05] p-3">
+      <p className="text-xs font-semibold text-steel-200">
+        Move to {step.label}
+        {form.notifyStatus && <span className="font-normal text-steel-400"> · the enquiry’s marketing person and Admin are told</span>}
+      </p>
+      <div className="grid gap-2">
+        {form.statusDate && (
+          <Field label={form.statusDate.label} required={step.date === 'required'}>
+            <input type="date" className="input" min={todayInIndia()} value={date} onChange={(event) => setDate(event.target.value)} />
+          </Field>
+        )}
+        <Field label={form.remark?.label || 'Remarks'} required={form.remarkRequired}>
+          <textarea rows={2} className="input" placeholder={form.remark?.placeholder || ''} value={note} onChange={(event) => setNote(event.target.value)} autoFocus />
+        </Field>
+      </div>
+      {dateNeeded && <p className="text-xs text-warn-400">Give the {form.statusDate?.label || 'ready date'} for {step.label}</p>}
+      {problem && <Notice tone="danger">{problem}</Notice>}
+      <div className="flex justify-end gap-2">
+        <button type="button" className="btn-ghost px-3 py-1.5 text-xs" onClick={onCancel} disabled={busy}>Cancel</button>
+        <button type="submit" className="btn-primary px-3 py-1.5 text-xs" disabled={busy || dateNeeded || remarkNeeded}>{busy ? 'Saving…' : 'Update status'}</button>
+      </div>
+    </form>
+  );
+}
 
 const PDF_LIMIT = 1024 * 1024;
 
@@ -131,6 +186,7 @@ export default function TaskWorkflow({ todo, onChanged }) {
   const button = buttonFor(catalogue, todo?.kind);
   const statuses = button?.form?.statuses || [];
   const [asking, setAsking] = useState(null);
+  const [moving, setMoving] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [editing, setEditing] = useState(false);
   const [problem, setProblem] = useState(null);
@@ -156,6 +212,8 @@ export default function TaskWorkflow({ todo, onChanged }) {
     setProblem(null);
     if (step.pdf) return setUploading(true);
     if (step.comment) return setAsking(step);
+    /* A workflow whose every move says why, or says when: the remark and date first. */
+    if (button.form.remarkRequired || button.form.statusDate) return setMoving(key === todo.status ? null : step);
     try {
       onChanged?.(await workspace.todos.status({ id: todo._id, status: key }));
     } catch (failure) {
@@ -168,7 +226,7 @@ export default function TaskWorkflow({ todo, onChanged }) {
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-2">
         <label className="text-xs font-semibold text-steel-400" htmlFor={`status-${todo._id}`}>Status update</label>
-        <select id={`status-${todo._id}`} className="input w-auto min-w-[12rem] py-1.5 text-sm" value={todo.status || ''} onChange={(event) => choose(event.target.value)}>
+        <select id={`status-${todo._id}`} className="input w-auto min-w-[12rem] py-1.5 text-sm" value={moving?.key || todo.status || ''} onChange={(event) => choose(event.target.value)}>
           {statuses.map((entry) => <option key={entry.key} value={entry.key}>{entry.label}</option>)}
         </select>
       </div>
@@ -183,6 +241,20 @@ export default function TaskWorkflow({ todo, onChanged }) {
         )}
       </div>
       {problem && <Notice tone="danger">{problem}</Notice>}
+      {moving && (
+        <MoveForm
+          key={moving.key}
+          todo={todo}
+          form={button.form}
+          step={moving}
+          onCancel={() => setMoving(null)}
+          onMoved={(saved) => {
+            setMoving(null);
+            if (saved?.completed) toast(moving.label, 'The task is finished.');
+            onChanged?.(saved);
+          }}
+        />
+      )}
 
       {asking && (
         <CommentDialog
