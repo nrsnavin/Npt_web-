@@ -1,0 +1,269 @@
+import { useCallback, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { customers as customersApi, departments as departmentsApi, overview } from '../api/endpoints.js';
+import { useAuth } from '../context/AuthContext.jsx';
+import { useRecord } from '../hooks/useRecords.js';
+import AttentionPanel from '../components/AttentionPanel.jsx';
+import DepartmentTasksBoard from '../components/DepartmentTasksBoard.jsx';
+import EnquiryForm from '../components/EnquiryForm.jsx';
+import { CustomerForm } from './Customers.jsx';
+import { DashboardSkeleton, ErrorState, Modal, Notice } from '../components/ui.jsx';
+import { departmentLabel } from '../utils/pipeline.js';
+
+/**
+ * The overview dashboard [the plant's own layout] — Admin's company-wide, a marketing person's
+ * own book [server: overview.service.js]:
+ *
+ *   Company activity overview   + Add Party · + New Enquiry
+ *   who is signed in            name, access, the role badge
+ *   four figures                my customers · due today · active enquiries · quotations
+ *   New Enquiries               the ones still at Enquiry received, to edit and verify
+ *   Department Tasks            the requests followed, with their status reply
+ *   Customer / Party Master     every customer, with where its newest enquiry stands
+ */
+
+const PARTY_CHIPS = [
+  { key: 'all', label: 'All assigned' },
+  { key: 'new_enquiry', label: 'New Enquiry' },
+  { key: 'due_today', label: 'Due today' },
+  { key: 'idle', label: 'No activity 7+ days' },
+  { key: 'quotation', label: 'Quotation' },
+  { key: 'payment', label: 'Payment' },
+  { key: 'sampling', label: 'Sampling' },
+  { key: 'production', label: 'Production' },
+];
+
+/** The status dot's colour, by where the party stands. */
+const dotFor = (row) => {
+  if (!row.enquiry) return 'bg-warn-500';
+  if (row.isNew) return 'bg-aqua-500';
+  if (['production', 'mould', 'assembling', 'qc', 'dispatch', 'lr_copy'].includes(row.statusKey)) return 'bg-flame-500';
+  return 'bg-success-500';
+};
+
+function FigureTile({ label, value, hint, to }) {
+  const body = (
+    <>
+      <p className="text-sm font-semibold text-steel-300">{label}</p>
+      <p className="mt-1 text-3xl font-extrabold tabular-nums text-aqua-600">{value}</p>
+      <p className="mt-1 text-xs text-steel-500">{hint}</p>
+    </>
+  );
+  return to ? (
+    <Link to={to} className="card block p-4 transition hover:border-flame-500/40 hover:shadow-md">{body}</Link>
+  ) : (
+    <div className="card p-4">{body}</div>
+  );
+}
+
+function PartyMaster({ isAdmin, onAdd }) {
+  const navigate = useNavigate();
+  const [filter, setFilter] = useState('all');
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [editing, setEditing] = useState(null);
+  const [problem, setProblem] = useState(null);
+  const fetch = useCallback(() => overview.parties({ filter, page, search: search.trim() || undefined }), [filter, page, search]);
+  const { data, loading, error, reload } = useRecord(fetch, `parties-${filter}-${page}-${search}`);
+
+  const edit = async (row) => {
+    setProblem(null);
+    try {
+      setEditing(await customersApi.get(row._id));
+    } catch (failure) {
+      setProblem(failure.message);
+    }
+  };
+
+  return (
+    <section className="card space-y-4 p-4 sm:p-5" aria-label="Customer / Party Master">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-bold text-steel-50">Customer / Party Master</h2>
+          <p className="text-sm text-steel-400">
+            Showing {data?.total ?? '…'} customers · {isAdmin ? 'Admin can add, edit and delegate any party' : 'Your assigned parties'}
+          </p>
+        </div>
+        <button type="button" className="btn-primary" onClick={onAdd}>+ Add Party</button>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        {PARTY_CHIPS.map((chip) => (
+          <button
+            key={chip.key}
+            type="button"
+            aria-pressed={filter === chip.key}
+            onClick={() => { setFilter(chip.key); setPage(1); }}
+            className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+              filter === chip.key ? 'border-flame-500 bg-flame-500 text-white' : 'border-line/[0.12] text-steel-300 hover:border-line/25'
+            }`}
+          >
+            {chip.label}
+            {data?.counts?.[chip.key] !== undefined && <span className="ml-1 tabular-nums opacity-75">{data.counts[chip.key]}</span>}
+          </button>
+        ))}
+        <input
+          type="search"
+          className="input ml-auto w-full sm:w-60"
+          placeholder="Search party…"
+          value={search}
+          onChange={(event) => { setSearch(event.target.value); setPage(1); }}
+        />
+      </div>
+
+      {problem && <Notice tone="danger">{problem}</Notice>}
+      {error ? (
+        <ErrorState error={error} onRetry={reload} />
+      ) : loading && !data ? (
+        <p className="py-6 text-center text-sm text-steel-400">Loading parties…</p>
+      ) : data?.rows?.length ? (
+        <ul className="divide-y divide-line/10 rounded-xl border border-line/10">
+          {data.rows.map((row) => (
+            <li key={row._id} className="flex items-center gap-3 px-3 py-3 sm:px-4">
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="truncate font-semibold text-steel-50">{row.name}</p>
+                  {row.isNew && <span className="rounded-full bg-aqua-500/15 px-2 py-0.5 text-[0.7rem] font-semibold text-aqua-600">New Enquiry</span>}
+                </div>
+                <p className="truncate text-xs text-steel-400">{row.line}{isAdmin && row.owner ? ` · ${row.owner}` : ''}</p>
+                <p className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-steel-300">
+                  <span aria-hidden className={`h-2 w-2 rounded-full ${dotFor(row)}`} />
+                  {row.status}
+                </p>
+              </div>
+              <button type="button" className="btn-secondary shrink-0 px-3 py-1.5 text-xs" onClick={() => edit(row)}>Edit</button>
+              <button
+                type="button"
+                aria-label={`Open ${row.name}`}
+                className="shrink-0 rounded-lg px-2 py-1.5 text-lg leading-none text-steel-400 hover:bg-line/[0.05] hover:text-steel-100"
+                onClick={() => navigate(row.enquiry ? `/enquiries/${row.enquiry}` : `/customers/${row._id}`)}
+              >
+                ›
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="rounded-xl border border-dashed border-line/15 px-4 py-8 text-center text-sm text-steel-400">No party matches this filter.</p>
+      )}
+
+      {data?.pages > 1 && (
+        <div className="flex items-center justify-end gap-2 text-sm">
+          <button type="button" className="btn-secondary px-3 py-1.5 text-xs" disabled={page <= 1} onClick={() => setPage(page - 1)}>Previous</button>
+          <span className="text-steel-400">Page {data.page} of {data.pages}</span>
+          <button type="button" className="btn-secondary px-3 py-1.5 text-xs" disabled={page >= data.pages} onClick={() => setPage(page + 1)}>Next</button>
+        </div>
+      )}
+
+      <Modal open={Boolean(editing)} title="Edit customer" size="lg" onClose={() => setEditing(null)}>
+        {editing && <CustomerForm customer={editing} onClose={() => setEditing(null)} onSaved={reload} />}
+      </Modal>
+    </section>
+  );
+}
+
+export default function OverviewDashboard() {
+  const { user, isAdmin, departments = [], canRead } = useAuth();
+  const fetch = useCallback(() => overview.summary(), []);
+  const { data, loading, error, reload } = useRecord(fetch, 'overview');
+  /* "Needs your action" — the questions and the departments' moves on my enquiries. */
+  const fetchDesk = useCallback(() => departmentsApi.dashboard('mine'), []);
+  const desk = useRecord(fetchDesk, 'department-mine');
+  const [adding, setAdding] = useState(null);
+  const [partiesKey, setPartiesKey] = useState(0);
+
+  if (loading && !data) return <DashboardSkeleton label="Loading the overview" tiles={4} />;
+  if (error) return <ErrorState error={error} onRetry={reload} />;
+
+  const { figures, newEnquiries } = data;
+  const role = isAdmin ? 'Admin' : departmentLabel(user?.department) || 'Marketing';
+  const access = isAdmin
+    ? 'Masters, customers, enquiries, quotations, approvals, users and permissions'
+    : 'Your customers, enquiries, quotations and follow-ups';
+  /* The person's other desks — the department screens behind this overview. */
+  const desks = departments.filter((entry) => entry !== 'management');
+  const refresh = () => {
+    reload();
+    desk.reload();
+    setPartiesKey((value) => value + 1);
+  };
+
+  return (
+    <div className="mx-auto max-w-7xl space-y-5">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-extrabold tracking-tight text-steel-50">Company activity overview</h1>
+          <p className="text-sm text-steel-400">All customers, enquiries and pending actions in one place.</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {desks.map((entry) => (
+            <Link key={entry} to={`/departments/${entry}`} className="btn-secondary">{departmentLabel(entry)} desk</Link>
+          ))}
+          {canRead('customers') && <button type="button" className="btn-secondary" onClick={() => setAdding('party')}>+ Add Party</button>}
+          <button type="button" className="btn-primary" onClick={() => setAdding('enquiry')}>+ New Enquiry</button>
+        </div>
+      </div>
+
+      <section className="card flex flex-wrap items-center justify-between gap-3 p-4 sm:p-5" aria-label="Signed in">
+        <div className="min-w-0">
+          <p className="text-base font-bold text-steel-50">
+            {user?.name} <span className="font-semibold text-steel-400">· {isAdmin ? 'Full access' : 'Own accounts'}</span>
+          </p>
+          <p className="text-sm text-steel-400">{user?.email}{user?.email ? ' · ' : ''}{access}</p>
+        </div>
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-flame-500/10 px-3 py-1 text-sm font-semibold text-flame-500">
+          <span aria-hidden className="h-2 w-2 rounded-full bg-flame-500" />
+          {role}
+        </span>
+      </section>
+
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <FigureTile label="My customers" value={figures.customers} hint="Assigned accounts" to={canRead('customers') ? '/customers' : undefined} />
+        <FigureTile label="Due today" value={figures.dueToday} hint="Open today’s follow-ups" to="/enquiries?view=due" />
+        <FigureTile label="Active enquiries" value={figures.activeEnquiries} hint="View active enquiry status" to="/enquiries?view=open" />
+        <FigureTile label="Quotations" value={figures.quotations} hint="Preparing, sent & negotiation" to={canRead('pricing') ? '/quotations' : undefined} />
+      </div>
+
+      {desk.data && <AttentionPanel attention={desk.data.attention} onChanged={refresh} />}
+
+      <section className="card space-y-3 p-4 sm:p-5" aria-label="New Enquiries">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 className="text-lg font-bold text-steel-50">New Enquiries ({newEnquiries.total})</h2>
+            <p className="text-sm text-steel-400">Enquiry received: {newEnquiries.total}</p>
+          </div>
+          <Link to="/enquiries?marketingStatus=enquiry_received" className="text-sm font-semibold text-flame-500 hover:underline">View all →</Link>
+        </div>
+        {newEnquiries.rows.length ? (
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {newEnquiries.rows.map((row) => (
+              <div key={row._id} className="rounded-xl border border-line/10 p-3">
+                <p className="truncate font-semibold text-steel-50">{row.customer?.name || row.number}</p>
+                <p className="text-xs text-steel-400">
+                  Enquiry received · {row.assignedTo?.name || 'Unassigned'}
+                  {row.requirement?.modelNumber ? ` · ${row.requirement.modelNumber}` : ''}
+                </p>
+                <Link to={`/enquiries/${row._id}`} className="mt-2 inline-block text-sm font-semibold text-flame-500 hover:underline">
+                  Edit / Verify enquiry →
+                </Link>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-steel-400">No new enquiry waiting to be verified.</p>
+        )}
+      </section>
+
+      <DepartmentTasksBoard />
+
+      {canRead('customers') && <PartyMaster key={partiesKey} isAdmin={isAdmin} onAdd={() => setAdding('party')} />}
+
+      <Modal open={adding === 'party'} title="New customer" description="Check for an existing record before creating a second one" size="lg" onClose={() => setAdding(null)}>
+        {adding === 'party' && <CustomerForm onClose={() => setAdding(null)} onSaved={refresh} />}
+      </Modal>
+      <Modal open={adding === 'enquiry'} title="New enquiry" description="Every model the buyer asked about, each with its own tool and specification" size="lg" onClose={() => setAdding(null)}>
+        {adding === 'enquiry' && <EnquiryForm onClose={() => setAdding(null)} onSaved={refresh} />}
+      </Modal>
+    </div>
+  );
+}

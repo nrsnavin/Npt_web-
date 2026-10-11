@@ -11,45 +11,17 @@ import { Modal } from './ui.jsx';
 import { humanise } from '../utils/format.js';
 import { departmentLabel } from '../utils/pipeline.js';
 import { simpleNavFor } from '../config/simpleNav.js';
+import { barItems, litItem } from '../config/topBar.js';
 
 /**
- * Modules across the top, and the screens inside one module down the side.
+ * The plant's own layout: a dark bar across the top with Dashboard · Enquiries · Department
+ * Tasks · Quotations · Masters & Access, the account under it ("email · Role" and the initials),
+ * and the page full width beneath — no sidebar. A bar item with several screens opens a menu of
+ * them; on a phone the bar folds into a drawer.
  *
- * Two levels, each answering a different question. The strip answers "which part of the business
- * am I in", and it is always the same strip — every module you may open is on it, in one place,
- * so nothing is ever more than one hop away and nothing is hidden behind guessing which area
- * holds it. The sidebar answers "what is in this part", and it only ever shows that: a column
- * listing every screen in the application made the reader scan twenty labels to find two.
- *
- * The alternative arrangements both failed in the same direction. A rail of *areas* on the left
- * meant the sidebar rearranged itself as you moved, and you could not see where a module lived
- * without first knowing its area. One flat list of everything was legible only while short.
- *
- * A module with one screen still gets a sidebar of one row. That is honest — it says this module
- * has one screen — and it keeps the shape of the app the same wherever you are, which is worth
- * more than the row it saves.
- *
- * Each feature carries the grant that governs it, falling back to the module's own. `admin` sits
- * beside `module` rather than pretending to be one: the integrations page carries a third
- * party's key state and spends API calls the whole plant shares, and inventing a grant for it
- * would mean an access list with an entry nobody knows how to reason about.
- */
-/**
- * **There is no Home group, and that is deliberate.**
- *
- * The day screen used to be the front door and then, when queries took that place, a tab of its
- * own labelled by department — "My day", "The plant today", "The bench today". It is out of the
- * strip entirely now: opening the application puts you in the questions people are waiting on,
- * and a second screen answering "what needs me today" beside it was the same morning read twice.
- * What the day screen actually carried is either on the queries list already or reachable from
- * the register it is about.
- *
- * Two things that lived under it are kept, because neither of them was ever Home:
- *
- *   My dashboard        marketing's own figures, filed here under Enquiries, which is
- *                       the module it reports on.
- *   Profile and access  in the header beside the name, and in the drawer on a phone where the
- *                       header has no room for it.
+ * MODULES below is the catalogue of every screen and the grant that governs it; the bar is built
+ * from it [barItems]. Each feature carries its grant, falling back to the module's own; `admin`
+ * marks the screens only Admin opens.
  */
 const MODULES = [
   /*
@@ -192,42 +164,6 @@ const MODULES = [
   },
 ];
 
-/** Every screen in a module, parents and the children under them. */
-const screensOf = (entry) =>
-  entry.features.flatMap((feature) => [feature, ...(feature.children || [])]);
-
-/**
- * Whether a route is the one being looked at. `/` is exact or it would claim every screen.
- */
-const covers = (pathname, to) =>
-  to === '/' ? pathname === '/' : pathname === to || pathname.startsWith(`${to}/`);
-
-/**
- * Which module the current screen belongs to.
- *
- * Longest match wins, so `/samples/analytics` resolves through its own entry rather than
- * stopping at `/samples` — and a detail route like `/orders/6aa2…` still lands on Sales orders,
- * which is what keeps the strip lit while somebody reads one record.
- *
- * Nothing, for a screen that belongs to no module: the profile page is the only one, now that
- * the day screen is gone. Lighting the first tab there would be the strip claiming the reader
- * is somewhere they are not, which is the first thing that makes a nav untrustworthy.
- */
-const moduleFor = (pathname) => {
-  let best;
-  let longest = -1;
-
-  for (const entry of MODULES) {
-    for (const screen of screensOf(entry)) {
-      if (covers(pathname, screen.to) && screen.to.length > longest) {
-        best = entry;
-        longest = screen.to.length;
-      }
-    }
-  }
-  return best;
-};
-
 /** Brand lockup, used on the login screen and in the sidebar header. */
 export function Wordmark({ compact = false }) {
   return (
@@ -278,88 +214,102 @@ export function ThemeToggle({ className = '' }) {
   );
 }
 
-/**
- * The module strip.
- *
- * It will outrun its space on most accounts — a dozen modules beside a search box — and the
- * honest answer is to let it scroll and say so. The cut edge is faded on whichever side is
- * actually cut, because a tab sliced through the middle against a hard edge reads as a
- * rendering fault rather than as "there is more this way"; and a wheel over the strip moves it
- * sideways, because shift-scrolling a bar with no visible scrollbar is not something anybody
- * discovers.
- */
-function ModuleTabs({ modules, active }) {
-  const strip = useRef(null);
-  const [cut, setCut] = useState({ start: false, end: false });
-
+/** One item on the bar: a link, or — when it holds several screens — a menu of them. */
+function BarItem({ item, lit }) {
+  const [open, setOpen] = useState(false);
+  const box = useRef(null);
+  const location = useLocation();
+  useEffect(() => { setOpen(false); }, [location.pathname]);
   useEffect(() => {
-    const node = strip.current;
-    if (!node) return undefined;
+    if (!open) return undefined;
+    const close = (event) => { if (!box.current?.contains(event.target)) setOpen(false); };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [open]);
 
-    const measure = () => {
-      const slack = node.scrollWidth - node.clientWidth;
-      /* A pixel or two of slack is sub-pixel layout, not a hidden tab. */
-      setCut({ start: node.scrollLeft > 4, end: slack > 4 && node.scrollLeft < slack - 4 });
-    };
+  const tone = `flex items-center gap-2 whitespace-nowrap rounded-lg px-3.5 py-2 text-[0.95rem] font-semibold transition-colors ${
+    lit ? 'bg-white/[0.14] text-white' : 'text-white/80 hover:bg-white/[0.08] hover:text-white'
+  }`;
+  const icon = item.icon ? <span aria-hidden className="text-sm opacity-80">{item.icon}</span> : null;
+  const screens = item.features.flatMap((feature) => [feature, ...(feature.children || []).map((child) => ({ ...child, child: true }))]);
 
-    measure();
-    node.addEventListener('scroll', measure, { passive: true });
-    const observer = new ResizeObserver(measure);
-    observer.observe(node);
-    return () => {
-      node.removeEventListener('scroll', measure);
-      observer.disconnect();
-    };
-  }, [modules.length]);
-
-  /* The active tab scrolled into view, for the case nobody clicked it — arriving from a search
-     result or a link with the strip already scrolled elsewhere. */
-  useEffect(() => {
-    strip.current
-      ?.querySelector('[data-active="true"]')
-      ?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-  }, [active]);
-
-  const mask =
-    cut.start && cut.end
-      ? '[mask-image:linear-gradient(to_right,transparent,#000_1.25rem,#000_calc(100%-1.25rem),transparent)]'
-      : cut.end
-        ? '[mask-image:linear-gradient(to_right,#000_calc(100%-1.25rem),transparent)]'
-        : cut.start
-          ? '[mask-image:linear-gradient(to_right,transparent,#000_1.25rem)]'
-          : '';
-
+  if (screens.length === 1) {
+    return <NavLink to={screens[0].to} end={screens[0].end} className={tone} data-active={lit}>{icon}{item.label}</NavLink>;
+  }
   return (
-    <div
-      ref={strip}
-      onWheel={(event) => {
-        const node = strip.current;
-        if (!node || node.scrollWidth <= node.clientWidth) return;
-        if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
-        node.scrollLeft += event.deltaY;
-      }}
-      className={`scrollbar-none flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto ${mask}`}
-    >
-      {modules.map((entry) => {
-        const lit = entry.key === active;
+    <div ref={box} className="relative">
+      <button type="button" className={tone} aria-haspopup="menu" aria-expanded={open} data-active={lit} onClick={() => setOpen((value) => !value)}>
+        {icon}{item.label}<span aria-hidden className="text-xs opacity-70">▾</span>
+      </button>
+      {open && (
+        <div role="menu" className="absolute left-0 top-full z-40 mt-1 min-w-[14rem] rounded-xl border border-line/10 bg-ink-850 p-1.5 shadow-modal">
+          {screens.map((screen) => (
+            <NavLink
+              key={screen.to}
+              to={screen.to}
+              end={screen.end}
+              role="menuitem"
+              className={({ isActive }) => `block rounded-lg px-3 py-2 text-sm ${screen.child ? 'pl-6 text-steel-300' : 'font-semibold text-steel-100'} ${
+                isActive ? 'bg-flame-500/10 text-flame-500' : 'hover:bg-line/[0.05]'
+              }`}
+            >
+              {screen.label}
+            </NavLink>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
-        return (
-          <NavLink
-            key={entry.key}
-            to={entry.features[0].to}
-            end={entry.features[0].end}
-            data-active={lit}
-            /* Lit by which module owns the screen, not by the tab's own href — otherwise a
-               detail route or a second screen in the module leaves no tab marked, and the strip
-               reads as having lost its place. */
-            className={`relative whitespace-nowrap rounded-md px-3 py-1.5 text-xs font-semibold tracking-tight transition-colors ${
-              lit ? 'bg-line/[0.08] text-flame-500' : 'text-steel-300 hover:bg-line/[0.05] hover:text-steel-50'
-            }`}
-          >
-            {entry.label}
-          </NavLink>
-        );
-      })}
+const initialsOf = (name = '', email = '') => {
+  const words = String(name).split(/\s+/).filter(Boolean);
+  return (words.length ? words.slice(0, 2).map((word) => word[0]) : [email[0] || '?']).join('').toUpperCase();
+};
+
+/** Who is signed in, as the plant's own screen shows it: "email · Role", and the initials. */
+function AccountBar({ user, roleLabel, onSignOut }) {
+  const [open, setOpen] = useState(false);
+  const box = useRef(null);
+  const location = useLocation();
+  useEffect(() => { setOpen(false); }, [location.pathname]);
+  useEffect(() => {
+    if (!open) return undefined;
+    const close = (event) => { if (!box.current?.contains(event.target)) setOpen(false); };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [open]);
+  const who = user?.email || user?.phone || user?.name || '';
+  return (
+    <div className="relative z-20 flex shrink-0 flex-wrap items-center gap-3 border-b border-line/10 bg-ink-850 px-3 py-2.5 sm:px-5">
+      <div ref={box} className="relative min-w-0 flex-1 sm:w-[22rem] sm:flex-none">
+        <button
+          type="button"
+          aria-label="Your account"
+          aria-haspopup="menu"
+          aria-expanded={open}
+          onClick={() => setOpen((value) => !value)}
+          className="flex w-full items-center justify-between gap-3 rounded-xl border border-line/15 bg-ink-850 px-3.5 py-2.5 text-left text-sm text-steel-100 hover:border-line/25"
+        >
+          <span className="truncate">{who}{roleLabel ? ` · ${roleLabel}` : ''}</span>
+          <span aria-hidden className="text-steel-400">⌄</span>
+        </button>
+        {open && (
+          <div role="menu" className="absolute left-0 top-full z-40 mt-1 w-full rounded-xl border border-line/10 bg-ink-850 p-1.5 shadow-modal">
+            <p className="px-3 py-2 text-xs text-steel-400">Signed in as <span className="font-semibold text-steel-100">{user?.name}</span></p>
+            <NavLink to="/profile" role="menuitem" className="block rounded-lg px-3 py-2 text-sm font-semibold text-steel-100 hover:bg-line/[0.05]">Profile and access</NavLink>
+            <button type="button" role="menuitem" onClick={onSignOut} className="block w-full rounded-lg px-3 py-2 text-left text-sm font-semibold text-danger-400 hover:bg-line/[0.05]">Sign out</button>
+          </div>
+        )}
+      </div>
+      <span aria-hidden className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-flame-50 text-sm font-bold text-flame-500 ring-1 ring-inset ring-flame-500/20">
+        {initialsOf(user?.name, who)}
+      </span>
+      <div className="ml-auto flex min-w-0 items-center gap-1.5">
+        <div className="min-w-0 sm:w-64"><GlobalSearch /></div>
+        <InboxBell />
+        <ThemeToggle />
+      </div>
     </div>
   );
 }
@@ -406,101 +356,45 @@ export default function Layout() {
   }, [canRead, isAdmin]);
 
   /*
-   * The module in view — and a fallback, because the one the route belongs to may be one this
-   * person cannot read, or the screen may belong to no module at all. Landing on a screen with
-   * an empty sidebar would read as broken, so the sidebar falls back; the strip does not, and
-   * nothing is lit rather than something wrong.
+   * The bar [the plant's own layout]: Dashboard · Enquiries · Department Tasks · Quotations ·
+   * Masters & Access, the department's own modules beside them, and the rest under More.
    */
-  /*
-   * The simple menu [config/simpleNav.js]: a department's own tabs on the strip, and everything
-   * else it may open under "More" — nothing taken away, just out of the way. Admin and Audit keep
-   * the full strip.
-   */
-  const shown = useMemo(() => {
-    const keys = simpleNavFor(departments, { isAdmin });
-    if (!keys) return readable;
-    const primary = keys.map((key) => readable.find((entry) => entry.key === key)).filter(Boolean);
-    const rest = readable.filter((entry) => !keys.includes(entry.key));
-    const more = rest.length
-      ? [{ key: 'more', label: 'More', features: rest.flatMap((entry) => entry.features), from: rest.map((entry) => entry.key) }]
-      : [];
-    return [...primary, ...more];
-  }, [readable, departments, isAdmin]);
-
-  const routed = moduleFor(location.pathname);
-  const active =
-    (routed && shown.find((entry) => entry.key === routed.key || entry.from?.includes(routed.key))) || shown[0];
-  const lit = routed ? active?.key : undefined;
-
-  /* One titleless section: the module's name is already lit on the strip above, and repeating
-     it as a heading over its own list is a row that says nothing new. */
-  const sidebar = active ? [{ items: active.features }] : [];
-
-  const features = <SidebarNav sections={sidebar} scope={active?.key || 'nav'} />;
+  const items = useMemo(
+    () => barItems(readable, simpleNavFor(departments, { isAdmin }) || []),
+    [readable, departments, isAdmin],
+  );
+  const lit = litItem(location.pathname, items);
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden">
       <a href="#main-content" className="skip-link">Skip to main content</a>
 
-      {/* `relative z-30` so the header's own overlays — the search results — paint above the
-          main pane. Without a stacking context here, `main` comes later in the DOM and wins,
-          and the results render behind the page they are offering to open. */}
-      <header className="relative z-30 flex min-h-14 shrink-0 items-center gap-2 border-b border-line/10 bg-ink-850 px-3 sm:px-4">
+      {/* `relative z-30` so the menus open over the main pane, which comes later in the DOM. */}
+      <header className="relative z-30 flex min-h-14 shrink-0 items-center gap-2 bg-[#17383d] px-3 text-white sm:px-4">
         <button
           type="button"
-          className="btn-secondary px-3 lg:hidden"
+          className="rounded-lg px-3 py-2 text-white hover:bg-white/[0.08] lg:hidden"
           onClick={() => setMenuOpen(true)}
           aria-label="Open navigation"
           aria-expanded={menuOpen}
         >
           <span aria-hidden>☰</span>
         </button>
+        <span className="font-extrabold tracking-tight lg:hidden">Navin Hangers</span>
 
-        <div className="hidden shrink-0 lg:block"><Wordmark /></div>
-        <div className="lg:hidden"><Wordmark compact /></div>
-
-        {/* The modules. Hidden on a narrow screen, where the drawer carries them instead —
-            a strip that has to be scrolled to find anything is worse than a list. */}
-        <div className="hidden min-w-0 flex-1 lg:flex">
-          <ModuleTabs modules={shown} active={lit} />
-        </div>
-
-        <div className="min-w-0 flex-1 lg:flex-none 2xl:w-72"><GlobalSearch /></div>
-
-        <InboxBell />
-        <ThemeToggle />
-
-        <NavLink
-          to="/profile"
-          className="hidden shrink-0 rounded-lg px-2 py-1 text-sm transition-colors hover:bg-line/[0.04] sm:block"
-          title="Profile and access"
-        >
-          <span className="block font-semibold leading-tight text-steel-100">{user?.name}</span>
-          <span className="block text-xs text-steel-400">
-            {/* The plant's name for it — "Sales / SO", not the stored key "order_confirmation". */}
-            {(user?.department && departmentLabel(user.department)) || humanise(user?.role)}
-          </span>
-        </NavLink>
-
-        <button
-          type="button"
-          className="btn-ghost shrink-0 px-2 text-xs sm:text-sm"
-          onClick={handleLogout}
-        >
-          Sign out
-        </button>
+        {/* The bar. Hidden on a narrow screen, where the drawer carries it instead. */}
+        <nav aria-label="Main" className="hidden min-w-0 flex-1 items-center gap-1 lg:flex">
+          {items.map((item) => <BarItem key={item.key} item={item} lit={lit === item.key} />)}
+        </nav>
       </header>
 
-      <div className="flex min-h-0 flex-1">
-        {/* The screens inside the module on the strip above. */}
-        <aside className="hidden w-52 shrink-0 flex-col border-r border-line/10 bg-ink-850 lg:flex">
-          <p className="shrink-0 px-5 pb-1 pt-4 text-xs font-bold tracking-tight text-steel-100">
-            {active?.label}
-          </p>
-          {/* `min-h-0` so the list scrolls inside the column rather than pushing it taller. */}
-          <div className="flex min-h-0 flex-1 flex-col pb-4 pt-1">{features}</div>
-        </aside>
+      <AccountBar
+        user={user}
+        roleLabel={isAdmin ? 'Admin' : (user?.department && departmentLabel(user.department)) || humanise(user?.role)}
+        onSignOut={handleLogout}
+      />
 
+      <div className="flex min-h-0 flex-1">
         <div className="flex min-w-0 flex-1 flex-col">
           <main
             id="main-content"
@@ -510,44 +404,23 @@ export default function Layout() {
                sits on top of whatever is last on the page — a reply box, a row's menu. */
             className="min-h-0 flex-1 overflow-y-auto p-4 pb-24 sm:p-6 lg:p-8"
           >
-            {/*
-              Inside the main column rather than around the whole app, so a screen that throws
-              loses the screen and not the navigation: the sidebar, the search and the workspace
-              all keep working, and going somewhere else is one press rather than a reload.
-
-              Keyed on the path so the apology clears when the person navigates away — a caught
-              boundary stays caught until something resets it.
-            */}
+            {/* Inside the main column, so a screen that throws loses the screen and not the
+                navigation; keyed on the path so the apology clears on the next screen. */}
             <ErrorBoundary resetKey={location.pathname}>
               <Outlet />
             </ErrorBoundary>
           </main>
         </div>
 
-        {/*
-          The workspace, on the right of every screen. A sibling of the main column rather than
-          something floating above it: that is what lets the page reflow around it and the to-do
-          list stay open while you work, instead of covering the work it refers to.
-        */}
+        {/* The workspace, on the right of every screen — a sibling, so the page reflows around it. */}
         <WorkspaceRail />
       </div>
 
-      {/*
-        The drawer, which carries both levels because a phone has room for neither beside the
-        content: every module, with its screens under it, as one list.
-      */}
+      {/* The drawer on a phone: every bar item, with its screens under it, as one list. */}
       <Modal open={menuOpen} title="Navigate" onClose={() => setMenuOpen(false)} size="sm">
         <SidebarNav
           sections={[
-            ...shown.map((entry) => ({ title: entry.label, items: entry.features })),
-            /*
-              Profile last, and only here.
-
-              It sits in the header beside the name on a wide screen, and that link is hidden on
-              a phone for want of room — so with no Home group to carry it, the drawer is the
-              only way somebody on a phone reaches their own password. A section of its own
-              rather than tacked onto a module, because it belongs to none of them.
-            */
+            ...items.map((item) => ({ title: item.label, items: item.features })),
             { title: 'Your account', items: [{ to: '/profile', label: 'Profile and access' }] },
           ]}
           scope="drawer"

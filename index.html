@@ -19,16 +19,18 @@
       rel="stylesheet"
     />
     <meta name="theme-color" content="#0C141A" media="(prefers-color-scheme: dark)" />
-    <meta name="theme-color" content="#F0F4F7" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#17383D" media="(prefers-color-scheme: light)" />
     <script>
       // Runs before the first paint so a stored preference never flashes the other theme.
-      // No stored choice leaves the attribute off, letting the stylesheet follow the OS.
+      // No stored choice is the light theme; "system" leaves the attribute off for the OS.
       try {
         var saved = localStorage.getItem('npt.theme');
-        if (saved === 'light' || saved === 'dark') {
-          document.documentElement.setAttribute('data-theme', saved);
+        if (saved !== 'system') {
+          document.documentElement.setAttribute('data-theme', saved === 'dark' ? 'dark' : 'light');
         }
-      } catch (e) {}
+      } catch (e) {
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
     </script>
     <meta
       name="description"

@@ -41,10 +41,10 @@ test('the desk and the enquiries are one dashboard; nothing is taken away', () =
   const layout = read('components/Layout.jsx');
   assert.match(layout, /key: 'dashboard',\s*label: 'Dashboard'/);
   assert.doesNotMatch(layout, /key: 'desk'/);
-  assert.doesNotMatch(layout, /key: 'enquiries'/);
   assert.match(layout, /to: '\/enquiries', label: 'All enquiries', end: true, module: 'enquiries'/);
-  assert.match(layout, /\[\{ key: 'more', label: 'More', features: rest\.flatMap\(\(entry\) => entry\.features\)/);
-  assert.match(layout, /<ModuleTabs modules=\{shown\} active=\{lit\} \/>/);
+  /* The bar [config/topBar.js]: the department's own modules beside the five, the rest under More. */
+  assert.match(layout, /barItems\(readable, simpleNavFor\(departments, \{ isAdmin \}\) \|\| \[\]\)/);
+  assert.match(read('config/topBar.js'), /\{ key: 'more', label: 'More', features: more\.flatMap\(\(entry\) => entry\.features\) \}/);
 
   const app = read('App.jsx');
   assert.match(app, /<Navigate to=\{homeFor\(departments, \{ isAdmin \}\)\} replace \/>/);

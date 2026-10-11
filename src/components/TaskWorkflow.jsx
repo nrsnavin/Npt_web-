@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { workspace } from '../api/endpoints.js';
 import { buttonFor, useHandoffCatalogue } from '../hooks/useHandoffCatalogue.js';
 import { Field, Modal, Notice } from './ui.jsx';
@@ -203,7 +203,7 @@ function ContactDialog({ fields, todo, title = 'Edit contact details', onClose, 
 }
 
 /** The status list and the workflow's actions, for a task whose department has a workflow. */
-export default function TaskWorkflow({ todo, onChanged }) {
+export default function TaskWorkflow({ todo, onChanged, startWith }) {
   const catalogue = useHandoffCatalogue();
   const button = buttonFor(catalogue, todo?.kind);
   const statuses = button?.form?.statuses || [];
@@ -216,6 +216,13 @@ export default function TaskWorkflow({ todo, onChanged }) {
   const [problem, setProblem] = useState(null);
   /* Said as a toast: the finished task leaves the list it was on. */
   const { toast, warn } = useToast();
+  /* Opened from a status picked elsewhere (the Department Tasks table): go straight to that move. */
+  const started = useRef(false);
+  useEffect(() => {
+    if (started.current || !startWith || !statuses.length || todo?.completed || startWith === todo?.status) return;
+    started.current = true;
+    choose(startWith);
+  });
   if (!statuses.length) return null;
 
   const current = statuses.find((entry) => entry.key === todo.status);

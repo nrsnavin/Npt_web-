@@ -44,6 +44,7 @@ const CustomerDetail = lazyPage(() => import('./pages/CustomerDetail.jsx'));
 const BuyerCards = lazyPage(() => import('./pages/BuyerCards.jsx'));
 const DepartmentDashboard = lazyPage(() => import('./pages/DepartmentDashboard.jsx'));
 const DepartmentsOverview = lazyPage(() => import('./pages/DepartmentsOverview.jsx'));
+const DepartmentTasks = lazyPage(() => import('./pages/DepartmentTasks.jsx'));
 const Quotations = lazyPage(() => import('./pages/Quotations.jsx'));
 const SentQuotations = lazyPage(() => import('./pages/SentQuotations.jsx'));
 const QuotationDetail = lazyPage(() => import('./pages/QuotationDetail.jsx'));
@@ -185,6 +186,8 @@ export default function App() {
               decides who may open which. */}
           <Route path="departments" element={<DepartmentsOverview />} />
           <Route path="departments/:key" element={<DepartmentDashboard />} />
+          {/* Department Tasks on the bar: the requests this person follows. The server scopes them. */}
+          <Route path="tasks" element={<DepartmentTasks />} />
 
           {/* Phase 1: the pipeline that runs from a customer to an enquiry. */}
           {/* "Dashboard" is everyone's one screen: their department's enquiries and all they may see. */}
