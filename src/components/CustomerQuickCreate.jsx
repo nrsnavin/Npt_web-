@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import { customers as customersApi } from '../api/endpoints.js';
 import { Field, FormError, Modal, Notice } from './ui.jsx';
 import { CUSTOMER_TYPES } from '../utils/pipeline.js';
+import OwnerPicker from './OwnerPicker.jsx';
 
 /**
  * Adds a customer without leaving the form that needed one.
@@ -12,8 +13,9 @@ import { CUSTOMER_TYPES } from '../utils/pipeline.js';
  * — or worse, where the buyer's name ends up typed into a remarks box, which is how a CRM
  * quietly stops being the place customers live.
  *
- * Deliberately the short form: a name, how to reach them, and the GST number if it is to
- * hand. Everything else on a customer — credit terms, rating, addresses, contacts — is for
+ * Deliberately the short form: a name, who owns the account (the marketing person who will
+ * chase them — the server refuses a customer without one), how to reach them, and the GST
+ * number if it is to hand. Everything else on a customer — credit terms, rating, addresses, contacts — is for
  * the person setting the account up properly, not for someone halfway through raising a
  * sample. The full screen stays where it is.
  *
@@ -31,13 +33,14 @@ export default function CustomerQuickCreate({ open, initialName = '', onClose, o
     handleSubmit,
     getValues,
     reset,
+    watch,
     formState: { errors, isSubmitting },
-  } = useForm({ defaultValues: { name: initialName, customerType: 'garment_factory' } });
+  } = useForm({ defaultValues: { name: initialName, customerType: 'garment_factory', assignedTo: '' } });
 
   // The name typed into the search box is the answer to "what are they called".
   useEffect(() => {
     if (open) {
-      reset({ name: initialName, customerType: 'garment_factory' });
+      reset({ name: initialName, customerType: 'garment_factory', assignedTo: '' });
       setError(null);
       setDuplicate(null);
     }
@@ -60,6 +63,7 @@ export default function CustomerQuickCreate({ open, initialName = '', onClose, o
     try {
       const created = await customersApi.create({
         name: values.name.trim(),
+        assignedTo: values.assignedTo,
         customerType: values.customerType || undefined,
         mobile: values.mobile?.trim() || undefined,
         email: values.email?.trim() || undefined,
@@ -94,6 +98,13 @@ export default function CustomerQuickCreate({ open, initialName = '', onClose, o
         </Field>
 
         <div className="grid gap-4 sm:grid-cols-2">
+          <OwnerPicker
+            register={register}
+            watch={watch}
+            error={errors.assignedTo}
+            load={customersApi.team}
+            label="Marketing person"
+          />
           <Field label="Type">
             <select className="input" {...register('customerType')}>
               {CUSTOMER_TYPES.map((option) => (

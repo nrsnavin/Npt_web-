@@ -105,6 +105,15 @@ test('the owner is asked on create and never on edit', () => {
 });
 
 
+test('the quick "Add a customer" asks for the marketing person too, and sends it', () => {
+  /* The server refuses a customer without an owner ("Assigned To: Required"); the short form
+     opened from a customer search used to leave it out. */
+  const quick = read('components/CustomerQuickCreate.jsx');
+  assert.match(quick, /<OwnerPicker[\s\S]{0,200}label="Marketing person"/);
+  assert.match(quick, /assignedTo: values\.assignedTo/);
+});
+
+
 /* ------------------- Keeping a buyer yourself ------------------- */
 
 test('the reader\'s own name is drawn apart, not slipped in among marketing', () => {
