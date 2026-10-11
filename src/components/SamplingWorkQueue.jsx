@@ -22,7 +22,7 @@ import {
  */
 
 const STATUS_TONE = {
-  received: 'bg-flame-500/10 text-flame-300',
+  received: 'bg-flame-500/10 text-flame-400',
   not_available: 'bg-danger-500/15 text-danger-400',
   under_process: 'bg-warn-500/15 text-warn-400',
   ready: 'bg-success-500/15 text-success-400',
@@ -54,13 +54,13 @@ function CustomerCell({ row }) {
         ) : (
           <span className="font-semibold text-steel-50">{row.customer?.name || 'No buyer named'}</span>
         )}
-        {row.fresh && <span className="rounded-full bg-flame-500/15 px-2 py-0.5 text-[0.68rem] font-bold uppercase tracking-wide text-flame-300">New Enquiry</span>}
+        {row.fresh && <span className="rounded-full bg-flame-500/15 px-2 py-0.5 text-[0.75rem] font-bold uppercase tracking-wide text-flame-400">New Enquiry</span>}
       </div>
       {row.requestedBy && <p className="mt-0.5 text-xs text-steel-400">Requested by: {row.requestedBy}</p>}
       <p className="mt-0.5 text-xs text-steel-300">
         {row.models.map((item) => `${item.model || 'New model'}: ${item.quantity} pcs`).join(' · ')}
       </p>
-      <Link to={row.link} className="mt-0.5 inline-block text-[0.7rem] text-steel-500 hover:text-accent">{row.number}</Link>
+      <Link to={row.link} className="mt-0.5 inline-block text-[0.75rem] text-steel-500 hover:text-accent">{row.number}</Link>
     </div>
   );
 }
@@ -219,7 +219,7 @@ export function HandoverForm({ row, onClose, onDone }) {
             <label
               key={key}
               className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-semibold transition ${
-                values.method === key ? 'border-flame-500 bg-flame-500/10 text-flame-300' : 'border-line/[0.1] text-steel-300'
+                values.method === key ? 'border-flame-500 bg-flame-500/10 text-flame-400' : 'border-line/[0.1] text-steel-300'
               }`}
             >
               <input type="radio" name="method" value={key} checked={values.method === key} onChange={set('method')} className="accent-flame-500" />
@@ -376,7 +376,7 @@ export default function SamplingWorkQueue() {
               type="button"
               onClick={() => setChip(entry.key)}
               className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
-                chip === entry.key ? 'border-flame-500 bg-flame-500/10 text-flame-300' : 'border-line/[0.1] text-steel-400 hover:text-steel-200'
+                chip === entry.key ? 'border-flame-500 bg-flame-500/10 text-flame-400' : 'border-line/[0.1] text-steel-400 hover:text-steel-200'
               }`}
             >
               {entry.label}
@@ -384,7 +384,7 @@ export default function SamplingWorkQueue() {
             </button>
           );
         })}
-        <input
+        <input aria-label="Search buyer, model or request"
           type="search"
           className="input ml-auto w-full sm:w-64"
           placeholder="Search buyer, model or request…"
@@ -420,7 +420,7 @@ export default function SamplingWorkQueue() {
                     <td className="min-w-[12rem] max-w-[16rem] px-4 py-3"><CustomerCell row={row} /></td>
                     <td className="max-w-[20rem] px-4 py-3 text-xs leading-relaxed text-steel-300">{row.request}</td>
                     <td className="px-4 py-3">
-                      <span className="whitespace-nowrap rounded-full bg-flame-500/10 px-2.5 py-1 text-xs font-semibold text-flame-300">
+                      <span className="whitespace-nowrap rounded-full bg-flame-500/10 px-2.5 py-1 text-xs font-semibold text-flame-400">
                         {row.assignedTo?.name || 'Sampling Team'}
                       </span>
                     </td>

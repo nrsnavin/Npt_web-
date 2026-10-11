@@ -190,7 +190,7 @@ export default function Samples() {
       {!board && <Bench selected={status} onSelect={change(setStatus)} />}
 
       <div className="mb-5 flex flex-wrap items-center gap-2">
-        <input
+        <input aria-label="Search number, model or colour"
           type="search"
           className="input max-w-xs"
           placeholder="Search number, model or colour…"

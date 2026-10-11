@@ -85,7 +85,7 @@ function Finding({ finding, why, rank, onRaise, busy, raised, refused }) {
             <span>{departmentLabel(finding.department)}</span>
             {finding.count > 1 && <span>{finding.count} records</span>}
             {finding.link && (
-              <Link to={finding.link} className="transition-colors hover:text-accent">
+              <Link to={finding.link} className="inline-flex min-h-6 items-center font-semibold text-accent hover:underline">
                 Open it
               </Link>
             )}

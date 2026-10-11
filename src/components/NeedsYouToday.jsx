@@ -205,7 +205,7 @@ export default function NeedsYouToday() {
 
         {handedOver.length > 0 && (
           <div className="mt-3">
-            <p className="eyebrow text-warn-400/80">
+            <p className="eyebrow text-warn-400">
               {plural(handedOver.length, 'handed over', 'handed over')} — another department
               stopped on {handedOver.length === 1 ? 'it' : 'these'}
             </p>
@@ -219,7 +219,7 @@ export default function NeedsYouToday() {
 
         {urgent.length > 0 && (
           <div className="mt-4">
-            <p className="eyebrow text-warn-400/80">
+            <p className="eyebrow text-warn-400">
               {urgent.length} urgent or late on your own queue
             </p>
             <ul className="mt-1.5 space-y-2.5">
@@ -248,7 +248,7 @@ export default function NeedsYouToday() {
               different things wearing the same word on one screen is a count nobody can read.
               This is the wording the module's own screen uses.
             */}
-            <p className="eyebrow text-warn-400/80">
+            <p className="eyebrow text-warn-400">
               {plural(asked.length, 'query about a buyer', 'queries about a buyer')} nobody has
               answered
             </p>

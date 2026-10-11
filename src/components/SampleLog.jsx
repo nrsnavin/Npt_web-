@@ -218,7 +218,7 @@ export default function SampleLog({ sampleId, title = 'Log' }) {
   return (
     <Section title={`${title} (${total})`}>
       <form onSubmit={submit} className="mb-4 space-y-2">
-        <textarea
+        <textarea aria-label="What happened? Attach a photo of the shot if you have one"
           rows={2}
           className="input text-xs"
           placeholder="What happened? Attach a photo of the shot if you have one."

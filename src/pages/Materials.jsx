@@ -84,7 +84,7 @@ export default function Materials() {
       />
 
       <div className="mb-5 flex flex-wrap gap-2">
-        <input
+        <input aria-label="Search name, code, colour or supplier"
           type="search"
           className="input max-w-xs"
           placeholder="Search name, code, colour or supplier…"

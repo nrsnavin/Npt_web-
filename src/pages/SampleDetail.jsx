@@ -298,7 +298,7 @@ function StageStepper({ sample }) {
             <span
               className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
                 step.state === 'current'
-                  ? 'bg-flame-500 text-white ring-4 ring-flame-500/25'
+                  ? 'fill-primary ring-4 ring-flame-500/25'
                   : step.state === 'done'
                     ? 'bg-flame-500/15 text-flame-400 ring-1 ring-inset ring-flame-500/40'
                     : step.state === 'skipped'
@@ -324,7 +324,7 @@ function StageStepper({ sample }) {
             }`}
           >
             {step.label}
-            {step.state === 'skipped' && <span className="block text-[10px]">skipped</span>}
+            {step.state === 'skipped' && <span className="block text-[0.75rem]">skipped</span>}
           </span>
         </li>
       ))}
@@ -396,7 +396,7 @@ function StagePanel({ sample, mayMove, onSaved, onAsk }) {
                       <span
                         aria-hidden="true"
                         className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-base font-bold ${
-                          leading ? 'bg-flame-500 text-white' : 'bg-line/[0.06] text-steel-300'
+                          leading ? 'fill-primary' : 'bg-line/[0.06] text-steel-300'
                         }`}
                       >
                         →
@@ -407,7 +407,7 @@ function StagePanel({ sample, mayMove, onSaved, onAsk }) {
                             {busyTo === stage.value ? 'Moving…' : sampleStageLabel(stage.value)}
                           </span>
                           {leading && (
-                            <span className="rounded bg-flame-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-flame-400">
+                            <span className="rounded bg-flame-500/15 px-1.5 py-0.5 text-[0.75rem] font-bold uppercase tracking-wide text-flame-400">
                               Next step
                             </span>
                           )}

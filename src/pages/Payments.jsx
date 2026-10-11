@@ -123,7 +123,7 @@ export default function Payments() {
       </div>
 
       <div className="mb-5 flex flex-wrap items-center gap-2">
-        <input
+        <input aria-label="Search reference or invoice number"
           type="search"
           className="input max-w-xs"
           placeholder="Search reference or invoice number…"

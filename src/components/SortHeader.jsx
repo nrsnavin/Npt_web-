@@ -47,7 +47,7 @@ export function useSort() {
 function Arrow({ state }) {
   if (!state) return <span aria-hidden="true" className="ml-1 text-steel-600 opacity-0 group-hover:opacity-100">▾</span>;
   return (
-    <span aria-hidden="true" className="ml-1 text-flame-500">
+    <span aria-hidden="true" className="ml-1 text-accent">
       {state === 'desc' ? '▾' : '▴'}
     </span>
   );
@@ -72,8 +72,10 @@ export function SortHeader({ field, label, sort, onToggle, align = 'left', class
       <button
         type="button"
         onClick={() => onToggle(field)}
-        className={`group inline-flex items-center whitespace-nowrap font-semibold transition-colors ${
-          state ? 'text-flame-500' : 'hover:text-steel-100'
+        /* 24px tall at least — the smallest target a finger or a shaky hand can rely on — without
+           making the heading row taller: the extra height comes out of the cell's own padding. */
+        className={`group -my-[3px] inline-flex min-h-6 items-center whitespace-nowrap font-semibold transition-colors ${
+          state ? 'text-accent' : 'hover:text-steel-100'
         }`}
         title={
           state === 'desc'

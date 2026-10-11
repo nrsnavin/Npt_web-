@@ -176,7 +176,7 @@ export default function TodoBoard() {
           there would land on marketing's own queue, which is not what the tab is about. */}
       {!readOnly && (
       <form onSubmit={submit} className="mb-4 flex flex-wrap gap-2">
-        <input
+        <input aria-label="Add a task"
           className="input min-w-[12rem] flex-1 py-1.5 text-xs"
           placeholder="Add a task…"
           value={title}

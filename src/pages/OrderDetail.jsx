@@ -102,7 +102,7 @@ function Checklist({ order, checks, onChanged, mayWrite }) {
             >
               <span
                 aria-hidden="true"
-                className={`mt-0.5 flex h-[1.05rem] w-[1.05rem] flex-none items-center justify-center rounded border text-[0.7rem] font-bold ${
+                className={`mt-0.5 flex h-[1.05rem] w-[1.05rem] flex-none items-center justify-center rounded border text-[0.75rem] font-bold ${
                   check.done
                     ? 'border-success-500/60 bg-success-500/15 text-success-400'
                     : 'border-line/20 text-transparent'

@@ -38,7 +38,7 @@ export default function LocationCard({ location, from, onPin, pinned, pinning })
               from ? `shared from ${from}’s phone` : null,
             ].filter(Boolean).join(' · ')}
           </p>
-          <p className="mt-0.5 font-mono text-[0.7rem] text-steel-600">
+          <p className="mt-0.5 font-mono text-[0.75rem] text-steel-600">
             {Number(location.lat).toFixed(5)}, {Number(location.lng).toFixed(5)}
           </p>
         </div>

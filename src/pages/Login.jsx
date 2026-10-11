@@ -258,7 +258,7 @@ export default function Login() {
         </div>
 
         <div className="relative mt-auto max-w-lg">
-          <p className="eyebrow mb-5 text-flame-500">Since 2004</p>
+          <p className="eyebrow mb-5 text-accent">Since 2004</p>
           <h1 className="text-[2.75rem] font-extrabold leading-[1.05] tracking-tighter text-steel-50">
             A hanger expert
             <br />

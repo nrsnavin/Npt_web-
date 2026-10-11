@@ -105,11 +105,11 @@ export default function EnquiryBoard({ filters, canMove, perColumn = 20 }) {
             <p className="truncate text-xs font-semibold text-steel-100">
               {card.customer?.name || 'No customer'}
             </p>
-            <p className="truncate text-[11px] text-steel-400">
+            <p className="truncate text-[0.75rem] text-steel-400">
               {card.number} · {card.requirement?.modelNumber || card.mould?.mouldCode || 'New development'}
             </p>
 
-            <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] tabular-nums">
+            <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[0.75rem] tabular-nums">
               {/* The colour, not a quantity: an enquiry no longer carries one, and what
                   distinguishes two cards for the same model is usually the shade. */}
               {card.requirement?.colour ? (
@@ -126,7 +126,7 @@ export default function EnquiryBoard({ filters, canMove, perColumn = 20 }) {
               * The promise and whether it has been kept. On a board this is the line people
               * actually scan, so it is last and it is the only thing allowed to be red.
               */}
-            <div className="mt-1.5 flex items-center justify-between gap-2 text-[11px]">
+            <div className="mt-1.5 flex items-center justify-between gap-2 text-[0.75rem]">
               {/* Closing an enquiry clears its follow-up on purpose, so a won or lost card is
                   not missing anything and must not be flagged as if it were. */}
               {isSettled(ENQUIRY_BOARD, card.status) ? (
@@ -140,7 +140,7 @@ export default function EnquiryBoard({ filters, canMove, perColumn = 20 }) {
             </div>
 
             {card.assignedTo?.name && (
-              <p className="mt-1 truncate text-[11px] text-steel-500">{card.assignedTo.name}</p>
+              <p className="mt-1 truncate text-[0.75rem] text-steel-500">{card.assignedTo.name}</p>
             )}
           </>
         );

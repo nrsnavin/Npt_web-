@@ -244,7 +244,7 @@ export default function Combobox({
             <li className="border-t border-line/[0.06]">
               <button
                 type="button"
-                className="flex w-full items-baseline gap-1.5 px-3 py-2 text-left text-xs font-semibold text-flame-500 hover:bg-line/[0.06]"
+                className="flex w-full items-baseline gap-1.5 px-3 py-2 text-left text-xs font-semibold text-accent hover:bg-line/[0.06]"
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => {
                   setOpen(false);

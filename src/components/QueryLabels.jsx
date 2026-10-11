@@ -15,7 +15,7 @@ export function LabelChip({ label, active = false, count, onClick, className = '
     : 'bg-line/[0.05] text-steel-300 ring-line/10';
   if (!onClick) {
     return (
-      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[0.7rem] font-semibold ring-1 ring-inset ${tone} ${className}`}>
+      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[0.75rem] font-semibold ring-1 ring-inset ${tone} ${className}`}>
         {body}
       </span>
     );
@@ -155,7 +155,7 @@ export default function QueryLabels({ query, onSaved }) {
             disabled={busy || labels.length >= MAX_LABELS}
             onClick={() => save([...labels, entry.label])}
             title={`${entry.by === 'model' ? 'Suggested by AI' : 'Suggested'}: ${entry.why}. Press to add.`}
-            className="inline-flex items-center gap-1 rounded-full border border-dashed border-aqua-500/40 px-2.5 py-0.5 text-[0.7rem] font-semibold text-aqua-300 transition-colors hover:bg-aqua-500/10"
+            className="inline-flex items-center gap-1 rounded-full border border-dashed border-aqua-500/40 px-2.5 py-0.5 text-[0.75rem] font-semibold text-aqua-300 transition-colors hover:bg-aqua-500/10"
           >
             <span aria-hidden>{entry.by === 'model' ? '✦' : '+'}</span>
             #{entry.label}

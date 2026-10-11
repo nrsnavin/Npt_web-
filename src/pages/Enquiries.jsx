@@ -203,7 +203,7 @@ export default function Enquiries({ embedded = false }) {
       )}
 
       <div className="mb-5 flex flex-wrap items-center gap-2">
-        <input
+        <input aria-label="Search customer, number, model or remarks"
           type="search"
           className="input max-w-xs"
           placeholder="Search customer, number, model or remarks…"
@@ -386,7 +386,7 @@ export default function Enquiries({ embedded = false }) {
                           </Link>
                           <p className="text-xs text-steel-400">{formatDate(enquiry.enquiryDate)}</p>
                         </td>
-                        <td className="px-3 py-3.5">
+                        <td className="min-w-[10rem] px-3 py-3.5">
                           <Link to={`/customers/${enquiry.customer?._id}`} className="text-steel-200 hover:text-accent">
                             {enquiry.customer?.name || '—'}
                           </Link>

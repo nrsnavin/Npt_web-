@@ -310,7 +310,7 @@ export default function Customers() {
       />
 
       <div className="mb-5 flex flex-wrap gap-2">
-        <input
+        <input aria-label="Search name, code, GST or phone"
           type="search"
           className="input max-w-xs"
           placeholder="Search name, code, GST or phone…"

@@ -80,7 +80,7 @@ export default function PartsRegister({ kind }) {
       />
 
       <div className="mb-5">
-        <input
+        <input aria-label="Search name, code, colour or supplier"
           type="search"
           className="input max-w-xs"
           placeholder="Search name, code, colour or supplier…"

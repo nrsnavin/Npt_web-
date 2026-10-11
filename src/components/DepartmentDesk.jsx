@@ -216,7 +216,7 @@ export default function DepartmentDesk({ enquiry, onChanged }) {
             const inside = (
               <>
                 <span>{item.number}. {item.label}</span>
-                {open > 0 && <span className="mt-0.5 text-[0.65rem] font-semibold text-warn-400">{open === 1 ? 'Task open' : `${open} tasks open`}</span>}
+                {open > 0 && <span className="mt-0.5 text-[0.75rem] font-semibold text-warn-400">{open === 1 ? 'Task open' : `${open} tasks open`}</span>}
               </>
             );
             if (!sends) {

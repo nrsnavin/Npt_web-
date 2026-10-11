@@ -20,7 +20,7 @@ export default function DepartmentTasks() {
   };
   return (
     <div className="mx-auto max-w-7xl">
-      <DepartmentTasksBoard department={department} state={state} onFilter={onFilter} />
+      <DepartmentTasksBoard headingAs="h1" department={department} state={state} onFilter={onFilter} />
     </div>
   );
 }

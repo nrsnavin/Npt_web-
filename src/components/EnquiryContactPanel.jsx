@@ -204,7 +204,7 @@ export default function EnquiryContactPanel({ enquiry, isOwner, canWrite, onSent
                   >
                     {message.subject && <p className="font-semibold text-steel-100">{message.subject}</p>}
                     <p className="whitespace-pre-line text-steel-200">{message.body}</p>
-                    <p className="mt-1 text-[0.7rem] text-steel-500">
+                    <p className="mt-1 text-[0.75rem] text-steel-500">
                       {message.direction === 'in' ? 'Buyer' : message.automatic ? 'Sent automatically' : message.by || 'You'}
                       {' · '}{message.channel === 'email' ? 'Email' : 'WhatsApp'}
                       {' · '}{formatWhen(message.at)}

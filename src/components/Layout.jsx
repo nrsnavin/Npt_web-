@@ -228,7 +228,9 @@ function BarItem({ item, lit }) {
   }, [open]);
 
   const tone = `flex items-center gap-2 whitespace-nowrap rounded-lg px-3.5 py-2 text-[0.95rem] font-semibold transition-colors ${
-    lit ? 'bg-line/[0.08] text-flame-500' : 'text-steel-300 hover:bg-line/[0.05] hover:text-steel-50'
+    /* The current item: accent text with an accent underline on the bar's own background — a grey
+       wash behind the accent took it under 4.5:1 in the light theme. */
+    lit ? 'text-accent shadow-[inset_0_-2px_0_0_currentColor]' : 'text-steel-300 hover:bg-line/[0.05] hover:text-steel-50'
   }`;
   const icon = item.icon ? <span aria-hidden className="text-sm opacity-80">{item.icon}</span> : null;
   const screens = item.features.flatMap((feature) => [feature, ...(feature.children || []).map((child) => ({ ...child, child: true }))]);
@@ -250,7 +252,7 @@ function BarItem({ item, lit }) {
               end={screen.end}
               role="menuitem"
               className={({ isActive }) => `block rounded-lg px-3 py-2 text-sm ${screen.child ? 'pl-6 text-steel-300' : 'font-semibold text-steel-100'} ${
-                isActive ? 'bg-flame-500/10 text-flame-500' : 'hover:bg-line/[0.05]'
+                isActive ? 'bg-flame-500/10 text-accent' : 'hover:bg-line/[0.05]'
               }`}
             >
               {screen.label}
@@ -291,18 +293,21 @@ function AccountBar({ user, roleLabel, onSignOut }) {
           onClick={() => setOpen((value) => !value)}
           className="flex w-full items-center justify-between gap-3 rounded-xl border border-line/15 bg-ink-850 px-3.5 py-2.5 text-left text-sm text-steel-100 hover:border-line/25"
         >
-          <span className="truncate">{who}{roleLabel ? ` · ${roleLabel}` : ''}</span>
+          {/* The email and role on a wide screen; on a phone, where that was cut to "rsnavin1@g…", the
+              name alone — the role is in the menu it opens. */}
+          <span className="truncate sm:hidden">{user?.name || who}</span>
+          <span className="hidden truncate sm:inline">{who}{roleLabel ? ` · ${roleLabel}` : ''}</span>
           <span aria-hidden className="text-steel-400">⌄</span>
         </button>
         {open && (
           <div role="menu" className="absolute left-0 top-full z-40 mt-1 w-full rounded-xl border border-line/10 bg-ink-850 p-1.5 shadow-modal">
-            <p className="px-3 py-2 text-xs text-steel-400">Signed in as <span className="font-semibold text-steel-100">{user?.name}</span></p>
+            <p className="px-3 py-2 text-xs text-steel-400">Signed in as <span className="font-semibold text-steel-100">{user?.name}</span>{roleLabel ? ` · ${roleLabel}` : ''}</p>
             <NavLink to="/profile" role="menuitem" className="block rounded-lg px-3 py-2 text-sm font-semibold text-steel-100 hover:bg-line/[0.05]">Profile and access</NavLink>
             <button type="button" role="menuitem" onClick={onSignOut} className="block w-full rounded-lg px-3 py-2 text-left text-sm font-semibold text-danger-400 hover:bg-line/[0.05]">Sign out</button>
           </div>
         )}
       </div>
-      <span aria-hidden className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-flame-50 text-sm font-bold text-flame-500 ring-1 ring-inset ring-flame-500/20">
+      <span aria-hidden className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-flame-50 text-sm font-bold text-accent ring-1 ring-inset ring-flame-500/20">
         {initialsOf(user?.name, who)}
       </span>
       <div className="ml-auto flex min-w-0 items-center gap-1.5">

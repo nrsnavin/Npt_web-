@@ -122,7 +122,7 @@ function Progress({ quotation }) {
         return (
           <li key={step.key} className="min-w-0">
             <div className={`h-1.5 rounded-full ${done ? 'bg-flame-500' : current ? 'bg-flame-400' : 'bg-line/[0.08]'}`} />
-            <p className={`mt-1.5 truncate text-[0.7rem] font-semibold uppercase tracking-wide ${current ? 'text-steel-50' : done ? 'text-steel-300' : 'text-steel-500'}`}>
+            <p className={`mt-1.5 truncate text-[0.75rem] font-semibold uppercase tracking-wide ${current ? 'text-steel-50' : done ? 'text-steel-300' : 'text-steel-500'}`}>
               {step.label}
             </p>
           </li>
