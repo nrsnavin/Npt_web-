@@ -59,7 +59,7 @@ function SendDialog({ button, enquiry, onClose, onSent }) {
   return (
     <Modal
       open
-      title={button.label}
+      title={button.heading || button.label}
       description={description}
       onClose={onClose}
     >
@@ -126,25 +126,45 @@ export default function DepartmentDesk({ enquiry, onChanged }) {
   return (
     <Section title="Departments">
       <div className="space-y-4">
-        {/* The twelve stages, as the plant numbers them. Where it is now is lit. */}
+        {/*
+          * The twelve stages, as the plant numbers them. Where it is now is lit. Each tile is a
+          * department: clicking it forwards the enquiry there, with the stage's own button
+          * [server: config/handoffs.js TILE_KIND]. Tiles that move the enquiry are offered only
+          * to whoever may move it; a side request (Team Payment Follow-up) to anyone.
+          */}
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {stages.map((item) => {
             const here = item.key === stage;
+            const sends = !closed && !here && catalogue.buttons.find((button) => button.key === item.kind);
+            const clickable = Boolean(sends && (sends.moves ? mayMove : true));
+            const look = `flex min-h-[3.25rem] items-center justify-center rounded-xl border px-2 py-2 text-center text-xs leading-tight ${
+              here
+                ? 'border-success-500/60 bg-success-500/10 font-bold text-success-400'
+                : 'border-line/[0.08] text-steel-400'
+            }`;
+            if (!clickable) {
+              return (
+                <div key={item.key} aria-current={here ? 'step' : undefined} className={look}>
+                  {item.number}. {item.label}
+                </div>
+              );
+            }
             return (
-              <div
+              <button
                 key={item.key}
-                aria-current={here ? 'step' : undefined}
-                className={`flex min-h-[3.25rem] items-center justify-center rounded-xl border px-2 py-2 text-center text-xs leading-tight ${
-                  here
-                    ? 'border-success-500/60 bg-success-500/10 font-bold text-success-400'
-                    : 'border-line/[0.08] text-steel-400'
-                }`}
+                type="button"
+                title={`Send the enquiry to ${departmentLabel(item.department)}`}
+                onClick={() => setSending({ ...sends, heading: `Send to ${item.number}. ${item.label}` })}
+                className={`${look} transition-colors hover:border-success-500/60 hover:text-success-400 focus-visible:border-success-500/60`}
               >
                 {item.number}. {item.label}
-              </div>
+              </button>
             );
           })}
         </div>
+        {!closed && mayMove && (
+          <p className="text-xs text-steel-500">Tap a department to send the enquiry there.</p>
+        )}
         {closed && <Notice tone="info">This enquiry is closed.</Notice>}
 
         {/* Who has it now — the one department whose task this enquiry is. */}
