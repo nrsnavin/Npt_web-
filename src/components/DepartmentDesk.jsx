@@ -92,9 +92,11 @@ export default function DepartmentDesk({ enquiry, onChanged }) {
   const [problem, setProblem] = useState(null);
   const [sending, setSending] = useState(null);
 
+  /* Again when the owner changes — a hand-over moves whose list the enquiry is on. */
+  const owner = String(enquiry.assignedTo?._id || enquiry.assignedTo || '');
   const load = useCallback(() => {
     handoffsApi.list(enquiry._id).then(setHistory).catch((failure) => setProblem(failure.message));
-  }, [enquiry._id]);
+  }, [enquiry._id, owner]);
   useEffect(load, [load]);
 
   const stage = history?.stage || enquiry.stage || 'enquiry';
@@ -114,18 +116,43 @@ export default function DepartmentDesk({ enquiry, onChanged }) {
   const holder = history?.holder || null;
   const mayMove = Boolean(history?.mayMove);
   const holderButton = holder && catalogue.buttons.find((item) => item.key === holder.kind);
-  const holderName = holder
-    ? `${departmentLabel(holder.department)}${holder.user?.name ? ` (${holder.user.name})` : ''}`
-    : '';
+  /* The enquiry's own owner by name — marketing or an Admin who took it on; a department by its name. */
+  const holderName = !holder
+    ? ''
+    : holderButton?.department === 'owner' && holder.user?.name
+      ? holder.user.name
+      : `${departmentLabel(holder.department)}${holder.user?.name ? ` (${holder.user.name})` : ''}`;
   const holderLate = holder?.dueDate && new Date(holder.dueDate) < new Date();
   const drawn = catalogue.buttons.filter((button) => !button.hidden);
   /* Which departments have a task open right now — several can, at once. */
   const openTasks = tasks.filter((task) => !task.completed && !task.holds);
   const openFor = (department) => openTasks.filter((task) => task.department === department).length;
+  /* The work the departments sent back as a file — the sales order — newest first, at the top. */
+  const results = tasks.filter((task) => task.resultFile?.key);
 
   return (
     <Section title="Departments">
       <div className="space-y-4">
+        {results.length > 0 && (
+          <div className="space-y-2" aria-label="Uploaded by departments">
+            {results.map((task) => {
+              const button = catalogue.buttons.find((item) => item.key === task.kind);
+              return (
+                <div key={task._id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-success-500/40 bg-success-500/[0.07] px-3 py-2.5">
+                  <p className="text-sm text-steel-100">
+                    <span className="font-bold">{button?.form?.resultTitle || button?.label || 'Document'} uploaded</span>
+                    <span className="text-steel-400">
+                      {' · '}{departmentLabel(task.department)}
+                      {task.completedBy?.name ? ` · ${task.completedBy.name}` : ''}
+                      {task.completedAt ? ` · ${formatDate(task.completedAt)}` : ''}
+                    </span>
+                  </p>
+                  <TaskPdfLink file={task.resultFile} className="text-sm" />
+                </div>
+              );
+            })}
+          </div>
+        )}
         {/*
           * The departments, as the plant numbers them. Where the work is now is lit green; a
           * department with a task open says so. Clicking one opens its task form, filled from
