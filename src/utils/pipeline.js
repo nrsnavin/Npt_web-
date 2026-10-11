@@ -678,6 +678,7 @@ export const DEPARTMENTS = [
   { key: 'quality', label: 'Quality' },
   { key: 'assembling', label: 'Assembly' },
   { key: 'despatch', label: 'Dispatch' },
+  { key: 'reception', label: 'Reception' },
   { key: 'accounts', label: 'Accounts' },
   { key: 'payment_collection', label: 'Payment Collection' },
   { key: 'audit', label: 'Audit' },

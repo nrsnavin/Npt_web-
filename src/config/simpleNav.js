@@ -19,6 +19,8 @@ export const SIMPLE_NAV = {
   quality: ['dashboard', 'quality', 'queries'],
   assembling: ['dashboard', 'production', 'queries'],
   despatch: ['dashboard', 'dispatch', 'queries'],
+  /* The LR copy and the dispatch details after fulfilment — worked from the dashboard. */
+  reception: ['dashboard', 'dispatch', 'queries'],
   accounts: ['dashboard', 'payments', 'queries'],
   payment_collection: ['dashboard', 'payments', 'queries'],
 };
