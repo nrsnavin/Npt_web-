@@ -149,6 +149,14 @@ export function CustomerForm({ customer, onClose, onSaved }) {
         >
           <textarea rows={2} className="input" {...register('address')} />
         </Field>
+        {/* The locality and the landmark a driver asks for — Dispatch puts buyers at the same
+            landmark (or the same PIN) in one basket, for one vehicle. */}
+        <Field label="Area / locality">
+          <input className="input" placeholder="Kumar Nagar" {...register('area')} />
+        </Field>
+        <Field label="Landmark" hint="What a driver asks for — the bus stop, mill or temple nearby">
+          <input className="input" placeholder="Near Kumar Nagar bus stop" {...register('landmark')} />
+        </Field>
         {/* The same suggestion list the other forms use. Suggesting on one and not the other
             would leave half the records free text, and the by-city report reads both. */}
         <Field label="City">

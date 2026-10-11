@@ -10,6 +10,7 @@ import TaskPdfLink from '../components/TaskPdfLink.jsx';
 import TaskWorkflow from '../components/TaskWorkflow.jsx';
 import AttentionPanel from '../components/AttentionPanel.jsx';
 import DepartmentTaskDialog from '../components/DepartmentTaskDialog.jsx';
+import DispatchBaskets from '../components/DispatchBaskets.jsx';
 import { buttonFor, useHandoffCatalogue } from '../hooks/useHandoffCatalogue.js';
 import SamplingWorkQueue from '../components/SamplingWorkQueue.jsx';
 import Enquiries from './Enquiries.jsx';
@@ -238,6 +239,8 @@ export default function DepartmentDashboard() {
       ? [{ key: 'all', label: everyone ? 'All enquiries' : figures.department === 'marketing' ? 'My enquiries' : 'All enquiries', count: null }]
       : []),
     { key: 'enquiries', label: 'Department tasks', count: enquiries.length },
+    /* Dispatch plans vehicles by place: the open requests in baskets of the same landmark / PIN. */
+    ...(data.baskets ? [{ key: 'baskets', label: 'Baskets', count: data.baskets.filter((basket) => basket.stops.length > 1 && basket.by !== 'none').length }] : []),
     { key: 'requests', label: 'Requests', count: requests.length },
     { key: 'waiting', label: 'Waiting on others', count: waitingOnOthers.length },
     { key: 'back', label: 'Came back', count: cameBack.length },
@@ -355,6 +358,13 @@ export default function DepartmentDashboard() {
               </p>
             </div>
           )}
+        </section>
+      )}
+
+      {tab === 'baskets' && (
+        <section className="card space-y-3 p-5">
+          <p className="text-sm text-steel-300">Buyers at the same landmark, area or PIN — load them on one vehicle.</p>
+          <DispatchBaskets baskets={data.baskets} />
         </section>
       )}
 

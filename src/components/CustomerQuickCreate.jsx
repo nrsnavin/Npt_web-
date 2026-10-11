@@ -68,7 +68,12 @@ export default function CustomerQuickCreate({ open, initialName = '', onClose, o
         mobile: values.mobile?.trim() || undefined,
         email: values.email?.trim() || undefined,
         gstin: values.gstin?.trim() || undefined,
+        /* Where the lorry goes — and what Dispatch groups loads by (landmark, area, PIN). */
+        address: values.address?.trim() || undefined,
+        area: values.area?.trim() || undefined,
+        landmark: values.landmark?.trim() || undefined,
         city: values.city?.trim() || undefined,
+        pincode: values.pincode?.trim() || undefined,
       });
       onCreated(created);
       onClose();
@@ -81,8 +86,8 @@ export default function CustomerQuickCreate({ open, initialName = '', onClose, o
     <Modal open={open} title="Add a customer" onClose={onClose}>
       <form onSubmit={handleSubmit(submit)} className="space-y-4">
         <p className="text-xs leading-relaxed text-steel-500">
-          The short version, so you can carry on. Credit terms, contacts and addresses are on
-          the customer&rsquo;s own screen whenever someone gets to them.
+          The short version, so you can carry on — with the address, so Dispatch can plan the
+          vehicle. Credit terms and contacts are on the customer&rsquo;s own screen.
         </p>
 
         <Field label="Name" error={errors.name?.message} required>
@@ -112,8 +117,20 @@ export default function CustomerQuickCreate({ open, initialName = '', onClose, o
               ))}
             </select>
           </Field>
+          <Field label="Address" hint="Door number and street — where the lorry goes" className="sm:col-span-2">
+            <textarea rows={2} className="input" placeholder="12 Mill Road" {...register('address')} />
+          </Field>
+          <Field label="Area / locality">
+            <input className="input" placeholder="Kumar Nagar" {...register('area')} />
+          </Field>
+          <Field label="Landmark" hint="The bus stop, mill or temple a driver asks for">
+            <input className="input" placeholder="Near Kumar Nagar bus stop" {...register('landmark')} />
+          </Field>
           <Field label="City">
             <input className="input" placeholder="Tiruppur" {...register('city')} />
+          </Field>
+          <Field label="Pincode">
+            <input className="input" inputMode="numeric" placeholder="641603" {...register('pincode')} />
           </Field>
           <Field label="Mobile" hint="Any common local format">
             <input className="input" placeholder="98765 43210" {...register('mobile', { onBlur: checkForDuplicate })} />
