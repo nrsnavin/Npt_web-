@@ -64,6 +64,10 @@ export const DESK_ACTIONS = {
     { label: 'Dispatches', to: () => '/dispatches', primary: true },
     { label: 'Order', to: order },
   ],
+  reception: [
+    { label: 'Open enquiry', to: enquiry, primary: true },
+    { label: 'Order', to: order },
+  ],
   accounts: [
     { label: 'Payments', to: () => '/payments', primary: true },
     { label: 'Order', to: order },

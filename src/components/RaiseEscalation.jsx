@@ -184,6 +184,7 @@ const DEPARTMENTS = [
   'mould',
   'quality',
   'despatch',
+  'reception',
   'accounts',
   'payment_collection',
   'management',

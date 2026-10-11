@@ -162,7 +162,7 @@ function UploadDialog({ title, step, todo, form, onClose, onDone }) {
   );
 }
 
-function ContactDialog({ fields, todo, onClose, onSaved }) {
+function ContactDialog({ fields, todo, title = 'Edit contact details', onClose, onSaved }) {
   const [values, setValues] = useState(() => Object.fromEntries(fields.map((field) => [field.key, todo.brief?.[field.key] || ''])));
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState(null);
@@ -180,11 +180,16 @@ function ContactDialog({ fields, todo, onClose, onSaved }) {
     }
   };
   return (
-    <Modal open title="Edit contact details" onClose={onClose}>
+    <Modal open title={title} onClose={onClose}>
       <form onSubmit={save} className="space-y-4">
         {fields.map((field) => (
           <Field key={field.key} label={field.label}>
-            <input className="input" value={values[field.key]} onChange={(event) => setValues((current) => ({ ...current, [field.key]: event.target.value }))} />
+            <input
+              type={field.type === 'date' ? 'date' : field.type === 'number' ? 'number' : 'text'}
+              className="input"
+              value={values[field.key]}
+              onChange={(event) => setValues((current) => ({ ...current, [field.key]: event.target.value }))}
+            />
           </Field>
         ))}
         {problem && <Notice tone="danger">{problem}</Notice>}
@@ -251,7 +256,7 @@ export default function TaskWorkflow({ todo, onChanged }) {
       </div>
       <div className="flex flex-wrap gap-2">
         {editable.length > 0 && (
-          <button type="button" className="btn-secondary px-3 py-1.5 text-xs" onClick={() => setEditing(true)}>Edit contact details</button>
+          <button type="button" className="btn-secondary px-3 py-1.5 text-xs" onClick={() => setEditing(true)}>{button.form.editLabel || 'Edit contact details'}</button>
         )}
         {(button.form.actions || []).map((action) => (
           <button key={action.kind} type="button" className="btn-secondary px-3 py-1.5 text-xs" onClick={() => setAskingDepartment(action)}>
@@ -319,7 +324,7 @@ export default function TaskWorkflow({ todo, onChanged }) {
           onSent={() => onChanged?.()}
         />
       )}
-      {editing && <ContactDialog fields={editable} todo={todo} onClose={() => setEditing(false)} onSaved={(saved) => onChanged?.(saved)} />}
+      {editing && <ContactDialog fields={editable} todo={todo} title={button.form.editLabel} onClose={() => setEditing(false)} onSaved={(saved) => onChanged?.(saved)} />}
     </div>
   );
 }

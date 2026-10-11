@@ -200,7 +200,22 @@ export const DEPARTMENT_WORKSPACES = {
       'Record the dispatch date and quantity sent.',
       'Record the courier or transporter and the AWB / docket number.',
       'Attach the proof that is available.',
-      'Keep the enquiry until the whole order has gone — post each lot as an update.',
+      'Mark it Dispatched when it leaves — Reception gets the LR copy and the dispatch details.',
+    ],
+    toConfirm: [],
+  },
+
+  reception: {
+    purpose: 'Once the goods have gone: the LR copy to the buyer, and the dispatch details kept.',
+    pages: [
+      { label: 'Enquiries at LR Copy', to: '/enquiries?stage=lr_copy', module: 'enquiries' },
+      { label: 'Dispatches', to: '/dispatches', module: 'dispatch' },
+      { label: 'Customers', to: '/customers', module: 'customers' },
+    ],
+    jobs: [
+      'Upload the LR copy (PDF or photo) — it goes to the buyer by email and WhatsApp.',
+      'Keep the dispatch details: invoice, LR / docket number, transporter, vehicle, quantity sent.',
+      'Track it to the buyer: In Transit, Delivered — each with a remark.',
     ],
     toConfirm: [],
   },

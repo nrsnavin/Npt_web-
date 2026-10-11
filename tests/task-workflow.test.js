@@ -155,3 +155,12 @@ test('the enquiry shows each sample’s team log: its status trail, despatch and
   assert.match(page, /<SampleLog sampleId=\{sample\._id\} title=\{`Sample team notes & photos — \$\{sample\.number\}`\} \/>/);
   assert.match(read('components/SampleLog.jsx'), /export default function SampleLog\(\{ sampleId, title = 'Log' \}\)/);
 });
+
+test('Reception is a department of its own, with its desk, menu and the dispatch details to keep', () => {
+  assert.match(read('utils/pipeline.js'), /\{ key: 'reception', label: 'Reception' \}/);
+  assert.match(read('config/simpleNav.js'), /reception: \['dashboard', 'dispatch', 'queries'\]/);
+  assert.match(read('config/departments.js'), /reception: \{\s*purpose: 'Once the goods have gone/);
+  const workflow = read('components/TaskWorkflow.jsx');
+  assert.match(workflow, /\{button\.form\.editLabel \|\| 'Edit contact details'\}/);
+  assert.match(workflow, /type=\{field\.type === 'date' \? 'date' : field\.type === 'number' \? 'number' : 'text'\}/);
+});
