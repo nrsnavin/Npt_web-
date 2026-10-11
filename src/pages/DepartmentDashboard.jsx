@@ -5,7 +5,8 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { useRecord } from '../hooks/useRecords.js';
 import HandoffTaskList from '../components/HandoffTaskList.jsx';
 import HandoffTaskActions from '../components/HandoffTaskActions.jsx';
-import { describeBrief } from '../components/DepartmentDesk.jsx';
+import { describeBrief } from '../utils/taskForm.js';
+import TaskPdfLink from '../components/TaskPdfLink.jsx';
 import { buttonFor, useHandoffCatalogue } from '../hooks/useHandoffCatalogue.js';
 import SamplingWorkQueue from '../components/SamplingWorkQueue.jsx';
 import Enquiries from './Enquiries.jsx';
@@ -103,7 +104,8 @@ function EnquiryCard({ row, department, me, onChanged }) {
       </header>
 
       <p className="text-sm font-semibold text-steel-100">{button?.label || task.title}</p>
-      {asked && <p className="-mt-2 text-xs text-steel-300">{asked}</p>}
+      {asked.map((line) => <p key={line} className="-mt-2 text-xs text-steel-300">{line}</p>)}
+      <TaskPdfLink file={task.attachment} className="-mt-2 self-start" />
 
       <div className="flex flex-wrap gap-1.5">
         <span className="rounded-md bg-flame-500/10 px-2 py-0.5 text-xs font-semibold text-flame-300">{enquiry.stageLabel}</span>

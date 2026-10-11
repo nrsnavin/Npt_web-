@@ -344,6 +344,14 @@ export const handoffs = {
   catalogue: () => api.get('/handoffs').then(unwrap),
   list: (id) => api.get(`/enquiries/${id}/handoffs`).then((response) => response.data),
   send: ({ id, ...payload }) => api.post(`/enquiries/${id}/handoffs`, payload).then(unwrap),
+  /** What a department task's form is filled from — the enquiry's models and parts, the buyer, the order. */
+  prefill: (id) => api.get(`/enquiries/${id}/handoffs/prefill`).then(unwrap),
+  /** The PDF sent with a task, right after it is raised. */
+  attach: ({ id, taskId, file }) => {
+    const form = new FormData();
+    form.append('file', file);
+    return api.post(`/enquiries/${id}/handoffs/${taskId}/attachment`, form).then(unwrap);
+  },
 };
 
 /** Department dashboards: one department's (`mine` for your own), and Admin's view of all ten. */

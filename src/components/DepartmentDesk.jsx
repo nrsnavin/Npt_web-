@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { handoffs as handoffsApi } from '../api/endpoints.js';
+import TaskPdfLink from './TaskPdfLink.jsx';
+import DepartmentTaskDialog from './DepartmentTaskDialog.jsx';
+import { describeBrief } from '../utils/taskForm.js';
 import { useHandoffCatalogue } from '../hooks/useHandoffCatalogue.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import HandoffTaskActions from './HandoffTaskActions.jsx';
@@ -28,57 +31,21 @@ const STATE = (task) => {
   return { text: 'Waiting to be picked up', tone: 'text-steel-400' };
 };
 
-/** Material as the Sample Request's question names it, from the enquiry's own value ("recycled_pp"). */
-const MATERIAL_WORDS = { pp: 'PP', hips: 'HIPS', recycled_pp: 'Recycled PP' };
-const materialWord = (value) => (value ? MATERIAL_WORDS[value] || value.charAt(0).toUpperCase() + value.slice(1) : '');
-
-/** The answers the enquiry already knows, so nobody types the model and colour twice. */
-export function briefFromEnquiry(button, enquiry) {
-  const known = enquiry?.requirement || {};
-  const guesses = {
-    mould: known.modelNumber,
-    material: materialWord(known.material),
-    colour: known.colour,
-    colourType: known.colour ? (known.colourMandatory ? 'Compulsory colour' : 'Preferred colour') : '',
-  };
-  return Object.fromEntries((button?.asks || []).map((field) => {
-    const guess = guesses[field.key] || '';
-    return [field.key, field.type === 'choice' && !field.options.includes(guess) ? '' : guess];
-  }));
-}
-
-/** "Mould / model: NH-400 · Material: PP · …" — what a task was asked, in a line. */
-export function describeBrief(button, brief) {
-  if (!brief) return '';
-  return Object.entries(brief)
-    .map(([key, value]) => `${button?.asks?.find((field) => field.key === key)?.label || key}: ${value}`)
-    .join(' · ');
-}
-
+/** The buttons that record rather than raise a task: Photos Sent, Task Closed. */
 function SendDialog({ button, enquiry, onClose, onSent }) {
   const [note, setNote] = useState('');
-  const [brief, setBrief] = useState(() => briefFromEnquiry(button, enquiry));
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState(null);
   if (!button) return null;
 
-  const owner = enquiry.assignedTo?.name || 'the marketing person';
-  const to = button.department === 'owner'
-    ? owner
-    : button.department ? departmentLabel(button.department) : null;
   const needsNote = button.key === 'task_closed';
-  const asks = button.asks || [];
-  const unanswered = asks.some((field) => field.required && !String(brief[field.key] || '').trim());
-  const description = to
-    ? `Raises a ${to} task, due by the end of today. The enquiry stays with ${owner}. ${button.hint || ''}`
-    : button.hint;
 
   const submit = async (event) => {
     event.preventDefault();
     setBusy(true);
     setProblem(null);
     try {
-      await handoffsApi.send({ id: enquiry._id, kind: button.key, note, ...(asks.length ? { brief } : {}) });
+      await handoffsApi.send({ id: enquiry._id, kind: button.key, note });
       onSent();
       onClose();
     } catch (failure) {
@@ -92,45 +59,15 @@ function SendDialog({ button, enquiry, onClose, onSent }) {
     <Modal
       open
       title={button.heading || button.label}
-      description={description}
+      description={button.hint}
       onClose={onClose}
     >
       <form onSubmit={submit} className="space-y-4">
-        {/* The questions this department's task asks [server: config/handoffs.js `asks`]. */}
-        {asks.length > 0 && (
-          <div className="grid gap-3 sm:grid-cols-2">
-            {asks.map((field) => {
-              const answer = brief[field.key] || '';
-              /* Send stays disabled while a required one is empty (`unanswered`). */
-              const missing = Boolean(field.required && !answer.trim());
-              const answerWith = (event) => setBrief((current) => ({ ...current, [field.key]: event.target.value }));
-              return (
-                <Field key={field.key} label={field.label} required={field.required}>
-                  {field.type === 'choice' ? (
-                    <select className="input" value={answer} aria-invalid={missing || undefined} onChange={answerWith}>
-                      <option value="">Choose…</option>
-                      {field.options.map((option) => <option key={option} value={option}>{option}</option>)}
-                    </select>
-                  ) : (
-                    <input
-                      type={field.type === 'date' ? 'date' : 'text'}
-                      className="input"
-                      value={answer}
-                      aria-invalid={missing || undefined}
-                      onChange={answerWith}
-                    />
-                  )}
-                </Field>
-              );
-            })}
-          </div>
-        )}
         <Field
-          label={needsNote ? 'Why it is being closed' : to ? `Anything ${to} should know` : 'Note'}
+          label={needsNote ? 'Why it is being closed' : 'Note'}
           required={needsNote}
-          hint={to ? 'Sent to them on WhatsApp with the task' : undefined}
         >
-          <textarea rows={3} className="input" value={note} onChange={(event) => setNote(event.target.value)} autoFocus={!asks.length} />
+          <textarea rows={3} className="input" value={note} onChange={(event) => setNote(event.target.value)} autoFocus />
         </Field>
         {button.key === 'task_closed' && (
           <Notice tone="warn">Closing ends every task still open on this enquiry. Nothing more can be sent on it.</Notice>
@@ -138,8 +75,8 @@ function SendDialog({ button, enquiry, onClose, onSent }) {
         {problem && <Notice tone="danger">{problem}</Notice>}
         <div className="flex justify-end gap-2">
           <button type="button" className="btn-ghost" onClick={onClose} disabled={busy}>Cancel</button>
-          <button type="submit" className="btn-primary" disabled={busy || unanswered || (needsNote && note.trim().length < 3)}>
-            {busy ? 'Sending…' : to ? `Send to ${to}` : 'Save'}
+          <button type="submit" className="btn-primary" disabled={busy || (needsNote && note.trim().length < 3)}>
+            {busy ? 'Saving…' : 'Save'}
           </button>
         </div>
       </form>
@@ -190,7 +127,8 @@ export default function DepartmentDesk({ enquiry, onChanged }) {
       <div className="space-y-4">
         {/*
           * The departments, as the plant numbers them. Where the work is now is lit green; a
-          * department with a task open says so. Clicking one raises its task
+          * department with a task open says so. Clicking one opens its task form, filled from
+          * the enquiry [components/DepartmentTaskDialog.jsx], and raises its task
           * [server: config/handoffs.js TILE_KIND] — for its marketing person, whoever has it and
           * Admin. The first is marketing's own: the enquiry is always theirs.
           */}
@@ -292,9 +230,10 @@ export default function DepartmentDesk({ enquiry, onChanged }) {
                       <span className={overdue ? 'text-danger-400' : ''}>{` · due ${formatDate(task.dueDate)}${overdue ? ' — late' : ''}`}</span>
                     )}
                   </p>
-                  {task.brief && Object.keys(task.brief).length > 0 && (
-                    <p className="mt-1 text-xs text-steel-200"><span className="text-steel-500">Asked: </span>{describeBrief(button, task.brief)}</p>
-                  )}
+                  {describeBrief(button, task.brief).map((line) => (
+                    <p key={line} className="mt-1 text-xs text-steel-200"><span className="text-steel-500">Asked: </span>{line}</p>
+                  ))}
+                  <TaskPdfLink file={task.attachment} className="mt-1" />
                   {task.notes && <p className="mt-1 text-xs text-steel-300">“{task.notes}”</p>}
                   {task.reschedules?.map((change, index) => (
                     <p key={index} className="mt-1 text-xs text-steel-400">
@@ -331,7 +270,11 @@ export default function DepartmentDesk({ enquiry, onChanged }) {
       </div>
 
       {sending && (
-        <SendDialog button={sending} enquiry={enquiry} onClose={() => setSending(null)} onSent={refresh} />
+        sending.department ? (
+          <DepartmentTaskDialog enquiry={enquiry} catalogue={catalogue} kind={sending.key} onClose={() => setSending(null)} onSent={refresh} />
+        ) : (
+          <SendDialog button={sending} enquiry={enquiry} onClose={() => setSending(null)} onSent={refresh} />
+        )
       )}
     </Section>
   );
