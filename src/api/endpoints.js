@@ -61,6 +61,18 @@ export const workspace = {
     progress: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/update`, payload).then(unwrap),
     sendBack: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/send-back`, payload).then(unwrap),
     reschedule: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/reschedule`, payload).then(unwrap),
+    /** The department's own status on its task — SO Waiting, Preparing, Needs Clarification. */
+    status: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/status`, payload).then(unwrap),
+    /** Correcting the contact details the task was given. */
+    brief: ({ id, brief }) => api.post(`/workspace/todos/${id}/brief`, { brief }).then(unwrap),
+    /** The work as a PDF — the sales order — which finishes the task; keeps `next` / `nextProblem`. */
+    result: ({ id, file, note }) => {
+      const form = new FormData();
+      form.append('file', file);
+      if (note) form.append('note', note);
+      /* Said by the screen itself, with whether Production was asked [TaskWorkflow]. */
+      return api.post(`/workspace/todos/${id}/result`, form, { feedback: false }).then((response) => response.data);
+    },
     remove: (id) => api.delete(`/workspace/todos/${id}`).then(unwrap),
   },
   /**

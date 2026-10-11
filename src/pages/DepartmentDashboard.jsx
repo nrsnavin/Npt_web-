@@ -7,6 +7,7 @@ import HandoffTaskList from '../components/HandoffTaskList.jsx';
 import HandoffTaskActions from '../components/HandoffTaskActions.jsx';
 import { describeBrief } from '../utils/taskForm.js';
 import TaskPdfLink from '../components/TaskPdfLink.jsx';
+import TaskWorkflow from '../components/TaskWorkflow.jsx';
 import { buttonFor, useHandoffCatalogue } from '../hooks/useHandoffCatalogue.js';
 import SamplingWorkQueue from '../components/SamplingWorkQueue.jsx';
 import Enquiries from './Enquiries.jsx';
@@ -162,6 +163,8 @@ function EnquiryCard({ row, department, me, onChanged }) {
           </button>
         )}
       </div>
+      {/* The department's own workflow on the task, where it has one (the SO team's statuses). */}
+      <TaskWorkflow todo={task} onChanged={onChanged} />
       <div className="-mt-1 flex flex-wrap gap-3">
         <HandoffTaskActions todo={task} onChanged={onChanged} />
       </div>
