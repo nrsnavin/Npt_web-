@@ -89,10 +89,25 @@ test('Admin and marketing open on the overview; every other department on its de
 test('Department Tasks: a status list only for whoever works the task, and the move opens with its remark', () => {
   const board = read('components/DepartmentTasksBoard.jsx');
   assert.match(board, /const mayWork = \(task\) => isAdmin \|\| departments\.includes\(task\.department\);/);
-  assert.match(board, /if \(!statuses\.length \|\| !mayWork\)/);
+  assert.match(board, /if \(!statuses\.length \|\| !mayWork \|\|/);
   assert.match(board, /<TaskWorkflow\s+todo=\{moving\.task\}\s+startWith=\{moving\.status\}/);
   assert.match(read('components/TaskWorkflow.jsx'), /todo\?\.completed \|\| startWith === todo\?\.status\) return;\s+started\.current = true;\s+choose\(startWith\);/);
   const endpoints = read('api/endpoints.js');
-  assert.match(endpoints, /tasks: \(\) => api\.get\('\/dashboard\/tasks'\)/);
+  assert.match(endpoints, /tasks: \(params\) => api\.get\('\/dashboard\/tasks', \{ params \}\)/);
   assert.match(endpoints, /parties: \(params\) => api\.get\('\/dashboard\/parties', \{ params \}\)/);
+});
+
+test('Admin filters Department Tasks by any department, and open / done / all', () => {
+  const board = read('components/DepartmentTasksBoard.jsx');
+  assert.match(board, /\{isAdmin && \(\s*<select\s+aria-label="Department"/);
+  assert.match(board, /\{DEPARTMENTS\.map\(\(entry\) => <option key=\{entry\.key\} value=\{entry\.key\}>\{entry\.label\}<\/option>\)\}/, 'every department listed, even with nothing open');
+  assert.match(board, /aria-label="Open or done"/);
+  assert.match(board, /overview\.tasks\(\{ \.\.\.\(department \? \{ department \} : \{\}\), state \}\)/);
+  assert.match(board, /if \(!statuses\.length \|\| !mayWork \|\| task\.completed\)/, 'a finished task is read, not moved');
+  assert.match(board, /const isLate = \(task\) => Boolean\(!task\.completed &&/);
+  assert.match(read('api/endpoints.js'), /tasks: \(params\) => api\.get\('\/dashboard\/tasks', \{ params \}\)/);
+  const page = read('pages/DepartmentTasks.jsx');
+  assert.match(page, /params\.get\('department'\)/);
+  assert.match(page, /params\.get\('state'\) \|\| 'open'/);
+  assert.match(read('pages/DepartmentsOverview.jsx'), /to=\{`\/tasks\?department=\$\{row\.department\}`\}/);
 });

@@ -399,7 +399,8 @@ export const departments = {
  */
 export const overview = {
   summary: () => api.get('/dashboard/overview').then(unwrap),
-  tasks: () => api.get('/dashboard/tasks').then(unwrap),
+  /** `department` (Admin: any) and `state` — open, done or all. */
+  tasks: (params) => api.get('/dashboard/tasks', { params }).then(unwrap),
   parties: (params) => api.get('/dashboard/parties', { params }).then(unwrap),
 };
 

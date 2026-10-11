@@ -8,7 +8,7 @@ import TaskWorkflow from './TaskWorkflow.jsx';
 import DepartmentTaskDialog from './DepartmentTaskDialog.jsx';
 import { ErrorState, Modal, TableSkeleton } from './ui.jsx';
 import { formatDate, humanise } from '../utils/format.js';
-import { departmentLabel } from '../utils/pipeline.js';
+import { DEPARTMENTS, departmentLabel } from '../utils/pipeline.js';
 
 /**
  * Department Tasks [the plant's own layout]: every open request this person follows — Admin all
@@ -19,21 +19,41 @@ import { departmentLabel } from '../utils/pipeline.js';
  * is a list for whoever works the task (its department, or Admin) — picking a step opens the
  * move with its remark and date [components/TaskWorkflow.jsx]; anyone else reads it. A late or
  * urgent task is highlighted, and "Highlighted" shows just those.
+ *
+ * Admin picks any department — every one is listed, even with nothing open — and everyone can
+ * switch between open, done and all [server: `trackedTasks` `department`, `state`].
  */
+
+const STATES = [
+  { key: 'open', label: 'Open' },
+  { key: 'done', label: 'Done' },
+  { key: 'all', label: 'Open and done' },
+];
 
 const DAY = 24 * 60 * 60 * 1000;
 
-const isLate = (task) => Boolean(task.dueDate && new Date(task.dueDate).getTime() < Date.now());
-export const isHighlighted = (task) => isLate(task) || ['high', 'urgent'].includes(task.priority);
+const isLate = (task) => Boolean(!task.completed && task.dueDate && new Date(task.dueDate).getTime() < Date.now());
+export const isHighlighted = (task) => isLate(task) || (!task.completed && ['high', 'urgent'].includes(task.priority));
 const isFresh = (task) => Date.now() - new Date(task.createdAt).getTime() < DAY;
+
+/** The due day — or, once finished, the day it was done. */
+const whenOf = (task) => {
+  if (task.completed) return task.completedAt ? `Done ${formatDate(task.completedAt)}` : 'Done';
+  return task.dueDate ? formatDate(task.dueDate) : '';
+};
+
+const emptyLine = (state, department) => {
+  const which = { open: 'No open task', done: 'No finished task', all: 'No task' }[state] || 'No task';
+  return `${which}${department ? ` for ${departmentLabel(department)}` : ''} right now.`;
+};
 
 const modelOf = (task) =>
   task.enquiry?.requirement?.modelNumber || task.enquiry?.items?.find((item) => item.modelNumber)?.modelNumber || null;
 
 function StatusReply({ task, statuses, mayWork, onPick }) {
   const current = statuses.find((entry) => entry.key === task.status);
-  if (!statuses.length || !mayWork) {
-    return <span className="text-sm text-steel-200">{current?.label || humanise(task.status) || 'Open'}</span>;
+  if (!statuses.length || !mayWork || task.completed) {
+    return <span className="text-sm text-steel-200">{current?.label || humanise(task.status) || (task.completed ? 'Done' : 'Open')}</span>;
   }
   return (
     <select
@@ -48,10 +68,30 @@ function StatusReply({ task, statuses, mayWork, onPick }) {
   );
 }
 
-export default function DepartmentTasksBoard({ title = 'Department Tasks', subtitle = 'Follow the progress of requests for your customers.' }) {
+export default function DepartmentTasksBoard({
+  title = 'Department Tasks',
+  subtitle = 'Follow the progress of requests for your customers.',
+  department: chosenDepartment = '',
+  state: chosenState = 'open',
+  onFilter,
+}) {
   const { isAdmin, departments = [] } = useAuth();
-  const fetch = useCallback(() => overview.tasks(), []);
-  const { data, loading, error, reload } = useRecord(fetch, 'overview-tasks');
+  /* Controlled by the page when it keeps them in the address; held here otherwise. */
+  const [ownDepartment, setOwnDepartment] = useState(chosenDepartment);
+  const [ownState, setOwnState] = useState(chosenState);
+  const department = onFilter ? chosenDepartment : ownDepartment;
+  const state = onFilter ? chosenState : ownState;
+  const setFilter = (next) => {
+    if (onFilter) return onFilter({ department, state, ...next });
+    if ('department' in next) setOwnDepartment(next.department);
+    if ('state' in next) setOwnState(next.state);
+    return null;
+  };
+  const fetch = useCallback(
+    () => overview.tasks({ ...(department ? { department } : {}), state }),
+    [department, state],
+  );
+  const { data, loading, error, reload } = useRecord(fetch, `overview-tasks-${department}-${state}`);
   const catalogue = useHandoffCatalogue();
   const [chip, setChip] = useState('all');
   const [search, setSearch] = useState('');
@@ -109,9 +149,28 @@ export default function DepartmentTasksBoard({ title = 'Department Tasks', subti
             {entry.label} <span className="tabular-nums opacity-75">{entry.count}</span>
           </button>
         ))}
+        {isAdmin && (
+          <select
+            aria-label="Department"
+            className="input w-auto py-1.5 text-sm sm:ml-auto"
+            value={department}
+            onChange={(event) => { setFilter({ department: event.target.value }); setChip('all'); }}
+          >
+            <option value="">All departments</option>
+            {DEPARTMENTS.map((entry) => <option key={entry.key} value={entry.key}>{entry.label}</option>)}
+          </select>
+        )}
+        <select
+          aria-label="Open or done"
+          className={`input w-auto py-1.5 text-sm ${isAdmin ? '' : 'sm:ml-auto'}`}
+          value={state}
+          onChange={(event) => setFilter({ state: event.target.value })}
+        >
+          {STATES.map((entry) => <option key={entry.key} value={entry.key}>{entry.label}</option>)}
+        </select>
         <input
           type="search"
-          className="input ml-auto w-full sm:w-60"
+          className="input w-full sm:w-60"
           placeholder="Search customer, model or person…"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
@@ -154,7 +213,7 @@ export default function DepartmentTasksBoard({ title = 'Department Tasks', subti
                       <StatusReply task={task} statuses={statusesOf(task)} mayWork={mayWork(task)} onPick={(status) => setMoving({ task, status })} />
                     </td>
                     <td className={`whitespace-nowrap px-4 py-3 ${isLate(task) ? 'font-semibold text-danger-400' : 'text-steel-300'}`}>
-                      {task.dueDate ? formatDate(task.dueDate) : '—'}
+                      {whenOf(task) || '—'}
                     </td>
                   </tr>
                 ))}
@@ -171,7 +230,7 @@ export default function DepartmentTasksBoard({ title = 'Department Tasks', subti
                     <p className="text-xs text-steel-400">{task.label}{modelOf(task) ? ` · ${modelOf(task)}` : ''}</p>
                   </div>
                   <span className={`shrink-0 text-xs ${isLate(task) ? 'font-semibold text-danger-400' : 'text-steel-400'}`}>
-                    {task.dueDate ? formatDate(task.dueDate) : ''}
+                    {whenOf(task)}
                   </span>
                 </div>
                 <p className="mt-1 text-xs text-steel-400">
@@ -186,7 +245,7 @@ export default function DepartmentTasksBoard({ title = 'Department Tasks', subti
         </>
       ) : (
         <p className="rounded-xl border border-dashed border-line/15 px-4 py-8 text-center text-sm text-steel-400">
-          {tasks.length ? 'Nothing matches this filter.' : 'No department task open right now.'}
+          {tasks.length ? 'Nothing matches this filter.' : emptyLine(state, department)}
         </p>
       )}
 

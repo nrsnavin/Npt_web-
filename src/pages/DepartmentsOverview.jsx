@@ -57,8 +57,13 @@ export default function DepartmentsOverview() {
                   <td className={`px-3 py-2.5 text-right tabular-nums ${row.late ? 'font-bold text-danger-400' : 'text-steel-500'}`}>{row.late}</td>
                   <td className={`px-3 py-2.5 text-right tabular-nums ${row.dueToday ? 'text-warn-400' : 'text-steel-500'}`}>{row.dueToday}</td>
                   <td className="px-3 py-2.5 text-right tabular-nums text-steel-300">{row.unclaimed}</td>
-                  <td className="px-3 py-2.5 text-right tabular-nums text-steel-300">{row.open}</td>
-                  <td className="px-3 py-2.5 text-right tabular-nums text-success-400">{row.doneThisWeek}</td>
+                  <td className="px-3 py-2.5 text-right tabular-nums text-steel-300">
+                    {/* Straight to that department's tasks on Department Tasks. */}
+                    <Link to={`/tasks?department=${row.department}`} className="hover:text-accent hover:underline">{row.open}</Link>
+                  </td>
+                  <td className="px-3 py-2.5 text-right tabular-nums text-success-400">
+                    <Link to={`/tasks?department=${row.department}&state=done`} className="hover:underline">{row.doneThisWeek}</Link>
+                  </td>
                   <td className="px-3 py-2.5 text-right tabular-nums text-steel-300">{row.onTimePercent === null ? '—' : `${row.onTimePercent}%`}</td>
                   <td className="py-2.5 pl-3 text-right tabular-nums text-steel-300">{row.averageHoursToDone === null ? '—' : `${row.averageHoursToDone} h`}</td>
                 </tr>
