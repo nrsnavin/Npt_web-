@@ -96,3 +96,14 @@ test('marketing’s enquiry list shows the stage, the mould’s ERD, Production�
   assert.match(list, /formatDate\(enquiry\.progress\.edd\.date\)/);
   assert.match(list, /\{departmentLabel\(issue\.department\)\}: \{issue\.label\}/);
 });
+
+test('a task’s own asks (Dispatch’s Ask Production) open that department’s form and ask from the task', () => {
+  const workflow = read('components/TaskWorkflow.jsx');
+  assert.match(workflow, /\(button\.form\.actions \|\| \[\]\)\.map\(\(action\) =>/);
+  assert.match(workflow, /fromTask=\{todo\}/);
+  const dialog = read('components/DepartmentTaskDialog.jsx');
+  assert.match(dialog, /fromTask\s*\? await workspace\.todos\.ask\(\{ id: fromTask\._id, \.\.\.payload \}\)/);
+  assert.match(dialog, /disabled=\{Boolean\(fromTask\)\}/);
+  assert.match(dialog, /\(noteNeeded\(button, answers\) \|\| Boolean\(fromTask\)\) && note\.trim\(\)\.length < 3/);
+  assert.match(read('api/endpoints.js'), /ask: \(\{ id, \.\.\.payload \}\) => api\.post\(`\/workspace\/todos\/\$\{id\}\/ask`/);
+});

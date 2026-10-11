@@ -3,6 +3,7 @@ import { workspace } from '../api/endpoints.js';
 import { buttonFor, useHandoffCatalogue } from '../hooks/useHandoffCatalogue.js';
 import { Field, Modal, Notice } from './ui.jsx';
 import TaskPdfLink from './TaskPdfLink.jsx';
+import DepartmentTaskDialog from './DepartmentTaskDialog.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import { todayInIndia } from '../utils/taskForm.js';
 
@@ -187,6 +188,8 @@ export default function TaskWorkflow({ todo, onChanged }) {
   const statuses = button?.form?.statuses || [];
   const [asking, setAsking] = useState(null);
   const [moving, setMoving] = useState(null);
+  /* Dispatch's "Ask Production": the other department's form, filled from the enquiry. */
+  const [askingDepartment, setAskingDepartment] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [editing, setEditing] = useState(false);
   const [problem, setProblem] = useState(null);
@@ -234,6 +237,11 @@ export default function TaskWorkflow({ todo, onChanged }) {
         {editable.length > 0 && (
           <button type="button" className="btn-secondary px-3 py-1.5 text-xs" onClick={() => setEditing(true)}>Edit contact details</button>
         )}
+        {(button.form.actions || []).map((action) => (
+          <button key={action.kind} type="button" className="btn-secondary px-3 py-1.5 text-xs" onClick={() => setAskingDepartment(action)}>
+            {action.label}
+          </button>
+        ))}
         {resultStep && (
           <button type="button" className="btn-primary px-3 py-1.5 text-xs" onClick={() => setUploading(true)}>
             {button.form.resultLabel || `Upload PDF — ${resultStep.label}`}
@@ -274,6 +282,17 @@ export default function TaskWorkflow({ todo, onChanged }) {
             else toast(`${resultStep.label}`, 'The task is done and Production has its task.');
             onChanged?.(answer.data);
           }}
+        />
+      )}
+      {askingDepartment && (
+        <DepartmentTaskDialog
+          enquiry={{ _id: todo.enquiry?._id || todo.enquiry, customer: todo.customer }}
+          catalogue={catalogue}
+          kind={askingDepartment.kind}
+          fromTask={todo}
+          title={askingDepartment.label}
+          onClose={() => setAskingDepartment(null)}
+          onSent={() => onChanged?.()}
         />
       )}
       {editing && <ContactDialog fields={editable} todo={todo} onClose={() => setEditing(false)} onSaved={(saved) => onChanged?.(saved)} />}

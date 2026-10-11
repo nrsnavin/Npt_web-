@@ -71,6 +71,8 @@ export const workspace = {
     status: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/status`, payload).then(unwrap),
     /** "Got it" on an answer that came back to the department — it leaves the top of the dashboard. */
     seen: (id) => api.post(`/workspace/todos/${id}/seen`, {}, { feedback: false }).then(unwrap),
+    /** Another department asked from this task — Dispatch's "Ask Production"; keeps `raised` / `addedTo`. */
+    ask: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/ask`, payload, { feedback: false }).then((response) => response.data),
     /** Correcting the contact details the task was given. */
     brief: ({ id, brief }) => api.post(`/workspace/todos/${id}/brief`, { brief }).then(unwrap),
     /** The work as a PDF — the sales order — which finishes the task; keeps `next` / `nextProblem`. */
