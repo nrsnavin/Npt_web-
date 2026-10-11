@@ -106,13 +106,17 @@ function CommentDialog({ step, onClose, onSave }) {
   );
 }
 
-function UploadDialog({ title, step, todo, onClose, onDone }) {
+function UploadDialog({ title, step, todo, form, onClose, onDone }) {
   const [file, setFile] = useState(null);
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState(null);
   const tooBig = file && file.size > PDF_LIMIT;
-  const notPdf = file && file.type !== 'application/pdf';
+  /* The SO is a PDF; the LR copy may be a photo of it [server: departmentTaskForms `resultTypes`]. */
+  const types = form.resultTypes || ['application/pdf'];
+  const takesPhoto = types.some((type) => type.startsWith('image/'));
+  const notPdf = file && !types.includes(file.type);
+  const what = form.resultTitle || 'Sales order';
   const upload = async (event) => {
     event.preventDefault();
     setBusy(true);
@@ -128,18 +132,30 @@ function UploadDialog({ title, step, todo, onClose, onDone }) {
     }
   };
   return (
-    <Modal open title={title} description={`Marks the task ${step.label} and finishes it${step.next ? ' — the enquiry moves on to Production' : ''}.`} onClose={onClose}>
+    <Modal
+      open
+      title={title}
+      description={form.sendResult
+        ? `Marks the task ${step.label}, and sends the ${what} to the buyer by email and WhatsApp.`
+        : `Marks the task ${step.label}${step.done ? ' and finishes it' : ''}${step.next ? ' — the enquiry moves on to Production' : ''}.`}
+      onClose={onClose}
+    >
       <form onSubmit={upload} className="space-y-4">
-        <Field label="Sales order PDF" required hint="PDF, 1 MB at most" error={tooBig ? 'That PDF is over 1 MB' : notPdf ? 'Attach a PDF' : undefined}>
-          <input type="file" accept="application/pdf" required className="input" onChange={(event) => setFile(event.target.files?.[0] || null)} autoFocus />
+        <Field
+          label={takesPhoto ? `${what} — PDF or photo` : `${what} PDF`}
+          required
+          hint={takesPhoto ? 'PDF, JPEG or PNG, 1 MB at most' : 'PDF, 1 MB at most'}
+          error={tooBig ? 'That file is over 1 MB' : notPdf ? (takesPhoto ? 'Attach a PDF or a JPEG / PNG photo' : 'Attach a PDF') : undefined}
+        >
+          <input type="file" accept={types.join(',')} required className="input" onChange={(event) => setFile(event.target.files?.[0] || null)} autoFocus />
         </Field>
-        <Field label="Note" hint="Optional — the SO number, anything Production should know">
+        <Field label="Note" hint={form.sendResult ? 'Optional — the LR number, transporter' : 'Optional — the SO number, anything Production should know'}>
           <input className="input" value={note} onChange={(event) => setNote(event.target.value)} />
         </Field>
         {problem && <Notice tone="danger">{problem}</Notice>}
         <div className="flex justify-end gap-2">
           <button type="button" className="btn-ghost" onClick={onClose} disabled={busy}>Cancel</button>
-          <button type="submit" className="btn-primary" disabled={busy || !file || tooBig || notPdf}>{busy ? 'Uploading…' : 'Upload and finish'}</button>
+          <button type="submit" className="btn-primary" disabled={busy || !file || tooBig || notPdf}>{busy ? 'Uploading…' : form.sendResult ? 'Upload and send to buyer' : step.done ? 'Upload and finish' : 'Upload'}</button>
         </div>
       </form>
     </Modal>
@@ -276,9 +292,17 @@ export default function TaskWorkflow({ todo, onChanged }) {
           title={button.form.resultLabel || 'Upload the PDF'}
           step={resultStep}
           todo={todo}
+          form={button.form}
           onClose={() => setUploading(false)}
           onDone={(answer) => {
-            if (answer.nextProblem) warn(`${resultStep.label} — but Production was not asked yet`, answer.nextProblem);
+            /* Said per channel: which went, and why another did not. */
+            const channel = (entry) => (entry.channel === 'email' ? 'Email' : 'WhatsApp');
+            const went = (answer.sent || []).filter((entry) => entry.status === 'sent');
+            const missed = (answer.sent || []).filter((entry) => entry.status !== 'sent');
+            if (answer.sent) {
+              if (went.length) toast(`${button.form.resultTitle || 'File'} sent to the buyer`, went.map((entry) => `${channel(entry)} to ${entry.recipient}`).join(' · '));
+              if (missed.length) warn(`${missed.map(channel).join(' and ')} not sent`, missed.map((entry) => `${channel(entry)}: ${String(entry.reason || entry.status).replaceAll('_', ' ')}`).join(' · '));
+            } else if (answer.nextProblem) warn(`${resultStep.label} — but Production was not asked yet`, answer.nextProblem);
             else toast(`${resultStep.label}`, 'The task is done and Production has its task.');
             onChanged?.(answer.data);
           }}

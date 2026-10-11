@@ -107,3 +107,13 @@ test('a task’s own asks (Dispatch’s Ask Production) open that department’s
   assert.match(dialog, /\(noteNeeded\(button, answers\) \|\| Boolean\(fromTask\)\) && note\.trim\(\)\.length < 3/);
   assert.match(read('api/endpoints.js'), /ask: \(\{ id, \.\.\.payload \}\) => api\.post\(`\/workspace\/todos\/\$\{id\}\/ask`/);
 });
+
+test('the LR copy uploads as a PDF or photo and says per channel whether it reached the buyer', () => {
+  const workflow = read('components/TaskWorkflow.jsx');
+  assert.match(workflow, /const types = form\.resultTypes \|\| \['application\/pdf'\];/);
+  assert.match(workflow, /accept=\{types\.join\(','\)\}/);
+  assert.match(workflow, /sends the \$\{what\} to the buyer by email and WhatsApp/);
+  assert.match(workflow, /'Upload and send to buyer'/);
+  assert.match(workflow, /sent to the buyer`, went\.map/);
+  assert.match(workflow, /not sent`, missed\.map/);
+});
