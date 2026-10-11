@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { handoffs as handoffsApi } from '../api/endpoints.js';
+import { handoffs as handoffsApi, workspace } from '../api/endpoints.js';
 import { useToast } from '../context/ToastContext.jsx';
 import { Field, Modal, Notice } from './ui.jsx';
 import {
@@ -14,6 +14,9 @@ import {
  * material, hook, clip and print; the buyer's contact; the order's quantity and terms. Every
  * answer stays editable. Below the form, what every task takes: a priority, a required date (the
  * task's due date), an optional PDF of 1 MB at most and the instruction.
+ *
+ * Opened from another department's task (`fromTask` — Dispatch's "Ask Production"), it asks
+ * that one department only, says what is needed, and the asking task records it.
  */
 
 const PDF_LIMIT = 1024 * 1024;
@@ -89,7 +92,7 @@ function Rows({ field, rows, onChange }) {
   );
 }
 
-export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKind, onClose, onSent }) {
+export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKind, fromTask, title, onClose, onSent }) {
   const [kind, setKind] = useState(startKind);
   const [prefill, setPrefill] = useState(null);
   const [answers, setAnswers] = useState({});
@@ -127,7 +130,7 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
   const pickDepartment = (value) => setKind(value);
   const answer = (key) => (value) => setAnswers((current) => ({ ...current, [key]: value }));
   const missing = missingAnswer(button, answers);
-  const mustExplain = noteNeeded(button, answers) && note.trim().length < 3;
+  const mustExplain = (noteNeeded(button, answers) || Boolean(fromTask)) && note.trim().length < 3;
   const tooBig = file && file.size > PDF_LIMIT;
   const notPdf = file && file.type !== 'application/pdf';
   const blocked = !prefill || Boolean(missing) || mustExplain || tooBig || notPdf;
@@ -138,11 +141,15 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
     setProblem(null);
     try {
       /* A department that already has this task open gets the request added to it. */
-      const sent = await handoffsApi.send({
-        id: enquiry._id, kind, note, brief: briefToSend(button, answers), addToOpen: true,
+      const payload = {
+        kind, note, brief: briefToSend(button, answers),
         ...(form.priority ? { priority } : {}),
         ...(requiredDate ? { requiredDate } : {}),
-      });
+      };
+      const sent = fromTask
+        ? await workspace.todos.ask({ id: fromTask._id, ...payload }).then((answer) => ({ task: answer.raised, addedTo: answer.addedTo }))
+        : await handoffsApi.send({ id: enquiry._id, addToOpen: true, ...payload });
+      if (fromTask && !sent.addedTo) toast(`${form.team || 'The department'} asked`, 'Their task is raised, and this task says so.');
       if (sent.addedTo) {
         toast(`Added to ${form.team || 'the department'}’s open task`, 'They already had this task — your request is on it as an update.');
         if (file) warn('The PDF was not attached', 'Attach it on the task they already have, or send it in the note.');
@@ -171,14 +178,14 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
 
   let section = null;
   return (
-    <Modal open title={form.title || 'Assign department task'} onClose={onClose} size="lg">
+    <Modal open title={title || form.title || 'Assign department task'} onClose={onClose} size="lg">
       <form onSubmit={submit} className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Customer / Company">
             <input className="input" value={enquiry.customer?.name || prefill?.customer?.name || ''} readOnly />
           </Field>
           <Field label="Workflow / Department">
-            <select className="input" value={optionOf(button)} onChange={(event) => pickDepartment(event.target.value)}>
+            <select className="input" value={optionOf(button)} disabled={Boolean(fromTask)} onChange={(event) => pickDepartment(event.target.value)}>
               {choices.map((choice) => <option key={choice.value} value={choice.value}>{choice.label}</option>)}
             </select>
           </Field>
@@ -235,13 +242,13 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
               <input type="date" className="input" min={todayInIndia()} value={requiredDate} onChange={(event) => setRequiredDate(event.target.value)} />
             </Field>
           )}
-          <Field label={form.note?.label || 'Additional instruction / Question'} required={noteNeeded(button, answers)} className="sm:col-span-2">
+          <Field label={form.note?.label || 'Additional instruction / Question'} required={noteNeeded(button, answers) || Boolean(fromTask)} className="sm:col-span-2">
             <textarea rows={3} className="input" placeholder={form.note?.placeholder || ''} value={note} onChange={(event) => setNote(event.target.value)} />
           </Field>
         </div>
 
         {missing && prefill && <p className="text-xs text-warn-400">Still needed: {missing}</p>}
-        {mustExplain && <p className="text-xs text-warn-400">{button.form.noteRequired.message}</p>}
+        {mustExplain && <p className="text-xs text-warn-400">{fromTask ? 'Say what you need from them' : button.form.noteRequired.message}</p>}
         {problem && <Notice tone="danger">{problem}</Notice>}
         <div className="flex justify-end gap-2">
           <button type="button" className="btn-ghost" onClick={onClose} disabled={busy}>Cancel</button>

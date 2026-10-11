@@ -87,3 +87,33 @@ test('department moves on an enquiry show under "Needs your action": read, then 
 test('the enquiry shows where Production has its task', () => {
   assert.match(read('components/DepartmentDesk.jsx'), /Production status: .*\{production\.asked\.status\}/);
 });
+
+test('marketing’s enquiry list shows the stage, the mould’s ERD, Production’s EDD and the open issues', () => {
+  const list = read('pages/Enquiries.jsx');
+  assert.match(list, /<th className="px-3 py-3">Stage<\/th>/);
+  assert.match(list, /catalogue\?\.stages\?\.find\(\(stage\) => stage\.key === enquiry\.stage\)\?\.label/);
+  assert.match(list, /formatDate\(enquiry\.progress\.erd\.date\)/);
+  assert.match(list, /formatDate\(enquiry\.progress\.edd\.date\)/);
+  assert.match(list, /\{departmentLabel\(issue\.department\)\}: \{issue\.label\}/);
+});
+
+test('a task’s own asks (Dispatch’s Ask Production) open that department’s form and ask from the task', () => {
+  const workflow = read('components/TaskWorkflow.jsx');
+  assert.match(workflow, /\(button\.form\.actions \|\| \[\]\)\.map\(\(action\) =>/);
+  assert.match(workflow, /fromTask=\{todo\}/);
+  const dialog = read('components/DepartmentTaskDialog.jsx');
+  assert.match(dialog, /fromTask\s*\? await workspace\.todos\.ask\(\{ id: fromTask\._id, \.\.\.payload \}\)/);
+  assert.match(dialog, /disabled=\{Boolean\(fromTask\)\}/);
+  assert.match(dialog, /\(noteNeeded\(button, answers\) \|\| Boolean\(fromTask\)\) && note\.trim\(\)\.length < 3/);
+  assert.match(read('api/endpoints.js'), /ask: \(\{ id, \.\.\.payload \}\) => api\.post\(`\/workspace\/todos\/\$\{id\}\/ask`/);
+});
+
+test('the LR copy uploads as a PDF or photo and says per channel whether it reached the buyer', () => {
+  const workflow = read('components/TaskWorkflow.jsx');
+  assert.match(workflow, /const types = form\.resultTypes \|\| \['application\/pdf'\];/);
+  assert.match(workflow, /accept=\{types\.join\(','\)\}/);
+  assert.match(workflow, /sends the \$\{what\} to the buyer by email and WhatsApp/);
+  assert.match(workflow, /'Upload and send to buyer'/);
+  assert.match(workflow, /sent to the buyer`, went\.map/);
+  assert.match(workflow, /not sent`, missed\.map/);
+});
