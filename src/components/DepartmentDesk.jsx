@@ -8,13 +8,14 @@ import { departmentLabel } from '../utils/pipeline.js';
 import { formatDate } from '../utils/format.js';
 
 /**
- * The enquiry's twelve stages, who has it, and the buttons that move it on — the plant's own
- * screen [server: config/enquiryStages.js, config/handoffs.js, services/handoff.service.js].
+ * The enquiry's departments, and the tasks raised on them — the plant's own screen
+ * [server: config/enquiryStages.js, config/handoffs.js, services/handoff.service.js].
  *
- * The enquiry is the task: one department holds it at a time. A stage button hands it to that
- * department, due by the end of the day; the department that had it is done with it. Only
- * whoever has it, its marketing person or Admin may move it, so the buttons are offered only to
- * them. Below is everything that happened on it — updates, what was done, where it went next.
+ * The enquiry stays with its marketing person; Admin sees every one. Clicking a department
+ * raises that department's task, due by the end of the day, with the answers to the questions
+ * the task asks (Sampling: mould, material, colour, preferred or compulsory) — and that task is
+ * what the department's dashboard shows. Several departments can have tasks at once. Below is
+ * everything that happened — what was asked, updates, what was done.
  */
 
 const BUTTON = 'rounded-lg border border-line/20 px-3 py-1.5 text-sm font-semibold text-steel-100 transition-colors hover:border-success-500/60 hover:text-success-400';
@@ -27,26 +28,57 @@ const STATE = (task) => {
   return { text: 'Waiting to be picked up', tone: 'text-steel-400' };
 };
 
+/** Material as the Sample Request's question names it, from the enquiry's own value ("recycled_pp"). */
+const MATERIAL_WORDS = { pp: 'PP', hips: 'HIPS', recycled_pp: 'Recycled PP' };
+const materialWord = (value) => (value ? MATERIAL_WORDS[value] || value.charAt(0).toUpperCase() + value.slice(1) : '');
+
+/** The answers the enquiry already knows, so nobody types the model and colour twice. */
+export function briefFromEnquiry(button, enquiry) {
+  const known = enquiry?.requirement || {};
+  const guesses = {
+    mould: known.modelNumber,
+    material: materialWord(known.material),
+    colour: known.colour,
+    colourType: known.colour ? (known.colourMandatory ? 'Compulsory colour' : 'Preferred colour') : '',
+  };
+  return Object.fromEntries((button?.asks || []).map((field) => {
+    const guess = guesses[field.key] || '';
+    return [field.key, field.type === 'choice' && !field.options.includes(guess) ? '' : guess];
+  }));
+}
+
+/** "Mould / model: NH-400 · Material: PP · …" — what a task was asked, in a line. */
+export function describeBrief(button, brief) {
+  if (!brief) return '';
+  return Object.entries(brief)
+    .map(([key, value]) => `${button?.asks?.find((field) => field.key === key)?.label || key}: ${value}`)
+    .join(' · ');
+}
+
 function SendDialog({ button, enquiry, onClose, onSent }) {
   const [note, setNote] = useState('');
+  const [brief, setBrief] = useState(() => briefFromEnquiry(button, enquiry));
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState(null);
   if (!button) return null;
 
+  const owner = enquiry.assignedTo?.name || 'the marketing person';
   const to = button.department === 'owner'
-    ? (enquiry.assignedTo?.name || 'the marketing person')
+    ? owner
     : button.department ? departmentLabel(button.department) : null;
   const needsNote = button.key === 'task_closed';
-  const description = button.moves
-    ? `${to} will have the enquiry from here — due by the end of today. ${button.hint || ''}`
-    : to ? `Asks ${to}, without moving the enquiry. ${button.hint || ''}` : button.hint;
+  const asks = button.asks || [];
+  const unanswered = asks.some((field) => field.required && !String(brief[field.key] || '').trim());
+  const description = to
+    ? `Raises a ${to} task, due by the end of today. The enquiry stays with ${owner}. ${button.hint || ''}`
+    : button.hint;
 
   const submit = async (event) => {
     event.preventDefault();
     setBusy(true);
     setProblem(null);
     try {
-      await handoffsApi.send({ id: enquiry._id, kind: button.key, note });
+      await handoffsApi.send({ id: enquiry._id, kind: button.key, note, ...(asks.length ? { brief } : {}) });
       onSent();
       onClose();
     } catch (failure) {
@@ -64,12 +96,41 @@ function SendDialog({ button, enquiry, onClose, onSent }) {
       onClose={onClose}
     >
       <form onSubmit={submit} className="space-y-4">
+        {/* The questions this department's task asks [server: config/handoffs.js `asks`]. */}
+        {asks.length > 0 && (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {asks.map((field) => {
+              const answer = brief[field.key] || '';
+              /* Send stays disabled while a required one is empty (`unanswered`). */
+              const missing = Boolean(field.required && !answer.trim());
+              const answerWith = (event) => setBrief((current) => ({ ...current, [field.key]: event.target.value }));
+              return (
+                <Field key={field.key} label={field.label} required={field.required}>
+                  {field.type === 'choice' ? (
+                    <select className="input" value={answer} aria-invalid={missing || undefined} onChange={answerWith}>
+                      <option value="">Choose…</option>
+                      {field.options.map((option) => <option key={option} value={option}>{option}</option>)}
+                    </select>
+                  ) : (
+                    <input
+                      type={field.type === 'date' ? 'date' : 'text'}
+                      className="input"
+                      value={answer}
+                      aria-invalid={missing || undefined}
+                      onChange={answerWith}
+                    />
+                  )}
+                </Field>
+              );
+            })}
+          </div>
+        )}
         <Field
           label={needsNote ? 'Why it is being closed' : to ? `Anything ${to} should know` : 'Note'}
           required={needsNote}
           hint={to ? 'Sent to them on WhatsApp with the task' : undefined}
         >
-          <textarea rows={3} className="input" value={note} onChange={(event) => setNote(event.target.value)} autoFocus />
+          <textarea rows={3} className="input" value={note} onChange={(event) => setNote(event.target.value)} autoFocus={!asks.length} />
         </Field>
         {button.key === 'task_closed' && (
           <Notice tone="warn">Closing ends every task still open on this enquiry. Nothing more can be sent on it.</Notice>
@@ -77,8 +138,8 @@ function SendDialog({ button, enquiry, onClose, onSent }) {
         {problem && <Notice tone="danger">{problem}</Notice>}
         <div className="flex justify-end gap-2">
           <button type="button" className="btn-ghost" onClick={onClose} disabled={busy}>Cancel</button>
-          <button type="submit" className="btn-primary" disabled={busy || (needsNote && note.trim().length < 3)}>
-            {busy ? 'Sending…' : button.moves ? `Move to ${to}` : to ? `Ask ${to}` : 'Save'}
+          <button type="submit" className="btn-primary" disabled={busy || unanswered || (needsNote && note.trim().length < 3)}>
+            {busy ? 'Sending…' : to ? `Send to ${to}` : 'Save'}
           </button>
         </div>
       </form>
@@ -120,92 +181,87 @@ export default function DepartmentDesk({ enquiry, onChanged }) {
     : '';
   const holderLate = holder?.dueDate && new Date(holder.dueDate) < new Date();
   const drawn = catalogue.buttons.filter((button) => !button.hidden);
-  const moving = drawn.filter((button) => button.moves);
-  const asking = drawn.filter((button) => !button.moves);
+  /* Which departments have a task open right now — several can, at once. */
+  const openTasks = tasks.filter((task) => !task.completed && !task.holds);
+  const openFor = (department) => openTasks.filter((task) => task.department === department).length;
 
   return (
     <Section title="Departments">
       <div className="space-y-4">
         {/*
-          * The twelve stages, as the plant numbers them. Where it is now is lit. Each tile is a
-          * department: clicking it forwards the enquiry there, with the stage's own button
-          * [server: config/handoffs.js TILE_KIND]. Tiles that move the enquiry are offered only
-          * to whoever may move it; a side request (Team Payment Follow-up) to anyone.
+          * The departments, as the plant numbers them. Where the work is now is lit green; a
+          * department with a task open says so. Clicking one raises its task
+          * [server: config/handoffs.js TILE_KIND] — for its marketing person, whoever has it and
+          * Admin. The first is marketing's own: the enquiry is always theirs.
           */}
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {stages.map((item) => {
             const here = item.key === stage;
-            const sends = !closed && !here && catalogue.buttons.find((button) => button.key === item.kind);
-            const clickable = Boolean(sends && (sends.moves ? mayMove : true));
-            const look = `flex min-h-[3.25rem] items-center justify-center rounded-xl border px-2 py-2 text-center text-xs leading-tight ${
+            const open = openFor(item.department);
+            const sends = !closed && mayMove && catalogue.buttons.find((button) => button.key === item.kind);
+            const look = `flex min-h-[3.25rem] flex-col items-center justify-center rounded-xl border px-2 py-2 text-center text-xs leading-tight ${
               here
                 ? 'border-success-500/60 bg-success-500/10 font-bold text-success-400'
-                : 'border-line/[0.08] text-steel-400'
+                : open ? 'border-warn-500/50 text-steel-200' : 'border-line/[0.08] text-steel-400'
             }`;
-            if (!clickable) {
-              return (
-                <div key={item.key} aria-current={here ? 'step' : undefined} className={look}>
-                  {item.number}. {item.label}
-                </div>
-              );
+            const inside = (
+              <>
+                <span>{item.number}. {item.label}</span>
+                {open > 0 && <span className="mt-0.5 text-[0.65rem] font-semibold text-warn-400">{open === 1 ? 'Task open' : `${open} tasks open`}</span>}
+              </>
+            );
+            if (!sends) {
+              return <div key={item.key} aria-current={here ? 'step' : undefined} className={look}>{inside}</div>;
             }
             return (
               <button
                 key={item.key}
                 type="button"
-                title={`Send the enquiry to ${departmentLabel(item.department)}`}
-                onClick={() => setSending({ ...sends, heading: `Send to ${item.number}. ${item.label}` })}
+                aria-current={here ? 'step' : undefined}
+                title={`Raise a ${departmentLabel(item.department)} task`}
+                onClick={() => setSending({ ...sends, heading: `${item.number}. ${item.label} — ${sends.label}` })}
                 className={`${look} transition-colors hover:border-success-500/60 hover:text-success-400 focus-visible:border-success-500/60`}
               >
-                {item.number}. {item.label}
+                {inside}
               </button>
             );
           })}
         </div>
-        {!closed && mayMove && (
-          <p className="text-xs text-steel-500">Tap a department to send the enquiry there.</p>
-        )}
         {closed && <Notice tone="info">This enquiry is closed.</Notice>}
 
-        {/* Who has it now — the one department whose task this enquiry is. */}
+        {/* Whose enquiry it is — its marketing person, wherever its work is. */}
         {!closed && holder && (
           <div className="flex flex-wrap items-baseline justify-between gap-2 rounded-lg border border-accent/30 bg-accent/[0.05] px-3 py-2 text-sm">
             <p className="text-steel-100">
-              <span className="text-steel-400">With </span>
+              <span className="text-steel-400">Enquiry with </span>
               <span className="font-semibold">{holderName}</span>
-              {holderButton && <span className="text-steel-400"> · {holderButton.label}</span>}
+              {holderButton && holderButton.department !== 'owner' && <span className="text-steel-400"> · {holderButton.label}</span>}
+              {openTasks.length > 0 && <span className="text-steel-400"> · {openTasks.length} department task{openTasks.length === 1 ? '' : 's'} open</span>}
             </p>
             {holder.dueDate && (
               <span className={`text-xs ${holderLate ? 'text-danger-400' : 'text-steel-400'}`}>
-                {holderLate ? `Late — was due ${formatDate(holder.dueDate)}` : `Due ${formatDate(holder.dueDate)}`}
+                {holderLate ? `Follow-up late — was due ${formatDate(holder.dueDate)}` : `Follow-up ${formatDate(holder.dueDate)}`}
               </span>
             )}
           </div>
         )}
 
-        {/* The buttons. Moving ones only for whoever may move it; the rest only record or ask. */}
         {!closed && (
           <div className="space-y-2">
-            {mayMove ? (
+            <p className="text-xs text-steel-500">
+              {mayMove
+                ? 'Tap a department to raise its task, or use a button below.'
+                : `This is ${holderName || 'its marketing person'}’s enquiry. They or Admin raise department tasks on it.`}
+            </p>
+            {mayMove && (
               <div className="flex flex-wrap gap-2">
-                {moving.map((button) => (
-                  <button key={button.key} type="button" title={button.hint} onClick={() => setSending(button)} className={BUTTON}>
+                {drawn.map((button) => (
+                  <button key={button.key} type="button" title={button.hint} onClick={() => setSending(button)} className={`${BUTTON} ${button.department ? '' : 'text-steel-300'}`}>
                     {button.label}
                   </button>
                 ))}
               </div>
-            ) : (
-              <p className="text-xs text-steel-400">
-                {holder ? `${holderName} has this enquiry. ` : ''}Only they, its marketing person or Admin can move it on.
-              </p>
             )}
-            <div className="flex flex-wrap gap-2">
-              {asking.filter((button) => mayMove || button.key !== 'task_closed').map((button) => (
-                <button key={button.key} type="button" title={button.hint} onClick={() => setSending(button)} className={`${BUTTON} text-steel-300`}>
-                  {button.label}
-                </button>
-              ))}
-            </div>
           </div>
         )}
 
@@ -236,6 +292,9 @@ export default function DepartmentDesk({ enquiry, onChanged }) {
                       <span className={overdue ? 'text-danger-400' : ''}>{` · due ${formatDate(task.dueDate)}${overdue ? ' — late' : ''}`}</span>
                     )}
                   </p>
+                  {task.brief && Object.keys(task.brief).length > 0 && (
+                    <p className="mt-1 text-xs text-steel-200"><span className="text-steel-500">Asked: </span>{describeBrief(button, task.brief)}</p>
+                  )}
                   {task.notes && <p className="mt-1 text-xs text-steel-300">“{task.notes}”</p>}
                   {task.reschedules?.map((change, index) => (
                     <p key={index} className="mt-1 text-xs text-steel-400">

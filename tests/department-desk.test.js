@@ -41,12 +41,13 @@ test('a button with nowhere to go is left off the card', () => {
   assert.deepEqual(deskActionsFor('order_confirmation', row({ quotation: { _id: 'q1' }, order: { _id: 'o1' } })).map((a) => a.label), ['Open order']);
 });
 
-test('the desk lists the enquiries as cards with their own buttons and the hand-over actions', () => {
+test('the dashboard lists department tasks as cards, with what was asked, their own buttons and the task actions', () => {
   const page = read('pages/DepartmentDashboard.jsx');
   assert.match(page, /deskActionsFor\(department, row\)/);
   assert.match(page, /<HandoffTaskActions todo=\{task\}/);
   assert.match(page, /data\?\.enquiries/);
-  for (const tab of ['With us', 'Requests', 'Waiting on others', 'Came back', 'Done this week']) {
+  assert.match(page, /describeBrief\(button, task\.brief\)/);
+  for (const tab of ['Department tasks', 'Requests', 'Waiting on others', 'Came back', 'Done this week']) {
     assert.ok(page.includes(`'${tab}'`), `no ${tab} tab`);
   }
 });

@@ -1,34 +1,33 @@
 import { useState } from 'react';
 import { workspace } from '../api/endpoints.js';
 import { buttonFor, useHandoffCatalogue } from '../hooks/useHandoffCatalogue.js';
-import { departmentLabel } from '../utils/pipeline.js';
 import { Field, Modal, Notice } from './ui.jsx';
 
 /**
- * What a department does with an enquiry it holds [server: services/handoff.service.js]:
+ * What a department does with its task [server: services/handoff.service.js]:
  *
- *   Update       how it is going — pending quantity, a call made — without moving it on
- *   Move on      what was done, the details the button asks for, and where it goes next:
- *                that department has the enquiry from here
- *   Send back    with a reason — back to whoever had it before
- *   Change date  with a reason — every task starts due at the end of the day it was sent
+ *   Update       how it is going — pending quantity, a lot sent, a call made
+ *   Done         what was done, with the details the task asks for; it goes back to whoever
+ *                asked, who takes the next step
+ *   Send back    with a reason — back to whoever asked
+ *   Change date  with a reason — every task starts due at the end of the day it was raised
  *
- * A side request (a PRT visit) is not the enquiry itself, so it is simply Done, and goes back to
- * whoever asked. Picking it up and passing it to another department are the ordinary task
- * actions beside these.
+ * The enquiry itself stays with its marketing person, whose holding task only moves its
+ * follow-up date. A department that still holds an enquiry from before department tasks gives
+ * it back to marketing with Done. Picking a task up and passing it to another department are the
+ * ordinary task actions beside these.
  */
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
-/** The departments the next step goes to, in words: "Sampling", or "the marketing person". */
-const goesTo = (button) => (button.department === 'owner' ? 'the marketing person' : departmentLabel(button.department));
+/** Marketing's holding task is the enquiry itself, not work anybody was asked to do. */
+const isTheEnquiry = (todo, button) => Boolean(todo?.holds && button?.department === 'owner');
 
 export function HandoffDialog({ todo, mode, onClose, onChanged }) {
   const catalogue = useHandoffCatalogue();
   const button = buttonFor(catalogue, todo?.kind);
   const [note, setNote] = useState('');
   const [fields, setFields] = useState({});
-  const [next, setNext] = useState('');
   const [dueDate, setDueDate] = useState(todayIso());
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState(null);
@@ -36,12 +35,11 @@ export function HandoffDialog({ todo, mode, onClose, onChanged }) {
   if (!todo || !mode) return null;
 
   const holds = Boolean(todo.holds);
-  /* Where it can go next: every button that hands the enquiry over, except back to this one. */
-  const steps = (catalogue?.buttons || []).filter((step) => step.moves && !step.hidden && step.key !== todo.kind);
   const name = button?.label || 'task';
+  const asked = todo.brief ? Object.entries(todo.brief) : [];
 
   const titles = {
-    done: holds ? `Move on — ${name}` : `Done — ${name}`,
+    done: holds ? `Done — back to marketing — ${name}` : `Done — ${name}`,
     update: `Update — ${name}`,
     back: `Send back — ${name}`,
     date: `Change the due date — ${name}`,
@@ -53,7 +51,7 @@ export function HandoffDialog({ todo, mode, onClose, onChanged }) {
     setProblem(null);
     try {
       let updated;
-      if (mode === 'done') updated = await workspace.todos.done({ id: todo._id, note, fields, ...(holds ? { next } : {}) });
+      if (mode === 'done') updated = await workspace.todos.done({ id: todo._id, note, fields });
       if (mode === 'update') updated = await workspace.todos.progress({ id: todo._id, note, fields });
       if (mode === 'back') updated = await workspace.todos.sendBack({ id: todo._id, reason: note });
       if (mode === 'date') updated = await workspace.todos.reschedule({ id: todo._id, dueDate, reason: note });
@@ -74,20 +72,23 @@ export function HandoffDialog({ todo, mode, onClose, onChanged }) {
     date: 'Why the date is moving',
   }[mode];
   const noteHint = {
-    done: holds ? 'The next department and the marketing person see this' : 'Goes back to whoever asked, with the details below',
-    update: 'The marketing person sees this; the enquiry stays with you',
-    back: 'It goes back to whoever had it before, with this',
+    done: holds ? 'The enquiry goes back to its marketing person, with this' : 'Goes back to whoever asked, with the details below',
+    update: 'The marketing person sees this; the task stays with you',
+    back: holds ? 'The enquiry goes back to its marketing person, with this' : 'It goes back to whoever asked, with this',
     date: 'Whoever asked sees this',
   }[mode];
-  const ready = note.trim().length >= 2 && !(mode === 'date' && !dueDate) && !(mode === 'done' && holds && !next);
+  const ready = note.trim().length >= 2 && !(mode === 'date' && !dueDate);
 
   return (
     <Modal open title={titles[mode]} description={todo.title} onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
-        {todo.notes && (
-          <p className="rounded-lg border border-line/[0.06] bg-ink-800/40 p-3 text-sm text-steel-300">
-            <span className="text-steel-500">Asked: </span>{todo.notes}
-          </p>
+        {(todo.notes || asked.length > 0) && (
+          <div className="space-y-1 rounded-lg border border-line/[0.06] bg-ink-800/40 p-3 text-sm text-steel-300">
+            {asked.map(([key, value]) => (
+              <p key={key}><span className="text-steel-500">{button?.asks?.find((field) => field.key === key)?.label || key}: </span>{value}</p>
+            ))}
+            {todo.notes && <p><span className="text-steel-500">Asked: </span>{todo.notes}</p>}
+          </div>
         )}
 
         {mode === 'date' && (
@@ -127,23 +128,12 @@ export function HandoffDialog({ todo, mode, onClose, onChanged }) {
           </div>
         )}
 
-        {mode === 'done' && holds && (
-          <Field label="Where it goes next" required hint="That department has the enquiry from here">
-            <select className="input" value={next} onChange={(event) => setNext(event.target.value)}>
-              <option value="">Choose the next step…</option>
-              {steps.map((step) => (
-                <option key={step.key} value={step.key}>{step.label} — {goesTo(step)}</option>
-              ))}
-            </select>
-          </Field>
-        )}
-
         {problem && <Notice tone="danger">{problem}</Notice>}
         <div className="flex justify-end gap-2">
           <button type="button" className="btn-ghost" onClick={onClose} disabled={busy}>Cancel</button>
           <button type="submit" className="btn-primary" disabled={busy || !ready}>
             {busy ? 'Saving…' : {
-              done: holds ? 'Move it on' : 'Mark done', update: 'Save update', back: 'Send back', date: 'Change date',
+              done: holds ? 'Back to marketing' : 'Mark done', update: 'Save update', back: 'Send back', date: 'Change date',
             }[mode]}
           </button>
         </div>
@@ -154,12 +144,22 @@ export function HandoffDialog({ todo, mode, onClose, onChanged }) {
 
 /** The buttons for a task row. `onChanged` gets the updated task. */
 export default function HandoffTaskActions({ todo, onChanged }) {
+  const catalogue = useHandoffCatalogue();
   const [mode, setMode] = useState(null);
   if (!todo?.kind || todo.completed) return null;
+  /* The enquiry itself: its follow-up date moves; it is closed with Task Closed on the enquiry. */
+  if (isTheEnquiry(todo, buttonFor(catalogue, todo.kind))) {
+    return (
+      <>
+        <button type="button" className="row-action" onClick={() => setMode('date')}>Change date</button>
+        <HandoffDialog todo={todo} mode={mode} onClose={() => setMode(null)} onChanged={onChanged} />
+      </>
+    );
+  }
   return (
     <>
-      {todo.holds && <button type="button" className="row-action" onClick={() => setMode('update')}>Update</button>}
-      <button type="button" className="row-action" onClick={() => setMode('done')}>{todo.holds ? 'Move on' : 'Done'}</button>
+      <button type="button" className="row-action" onClick={() => setMode('update')}>Update</button>
+      <button type="button" className="row-action" onClick={() => setMode('done')}>{todo.holds ? 'Back to marketing' : 'Done'}</button>
       <button type="button" className="row-action" onClick={() => setMode('back')}>Send back</button>
       <button type="button" className="row-action" onClick={() => setMode('date')}>Change date</button>
       <HandoffDialog todo={todo} mode={mode} onClose={() => setMode(null)} onChanged={onChanged} />

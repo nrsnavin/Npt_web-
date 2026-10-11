@@ -38,17 +38,18 @@ test('an order can be raised on a won enquiry, which the open-only picker would 
   assert.match(read('components/OrderForm.jsx'), /<EnquirySelect[^>]*\bwon\b/);
 });
 
-test('moving on asks where it goes next, and an update does not move it', () => {
+test('done goes back to whoever asked — no next step to pick — and an update is its own action', () => {
   const actions = read('components/HandoffTaskActions.jsx');
-  assert.match(actions, /Where it goes next/);
-  assert.match(actions, /mode === 'done' && holds && !next/, 'Move on cannot be sent without a next step');
+  assert.doesNotMatch(actions, /Where it goes next/);
+  assert.match(actions, /workspace\.todos\.done\(\{ id: todo\._id, note, fields \}\)/);
   assert.match(actions, /workspace\.todos\.progress\(/, 'an update goes to its own endpoint');
+  assert.match(actions, /isTheEnquiry\(todo, buttonFor\(catalogue, todo\.kind\)\)/, 'marketing’s own holding task only moves its date');
 });
 
-test('the stage buttons are drawn only for whoever may move the enquiry', () => {
+test('department tasks are raised only by whoever may — its marketing person, Admin', () => {
   const desk = read('components/DepartmentDesk.jsx');
   assert.match(desk, /history\?\.mayMove/);
-  assert.match(desk, /\{mayMove \? \(/);
+  assert.match(desk, /\{mayMove && \(/);
   assert.match(desk, /button\.hidden/, 'the hidden first task is never a button');
 });
 
