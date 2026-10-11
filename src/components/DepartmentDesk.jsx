@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { handoffs as handoffsApi } from '../api/endpoints.js';
 import TaskPdfLink from './TaskPdfLink.jsx';
+import TaskWorkflow from './TaskWorkflow.jsx';
 import DepartmentTaskDialog from './DepartmentTaskDialog.jsx';
 import { describeBrief } from '../utils/taskForm.js';
 import { useHandoffCatalogue } from '../hooks/useHandoffCatalogue.js';
@@ -234,6 +235,14 @@ export default function DepartmentDesk({ enquiry, onChanged }) {
                     <p key={line} className="mt-1 text-xs text-steel-200"><span className="text-steel-500">Asked: </span>{line}</p>
                   ))}
                   <TaskPdfLink file={task.attachment} className="mt-1" />
+                  {button?.form?.statuses && (mayAct(task) || task.completed) && (
+                    <div className="mt-2"><TaskWorkflow todo={task} onChanged={refresh} /></div>
+                  )}
+                  {button?.form?.statuses && !mayAct(task) && !task.completed && (
+                    <p className="mt-1 text-xs font-semibold text-accent">
+                      {button.form.statuses.find((entry) => entry.key === task.status)?.label || ''}
+                    </p>
+                  )}
                   {task.notes && <p className="mt-1 text-xs text-steel-300">“{task.notes}”</p>}
                   {task.reschedules?.map((change, index) => (
                     <p key={index} className="mt-1 text-xs text-steel-400">

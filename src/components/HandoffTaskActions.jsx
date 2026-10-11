@@ -155,10 +155,12 @@ export default function HandoffTaskActions({ todo, onChanged }) {
       </>
     );
   }
+  /* A task finished by uploading its PDF (the sales order) has no plain Done [TaskWorkflow]. */
+  const byUpload = (buttonFor(catalogue, todo.kind)?.form?.statuses || []).some((entry) => entry.pdf && entry.done);
   return (
     <>
       <button type="button" className="row-action" onClick={() => setMode('update')}>Update</button>
-      <button type="button" className="row-action" onClick={() => setMode('done')}>{todo.holds ? 'Back to marketing' : 'Done'}</button>
+      {!byUpload && <button type="button" className="row-action" onClick={() => setMode('done')}>{todo.holds ? 'Back to marketing' : 'Done'}</button>}
       <button type="button" className="row-action" onClick={() => setMode('back')}>Send back</button>
       <button type="button" className="row-action" onClick={() => setMode('date')}>Change date</button>
       <HandoffDialog todo={todo} mode={mode} onClose={() => setMode(null)} onChanged={onChanged} />
