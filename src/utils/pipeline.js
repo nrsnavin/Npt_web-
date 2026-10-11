@@ -713,6 +713,13 @@ export const MARKETING_STATUSES = [
   { value: 'po_awaiting', label: 'PO awaiting' },
   { value: 'po_received', label: 'PO received' },
   { value: 'sales_order_sent', label: 'Sales order sent' },
+  /* With the plant — follows the department asked [server: config/marketingStatuses.js FROM_STAGE]. */
+  { value: 'production', label: 'Production' },
+  { value: 'mould', label: 'Mould' },
+  { value: 'assembling', label: 'Assembling' },
+  { value: 'qc', label: 'QC' },
+  { value: 'dispatch', label: 'Dispatch' },
+  { value: 'lr_copy', label: 'LR Copy' },
   { value: 'task_closed', label: 'Task Closed' },
 ];
 
