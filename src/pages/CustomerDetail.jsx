@@ -112,6 +112,8 @@ export default function CustomerDetail() {
               items={[
                 { label: 'Owner', value: customer.assignedTo?.name },
                 { label: 'Rating', value: customer.rating && `${customer.rating} grade` },
+                { label: 'Address', value: [customer.address, customer.area, customer.pincode].filter(Boolean).join(', ') || undefined },
+                { label: 'Landmark', value: customer.landmark || undefined },
                 { label: 'Location', value: [customer.city, customer.state, customer.country].filter(Boolean).join(', ') },
                 { label: 'Source', value: optionLabel(SOURCES, customer.source) },
                 { label: 'Mobile', value: customer.mobile },

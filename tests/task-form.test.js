@@ -5,6 +5,7 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   briefToSend, departmentOptions, describeBrief, missingAnswer, noteNeeded, optionOf, startingAnswers,
 } from '../src/utils/taskForm.js';
@@ -72,4 +73,19 @@ test('what a task was asked, in lines — a line per row of a table', () => {
   ]);
   assert.deepEqual(describeBrief(SO, { contactPerson: 'Ramesh', paymentTerms: '100% advance' }), ['Contact person: Ramesh · Payment terms: 100% advance']);
   assert.deepEqual(describeBrief(SO, undefined), []);
+});
+
+test('a member question picks a person of its department — the PRT member to visit', () => {
+  const dialog = readFileSync(new URL('../src/components/DepartmentTaskDialog.jsx', import.meta.url), 'utf8');
+  assert.match(dialog, /if \(field\.type === 'member'\) \{/);
+  assert.match(dialog, /prefill\?\.members\?\.\[field\.department\]/);
+  assert.match(dialog, /<option key=\{person\._id\} value=\{person\._id\}>\{person\.name\}<\/option>/);
+});
+
+test('with no enquiry to fill from, register questions are dropdowns of the register — sample rows too', () => {
+  const dialog = readFileSync(new URL('../src/components/DepartmentTaskDialog.jsx', import.meta.url), 'utf8');
+  assert.match(dialog, /const register = field\.register && prefill\?\.registers\?\.\[field\.register\];/);
+  assert.match(dialog, /field\.register === 'moulds' \? 'mould register'/);
+  assert.match(dialog, /<Answer field=\{column\} value=\{row\[column\.key\]\} prefill=\{prefill\}/);
+  assert.match(dialog, /<Rows field=\{field\} rows=\{answers\[field\.key\] \|\| \[\]\} prefill=\{prefill\}/);
 });

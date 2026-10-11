@@ -33,6 +33,17 @@ export const workspace = {
    * which scope answered and whether this person has a customer view at all — the screen cannot
    * draw the tabs without it.
    */
+  /** A department task for a team with no enquiry behind it — Admin and marketing. */
+  teamTasks: {
+    prefill: (customer) => api.get('/workspace/team-tasks/prefill', { params: customer ? { customer } : {} }).then(unwrap),
+    /* Said by the dialog itself — which team has it. */
+    create: (payload) => api.post('/workspace/team-tasks', payload, { feedback: false }).then(unwrap),
+    attach: ({ id, file }) => {
+      const form = new FormData();
+      form.append('file', file);
+      return api.post(`/workspace/team-tasks/${id}/attachment`, form).then(unwrap);
+    },
+  },
   /** What departments did on my enquiries — read, then dismissed; read ones clear in a day. */
   notices: {
     list: () => api.get('/workspace/notices').then(unwrap),

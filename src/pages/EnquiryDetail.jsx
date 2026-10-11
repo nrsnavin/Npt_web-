@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import SampleLog from '../components/SampleLog.jsx';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import {
@@ -347,13 +348,23 @@ function PromoteForm({ enquiry, onClose, onSaved }) {
  */
 function EnquirySamples({ enquiryId }) {
   const [rows, setRows] = useState(null);
+  /* The sample team's log, on the enquiry: the newest sample's open, the others a click away. */
+  const [open, setOpen] = useState(() => new Set());
+  const toggle = (id) => setOpen((current) => {
+    const next = new Set(current);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
 
   useEffect(() => {
     let cancelled = false;
     samplesApi
       .list({ enquiry: enquiryId, limit: 20 })
       .then((response) => {
-        if (!cancelled) setRows(response.data || []);
+        if (!cancelled) {
+          setRows(response.data || []);
+          if (response.data?.[0]) setOpen(new Set([response.data[0]._id]));
+        }
       })
       .catch(() => {
         if (!cancelled) setRows([]);
@@ -369,10 +380,8 @@ function EnquirySamples({ enquiryId }) {
     <Section title={`Samples (${rows.length})`}>
       <ul className="space-y-2">
         {rows.map((sample) => (
-          <li
-            key={sample._id}
-            className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line/[0.06] px-3.5 py-3"
-          >
+          <li key={sample._id} className="rounded-lg border border-line/[0.06] px-3.5 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0">
               <Link to={`/samples/${sample._id}`} className="text-sm font-semibold text-steel-100 hover:text-accent">
                 {sample.number}
@@ -386,7 +395,35 @@ function EnquirySamples({ enquiryId }) {
             <div className="flex items-center gap-2">
               {sample.isOverdue && <Badge tone="danger">Overdue</Badge>}
               <Badge status={sample.status}>{sampleStageLabel(sample.status)}</Badge>
+              <button type="button" className="btn-ghost px-2 py-1 text-xs" aria-expanded={open.has(sample._id)} onClick={() => toggle(sample._id)}>
+                {open.has(sample._id) ? 'Hide sample team log' : 'Sample team log'}
+              </button>
             </div>
+          </div>
+          {open.has(sample._id) && (
+            <div className="mt-3 space-y-3" aria-label={`Sample team log for ${sample.number}`}>
+              {/* Where the bench took it, with what it said at each step. */}
+              {sample.statusHistory?.length > 0 && (
+                <ol className="space-y-1 border-l border-line/[0.1] pl-3 text-xs text-steel-300">
+                  {sample.statusHistory.map((entry, index) => (
+                    <li key={`${entry.to}-${index}`}>
+                      <span className="font-semibold text-steel-100">{sampleStageLabel(entry.to)}</span>
+                      {entry.by?.name && ` · ${entry.by.name}`}
+                      {entry.at && ` · ${formatDate(entry.at)}`}
+                      {entry.note && <span className="text-steel-400"> — “{entry.note}”</span>}
+                    </li>
+                  ))}
+                </ol>
+              )}
+              {sample.status === 'dispatched' && (sample.courier || sample.handedTo) && (
+                <p className="text-xs text-steel-300">
+                  Sent {sample.deliveryMethod === 'direct' ? `by hand to ${sample.handedTo}` : `by ${sample.courier}${sample.awbNumber ? ` · AWB ${sample.awbNumber}` : ''}`}
+                  {sample.dispatchedAt && ` · ${formatDate(sample.dispatchedAt)}`}
+                </p>
+              )}
+              <SampleLog sampleId={sample._id} title={`Sample team notes & photos — ${sample.number}`} />
+            </div>
+          )}
           </li>
         ))}
       </ul>

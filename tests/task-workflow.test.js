@@ -104,7 +104,7 @@ test('a task’s own asks (Dispatch’s Ask Production) open that department’s
   const dialog = read('components/DepartmentTaskDialog.jsx');
   assert.match(dialog, /fromTask\s*\? await workspace\.todos\.ask\(\{ id: fromTask\._id, \.\.\.payload \}\)/);
   assert.match(dialog, /disabled=\{Boolean\(fromTask\)\}/);
-  assert.match(dialog, /\(noteNeeded\(button, answers\) \|\| Boolean\(fromTask\)\) && note\.trim\(\)\.length < 3/);
+  assert.match(dialog, /\(noteNeeded\(button, answers\) \|\| Boolean\(fromTask\) \|\| team\) && note\.trim\(\)\.length < 3/);
   assert.match(read('api/endpoints.js'), /ask: \(\{ id, \.\.\.payload \}\) => api\.post\(`\/workspace\/todos\/\$\{id\}\/ask`/);
 });
 
@@ -116,4 +116,42 @@ test('the LR copy uploads as a PDF or photo and says per channel whether it reac
   assert.match(workflow, /'Upload and send to buyer'/);
   assert.match(workflow, /sent to the buyer`, went\.map/);
   assert.match(workflow, /not sent`, missed\.map/);
+});
+
+test('Admin and marketing raise a team task with no enquiry; the desk shows it without enquiry links', () => {
+  const dashboard = read('pages/DepartmentDashboard.jsx');
+  assert.match(dashboard, /\(isAdmin \|\| departments\?\.includes\('marketing'\)\) && firstTask &&/);
+  assert.match(dashboard, /<DepartmentTaskDialog enquiry=\{null\}/);
+  assert.match(dashboard, /const actions = enquiry \? deskActionsFor\(department, row\) : \[\];/);
+  assert.match(dashboard, /<p className="text-base font-bold text-steel-50">Team task<\/p>/);
+  const dialog = read('components/DepartmentTaskDialog.jsx');
+  assert.match(dialog, /const team = !enquiry;/);
+  assert.match(dialog, /\? await workspace\.teamTasks\.create\(\{ \.\.\.payload, \.\.\.\(customer \? \{ customer \} : \{\}\) \}\)/);
+  assert.match(dialog, /if \(team\) await workspace\.teamTasks\.attach\(\{ id: sent\.task\._id, file \}\);/);
+  assert.match(read('api/endpoints.js'), /create: \(payload\) => api\.post\('\/workspace\/team-tasks', payload, \{ feedback: false \}\)/);
+  assert.match(read('components/AttentionPanel.jsx'), /<span className="font-normal text-steel-300">Team task<\/span>/);
+});
+
+test('customers carry area and landmark; Dispatch plans vehicles from baskets of the same place', () => {
+  const quick = read('components/CustomerQuickCreate.jsx');
+  for (const field of ['address', 'area', 'landmark', 'pincode']) assert.match(quick, new RegExp(`register\\('${field}'\\)`));
+  assert.match(quick, /landmark: values\.landmark\?\.trim\(\) \|\| undefined/);
+  const full = read('pages/Customers.jsx');
+  assert.match(full, /register\('area'\)/);
+  assert.match(full, /register\('landmark'\)/);
+  const dashboard = read('pages/DepartmentDashboard.jsx');
+  assert.match(dashboard, /\.\.\.\(data\.baskets \? \[\{ key: 'baskets', label: 'Baskets'/);
+  assert.match(dashboard, /<DispatchBaskets baskets=\{data\.baskets\} \/>/);
+  const baskets = read('components/DispatchBaskets.jsx');
+  assert.match(baskets, /Nearby, same PIN: \{basket\.nearby\.join\(' · '\)\}/);
+  assert.match(baskets, /' — one vehicle'/);
+});
+
+test('the enquiry shows each sample’s team log: its status trail, despatch and the notes and photos', () => {
+  const page = read('pages/EnquiryDetail.jsx');
+  assert.match(page, /if \(response\.data\?\.\[0\]\) setOpen\(new Set\(\[response\.data\[0\]\._id\]\)\);/);
+  assert.match(page, /\{open\.has\(sample\._id\) \? 'Hide sample team log' : 'Sample team log'\}/);
+  assert.match(page, /sample\.statusHistory\.map\(\(entry, index\) =>/);
+  assert.match(page, /<SampleLog sampleId=\{sample\._id\} title=\{`Sample team notes & photos — \$\{sample\.number\}`\} \/>/);
+  assert.match(read('components/SampleLog.jsx'), /export default function SampleLog\(\{ sampleId, title = 'Log' \}\)/);
 });
