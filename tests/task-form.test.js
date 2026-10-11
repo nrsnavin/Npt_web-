@@ -89,3 +89,9 @@ test('with no enquiry to fill from, register questions are dropdowns of the regi
   assert.match(dialog, /<Answer field=\{column\} value=\{row\[column\.key\]\} prefill=\{prefill\}/);
   assert.match(dialog, /<Rows field=\{field\} rows=\{answers\[field\.key\] \|\| \[\]\} prefill=\{prefill\}/);
 });
+
+test('picking a customer on a team task fills only the blanks — what was typed stays', () => {
+  const dialog = readFileSync(new URL('../src/components/DepartmentTaskDialog.jsx', import.meta.url), 'utf8');
+  assert.match(dialog, /if \(startedFor\.current !== button\.key\) \{/);
+  assert.match(dialog, /\[key, blank\(current\[key\]\) \? value : current\[key\]\]/);
+});

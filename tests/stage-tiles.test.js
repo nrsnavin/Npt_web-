@@ -21,7 +21,8 @@ test('a tile opens that department’s task form; the record-only buttons keep t
 test('the task form: department list, filled from the enquiry, the common fields, and no sending unanswered', () => {
   const dialog = read('components/DepartmentTaskDialog.jsx');
   assert.match(dialog, /handoffsApi\.prefill\(enquiry\._id\)/);
-  assert.match(dialog, /setAnswers\(startingAnswers\(button, prefill\)\)/);
+  assert.match(dialog, /const fresh = startingAnswers\(button, prefill\);/);
+  assert.match(dialog, /setAnswers\(fresh\);/);
   assert.match(dialog, /<Field label="Workflow \/ Department">/);
   assert.match(dialog, /<Field label="Attach PDF" hint="Optional, 1 MB at most"/);
   assert.match(dialog, /const PDF_LIMIT = 1024 \* 1024;/);

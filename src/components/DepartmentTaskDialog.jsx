@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { handoffs as handoffsApi, workspace } from '../api/endpoints.js';
 import { useToast } from '../context/ToastContext.jsx';
 import { Field, Modal, Notice } from './ui.jsx';
@@ -145,11 +145,23 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
     return () => { live = false; };
   }, [team, enquiry?._id, customer]);
 
-  /* A new department, or the enquiry's answers arriving: the form starts again from the enquiry. */
+  /*
+   * A new department: the form starts again from the enquiry. The same department with new
+   * answers to fill from (a customer picked on a team task): only the blanks are filled — what
+   * the person has already typed stays.
+   */
+  const startedFor = useRef(null);
   useEffect(() => {
     if (!button || !prefill) return;
-    setAnswers(startingAnswers(button, prefill));
-    setRequiredDate(button.key === 'invoice_dispatch' ? todayInIndia() : '');
+    const fresh = startingAnswers(button, prefill);
+    if (startedFor.current !== button.key) {
+      startedFor.current = button.key;
+      setAnswers(fresh);
+      setRequiredDate(button.key === 'invoice_dispatch' ? todayInIndia() : '');
+      return;
+    }
+    const blank = (value) => value == null || value === '' || (Array.isArray(value) && !value.some((row) => Object.values(row || {}).some((cell) => String(cell ?? '').trim())));
+    setAnswers((current) => Object.fromEntries(Object.entries(fresh).map(([key, value]) => [key, blank(current[key]) ? value : current[key]])));
   }, [button, prefill]);
 
   if (!button) return null;
