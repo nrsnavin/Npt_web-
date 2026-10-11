@@ -24,6 +24,16 @@ const PRIORITIES = [['normal', 'Normal'], ['high', 'High'], ['low', 'Low']];
 
 function Answer({ field, value, prefill, onChange }) {
   const options = optionsOf(field, prefill);
+  /* A person of a department — the PRT member who visits; the task becomes theirs by name. */
+  if (field.type === 'member') {
+    const people = prefill?.members?.[field.department] || [];
+    return (
+      <select className="input" value={value || ''} onChange={(event) => onChange(event.target.value)}>
+        <option value="">{people.length ? 'Choose who goes…' : 'Nobody in this team yet — ask Admin to add them'}</option>
+        {people.map((person) => <option key={person._id} value={person._id}>{person.name}</option>)}
+      </select>
+    );
+  }
   if (field.type === 'choice') {
     return (
       <select className="input" value={value || ''} onChange={(event) => onChange(event.target.value)}>
