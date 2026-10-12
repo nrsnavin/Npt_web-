@@ -1,12 +1,12 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { qcRecordsApi } from '../api/endpoints.js';
+import { orders as ordersApi, qcRecordsApi } from '../api/endpoints.js';
 import { Badge, Field, FormError, PageHeader, Section } from '../components/ui.jsx';
 import { EnquirySelect, MaterialSelect, MouldSelect } from '../components/pickers.jsx';
 import MachineSelect from '../components/MachineSelect.jsx';
 import useQualityOptions from '../hooks/useQualityOptions.js';
 import {
-  MOULDING_TYPES, PRINT_TYPES, QC_STAGES, QC_VERDICTS, RESULT, SHIFTS, workOut,
+  MOULDING_TYPES, PRINT_TYPES, QC_STAGES, QC_VERDICTS, RESULT, SHIFTS, fillFrom, workOut,
 } from '../utils/records.js';
 
 /**
@@ -18,8 +18,9 @@ import {
  * lot. Results that follow from the figures are worked out as they are typed and cannot be set
  * against them; the server works them out again and is the one saved.
  *
- * Opened from a Quality task, an enquiry or a mould, the link carries `task`, `enquiry`, `mould`,
- * `run` and `stage` and the form starts with them filled.
+ * Opened from a Quality task, an SO, an enquiry or a mould, the link carries `task`, `order`,
+ * `orderLine`, `enquiry`, `mould`, `run` and `stage` and the form starts with them filled. The SO is
+ * offered from the enquiry; left empty, the server ties the sheet to the enquiry's SO.
  */
 
 const MEASURE_PRESETS = ['Width', 'Height', 'Hook height', 'Shoulder thickness', 'Bar gap', 'Neck width'];
@@ -28,6 +29,8 @@ const blank = (params) => ({
   stage: params.get('stage') || 'final',
   enquiry: params.get('enquiry') || '',
   task: params.get('task') || '',
+  order: params.get('order') || '',
+  orderLine: params.get('orderLine') || '',
   run: params.get('run') || '',
   mould: params.get('mould') || '',
   machine: params.get('machine') || '',
@@ -122,6 +125,48 @@ export default function QcRecordForm() {
   const setRow = (list, index, key, value) => setSheet((current) => ({ ...current, [list]: current[list].map((row, at) => (at === index ? { ...row, [key]: value } : row)) }));
   const dropRow = (list, index) => setSheet((current) => ({ ...current, [list]: current[list].filter((_, at) => at !== index) }));
 
+  /* The enquiry's sales orders, to pick which SO — and which line of it — the lot is for. */
+  const [orders, setOrders] = useState([]);
+  useEffect(() => {
+    let live = true;
+    if (!sheet.enquiry) { setOrders([]); return undefined; }
+    ordersApi.list({ enquiry: sheet.enquiry, limit: 20 })
+      .then((answer) => live && setOrders(answer?.data || []))
+      .catch(() => live && setOrders([]));
+    return () => { live = false; };
+  }, [sheet.enquiry]);
+  /*
+   * The prefill [server: records.service `qcPrefill`]: from the task, enquiry, SO and line (or the
+   * enquiry's item before there is an SO), what is known about the lot — buyer, model, size, mould,
+   * cavities, moulding type, resin and colour, hook, clips, print, part weight, width and lot size.
+   * It fills empty boxes, and replaces only what it filled before: a figure typed stays typed.
+   */
+  const [prefill, setPrefill] = useState(null);
+  const [item, setItem] = useState(params.get('item') || '');
+  const filled = useRef({});
+  useEffect(() => {
+    if (!sheet.task && !sheet.enquiry && !sheet.order) { setPrefill(null); return undefined; }
+    let live = true;
+    const query = Object.fromEntries(Object.entries({ task: sheet.task, enquiry: sheet.enquiry, order: sheet.order, orderLine: sheet.orderLine, item }).filter(([, value]) => value));
+    qcRecordsApi.prefill(query).then((answer) => {
+      if (!live || !answer) return;
+      setPrefill(answer);
+      const before = filled.current;
+      setSheet((current) => {
+        const out = fillFrom(current, answer, before);
+        filled.current = out.filled;
+        return out.sheet;
+      });
+    }).catch(() => live && setPrefill(null));
+    return () => { live = false; };
+  }, [sheet.task, sheet.enquiry, sheet.order, sheet.orderLine, item]);
+  const pickEnquiry = (value) => {
+    setItem('');
+    setSheet((current) => ({ ...current, enquiry: value, ...(value === current.enquiry ? {} : { order: '', orderLine: '' }) }));
+  };
+  const pickLine = (lineId) => setSheet((current) => ({ ...current, orderLine: lineId }));
+  const pickedLine = prefill?.lines?.find((row) => row._id === prefill.line);
+
   const samples = useMemo(() => parseSamples(sheet.breaking.samples), [sheet.breaking.samples]);
   const worked = useMemo(() => workOut({ ...sheet, breaking: { ...sheet.breaking, samplesKg: samples } }), [sheet, samples]);
   const failed = [
@@ -196,10 +241,41 @@ export default function QcRecordForm() {
             ))}
           </div>
         </fieldset>
+        {prefill && (prefill.customer || prefill.order) && (
+          <p className="mt-4 rounded-lg bg-flame-500/10 px-3 py-2 text-sm text-steel-200" role="status">
+            {prefill.customer && <b className="text-steel-50">{prefill.customer}</b>}
+            {prefill.order && <> · {prefill.order.number}{prefill.order.buyerPo ? ` · PO ${prefill.order.buyerPo}` : ''}</>}
+            {pickedLine
+              ? <> — filled from {pickedLine.label}. Check and change anything that differs.</>
+              : prefill.lines.length > 1 ? <> — pick the {prefill.lineKind === 'order' ? 'line' : 'model'} below to fill the rest.</> : null}
+          </p>
+        )}
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <Field label="Enquiry" hint="The buyer is taken from it">
-            <EnquirySelect value={sheet.enquiry} onChange={set('enquiry')} won emptyLabel="No enquiry (stock or incoming)" />
+          <Field label="Enquiry" hint={prefill?.enquiry ? `${prefill.enquiry.number} · the buyer is taken from it` : 'The buyer is taken from it'}>
+            <EnquirySelect value={sheet.enquiry} onChange={pickEnquiry} won emptyLabel="No enquiry (stock or incoming)" />
           </Field>
+          <Field label="Sales order" hint={orders.length ? 'Left empty, the enquiry’s latest SO is used' : sheet.enquiry ? 'No SO on this enquiry yet' : 'Pick the enquiry first'}>
+            <select className="input" value={sheet.order} onChange={(event) => setSheet((current) => ({ ...current, order: event.target.value, orderLine: '' }))} disabled={!orders.length}>
+              <option value="">{orders.length ? 'The enquiry’s SO' : '—'}</option>
+              {orders.map((row) => <option key={row._id} value={row._id}>{row.number}{row.customerPo?.number ? ` · PO ${row.customerPo.number}` : ''}</option>)}
+            </select>
+          </Field>
+          {prefill?.lineKind === 'order' && prefill.lines.length > 1 && (
+            <Field label="Line of the order" hint="Picking the line fills the model, resin, hook, clips and print">
+              <select className="input" value={sheet.orderLine} onChange={(event) => pickLine(event.target.value)}>
+                <option value="">Whole order</option>
+                {prefill.lines.map((line) => <option key={line._id} value={line._id}>{line.label}</option>)}
+              </select>
+            </Field>
+          )}
+          {prefill?.lineKind === 'enquiry' && prefill.lines.length > 1 && (
+            <Field label="Model of the enquiry" hint="Picking it fills the model, resin, hook, clips and print">
+              <select className="input" value={item} onChange={(event) => setItem(event.target.value)}>
+                <option value="">Pick the model…</option>
+                {prefill.lines.map((line) => <option key={line._id} value={line._id}>{line.label}</option>)}
+              </select>
+            </Field>
+          )}
           <Field label="Model / mould">
             <MouldSelect value={sheet.mould} onChange={set('mould')} allowCreate={false} includeBlank="No mould" />
           </Field>

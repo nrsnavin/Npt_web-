@@ -16,6 +16,7 @@ import EnquiryActivities from '../components/EnquiryActivities.jsx';
 import EnquiryContactPanel from '../components/EnquiryContactPanel.jsx';
 import DelegateEnquiry from '../components/DelegateEnquiry.jsx';
 import DepartmentDesk from '../components/DepartmentDesk.jsx';
+import EnquiryRecords from '../components/EnquiryRecords.jsx';
 import HistoryPanel from '../components/HistoryPanel.jsx';
 import QuotationPdf from '../components/QuotationPdf.jsx';
 import ItemList from '../components/ItemList.jsx';
@@ -678,6 +679,9 @@ export default function EnquiryDetail() {
           </Section>
 
           {mayReadSamples && <EnquirySamples enquiryId={enquiry._id} />}
+
+          {/* What it led to: the SOs, the QC test sheets and the dispatch, trips and LR — each with its SO. */}
+          <EnquiryRecords enquiry={enquiry} />
 
           {/* What this enquiry has been priced and quoted at — the commercial half of its story. */}
           {(mayReadPricing || mayReadQuotes) && (

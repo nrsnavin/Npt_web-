@@ -9,7 +9,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { workOut } from '../src/utils/records.js';
+import { fillFrom, workOut } from '../src/utils/records.js';
 
 const read = (path) => readFileSync(new URL(`../src/${path}`, import.meta.url), 'utf8');
 
@@ -100,4 +100,73 @@ test('the dispatch register lists and downloads, and every screen is reachable',
   assert.match(layout, /\{ to: '\/machines', label: 'Machines & maintenance', module: \['production', 'moulds'\] \}/);
   assert.match(layout, /\{ to: '\/dispatch\/register', label: 'Dispatch register' \}/);
   assert.match(layout, /\[\]\.concat\(grant\)\.some\(canRead\)/);
+});
+
+test('the SO page carries its QC records and its dispatch details; the QC form picks the SO and its line', () => {
+  const page = read('pages/OrderDetail.jsx');
+  assert.match(page, /\{released && <OrderDispatchDetails order=\{order\} \/>\}/);
+  assert.match(page, /\{released && canRead\('quality'\) && <OrderQcRecords order=\{order\} \/>\}/);
+  const qc = read('components/OrderQcRecords.jsx');
+  assert.match(qc, /qcRecordsApi\.onOrder\(order\._id\)/);
+  assert.match(qc, /\/qc-records\/new\?order=\$\{order\._id\}/);
+  assert.match(qc, /&orderLine=\$\{line\}/);
+  const dispatch = read('components/OrderDispatchDetails.jsx');
+  assert.match(dispatch, /orderDispatchDetails\(order\._id\)/);
+  assert.match(dispatch, /<TaskPdfLink file=\{row\.lrCopy\} \/>/);
+  const endpoints = read('api/endpoints.js');
+  assert.match(endpoints, /api\.get\(`\/orders\/\$\{orderId\}\/qc-records`\)/);
+  assert.match(endpoints, /api\.get\(`\/orders\/\$\{orderId\}\/dispatch-details`\)/);
+  const form = read('pages/QcRecordForm.jsx');
+  assert.match(form, /ordersApi\.list\(\{ enquiry: sheet\.enquiry, limit: 20 \}\)/);
+  assert.match(form, /params\.get\('orderLine'\)/);
+  assert.match(form, /qcRecordsApi\.prefill\(query\)/);
+  assert.match(form, /const out = fillFrom\(current, answer, before\);/);
+  assert.match(read('pages/QcRecordDetail.jsx'), /label: 'Sales order'/);
+  assert.match(read('pages/DispatchRegister.jsx'), /to=\{`\/orders\/\$\{row\.orderId\}`\}/);
+});
+
+test('the prefill fills empty boxes, swaps its own figures when the line changes, and keeps what was typed', () => {
+  const blank = {
+    enquiry: '', order: '', orderLine: '', modelNumber: '', size: '', mould: '', mouldingType: '', cavities: '', lotSize: '',
+    resin: { material: '', name: '', colour: '', supplier: '' }, hook: { type: '', finish: '' }, clip: { type: '' },
+    print: { type: '', colour: '', artwork: '' }, weight: { target: '', tolerance: '', actual: '' },
+    measurements: [{ name: 'Width', unit: 'mm', target: '', tolerance: '', actual: '' }],
+  };
+  const one = fillFrom(blank, {
+    enquiry: { _id: 'e1' }, order: { _id: 'o1' }, lineKind: 'order', line: 'l1',
+    fields: { modelNumber: 'NH-400', size: '400 mm', resin: { name: 'PP', colour: 'Black' }, hook: { type: 'swivel' }, weight: { target: 31 }, lotSize: 6000, measurements: [{ name: 'Width', unit: 'mm', target: 400 }] },
+  });
+  const first = one.sheet;
+  assert.deepEqual([first.enquiry, first.order, first.orderLine], ['e1', 'o1', 'l1']);
+  assert.equal(first.modelNumber, 'NH-400');
+  assert.equal(first.resin.colour, 'Black');
+  assert.equal(first.weight.target, 31);
+  assert.equal(first.measurements[0].target, 400);
+
+  /* The inspector changes the colour; another line is picked. */
+  const typed = { ...first, resin: { ...first.resin, colour: 'Jet black' }, orderLine: 'l2' };
+  const two = fillFrom(typed, {
+    enquiry: { _id: 'e1' }, order: { _id: 'o1' }, lineKind: 'order', line: 'l2',
+    fields: { modelNumber: 'NH-500', resin: { name: 'HIPS', colour: 'White' }, lotSize: 2000 },
+  }, one.filled);
+  /* Pure: run twice on the same input, the same answer (React runs updaters twice in development). */
+  assert.deepEqual(fillFrom(typed, { lineKind: 'order', fields: { modelNumber: 'NH-500' } }, one.filled).sheet.modelNumber, 'NH-500');
+  const second = two.sheet;
+  assert.equal(second.modelNumber, 'NH-500', 'its own figure swapped');
+  assert.equal(second.resin.name, 'HIPS');
+  assert.equal(second.resin.colour, 'Jet black', 'what was typed stays');
+  assert.equal(second.size, '', 'the old line’s size is not left behind');
+  assert.equal(second.hook.type, '');
+  assert.equal(second.lotSize, 2000);
+});
+
+test('the enquiry page shows its SOs, QC records and dispatch details', () => {
+  const panel = read('components/EnquiryRecords.jsx');
+  assert.match(panel, /enquiryRecords\(enquiry\._id\)/);
+  assert.match(panel, /<DispatchBody data=\{data\.dispatch\}/);
+  assert.match(panel, /\/qc-records\/new\?enquiry=\$\{enquiry\._id\}/);
+  assert.match(read('pages/EnquiryDetail.jsx'), /<EnquiryRecords enquiry=\{enquiry\} \/>/);
+  assert.match(read('components/OrderDispatchDetails.jsx'), /export function DispatchBody\(\{ data, showOrder = false \}\)/);
+  assert.match(read('api/endpoints.js'), /api\.get\(`\/enquiries\/\$\{enquiryId\}\/records`\)/);
+  assert.match(read('api/endpoints.js'), /api\.get\('\/qc-records\/prefill', \{ params, feedback: false \}\)/);
 });

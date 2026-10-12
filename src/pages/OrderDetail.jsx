@@ -15,6 +15,8 @@ import OrderPriority from '../components/OrderPriority.jsx';
 import OrderQuality from '../components/OrderQuality.jsx';
 import OrderPayment from '../components/OrderPayment.jsx';
 import DispatchTracker from '../components/DispatchTracker.jsx';
+import OrderDispatchDetails from '../components/OrderDispatchDetails.jsx';
+import OrderQcRecords from '../components/OrderQcRecords.jsx';
 import { ProductionLineDialog, ProductionStatusPicker } from '../components/ProductionLine.jsx';
 import { formatCurrency, formatDate, formatNumber, isoDay } from '../utils/format.js';
 import {
@@ -479,7 +481,7 @@ function PurchaseOrder({ order, onSaved, mayWrite }) {
 
 export default function OrderDetail() {
   const { id } = useParams();
-  const { canWrite, user } = useAuth();
+  const { canRead, canWrite, user } = useAuth();
 
   const fetch = useCallback((orderId) => ordersApi.get(orderId), []);
   const { data, setData, loading, error, reload } = useRecord(fetch, id);
@@ -745,6 +747,9 @@ export default function OrderDetail() {
           */}
           {released && <DispatchTracker order={order} />}
 
+          {/* The trip and LR side of dispatch, tied to this SO: requests, trips, delivery, invoice and LR. */}
+          {released && <OrderDispatchDetails order={order} />}
+
           <OrderActions order={order} onDone={absorb} mayWrite={mayWrite} />
 
           {/*
@@ -755,6 +760,9 @@ export default function OrderDetail() {
           {/* Only once the plant has it: an order still being verified has nothing made to
               inspect, and the server refuses an inspection against one. */}
           {released && <OrderQuality order={order} />}
+
+          {/* The QC test sheets on this SO, with the latest verdict per line. */}
+          {released && canRead('quality') && <OrderQcRecords order={order} />}
 
           {/*
             What has stopped it, and the button that says so. Above the questions because they

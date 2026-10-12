@@ -119,6 +119,7 @@ export default function QcRecordDetail() {
               columns={1}
               items={[
                 { label: 'Buyer', value: record.customer?.name },
+                { label: 'Sales order', value: record.order ? <Link to={`/orders/${record.order._id}`} className="font-semibold text-steel-100 hover:text-accent">{record.order.number}{record.order.customerPo?.number ? ` · PO ${record.order.customerPo.number}` : ''}</Link> : null },
                 { label: 'Enquiry', value: record.enquiry ? <Link to={`/enquiries/${record.enquiry._id}`} className="font-semibold text-steel-100 hover:text-accent">{record.enquiry.number}</Link> : null },
                 { label: 'Mould', value: record.mould ? <Link to={`/moulds/${record.mould._id}`} className="font-semibold text-steel-100 hover:text-accent">{record.mould.mouldCode} — {record.mould.name}</Link> : null },
                 { label: 'Model · size', value: [record.modelNumber, record.size].filter(Boolean).join(' · ') },

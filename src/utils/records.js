@@ -98,3 +98,44 @@ export function workOut(sheet) {
     measurements: (sheet.measurements || []).map((row) => (known(row.actual) && known(row.target) ? (within(Number(row.actual), Number(row.target), Number(row.tolerance) || 0) ? 'pass' : 'fail') : undefined)),
   };
 }
+
+/* ----------------------------------------------------------- QC prefill --- */
+
+const PREFILL_PATHS = [
+  'modelNumber', 'size', 'mould', 'mouldingType', 'cavities', 'lotSize',
+  'resin.material', 'resin.name', 'resin.colour', 'resin.supplier',
+  'hook.type', 'hook.finish', 'clip.type', 'print.type', 'print.colour', 'print.artwork', 'weight.target',
+];
+const at = (object, path) => path.split('.').reduce((value, key) => value?.[key], object);
+const blankMeasures = (rows) => rows.every((row) => row.target === '' && row.tolerance === '' && row.actual === '');
+
+/**
+ * The prefill laid over the sheet: the enquiry, SO and line it found when they were empty, and each
+ * field where the box is empty or still holds what the last prefill put there. `before` is what
+ * the last one put, so a changed line swaps its own figures and leaves the inspector's alone. Pure —
+ * it returns the sheet and what it put, for the caller to remember.
+ */
+export function fillFrom(current, answer, before = {}) {
+  const next = structuredClone(current);
+  if (!next.enquiry && answer.enquiry) next.enquiry = answer.enquiry._id;
+  if (!next.order && answer.order) next.order = answer.order._id;
+  if (answer.lineKind === 'order' && !next.orderLine && answer.line) next.orderLine = answer.line;
+  const now = {};
+  for (const path of PREFILL_PATHS) {
+    const value = at(answer.fields, path);
+    const mine = at(next, path);
+    if (value !== undefined) now[path] = value;
+    if (mine === '' || mine === undefined || (path in before && mine === before[path])) {
+      const keys = path.split('.');
+      let target = next;
+      keys.slice(0, -1).forEach((key) => { target = target[key]; });
+      target[keys.at(-1)] = value ?? '';
+    }
+  }
+  const measures = answer.fields.measurements;
+  if (measures && (blankMeasures(next.measurements) || JSON.stringify(next.measurements) === before.measurements)) {
+    next.measurements = measures.map((row) => ({ name: row.name, unit: row.unit || 'mm', target: row.target ?? '', tolerance: '', actual: '' }));
+    now.measurements = JSON.stringify(next.measurements);
+  }
+  return { sheet: next, filled: now };
+}
