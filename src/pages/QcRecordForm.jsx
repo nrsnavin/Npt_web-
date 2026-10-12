@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { qcRecordsApi } from '../api/endpoints.js';
+import { orders as ordersApi, qcRecordsApi } from '../api/endpoints.js';
 import { Badge, Field, FormError, PageHeader, Section } from '../components/ui.jsx';
 import { EnquirySelect, MaterialSelect, MouldSelect } from '../components/pickers.jsx';
 import MachineSelect from '../components/MachineSelect.jsx';
@@ -18,8 +18,9 @@ import {
  * lot. Results that follow from the figures are worked out as they are typed and cannot be set
  * against them; the server works them out again and is the one saved.
  *
- * Opened from a Quality task, an enquiry or a mould, the link carries `task`, `enquiry`, `mould`,
- * `run` and `stage` and the form starts with them filled.
+ * Opened from a Quality task, an SO, an enquiry or a mould, the link carries `task`, `order`,
+ * `orderLine`, `enquiry`, `mould`, `run` and `stage` and the form starts with them filled. The SO is
+ * offered from the enquiry; left empty, the server ties the sheet to the enquiry's SO.
  */
 
 const MEASURE_PRESETS = ['Width', 'Height', 'Hook height', 'Shoulder thickness', 'Bar gap', 'Neck width'];
@@ -28,6 +29,8 @@ const blank = (params) => ({
   stage: params.get('stage') || 'final',
   enquiry: params.get('enquiry') || '',
   task: params.get('task') || '',
+  order: params.get('order') || '',
+  orderLine: params.get('orderLine') || '',
   run: params.get('run') || '',
   mould: params.get('mould') || '',
   machine: params.get('machine') || '',
@@ -122,6 +125,39 @@ export default function QcRecordForm() {
   const setRow = (list, index, key, value) => setSheet((current) => ({ ...current, [list]: current[list].map((row, at) => (at === index ? { ...row, [key]: value } : row)) }));
   const dropRow = (list, index) => setSheet((current) => ({ ...current, [list]: current[list].filter((_, at) => at !== index) }));
 
+  /* The enquiry's sales orders, to pick which SO — and which line of it — the lot is for. */
+  const [orders, setOrders] = useState([]);
+  useEffect(() => {
+    let live = true;
+    if (!sheet.enquiry) { setOrders([]); return undefined; }
+    ordersApi.list({ enquiry: sheet.enquiry, limit: 20 })
+      .then((answer) => live && setOrders(answer?.data || []))
+      .catch(() => live && setOrders([]));
+    return () => { live = false; };
+  }, [sheet.enquiry]);
+  /* Opened from an SO without its enquiry: the enquiry comes off the SO. */
+  const orderParam = params.get('order');
+  useEffect(() => {
+    if (!orderParam || params.get('enquiry')) return;
+    ordersApi.get(orderParam).then((answer) => {
+      const enquiry = answer?.data?.enquiry;
+      if (enquiry) setSheet((current) => ({ ...current, enquiry: current.enquiry || enquiry._id || enquiry }));
+    }).catch(() => {});
+  }, [orderParam, params]);
+  const chosenOrder = orders.find((row) => row._id === sheet.order);
+  /* A line picked in the link (Check this line on the SO): its model and mould, once the SO loads. */
+  const linkedLine = chosenOrder?.lines?.find((row) => row._id === sheet.orderLine);
+  useEffect(() => {
+    if (!linkedLine) return;
+    setSheet((current) => ({
+      ...current,
+      modelNumber: current.modelNumber || linkedLine.modelNumber || '',
+      mould: current.mould || linkedLine.mould?._id || linkedLine.mould || '',
+    }));
+  }, [linkedLine]);
+  const pickEnquiry = (value) => setSheet((current) => ({ ...current, enquiry: value, ...(value === current.enquiry ? {} : { order: '', orderLine: '' }) }));
+  const pickLine = (lineId) => setSheet((current) => ({ ...current, orderLine: lineId }));
+
   const samples = useMemo(() => parseSamples(sheet.breaking.samples), [sheet.breaking.samples]);
   const worked = useMemo(() => workOut({ ...sheet, breaking: { ...sheet.breaking, samplesKg: samples } }), [sheet, samples]);
   const failed = [
@@ -198,8 +234,22 @@ export default function QcRecordForm() {
         </fieldset>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <Field label="Enquiry" hint="The buyer is taken from it">
-            <EnquirySelect value={sheet.enquiry} onChange={set('enquiry')} won emptyLabel="No enquiry (stock or incoming)" />
+            <EnquirySelect value={sheet.enquiry} onChange={pickEnquiry} won emptyLabel="No enquiry (stock or incoming)" />
           </Field>
+          <Field label="Sales order" hint={orders.length ? 'Left empty, the enquiry’s latest SO is used' : sheet.enquiry ? 'No SO on this enquiry yet' : 'Pick the enquiry first'}>
+            <select className="input" value={sheet.order} onChange={(event) => setSheet((current) => ({ ...current, order: event.target.value, orderLine: '' }))} disabled={!orders.length}>
+              <option value="">{orders.length ? 'The enquiry’s SO' : '—'}</option>
+              {orders.map((row) => <option key={row._id} value={row._id}>{row.number}{row.customerPo?.number ? ` · PO ${row.customerPo.number}` : ''}</option>)}
+            </select>
+          </Field>
+          {chosenOrder?.lines?.length > 0 && (
+            <Field label="Line of the order">
+              <select className="input" value={sheet.orderLine} onChange={(event) => pickLine(event.target.value)}>
+                <option value="">Whole order</option>
+                {chosenOrder.lines.map((line) => <option key={line._id} value={line._id}>{[line.modelNumber, line.colour, line.quantity && `${line.quantity} pcs`].filter(Boolean).join(' · ')}</option>)}
+              </select>
+            </Field>
+          )}
           <Field label="Model / mould">
             <MouldSelect value={sheet.mould} onChange={set('mould')} allowCreate={false} includeBlank="No mould" />
           </Field>

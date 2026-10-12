@@ -1028,6 +1028,8 @@ export const qcRecordsApi = {
   create: (payload) => api.post('/qc-records', payload).then(unwrap),
   approve: (id) => api.post(`/qc-records/${id}/approve`).then(unwrap),
   certificate: (record) => save(`/qc-records/${record._id}/certificate`, undefined, `${record.number}-qc-report.pdf`),
+  /** An SO's QC sheets, and the latest verdict on each of its lines. */
+  onOrder: (orderId) => api.get(`/orders/${orderId}/qc-records`).then((r) => r.data),
 };
 
 /** The moulding machines, and the maintenance and runs made on each. */
@@ -1054,6 +1056,9 @@ export const mouldRunsApi = {
 };
 
 /** The dispatch register: every stop on every trip that left, with the LR details. */
+/** How an SO's goods went: its dispatch requests, the trips they went on, and the LR details. */
+export const orderDispatchDetails = (orderId) => api.get(`/orders/${orderId}/dispatch-details`).then(unwrap);
+
 export const dispatchRegisterApi = {
   list: (params) => api.get('/dispatch-register', { params }).then((r) => r.data),
   csv: (params) => save('/dispatch-register', { ...params, format: 'csv' }, 'dispatch-register.csv'),

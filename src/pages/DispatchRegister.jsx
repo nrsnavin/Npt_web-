@@ -25,7 +25,7 @@ export default function DispatchRegister() {
   const load = useCallback(() => dispatchRegisterApi.list({ from, to }).then((answer) => { setRows(answer.data); setError(null); }).catch(setError), [from, to]);
   useEffect(() => { load(); }, [load]);
   const needle = search.trim().toLowerCase();
-  const shown = (rows || []).filter((row) => !needle || [row.customer, row.city, row.enquiry, row.trip, row.lrNumber, row.invoiceNumber, row.goesBy, row.model].some((value) => String(value || '').toLowerCase().includes(needle)));
+  const shown = (rows || []).filter((row) => !needle || [row.customer, row.city, row.order, row.buyerPo, row.enquiry, row.trip, row.lrNumber, row.invoiceNumber, row.goesBy, row.model].some((value) => String(value || '').toLowerCase().includes(needle)));
   const cartons = shown.reduce((sum, row) => sum + (row.cartons || 0), 0);
   const download = async () => {
     setSaving(true);
@@ -47,7 +47,7 @@ export default function DispatchRegister() {
       <div className="flex flex-wrap items-end gap-3">
         <label className="text-sm text-steel-300">From <input type="date" className="input mt-1 w-auto" value={from} max={to} onChange={(event) => setFrom(event.target.value)} /></label>
         <label className="text-sm text-steel-300">To <input type="date" className="input mt-1 w-auto" value={to} min={from} onChange={(event) => setTo(event.target.value)} /></label>
-        <label className="text-sm text-steel-300">Find <input type="search" aria-label="Find in the register" className="input mt-1 w-56" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buyer, LR, invoice, vehicle…" /></label>
+        <label className="text-sm text-steel-300">Find <input type="search" aria-label="Find in the register" className="input mt-1 w-56" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buyer, SO, LR, invoice, vehicle…" /></label>
         {rows?.length > 0 && <p className="pb-2 text-sm text-steel-400">{shown.length} {shown.length === 1 ? 'consignment' : 'consignments'}{cartons ? ` · ${formatNumber(cartons)} cartons` : ''}</p>}
       </div>
       {error && <ErrorState error={error} onRetry={load} />}
@@ -72,7 +72,10 @@ export default function DispatchRegister() {
                 {shown.map((row, index) => (
                   <tr key={`${row.tripId}-${index}`} className="row-hover align-top">
                     <td className="whitespace-nowrap px-4 py-3.5 text-steel-300">{shortDay(row.date)}<p className="text-xs"><Link to={`/dispatch/trips/${row.tripId}`} className="text-steel-500 hover:text-accent">{row.trip}</Link></p></td>
-                    <td className="px-4 py-3.5"><span className="font-semibold text-steel-100">{row.customer || '—'}</span>{row.city && <p className="text-xs text-steel-500">{row.city}</p>}</td>
+                    <td className="px-4 py-3.5">
+                      <span className="font-semibold text-steel-100">{row.customer || '—'}</span>{row.city && <p className="text-xs text-steel-500">{row.city}</p>}
+                      {row.order && <p className="text-xs"><Link to={`/orders/${row.orderId}`} className="text-steel-500 hover:text-accent">{row.order}</Link>{row.buyerPo ? <span className="text-steel-500"> · PO {row.buyerPo}</span> : null}</p>}
+                    </td>
                     <td className="px-4 py-3.5 text-steel-200">
                       {[row.model, row.quantity && `${formatNumber(row.quantity)} pcs`].filter(Boolean).join(' · ') || '—'}
                       {row.enquiry && <p className="text-xs"><Link to={`/enquiries/${row.enquiryId}`} className="text-steel-500 hover:text-accent">{row.enquiry}</Link></p>}

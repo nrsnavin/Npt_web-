@@ -101,3 +101,25 @@ test('the dispatch register lists and downloads, and every screen is reachable',
   assert.match(layout, /\{ to: '\/dispatch\/register', label: 'Dispatch register' \}/);
   assert.match(layout, /\[\]\.concat\(grant\)\.some\(canRead\)/);
 });
+
+test('the SO page carries its QC records and its dispatch details; the QC form picks the SO and its line', () => {
+  const page = read('pages/OrderDetail.jsx');
+  assert.match(page, /\{released && <OrderDispatchDetails order=\{order\} \/>\}/);
+  assert.match(page, /\{released && canRead\('quality'\) && <OrderQcRecords order=\{order\} \/>\}/);
+  const qc = read('components/OrderQcRecords.jsx');
+  assert.match(qc, /qcRecordsApi\.onOrder\(order\._id\)/);
+  assert.match(qc, /\/qc-records\/new\?order=\$\{order\._id\}/);
+  assert.match(qc, /&orderLine=\$\{line\}/);
+  const dispatch = read('components/OrderDispatchDetails.jsx');
+  assert.match(dispatch, /orderDispatchDetails\(order\._id\)/);
+  assert.match(dispatch, /<TaskPdfLink file=\{row\.lrCopy\} \/>/);
+  const endpoints = read('api/endpoints.js');
+  assert.match(endpoints, /api\.get\(`\/orders\/\$\{orderId\}\/qc-records`\)/);
+  assert.match(endpoints, /api\.get\(`\/orders\/\$\{orderId\}\/dispatch-details`\)/);
+  const form = read('pages/QcRecordForm.jsx');
+  assert.match(form, /ordersApi\.list\(\{ enquiry: sheet\.enquiry, limit: 20 \}\)/);
+  assert.match(form, /params\.get\('orderLine'\)/);
+  assert.match(form, /modelNumber: current\.modelNumber \|\| linkedLine\.modelNumber/);
+  assert.match(read('pages/QcRecordDetail.jsx'), /label: 'Sales order'/);
+  assert.match(read('pages/DispatchRegister.jsx'), /to=\{`\/orders\/\$\{row\.orderId\}`\}/);
+});
