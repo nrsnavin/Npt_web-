@@ -4,9 +4,9 @@ import { overview } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useRecord } from '../hooks/useRecords.js';
 import { buttonFor, useHandoffCatalogue } from '../hooks/useHandoffCatalogue.js';
-import TaskWorkflow from './TaskWorkflow.jsx';
+import TaskPanel from './TaskPanel.jsx';
 import DepartmentTaskDialog from './DepartmentTaskDialog.jsx';
-import { ErrorState, Modal, TableSkeleton } from './ui.jsx';
+import { ErrorState, TableSkeleton } from './ui.jsx';
 import { formatDate, humanise } from '../utils/format.js';
 import { DEPARTMENTS, departmentLabel } from '../utils/pipeline.js';
 
@@ -17,8 +17,10 @@ import { DEPARTMENTS, departmentLabel } from '../utils/pipeline.js';
  *
  * One row a task: Customer / Model · Requested by / Assigned to · Status reply · Due. The status
  * is a list for whoever works the task (its department, or Admin) — picking a step opens the
- * move with its remark and date [components/TaskWorkflow.jsx]; anyone else reads it. A late or
- * urgent task is highlighted, and "Highlighted" shows just those.
+ * move with its remark and date [components/TaskWorkflow.jsx]; anyone else reads it. Every row
+ * opens into the task itself [components/TaskPanel.jsx]: what was asked, its updates, and for
+ * whoever works it, Update / Done / Send back / Change date — so Admin works any department's
+ * task from here. A late or urgent task is highlighted, and "Highlighted" shows just those.
  *
  * Admin picks any department — every one is listed, even with nothing open — and everyone can
  * switch between open, done and all [server: `trackedTasks` `department`, `state`].
@@ -98,7 +100,8 @@ export default function DepartmentTasksBoard({
   const catalogue = useHandoffCatalogue();
   const [chip, setChip] = useState('all');
   const [search, setSearch] = useState('');
-  const [moving, setMoving] = useState(null);
+  /* The task opened in its panel — from a status picked on the row, or from Open. */
+  const [opened, setOpened] = useState(null);
   const [assigning, setAssigning] = useState(false);
   const firstTask = (catalogue?.buttons || []).find((button) => button.department && !button.hidden && button.form)?.key;
   const mayAssign = isAdmin || departments.includes('marketing');
@@ -204,11 +207,15 @@ export default function DepartmentTasksBoard({
                 {shown.map((task) => (
                   <tr key={task._id} data-highlighted={isHighlighted(task) || undefined} className={`border-t border-line/10 align-top ${isHighlighted(task) ? 'bg-warn-500/[0.08]' : ''}`}>
                     <td className="px-4 py-3">
-                      <p className="font-semibold text-steel-50">{task.customer?.name || task.label}</p>
+                      <button type="button" className="text-left font-semibold text-steel-50 hover:text-accent" onClick={() => setOpened({ task })}>
+                        {task.customer?.name || task.label}
+                      </button>
                       <p className="text-xs text-steel-400">
                         {task.label}
                         {modelOf(task) ? ` · ${modelOf(task)}` : ''}
                         {task.enquiry?.number && <> · <Link className="text-accent hover:underline" to={`/enquiries/${task.enquiry._id}`}>{task.enquiry.number}</Link></>}
+                        {' · '}
+                        <button type="button" className="row-action" onClick={() => setOpened({ task })}>{mayWork(task) && !task.completed ? 'Open / update' : 'Open'}</button>
                       </p>
                     </td>
                     <td className="px-4 py-3">
@@ -216,7 +223,7 @@ export default function DepartmentTasksBoard({
                       <p className="text-xs text-steel-400">{task.user?.name || task.team || departmentLabel(task.department)}</p>
                     </td>
                     <td className="px-4 py-3">
-                      <StatusReply task={task} statuses={statusesOf(task)} mayWork={mayWork(task)} onPick={(status) => setMoving({ task, status })} />
+                      <StatusReply task={task} statuses={statusesOf(task)} mayWork={mayWork(task)} onPick={(status) => setOpened({ task, status })} />
                     </td>
                     <td className={`whitespace-nowrap px-4 py-3 ${isLate(task) ? 'font-semibold text-danger-400' : 'text-steel-300'}`}>
                       {whenOf(task) || '—'}
@@ -242,8 +249,9 @@ export default function DepartmentTasksBoard({
                 <p className="mt-1 text-xs text-steel-400">
                   {task.createdBy?.name || '—'} → {task.user?.name || task.team || departmentLabel(task.department)}
                 </p>
-                <div className="mt-2">
-                  <StatusReply task={task} statuses={statusesOf(task)} mayWork={mayWork(task)} onPick={(status) => setMoving({ task, status })} />
+                <div className="mt-2 flex flex-wrap items-center gap-3">
+                  <StatusReply task={task} statuses={statusesOf(task)} mayWork={mayWork(task)} onPick={(status) => setOpened({ task, status })} />
+                  <button type="button" className="row-action" onClick={() => setOpened({ task })}>{mayWork(task) && !task.completed ? 'Open / update' : 'Open'}</button>
                 </div>
               </li>
             ))}
@@ -255,17 +263,17 @@ export default function DepartmentTasksBoard({
         </p>
       )}
 
-      {moving && (
-        <Modal open title={`${moving.task.label} — ${moving.task.customer?.name || ''}`} onClose={() => setMoving(null)} size="md">
-          <TaskWorkflow
-            todo={moving.task}
-            startWith={moving.status}
-            onChanged={() => {
-              setMoving(null);
-              reload();
-            }}
-          />
-        </Modal>
+      {opened && (
+        <TaskPanel
+          task={opened.task}
+          startWith={opened.status}
+          mayWork={mayWork(opened.task)}
+          onClose={() => setOpened(null)}
+          onChanged={() => {
+            setOpened(null);
+            reload();
+          }}
+        />
       )}
       {assigning && (
         <DepartmentTaskDialog enquiry={null} catalogue={catalogue} kind={firstTask} onClose={() => setAssigning(false)} onSent={reload} />

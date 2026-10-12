@@ -96,7 +96,8 @@ test('Department Tasks: a status list only for whoever works the task, and the m
   /* The server's rule: Admin, the person it is assigned to, or its department. */
   assert.match(board, /const mayWork = \(task\) => isAdmin \|\| \(me && String\(task\.user\?\._id \|\| task\.user \|\| ''\) === me\) \|\| departments\.includes\(task\.department\);/);
   assert.match(board, /if \(!statuses\.length \|\| !mayWork \|\|/);
-  assert.match(board, /<TaskWorkflow\s+todo=\{moving\.task\}\s+startWith=\{moving\.status\}/);
+  assert.match(board, /<TaskPanel\s+task=\{opened\.task\}\s+startWith=\{opened\.status\}\s+mayWork=\{mayWork\(opened\.task\)\}/);
+  assert.match(read('components/TaskPanel.jsx'), /<TaskWorkflow todo=\{task\} startWith=\{startWith\} onChanged=\{onChanged\} \/>/);
   assert.match(read('components/TaskWorkflow.jsx'), /todo\?\.completed \|\| startWith === todo\?\.status\) return;\s+started\.current = true;\s+choose\(startWith\);/);
   const endpoints = read('api/endpoints.js');
   assert.match(endpoints, /tasks: \(params\) => api\.get\('\/dashboard\/tasks', \{ params \}\)/);
@@ -154,4 +155,17 @@ test('Queries: a panel at the bottom right with its unread count and an alert fo
   assert.match(panel, /queriesApi\.read\(id\)/, 'opening a thread marks it read');
   assert.match(panel, /queriesApi\.say\(\{ id, kind: 'reply', body: text \}\)/);
   assert.match(read('api/endpoints.js'), /unread: \(\) => api\.get\('\/queries\/unread'/);
+});
+
+test('every task on the board opens into its panel: Admin works any department’s task from there', () => {
+  const board = read('components/DepartmentTasksBoard.jsx');
+  assert.match(board, /onClick=\{\(\) => setOpened\(\{ task \}\)\}>\{mayWork\(task\) && !task\.completed \? 'Open \/ update' : 'Open'\}<\/button>/);
+  assert.doesNotMatch(board, /\bModal\b/, 'the panel owns its dialog');
+  const panel = read('components/TaskPanel.jsx');
+  assert.match(panel, /<HandoffTaskActions todo=\{task\} onChanged=\{onChanged\} \/>/, 'Update / Done / Send back / Change date');
+  assert.match(panel, /\{!holder && <button type="button" className="row-action" onClick=\{claim\}>I’ll take it<\/button>\}/);
+  assert.match(panel, /mayWork && !task\.completed \?/);
+  assert.match(panel, /Read-only — this task is on the \{departmentLabel\(task\.department\)\} queue\./);
+  assert.match(panel, /task\.updates\.map\(\(update\) =>/);
+  assert.match(panel, /describeBrief\(button, task\.brief\)/);
 });
