@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useDebounced } from '../hooks/useRecords.js';
 
 /**
@@ -55,6 +56,9 @@ export default function Combobox({
 
   const wrapper = useRef(null);
   const input = useRef(null);
+  const list = useRef(null);
+  /* Where the list is drawn — on the page itself, under the box (or over it), never inside a card. */
+  const [place, setPlace] = useState(null);
   const requestId = useRef(0);
   const listId = useId();
 
@@ -123,10 +127,44 @@ export default function Combobox({
     if (!open) return undefined;
 
     const onPointerDown = (event) => {
-      if (!wrapper.current?.contains(event.target)) setOpen(false);
+      /* The list is drawn outside the wrapper [below], so a click in it is not "elsewhere". */
+      if (!wrapper.current?.contains(event.target) && !list.current?.contains(event.target)) setOpen(false);
     };
     document.addEventListener('mousedown', onPointerDown);
     return () => document.removeEventListener('mousedown', onPointerDown);
+  }, [open]);
+
+  /*
+   * The list is placed on the page, beside the box, rather than inside the box's own parents.
+   * Drawn inside them it was cut off by whatever card, table or dialog it sat in — the Printing
+   * picker at the foot of an enquiry's model card showed a sliver and nothing to pick. Below the
+   * box when there is room, above it when there is more room there; kept beside the box as the
+   * page or a dialog scrolls.
+   */
+  useLayoutEffect(() => {
+    if (!open) return undefined;
+    const measure = () => {
+      const box = input.current?.getBoundingClientRect();
+      if (!box) return;
+      const below = window.innerHeight - box.bottom - 8;
+      const above = box.top - 8;
+      const upward = below < 220 && above > below;
+      const room = Math.max(120, Math.min(256, upward ? above : below));
+      setPlace({
+        left: box.left,
+        width: box.width,
+        maxHeight: room,
+        ...(upward ? { bottom: window.innerHeight - box.top + 4 } : { top: box.bottom + 4 }),
+      });
+    };
+    measure();
+    window.addEventListener('resize', measure);
+    /* Capture: a dialog or a table scrolling inside the page moves the box too. */
+    window.addEventListener('scroll', measure, true);
+    return () => {
+      window.removeEventListener('resize', measure);
+      window.removeEventListener('scroll', measure, true);
+    };
   }, [open]);
 
   const rows = emptyLabel ? [{ value: '', label: emptyLabel }, ...options] : options;
@@ -187,11 +225,14 @@ export default function Combobox({
         onKeyDown={onKeyDown}
       />
 
-      {open && (
+      {open && place && createPortal(
         <ul
+          ref={list}
           id={listId}
           role="listbox"
-          className="absolute z-30 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border border-line/[0.08] bg-ink-800 py-1 shadow-raised"
+          /* Above dialogs (z-50), which is where most of these pickers live. */
+          style={place}
+          className="fixed z-[60] overflow-y-auto rounded-lg border border-line/[0.08] bg-ink-800 py-1 shadow-raised"
         >
           {loading && !options.length && (
             <li className="px-3 py-2 text-xs text-steel-500">Searching…</li>
@@ -259,7 +300,8 @@ export default function Combobox({
               </button>
             </li>
           )}
-        </ul>
+        </ul>,
+        document.body,
       )}
     </div>
   );
