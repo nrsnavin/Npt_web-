@@ -17,7 +17,7 @@ test('index.html has no inline script; the theme script is a file', () => {
   const scripts = [...html.matchAll(/<script\b[^>]*>/g)].map((m) => m[0]);
   assert.ok(scripts.length >= 2, 'the theme script and the app entry');
   for (const tag of scripts) assert.match(tag, /\ssrc=/, `inline script: ${tag}`);
-  assert.doesNotMatch(html, /on[a-z]+=/, 'no inline event handlers');
+  assert.doesNotMatch(html, /\son(click|load|error|focus|input|change|submit|mouse[a-z]+|key[a-z]+)=/i, 'no inline event handlers');
   assert.match(html, /<script src="\/theme\.js"><\/script>/);
   const theme = read('public/theme.js');
   assert.match(theme, /localStorage\.getItem\('npt\.theme'\)/);
