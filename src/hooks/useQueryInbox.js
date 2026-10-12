@@ -35,7 +35,7 @@ const canNotify = () => typeof window !== 'undefined' && 'Notification' in windo
 
 export default function useQueryInbox({ enabled = true, onOpen } = {}) {
   const [data, setData] = useState(null);
-  const [permission, setPermission] = useState(() => (canNotify() ? Notification.permission : 'unsupported'));
+  const [permission, setPermission] = useState(() => (canNotify() ? window.Notification.permission : 'unsupported'));
   const { toast } = useToast();
   const me = selfId(useAuth().user);
   const seen = useRef(readSeen());
@@ -60,9 +60,9 @@ export default function useQueryInbox({ enabled = true, onOpen } = {}) {
         ? first.subject
         : `${first.last?.by?.name ? `${first.last.by.name}: ` : ''}${first.last?.text || first.subject}`;
     toast(title, body);
-    if (canNotify() && Notification.permission === 'granted' && document.visibilityState !== 'visible') {
+    if (canNotify() && window.Notification.permission === 'granted' && document.visibilityState !== 'visible') {
       try {
-        const note = new Notification(title, { body, tag: 'npt-queries', renotify: true });
+        const note = new window.Notification(title, { body, tag: 'npt-queries', renotify: true });
         note.onclick = () => { window.focus(); opener.current?.(fresh.length === 1 ? first._id : null); note.close(); };
       } catch { /* some browsers only notify from a service worker — the toast still went */ }
     }
@@ -106,7 +106,7 @@ export default function useQueryInbox({ enabled = true, onOpen } = {}) {
 
   const askPermission = useCallback(async () => {
     if (!canNotify()) return;
-    setPermission(await Notification.requestPermission());
+    setPermission(await window.Notification.requestPermission());
   }, []);
 
   return { data, reload: load, permission, askPermission };

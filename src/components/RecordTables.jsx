@@ -72,7 +72,7 @@ export function RunsTable({ rows, showMould = false, showMachine = false, empty,
               <td className="py-2 pr-3"><span className="font-semibold text-steel-100">{run.number}</span><p className="text-xs text-steel-500">{formatDate(run.startedAt)}{run.shift ? ` · Shift ${run.shift}` : ''}{run.operator ? ` · ${run.operator}` : ''}</p></td>
               {showMould && <td className="py-2 pr-3"><Link to={`/moulds/${run.mould?._id}`} className="text-steel-200 hover:text-accent">{run.mould?.mouldCode}</Link></td>}
               {showMachine && <td className="py-2 pr-3">{run.machine ? <Link to={`/machines/${run.machine._id}`} className="text-steel-200 hover:text-accent">{run.machine.code}</Link> : '—'}</td>}
-              <td className="py-2 pr-3 text-steel-200">{run.customer?.name || '—'}{run.enquiry?.number && <p className="text-xs text-steel-500">{run.enquiry.number}{run.colour ? ` · ${run.colour}` : ''}</p>}</td>
+              <td className="py-2 pr-3 text-steel-200">{run.customer?.name || '—'}{(run.order?.number || run.enquiry?.number) && <p className="text-xs text-steel-500">{[run.order?.number, run.enquiry?.number, run.colour].filter(Boolean).join(' · ')}</p>}</td>
               <td className="py-2 pr-3 text-right tabular-nums text-steel-200">{run.shots != null ? formatNumber(run.shots) : '—'}</td>
               <td className="py-2 pr-3 text-right tabular-nums text-steel-200">
                 {run.goodPieces != null ? formatNumber(run.goodPieces) : '—'} · {run.rejectedPieces != null ? formatNumber(run.rejectedPieces) : '—'}
@@ -81,6 +81,8 @@ export function RunsTable({ rows, showMould = false, showMachine = false, empty,
               <td className="py-2 pr-3">
                 <Badge tone={toneOf(RUN_STATUSES, run.status)}>{labelOf(RUN_STATUSES, run.status)}</Badge>
                 {run.downtimeMinutes ? <p className="mt-1 text-xs text-steel-500">{run.downtimeMinutes} min stopped{run.downtimeReason ? ` — ${run.downtimeReason}` : ''}</p> : null}
+                {run.productionNote && <p className={`mt-1 text-xs ${run.producedAdded != null ? 'text-success-400' : 'text-warn-400'}`}>{run.productionNote}</p>}
+                {run.resinIssued ? <p className="mt-1 text-xs text-steel-500">{run.resinIssued} kg resin taken from the store</p> : null}
               </td>
               {actions && <td className="py-2 text-right">{actions(run)}</td>}
             </tr>

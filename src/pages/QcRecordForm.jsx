@@ -6,7 +6,7 @@ import { EnquirySelect, MaterialSelect, MouldSelect } from '../components/picker
 import MachineSelect from '../components/MachineSelect.jsx';
 import useQualityOptions from '../hooks/useQualityOptions.js';
 import {
-  MOULDING_TYPES, PRINT_TYPES, QC_STAGES, QC_VERDICTS, RESULT, SHIFTS, fillFrom, workOut,
+  AQL_LEVELS, MOULDING_TYPES, PRINT_TYPES, QC_STAGES, QC_VERDICTS, RESULT, SHIFTS, fillFrom, workOut,
 } from '../utils/records.js';
 
 /**
@@ -45,6 +45,13 @@ const blank = (params) => ({
   hangLoad: { loadKg: '', hours: '', deflectionMm: '', allowedDeflectionMm: '' },
   drop: { heightCm: '', drops: '', result: '' },
   colourMatch: { against: '', result: '' },
+  hookTurns: { required: '', achieved: '' },
+  uv: { hours: '', result: '' },
+  shrinkage: { mouldMm: '', partMm: '', maxPercent: '' },
+  resinChecks: { moisturePercent: '', moistureMaxPercent: '', mfi: '', mfiMin: '', mfiMax: '' },
+  packing: { piecesPerCarton: '', piecesFound: '', cartonsChecked: '', labels: '' },
+  cartonDrop: { heightCm: '', drops: '', result: '' },
+  aql: '', standardsFrom: '',
   lotSize: '', sampleSize: '', rejected: '',
   defects: [],
   verdict: '',
@@ -179,10 +186,19 @@ export default function QcRecordForm() {
     sheet.print.registration === 'fail' && 'Print registration',
     sheet.drop.result === 'fail' && 'Drop',
     sheet.colourMatch.result === 'fail' && 'Colour match',
+    worked.hookTurns === 'fail' && 'Hook turns',
+    sheet.uv.result === 'fail' && 'UV / colour-fastness',
+    worked.shrinkage === 'fail' && 'Shrinkage',
+    worked.moisture === 'fail' && 'Resin moisture',
+    worked.mfi === 'fail' && 'Melt-flow (MFI)',
+    worked.packing === 'fail' && 'Packing',
+    sheet.cartonDrop.result === 'fail' && 'Carton drop',
+    worked.aql?.result === 'fail' && 'AQL sample',
     ...sheet.measurements.map((row, index) => worked.measurements[index] === 'fail' && (row.name || 'A measurement')),
   ].filter(Boolean);
   const rejected = Number(sheet.rejected) || 0;
-  const cleanPass = !failed.length && !rejected;
+  /* Rejects within the AQL plan still pass the lot; without a plan, any reject is a deviation. */
+  const cleanPass = !failed.length && rejected <= (worked.aql ? worked.aql.accept : 0);
   const sampleSize = sheet.sampleSize === '' ? null : Number(sheet.sampleSize);
   const defectCount = sheet.defects.reduce((sum, row) => sum + (Number(row.count) || 0), 0);
 
@@ -210,6 +226,9 @@ export default function QcRecordForm() {
       breaking: { ...breaking, samplesKg: samples.length ? samples : undefined },
       measurements: sheet.measurements.filter((row) => row.name.trim()),
       defects: sheet.defects.filter((row) => row.type && Number(row.count) > 0),
+      aql: sheet.aql === '' ? undefined : Number(sheet.aql),
+      /* The plan's sample size when none was typed — the server works it out the same way. */
+      sampleSize: sheet.sampleSize === '' && worked.aql ? worked.aql.sampleSize : sheet.sampleSize,
     });
     try {
       const made = await qcRecordsApi.create(payload);
@@ -248,11 +267,12 @@ export default function QcRecordForm() {
             {pickedLine
               ? <> — filled from {pickedLine.label}. Check and change anything that differs.</>
               : prefill.lines.length > 1 ? <> — pick the {prefill.lineKind === 'order' ? 'line' : 'model'} below to fill the rest.</> : null}
+            {sheet.standardsFrom && <span className="mt-1 block text-xs text-steel-400">Minimums from the {sheet.standardsFrom.replace(/^Standards: /, '')} test standards.</span>}
           </p>
         )}
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <Field label="Enquiry" hint={prefill?.enquiry ? `${prefill.enquiry.number} · the buyer is taken from it` : 'The buyer is taken from it'}>
-            <EnquirySelect value={sheet.enquiry} onChange={pickEnquiry} won emptyLabel="No enquiry (stock or incoming)" />
+          <Field label="Enquiry" hint="The buyer is taken from it">
+            <EnquirySelect value={sheet.enquiry} onChange={pickEnquiry} won emptyLabel="No enquiry (stock or incoming)" fallbackLabel={prefill?.enquiry ? `${prefill.enquiry.number}${prefill.customer ? ` — ${prefill.customer}` : ''}` : undefined} />
           </Field>
           <Field label="Sales order" hint={orders.length ? 'Left empty, the enquiry’s latest SO is used' : sheet.enquiry ? 'No SO on this enquiry yet' : 'Pick the enquiry first'}>
             <select className="input" value={sheet.order} onChange={(event) => setSheet((current) => ({ ...current, order: event.target.value, orderLine: '' }))} disabled={!orders.length}>
@@ -316,6 +336,23 @@ export default function QcRecordForm() {
             <Field label="Regrind %"><NumberInput value={sheet.resin.regrindPercent} onChange={set('resin.regrindPercent')} max={100} /></Field>
           </div>
         </div>
+        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+          <div>
+            <div className="mb-2 flex items-center justify-between gap-2"><p className="text-sm font-semibold text-steel-100">Moisture (dried enough?)</p><Result value={worked.moisture} /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Found, %"><NumberInput value={sheet.resinChecks.moisturePercent} onChange={set('resinChecks.moisturePercent')} max={100} /></Field>
+              <Field label="Most allowed, %"><NumberInput value={sheet.resinChecks.moistureMaxPercent} onChange={set('resinChecks.moistureMaxPercent')} max={100} /></Field>
+            </div>
+          </div>
+          <div>
+            <div className="mb-2 flex items-center justify-between gap-2"><p className="text-sm font-semibold text-steel-100">Melt-flow index (MFI), g/10 min</p><Result value={worked.mfi} /></div>
+            <div className="grid grid-cols-3 gap-3">
+              <Field label="Found"><NumberInput value={sheet.resinChecks.mfi} onChange={set('resinChecks.mfi')} /></Field>
+              <Field label="From"><NumberInput value={sheet.resinChecks.mfiMin} onChange={set('resinChecks.mfiMin')} /></Field>
+              <Field label="To"><NumberInput value={sheet.resinChecks.mfiMax} onChange={set('resinChecks.mfiMax')} /></Field>
+            </div>
+          </div>
+        </div>
       </Section>
 
       <div className="grid gap-5 lg:grid-cols-2">
@@ -325,6 +362,8 @@ export default function QcRecordForm() {
             <Field label="Finish"><input className="input" value={sheet.hook.finish} onChange={text('hook.finish')} maxLength={60} placeholder="Chrome / gold / black" /></Field>
             <Field label="Pull-out needed, kgf"><NumberInput value={sheet.hook.pullRequiredKg} onChange={set('hook.pullRequiredKg')} /></Field>
             <Field label="Pull-out found, kgf"><NumberInput value={sheet.hook.pullActualKg} onChange={set('hook.pullActualKg')} /></Field>
+            <Field label="Swivel turns needed" hint={worked.hookTurns ? `Hook turns: ${worked.hookTurns === 'pass' ? 'pass' : 'FAIL'}` : undefined}><NumberInput value={sheet.hookTurns.required} onChange={set('hookTurns.required')} step={1} /></Field>
+            <Field label="Turns it took"><NumberInput value={sheet.hookTurns.achieved} onChange={set('hookTurns.achieved')} step={1} /></Field>
           </div>
         </Section>
         <Section title="4 · Clips" actions={<Result value={worked.clip} />}>
@@ -432,15 +471,60 @@ export default function QcRecordForm() {
               <div className="mt-2"><PassFail label="Colour match" value={sheet.colourMatch.result} onChange={set('colourMatch.result')} /></div>
             </div>
           </div>
+
+          <div className="grid gap-6 sm:grid-cols-2">
+            <div>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-steel-100">Shrinkage{worked.shrinkagePercent != null ? <span className="font-normal text-steel-400"> · {worked.shrinkagePercent}%</span> : null}</p>
+                <Result value={worked.shrinkage} />
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <Field label="Mould, mm"><NumberInput value={sheet.shrinkage.mouldMm} onChange={set('shrinkage.mouldMm')} /></Field>
+                <Field label="Piece, mm"><NumberInput value={sheet.shrinkage.partMm} onChange={set('shrinkage.partMm')} /></Field>
+                <Field label="Most, %"><NumberInput value={sheet.shrinkage.maxPercent} onChange={set('shrinkage.maxPercent')} max={100} /></Field>
+              </div>
+            </div>
+            <div>
+              <p className="mb-2 text-sm font-semibold text-steel-100">UV / colour-fastness</p>
+              <Field label="Hours under the lamp"><NumberInput value={sheet.uv.hours} onChange={set('uv.hours')} /></Field>
+              <div className="mt-2"><PassFail label="UV / colour-fastness" value={sheet.uv.result} onChange={set('uv.result')} /></div>
+            </div>
+          </div>
         </div>
       </Section>
 
-      <Section title="8 · Sample and defects">
-        <div className="grid grid-cols-3 gap-4">
+      <Section title="8 · Packing" actions={<Result value={worked.packing} />}>
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <Field label="Pieces per carton (standard)"><NumberInput value={sheet.packing.piecesPerCarton} onChange={set('packing.piecesPerCarton')} step={1} /></Field>
+          <Field label="Pieces found"><NumberInput value={sheet.packing.piecesFound} onChange={set('packing.piecesFound')} step={1} /></Field>
+          <Field label="Cartons checked"><NumberInput value={sheet.packing.cartonsChecked} onChange={set('packing.cartonsChecked')} step={1} /></Field>
+          <div><p className="label">Labels right</p><PassFail label="Labels" value={sheet.packing.labels} onChange={set('packing.labels')} /></div>
+        </div>
+        <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <Field label="Carton drop, cm"><NumberInput value={sheet.cartonDrop.heightCm} onChange={set('cartonDrop.heightCm')} /></Field>
+          <Field label="Drops"><NumberInput value={sheet.cartonDrop.drops} onChange={set('cartonDrop.drops')} step={1} /></Field>
+          <div className="col-span-2"><p className="label">Carton survived</p><PassFail label="Carton drop" value={sheet.cartonDrop.result} onChange={set('cartonDrop.result')} /></div>
+        </div>
+      </Section>
+
+      <Section title="9 · Sample and defects" actions={worked.aql ? <Result value={worked.aql.result} /> : null}>
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <Field label="Lot size"><NumberInput value={sheet.lotSize} onChange={set('lotSize')} step={1} /></Field>
-          <Field label="Pieces checked"><NumberInput value={sheet.sampleSize} onChange={set('sampleSize')} step={1} /></Field>
+          <Field label="AQL" hint="Sampling by ISO 2859-1, level II">
+            <select className="input" value={sheet.aql} onChange={(event) => set('aql')(event.target.value === '' ? '' : Number(event.target.value))}>
+              <option value="">No AQL</option>
+              {AQL_LEVELS.map((level) => <option key={level} value={level}>{level}</option>)}
+            </select>
+          </Field>
+          <Field label="Pieces checked" hint={worked.aql && sheet.sampleSize === '' ? `${worked.aql.sampleSize} by the AQL plan` : undefined}><NumberInput value={sheet.sampleSize} onChange={set('sampleSize')} step={1} placeholder={worked.aql ? String(worked.aql.sampleSize) : undefined} /></Field>
           <Field label="Rejected"><NumberInput value={sheet.rejected} onChange={set('rejected')} step={1} /></Field>
         </div>
+        {worked.aql && (
+          <p className="mt-2 text-sm text-steel-300" role="status">
+            Code {worked.aql.letter} · check <b className="text-steel-50">{worked.aql.sampleSize}</b> pieces · accept the lot with up to <b className="text-steel-50">{worked.aql.accept}</b> rejects, reject it at {worked.aql.reject}
+            {worked.aql.result === 'fail' && <span className="text-danger-400"> — too many rejects: the lot fails</span>}
+          </p>
+        )}
         {sampleSize != null && <p className="mt-2 text-sm text-steel-400">{Math.max(0, sampleSize - rejected)} accepted</p>}
         {(rejected > 0 || sheet.defects.length > 0) && (
           <div className="mt-4 space-y-2">
@@ -460,7 +544,7 @@ export default function QcRecordForm() {
         )}
       </Section>
 
-      <Section title="9 · Verdict">
+      <Section title="10 · Verdict">
         {failed.length > 0 && <p className="mb-3 text-sm text-danger-400">Failed: {failed.join(', ')}</p>}
         <div role="radiogroup" aria-label="Verdict" className="grid gap-2 sm:grid-cols-4">
           {QC_VERDICTS.map((verdict) => {

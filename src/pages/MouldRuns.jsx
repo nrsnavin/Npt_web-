@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { mouldRunsApi } from '../api/endpoints.js';
+import { mouldRunsApi, orders as ordersApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { EmptyState, ErrorState, Field, FormError, Modal, PageHeader, Section, Spinner } from '../components/ui.jsx';
-import { EnquirySelect, MouldSelect } from '../components/pickers.jsx';
+import { EnquirySelect, MaterialSelect, MouldSelect } from '../components/pickers.jsx';
 import MachineSelect from '../components/MachineSelect.jsx';
 import { RunsTable } from '../components/RecordTables.jsx';
 import { formatNumber } from '../utils/format.js';
@@ -23,7 +23,16 @@ const elapsed = (from) => {
 };
 
 function StartRun({ onClose, onStarted }) {
-  const [values, setValues] = useState({ mould: '', machine: '', enquiry: '', colour: '', plannedQuantity: '', shift: '', operator: '', counterStart: '', resinName: '', resinBatch: '' });
+  const [values, setValues] = useState({ mould: '', machine: '', enquiry: '', order: '', orderLine: '', colour: '', plannedQuantity: '', shift: '', operator: '', counterStart: '', resinMaterial: '', resinName: '', resinBatch: '' });
+  /* The enquiry's SOs, to say which SO line the run makes — its good pieces are added to that line. */
+  const [orders, setOrders] = useState([]);
+  useEffect(() => {
+    let live = true;
+    if (!values.enquiry) { setOrders([]); return undefined; }
+    ordersApi.list({ enquiry: values.enquiry, limit: 20 }).then((answer) => live && setOrders(answer?.data || [])).catch(() => live && setOrders([]));
+    return () => { live = false; };
+  }, [values.enquiry]);
+  const chosenOrder = orders.find((row) => row._id === values.order) || (orders.length === 1 ? orders[0] : null);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState(null);
   const set = (key) => (value) => setValues((current) => ({ ...current, [key]: value?.target ? value.target.value : value }));
@@ -36,12 +45,14 @@ function StartRun({ onClose, onStarted }) {
         mould: values.mould,
         machine: values.machine || undefined,
         enquiry: values.enquiry || undefined,
+        order: values.order || undefined,
+        orderLine: values.orderLine || undefined,
         colour: values.colour,
         plannedQuantity: number(values.plannedQuantity),
         shift: values.shift || undefined,
         operator: values.operator,
         counterStart: number(values.counterStart),
-        resin: values.resinName || values.resinBatch ? { name: values.resinName, batch: values.resinBatch } : undefined,
+        resin: values.resinMaterial || values.resinName || values.resinBatch ? { material: values.resinMaterial || undefined, name: values.resinName, batch: values.resinBatch } : undefined,
       });
       onStarted();
       onClose();
@@ -57,7 +68,23 @@ function StartRun({ onClose, onStarted }) {
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Mould" required><MouldSelect value={values.mould} onChange={set('mould')} allowCreate={false} /></Field>
           <Field label="Machine"><MachineSelect value={values.machine} onChange={set('machine')} emptyLabel="Pick the machine…" /></Field>
-          <Field label="For enquiry / order" className="sm:col-span-2"><EnquirySelect value={values.enquiry} onChange={set('enquiry')} won emptyLabel="Stock run — no order" /></Field>
+          <Field label="For enquiry / order" className="sm:col-span-2"><EnquirySelect value={values.enquiry} onChange={(value) => setValues((current) => ({ ...current, enquiry: value, order: '', orderLine: '' }))} won emptyLabel="Stock run — no order" /></Field>
+          {orders.length > 0 && (
+            <Field label="Sales order" hint="Good pieces are added to the SO line when the run ends">
+              <select className="input" value={values.order} onChange={(event) => setValues((current) => ({ ...current, order: event.target.value, orderLine: '' }))}>
+                <option value="">{orders.length > 1 ? 'The enquiry’s latest SO' : orders[0].number}</option>
+                {orders.length > 1 && orders.map((row) => <option key={row._id} value={row._id}>{row.number}</option>)}
+              </select>
+            </Field>
+          )}
+          {chosenOrder?.lines?.length > 1 && (
+            <Field label="Line of the order" hint="Left empty, the line on this mould">
+              <select className="input" value={values.orderLine} onChange={set('orderLine')}>
+                <option value="">The line on this mould</option>
+                {chosenOrder.lines.map((line) => <option key={line._id} value={line._id}>{[line.modelNumber, line.colour, line.quantity && `${line.quantity} pcs`].filter(Boolean).join(' · ')}</option>)}
+              </select>
+            </Field>
+          )}
           <Field label="Colour"><input className="input" value={values.colour} onChange={set('colour')} maxLength={60} /></Field>
           <Field label="Pieces planned"><input type="number" min={0} className="input" value={values.plannedQuantity} onChange={set('plannedQuantity')} /></Field>
           <Field label="Shift">
@@ -68,6 +95,7 @@ function StartRun({ onClose, onStarted }) {
           </Field>
           <Field label="Operator"><input className="input" value={values.operator} onChange={set('operator')} maxLength={80} /></Field>
           <Field label="Shot counter at start" hint="Leave empty to carry on from the mould's own count"><input type="number" min={0} className="input" value={values.counterStart} onChange={set('counterStart')} /></Field>
+          <Field label="Resin from the store" hint="What the run uses is taken out of its stock when it ends"><MaterialSelect value={values.resinMaterial} onChange={set('resinMaterial')} /></Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Resin"><input className="input" value={values.resinName} onChange={set('resinName')} maxLength={80} placeholder="PP" /></Field>
             <Field label="Resin batch"><input className="input" value={values.resinBatch} onChange={set('resinBatch')} maxLength={60} /></Field>

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import QcFlag, { AskLocation } from '../components/QcFlag.jsx';
 import { tripsApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { ErrorState, PageHeader, Spinner } from '../components/ui.jsx';
@@ -55,6 +56,8 @@ function StopRow({ stop, index, count, editable, onTheRoad, onMove, onRemove, on
           {address && <p className="text-sm text-steel-300">{address}</p>}
           <p className="text-xs text-steel-400">{[stop.model, stop.quantity && `${stop.quantity.toLocaleString('en-IN')} pcs`, phone].filter(Boolean).join(' · ')}</p>
           {stop.note && <p className="mt-1 text-xs text-warn-400">{stop.note}</p>}
+          {stop.qc && <p className="mt-1"><QcFlag qc={stop.qc} /></p>}
+          {editable && customer.site?.lat == null && customer._id && <p className="mt-1"><AskLocation customerId={customer._id} /></p>}
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1">
           {editable ? (

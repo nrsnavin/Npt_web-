@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { AskLocation } from '../components/QcFlag.jsx';
 import { Link, useParams } from 'react-router-dom';
 import { customers as customersApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -178,9 +179,13 @@ export default function CustomerDetail() {
                       customer.site.setAt && formatDate(customer.site.setAt),
                     ].filter(Boolean).join(' · ')}
                     {' · '}
-                    <Link to={`/queries/${customer.site.fromQuery}`} className="text-accent hover:underline">
-                      from this check-in
-                    </Link>
+                    {customer.site.source === 'whatsapp' ? (
+                      <span>shared by the buyer on WhatsApp</span>
+                    ) : (
+                      <Link to={`/queries/${customer.site.fromQuery}`} className="text-accent hover:underline">
+                        from this check-in
+                      </Link>
+                    )}
                   </p>
                   <p className="mt-0.5 font-mono text-[0.75rem] text-steel-600">
                     {Number(customer.site.lat).toFixed(5)}, {Number(customer.site.lng).toFixed(5)}
@@ -196,6 +201,12 @@ export default function CustomerDetail() {
                   </a>
                 </div>
               </div>
+            </Section>
+          )}
+          {/* No pin yet: ask the buyer to share their location on WhatsApp — it is pinned when they do. */}
+          {!customer.site && mayWrite && (
+            <Section title="Site">
+              <p className="text-sm text-steel-400">No delivery pin yet. <AskLocation customerId={customer._id} /></p>
             </Section>
           )}
 

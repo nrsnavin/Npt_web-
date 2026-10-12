@@ -71,6 +71,7 @@ const DispatchRegister = lazyPage(() => import('./pages/DispatchRegister.jsx'));
 const QcRecords = lazyPage(() => import('./pages/QcRecords.jsx'));
 const QcRecordForm = lazyPage(() => import('./pages/QcRecordForm.jsx'));
 const QcRecordDetail = lazyPage(() => import('./pages/QcRecordDetail.jsx'));
+const QcReport = lazyPage(() => import('./pages/QcReport.jsx'));
 const Machines = lazyPage(() => import('./pages/Machines.jsx'));
 const MachineDetail = lazyPage(() => import('./pages/MachineDetail.jsx'));
 const MouldRuns = lazyPage(() => import('./pages/MouldRuns.jsx'));
@@ -420,6 +421,14 @@ export default function App() {
             element={
               <RequireModule moduleKey="quality">
                 <QcRecordForm />
+              </RequireModule>
+            }
+          />
+          <Route
+            path="qc-records/report"
+            element={
+              <RequireModule moduleKey={['quality', 'production']}>
+                <QcReport />
               </RequireModule>
             }
           />

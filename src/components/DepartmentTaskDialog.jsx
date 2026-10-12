@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { handoffs as handoffsApi, workspace } from '../api/endpoints.js';
+import { handoffs as handoffsApi, orders as ordersApi, workspace } from '../api/endpoints.js';
 import { useToast } from '../context/ToastContext.jsx';
 import { Field, Modal, Notice } from './ui.jsx';
 import { CustomerSelect } from './pickers.jsx';
@@ -131,6 +131,15 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
   /* No enquiry: a team task, with an optional customer instead of the enquiry's answers. */
   const team = !enquiry;
   const [customer, setCustomer] = useState('');
+  /* An enquiry with more than one SO: which one this task is for (else the server takes the newest). */
+  const [orders, setOrders] = useState([]);
+  const [order, setOrder] = useState('');
+  useEffect(() => {
+    let live = true;
+    if (team || fromTask) return undefined;
+    ordersApi.list({ enquiry: enquiry._id, limit: 20, sort: '-createdAt' }).then((answer) => live && setOrders(answer?.data || [])).catch(() => {});
+    return () => { live = false; };
+  }, [team, fromTask, enquiry?._id]);
 
   const buttons = catalogue?.buttons || [];
   const button = buttons.find((entry) => entry.key === kind);
@@ -190,7 +199,7 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
         ? await workspace.todos.ask({ id: fromTask._id, ...payload }).then((answer) => ({ task: answer.raised, addedTo: answer.addedTo }))
         : team
           ? await workspace.teamTasks.create({ ...payload, ...(customer ? { customer } : {}) })
-          : await handoffsApi.send({ id: enquiry._id, addToOpen: true, ...payload });
+          : await handoffsApi.send({ id: enquiry._id, addToOpen: true, ...payload, ...(order ? { order } : {}) });
       if (team) toast(`Sent to ${form.team || 'the team'}`, 'It is on their dashboard now — no enquiry needed.');
       if (fromTask && !sent.addedTo) toast(`${form.team || 'The department'} asked`, 'Their task is raised, and this task says so.');
       if (sent.addedTo) {
@@ -276,6 +285,14 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
           <Field label="Attach PDF" hint="Optional, 1 MB at most" className="sm:col-span-2" error={tooBig ? 'That PDF is over 1 MB' : notPdf ? 'Attach a PDF' : undefined}>
             <input type="file" accept="application/pdf" className="input" onChange={(event) => setFile(event.target.files?.[0] || null)} />
           </Field>
+          {orders.length > 1 && (
+            <Field label="For sales order" hint="The enquiry has more than one SO">
+              <select className="input" value={order} onChange={(event) => setOrder(event.target.value)}>
+                <option value="">The latest — {orders[0].number}</option>
+                {orders.map((row) => <option key={row._id} value={row._id}>{row.number}{row.customerPo?.number ? ` · PO ${row.customerPo.number}` : ''}</option>)}
+              </select>
+            </Field>
+          )}
           {form.priority && (
             <Field label="Priority">
               <select className="input" value={priority} onChange={(event) => setPriority(event.target.value)}>

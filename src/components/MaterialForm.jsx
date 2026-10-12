@@ -25,7 +25,7 @@ export default function MaterialForm({ material, onClose, onSaved }) {
     formState: { errors, isSubmitting },
   } = useForm({
     defaultValues: editing
-      ? { ...material }
+      ? { ...material, reorderKg: material.reorderKg ?? '' }
       : { type: 'pp', grammageFactorPercent: 0, isActive: true },
   });
 
@@ -42,6 +42,7 @@ export default function MaterialForm({ material, onClose, onSaved }) {
       ratePerKg: number(values.ratePerKg),
       grammageFactorPercent: number(values.grammageFactorPercent) ?? 0,
       supplier: values.supplier || undefined,
+      reorderKg: values.reorderKg === '' || values.reorderKg == null ? (editing ? null : undefined) : Number(values.reorderKg),
       isActive: values.isActive,
       notes: values.notes || undefined,
     };
@@ -109,6 +110,9 @@ export default function MaterialForm({ material, onClose, onSaved }) {
         </Field>
         <Field label="Supplier">
           <input className="input" {...register('supplier')} />
+        </Field>
+        <Field label="Reorder at (kg)" hint="Below this in the store, production is asked to reorder">
+          <input type="number" step="1" min="0" className="input" {...register('reorderKg')} />
         </Field>
       </div>
 

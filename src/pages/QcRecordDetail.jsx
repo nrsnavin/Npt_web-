@@ -94,6 +94,13 @@ export default function QcRecordDetail() {
                   <TestRow name="Print position" result={print.registration} />
                   <TestRow name="Drop" found={drop.heightCm != null ? `${drop.heightCm} cm × ${drop.drops ?? 1}` : ''} result={drop.result} />
                   <TestRow name="Colour match" needed={colourMatch.against ? `against ${colourMatch.against}` : ''} result={colourMatch.result} />
+                  <TestRow name="Hook turns" found={record.hookTurns?.achieved != null ? `${record.hookTurns.achieved} turns` : ''} needed={record.hookTurns?.required != null ? `≥ ${record.hookTurns.required}` : ''} result={record.hookTurns?.result} />
+                  <TestRow name="UV / colour-fastness" found={record.uv?.hours != null ? `${record.uv.hours} h` : ''} result={record.uv?.result} />
+                  <TestRow name="Shrinkage" found={record.shrinkage?.percent != null ? `${record.shrinkage.percent}%` : ''} needed={record.shrinkage?.maxPercent != null ? `≤ ${record.shrinkage.maxPercent}%` : ''} result={record.shrinkage?.result} />
+                  <TestRow name="Resin moisture" found={record.resinChecks?.moisturePercent != null ? `${record.resinChecks.moisturePercent}%` : ''} needed={record.resinChecks?.moistureMaxPercent != null ? `≤ ${record.resinChecks.moistureMaxPercent}%` : ''} result={record.resinChecks?.moistureResult} />
+                  <TestRow name="Melt-flow (MFI)" found={record.resinChecks?.mfi != null ? `${record.resinChecks.mfi} g/10 min` : ''} needed={record.resinChecks?.mfiMin != null || record.resinChecks?.mfiMax != null ? `${record.resinChecks.mfiMin ?? '—'}–${record.resinChecks.mfiMax ?? '—'}` : ''} result={record.resinChecks?.mfiResult} />
+                  <TestRow name="Packing" found={record.packing?.piecesFound != null ? `${record.packing.piecesFound} a carton${record.packing.labels === 'fail' ? ' · labels wrong' : ''}` : ''} needed={record.packing?.piecesPerCarton != null ? `${record.packing.piecesPerCarton} a carton` : ''} result={record.packing?.result} />
+                  <TestRow name="Carton drop" found={record.cartonDrop?.heightCm != null ? `${record.cartonDrop.heightCm} cm × ${record.cartonDrop.drops ?? 1}` : ''} result={record.cartonDrop?.result} />
                 </tbody>
               </table>
             </div>
@@ -103,6 +110,8 @@ export default function QcRecordDetail() {
             <Facts
               items={[
                 { label: 'Lot size', value: record.lotSize != null ? formatNumber(record.lotSize) : null },
+                { label: 'AQL', value: record.aqlPlan?.sampleSize ? `${record.aql} · code ${record.aqlPlan.letter} · accept ≤ ${record.aqlPlan.accept}, reject ≥ ${record.aqlPlan.reject} — ${record.aqlResult === 'fail' ? 'lot fails' : 'lot passes'}` : null, wide: true },
+                { label: 'Standards', value: record.standardsFrom?.replace(/^Standards: /, ''), wide: true },
                 { label: 'Checked', value: record.sampleSize != null ? `${formatNumber(record.sampleSize)} · ${formatNumber(record.accepted ?? 0)} accepted · ${formatNumber(record.rejected || 0)} rejected` : null },
                 { label: 'Defects', value: (record.defects || []).map((row) => `${defectLabel(row.type)} × ${row.count}`).join(', '), wide: true },
                 { label: 'Verdict', value: labelOf(QC_VERDICTS, record.verdict) },

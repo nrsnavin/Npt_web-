@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import QcStandardsFields, { standardsPayload } from './QcStandardsFields.jsx';
 import { useForm } from 'react-hook-form';
 import { moulds as mouldsApi } from '../api/endpoints.js';
 import { Field, FormError } from './ui.jsx';
@@ -62,6 +63,7 @@ export default function MouldForm({ mould, onClose, onSaved }) {
           printingCost: mould.printingCost ?? '',
           packingCost: mould.packingCost ?? '',
           maintenanceEveryShots: mould.maintenanceEveryShots ?? '',
+          qcStandards: { ...(mould.qcStandards || {}) },
           machineCode: mould.machine?.code ?? '',
           machineTonnage: mould.machine?.tonnage ?? '',
           machineHourRate: mould.machine?.hourRate ?? '',
@@ -151,6 +153,7 @@ export default function MouldForm({ mould, onClose, onSaved }) {
       efficiencyPercent: number(values.efficiencyPercent),
       /* Null clears it: the reminder is switched off, not left at the old count. */
       maintenanceEveryShots: values.maintenanceEveryShots === '' || values.maintenanceEveryShots == null ? null : Number(values.maintenanceEveryShots),
+      qcStandards: standardsPayload(values.qcStandards, { clearing: editing }),
       jobWorkCost: number(values.jobWorkCost),
       hookCost: number(values.hookCost),
       clipsCost: number(values.clipsCost),
@@ -318,6 +321,9 @@ export default function MouldForm({ mould, onClose, onSaved }) {
           </Field>
         </div>
       </div>
+
+      {/* What the model is QC-tested against — the QC sheet starts from these. */}
+      <QcStandardsFields register={register} who="model" open={Boolean(mould?.qcStandards && Object.keys(mould.qcStandards).length)} />
 
       {/* --------------------- What the part costs to finish --------------------- */}
 

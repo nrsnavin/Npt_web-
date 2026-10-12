@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { dispatchPlanning } from '../api/endpoints.js';
 import MakeTripDialog from './MakeTripDialog.jsx';
+import QcFlag, { AskLocation } from './QcFlag.jsx';
 import SuggestTrips from './SuggestTrips.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { EmptyState, ErrorState, Field, Modal, Spinner } from './ui.jsx';
@@ -53,6 +54,9 @@ function Stop({ stop, index, checked, onToggle, canPlan }) {
         <p className="text-xs text-steel-400">
           {[stop.model, pcs(stop.quantity), stop.statusLabel, stop.due && `due ${formatDate(stop.due)}`, stop.customer?.phone].filter(Boolean).join(' · ')}
         </p>
+        {/* QC is shown, never a lock: the stop can still go. */}
+        {stop.qc && <p className="mt-1"><QcFlag qc={stop.qc} /></p>}
+        {canPlan && !stop.site && stop.customer?._id && <p className="mt-1"><AskLocation customerId={stop.customer._id} /></p>}
       </div>
       {stop.urgency < SCHEDULE_NAMES.length && (
         <span className={`shrink-0 rounded-full px-2 text-xs font-semibold leading-5 ${stop.urgency <= 1 ? 'bg-danger-500/15 text-danger-400' : 'bg-warn-500/15 text-warn-400'}`}>

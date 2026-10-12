@@ -15,6 +15,7 @@ import { SortHeader, useSort } from '../components/SortHeader.jsx';
 import { formatCompactCurrency, formatDate } from '../utils/format.js';
 import { CUSTOMER_TYPES, SOURCES, optionLabel } from '../utils/pipeline.js';
 import useOpenFromLink from '../hooks/useOpenFromLink.js';
+import QcStandardsFields, { standardsPayload } from '../components/QcStandardsFields.jsx';
 
 const RATINGS = [
   { value: 'A', label: 'A — key account' },
@@ -61,7 +62,7 @@ export function CustomerForm({ customer, onClose, onSaved }) {
     formState: { errors, isSubmitting },
   } = useForm({
     defaultValues: editing
-      ? { ...customer, usualTransporter: idOf(customer.usualTransporter), deliveryRoute: idOf(customer.deliveryRoute), deliveryMode: customer.deliveryMode || '' }
+      ? { ...customer, usualTransporter: idOf(customer.usualTransporter), deliveryRoute: idOf(customer.deliveryRoute), deliveryMode: customer.deliveryMode || '', qcStandards: { ...(customer.qcStandards || {}) } }
       : {
           customerType: 'garment_factory',
           rating: 'B',
@@ -98,6 +99,7 @@ export function CustomerForm({ customer, onClose, onSaved }) {
       deliveryMode: values.deliveryMode || (editing ? null : undefined),
       usualTransporter: values.usualTransporter || (editing ? null : undefined),
       deliveryRoute: values.deliveryRoute || (editing ? null : undefined),
+      qcStandards: standardsPayload(values.qcStandards, { clearing: editing }),
     };
 
     try {
@@ -264,6 +266,9 @@ export function CustomerForm({ customer, onClose, onSaved }) {
           </label>
         </div>
       </div>
+
+      {/* Only where this buyer asks for more than the model's standards. */}
+      <QcStandardsFields register={register} who="buyer" open={Boolean(customer?.qcStandards && Object.keys(customer.qcStandards).length)} />
 
       <Field label="Notes">
         <textarea rows={2} className="input" {...register('notes')} />
