@@ -182,6 +182,8 @@ export const moulds = {
     form.append('photo', file);
     return api.put(`/moulds/${id}/photo`, form).then(unwrap);
   },
+  /** Admin: refused, with where it is used, while anything points at the mould — retire it then. */
+  remove: (id) => api.delete(`/moulds/${id}`).then(unwrap),
 };
 
 /**
@@ -932,6 +934,14 @@ export const tradedItems = {
   get: (id) => api.get(`/traded-items/${id}`).then(unwrap),
   create: (payload) => api.post('/traded-items', payload).then(unwrap),
   update: ({ id, ...payload }) => api.patch(`/traded-items/${id}`, payload).then(unwrap),
+  /** The piece's photo, as on the mould register. Multipart. */
+  setPhoto: (id, file) => {
+    const form = new FormData();
+    form.append('photo', file);
+    return api.put(`/traded-items/${id}/photo`, form).then(unwrap);
+  },
+  /** Admin: refused while a quotation is costed on it — mark it no longer bought then. */
+  remove: (id) => api.delete(`/traded-items/${id}`).then(unwrap),
   /** An Excel/CSV upload: `commit: false` answers the preview, `true` writes it. */
   importSheet: ({ file, commit }) => {
     const form = new FormData();

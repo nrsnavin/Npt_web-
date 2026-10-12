@@ -9,6 +9,8 @@ import {
 import ExportButton from '../components/ExportButton.jsx';
 import { SortHeader, useSort } from '../components/SortHeader.jsx';
 import TradedItemForm from '../components/TradedItemForm.jsx';
+import DeleteRecordButton from '../components/DeleteRecordButton.jsx';
+import { MouldThumb } from '../components/MouldPhoto.jsx';
 import TradingUpload from '../components/TradingUpload.jsx';
 import { formatDate } from '../utils/format.js';
 import { HANGER_CATEGORIES, optionLabel } from '../utils/pipeline.js';
@@ -28,7 +30,7 @@ const STALE_DAYS = 90;
 const isStale = (at) => (at ? (Date.now() - new Date(at).getTime()) / 86400000 > STALE_DAYS : false);
 
 export default function TradingMaster() {
-  const { canWrite } = useAuth();
+  const { canWrite, isAdmin } = useAuth();
   /* Keeping the list is costing work: the same grant that sees the cost on a quotation. */
   const mayKeep = canWrite('pricing');
   const [search, setSearch] = useState('');
@@ -135,11 +137,16 @@ export default function TradingMaster() {
                   {data.map((item) => (
                     <tr key={item._id} className="row-hover">
                       <td className="px-4 py-3.5">
-                        <Link to={`/trading/${item._id}`} className="font-semibold text-steel-100 hover:text-accent">
-                          {item.modelNumber}
-                        </Link>
-                        {item.code && <p className="text-xs text-steel-400">{item.code}</p>}
-                        {item.isActive === false && <Badge status="inactive" />}
+                        <div className="flex items-center gap-3">
+                          <MouldThumb mould={item} />
+                          <div>
+                            <Link to={`/trading/${item._id}`} className="font-semibold text-steel-100 hover:text-accent">
+                              {item.modelNumber}
+                            </Link>
+                            {item.code && item.code !== item.modelNumber.toUpperCase() && <p className="text-xs text-steel-400">{item.code}</p>}
+                            {item.isActive === false && <Badge status="inactive" />}
+                          </div>
+                        </div>
                       </td>
                       <td className="max-w-[18rem] px-4 py-3.5 text-steel-300">
                         {[item.description, optionLabel(HANGER_CATEGORIES, item.category), item.colour].filter((text) => text && text !== '—').join(' · ') || '—'}
@@ -158,6 +165,16 @@ export default function TradingMaster() {
                       {mayKeep && (
                         <td className="px-4 py-3.5 text-right">
                           <button type="button" className="row-action" onClick={() => setEditing(item)}>Edit</button>
+                          {isAdmin && (
+                            <DeleteRecordButton
+                              name={item.modelNumber}
+                              onDelete={() => tradedItemsApi.remove(item._id)}
+                              onRetire={() => tradedItemsApi.update({ id: item._id, isActive: false })}
+                              retireLabel="Mark it no longer bought"
+                              onDone={reload}
+                              className="row-action ml-3 text-danger-400"
+                            />
+                          )}
                         </td>
                       )}
                     </tr>

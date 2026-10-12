@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { moulds as mouldsApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useRecord } from '../hooks/useRecords.js';
@@ -8,6 +8,7 @@ import {
 } from '../components/ui.jsx';
 import { MouldThumb } from '../components/MouldPhoto.jsx';
 import MouldForm from '../components/MouldForm.jsx';
+import DeleteRecordButton from '../components/DeleteRecordButton.jsx';
 import MouldHistory from '../components/MouldHistory.jsx';
 import { formatCurrency, formatDate, formatNumber, humanise } from '../utils/format.js';
 import { formatGrams } from '../utils/grams.js';
@@ -62,7 +63,8 @@ function Derived({ label, value, note, lit }) {
 
 export default function MouldDetail() {
   const { id } = useParams();
-  const { canWrite } = useAuth();
+  const { canWrite, isAdmin } = useAuth();
+  const navigate = useNavigate();
   const mayEdit = canWrite('moulds');
 
   const fetch = useCallback((mouldId) => mouldsApi.get(mouldId), []);
@@ -88,6 +90,15 @@ export default function MouldDetail() {
               <button type="button" className="btn-secondary" onClick={() => setEditing(true)}>
                 Edit the mould
               </button>
+            )}
+            {isAdmin && (
+              <DeleteRecordButton
+                name={mould.mouldCode}
+                onDelete={() => mouldsApi.remove(mould._id)}
+                onRetire={() => mouldsApi.update({ id: mould._id, status: 'retired' })}
+                onDone={(outcome) => (outcome === 'deleted' ? navigate('/moulds') : reload())}
+                className="btn-secondary text-danger-400"
+              />
             )}
             <Badge status={mould.status}>
               {optionLabel(MOULD_STATUSES, mould.status) || humanise(mould.status)}

@@ -55,7 +55,7 @@ export function MouldThumb({ mould, size = 'sm', className = '', eager = false }
   return (
     <AuthedImage
       attachmentKey={mould.photo.key}
-      alt={`${mould.mouldCode || 'Model'} — the part it makes`}
+      alt={`${mould.mouldCode || mould.modelNumber || 'Model'} — the part it makes`}
       eager={eager}
       /* `object-contain` on a pale ground rather than `cover`: a hanger is a thin outline, and
          cropping one to fill a box cuts off the hook, which is the half people recognise. */
@@ -76,7 +76,7 @@ export function MouldThumb({ mould, size = 'sm', className = '', eager = false }
  * The preview is of the chosen file, not of the saved one, so what you see before saving is what
  * you are about to save.
  */
-export function MouldPhotoField({ photo, file, onPick, onClear }) {
+export function MouldPhotoField({ photo, file, onPick, onClear, noun = 'mould' }) {
   const input = useRef(null);
   const [preview, setPreview] = useState(null);
 
@@ -141,12 +141,12 @@ export function MouldPhotoField({ photo, file, onPick, onClear }) {
         </div>
 
         <p className="mt-2 text-xs text-steel-500">
-          The piece this tool makes. It travels with the model everywhere it is chosen, and onto
-          the price quote the customer receives.
+          {noun === 'mould' ? 'The piece this tool makes.' : 'The piece as it is bought in.'} It travels with the model
+          everywhere it is chosen, and onto the price quote the customer receives.
         </p>
         {file && (
           <p className="mt-1 text-xs font-semibold text-accent">
-            {file.name} — saved when you save the mould
+            {file.name} — saved when you save the {noun}
           </p>
         )}
       </div>

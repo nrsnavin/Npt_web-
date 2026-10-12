@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { tradedItems as tradedItemsApi } from '../api/endpoints.js';
 import { Field, FormError } from './ui.jsx';
+import { MouldPhotoField } from './MouldPhoto.jsx';
 import { HANGER_CATEGORIES } from '../utils/pipeline.js';
 
 /**
@@ -24,31 +25,50 @@ const blank = (item) => ({
   gstPercent: item?.gstPercent ?? '',
   notes: item?.notes ?? '',
   isActive: item?.isActive !== false,
+  buildUp: Object.fromEntries(BUILD_UP.map(([key]) => [key, item?.buildUp?.[key] ?? ''])),
 });
 
 const NUMBERS = ['sizeMm', 'inwardPrice', 'moq', 'piecesPerCarton', 'gstPercent'];
+
+/* The plant's cost build-up for the piece, as the price sheet heads it [server: TradedItem `buildUp`]. */
+const BUILD_UP = [
+  ['partWeightGrams', 'Grammage as PP (g)'],
+  ['runnerWeightGrams', 'Runner grammage (g)'],
+  ['jobWorkCost', 'Job work cost (₹)'],
+  ['hookCost', 'Hook (₹)'],
+  ['clipsCost', 'Clips (₹)'],
+  ['packingCost', 'Packing cost (₹)'],
+];
 
 export default function TradedItemForm({ item, onClose, onSaved }) {
   const [values, setValues] = useState(blank(item));
   const [priceNote, setPriceNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  /* Held until Save, then sent on its own endpoint, as the mould form does. */
+  const [photo, setPhoto] = useState(null);
   const set = (key) => (event) => setValues({ ...values, [key]: event.target.value });
+  const setCost = (key) => (event) => setValues({ ...values, buildUp: { ...values.buildUp, [key]: event.target.value } });
   const priceMoved = item && values.inwardPrice !== '' && Number(values.inwardPrice) !== item.inwardPrice;
 
   const submit = async (event) => {
     event.preventDefault();
     setBusy(true);
     setError(null);
+    const { buildUp: costs, ...plain } = values;
+    const buildUp = Object.fromEntries(BUILD_UP.filter(([key]) => costs[key] !== '').map(([key]) => [key, Number(costs[key])]));
     const payload = Object.fromEntries(
-      Object.entries(values)
+      Object.entries(plain)
         .map(([key, value]) => [key, NUMBERS.includes(key) ? (value === '' ? undefined : Number(value)) : value])
         .map(([key, value]) => [key, typeof value === 'string' ? value.trim() || undefined : value])
     );
+    /* Sent whenever the item had one or now has one, so clearing a figure clears it. */
+    if (Object.keys(buildUp).length || item?.buildUp) payload.buildUp = buildUp;
     try {
-      const saved = item
+      let saved = item
         ? await tradedItemsApi.update({ id: item._id, ...payload, priceNote: priceMoved ? priceNote.trim() || undefined : undefined })
         : await tradedItemsApi.create(payload);
+      if (photo) saved = await tradedItemsApi.setPhoto(saved._id, photo);
       onSaved?.(saved);
       onClose();
     } catch (saveError) {
@@ -68,6 +88,7 @@ export default function TradedItemForm({ item, onClose, onSaved }) {
           <input className="input" placeholder="TR-001" value={values.code} onChange={set('code')} />
         </Field>
       </div>
+      <MouldPhotoField photo={item?.photo} file={photo} onPick={setPhoto} onClear={() => setPhoto(null)} noun="item" />
       <Field label="Description">
         <input className="input" placeholder="Plain shirt hanger, 17 inch" value={values.description} onChange={set('description')} />
       </Field>
@@ -101,6 +122,17 @@ export default function TradedItemForm({ item, onClose, onSaved }) {
           </Field>
         )}
       </div>
+
+      <fieldset className="rounded-xl border border-line/[0.08] p-4">
+        <legend className="px-1 text-xs font-bold uppercase tracking-[0.08em] text-steel-400">Cost build-up — per piece</legend>
+        <div className="grid gap-4 sm:grid-cols-3">
+          {BUILD_UP.map(([key, label]) => (
+            <Field key={key} label={label}>
+              <input type="number" min="0" step="any" className="input" value={values.buildUp[key]} onChange={setCost(key)} />
+            </Field>
+          ))}
+        </div>
+      </fieldset>
 
       <div className="grid gap-4 sm:grid-cols-3">
         <Field label="Supplier's code">
