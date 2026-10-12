@@ -54,3 +54,15 @@ test('a dispatch task waiting on a readiness ask shows it and locks its status',
   assert.match(workflow, /disabled=\{waiting\.length > 0\}/);
   assert.match(workflow, /The status can be changed once/);
 });
+
+test('a trading model is said wherever pricing is read, and the costing sheet offers to price one as Trade', () => {
+  const badge = read('components/TradingBadge.jsx');
+  assert.match(badge, /Trading model/);
+  assert.match(badge, /procurement === 'trade' \|\| Boolean\(line\?\.tradedItem\)/);
+  for (const page of ['pages/QuotationDetail.jsx', 'pages/Quotations.jsx', 'pages/EnquiryDetail.jsx', 'components/CostingSheetForm.jsx']) {
+    assert.match(read(page), /<TradingBadge/, page);
+  }
+  const sheet = read('components/CostingSheetForm.jsx');
+  assert.match(sheet, /is a trading model — on the trading master/);
+  assert.match(sheet, /Price it as Trade/);
+});

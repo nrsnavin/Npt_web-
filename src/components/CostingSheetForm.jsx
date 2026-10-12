@@ -6,6 +6,7 @@ import {
 import { Field, Notice } from './ui.jsx';
 import Combobox from './Combobox.jsx';
 import PreviousQuotes from './PreviousQuotes.jsx';
+import TradingBadge from './TradingBadge.jsx';
 import { MINIMUM_TIER, STANDARD_TIERS, priceAt as priceFor } from '../utils/pricing.js';
 import { changedParts } from '../utils/pricing.js';
 import { GRAM_STEP, cutGrams } from '../utils/grams.js';
@@ -74,6 +75,35 @@ export default function CostingSheetForm({ quotation: pricing, line, onClose, on
   const [approved, setApproved] = useState(row.unitPrice ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+
+  /*
+   * The model on the trading master, when it is priced as made here: a bought-in piece costed off
+   * a mould and a resin is costed wrong, so the sheet says so and offers the item's inward price.
+   */
+  const [onTradingMaster, setOnTradingMaster] = useState(null);
+  useEffect(() => {
+    const model = String(row.modelNumber || '').trim();
+    if (procurement === 'trade' || !model) {
+      setOnTradingMaster(null);
+      return undefined;
+    }
+    let live = true;
+    const key = model.replace(/\s+/g, ' ').toLowerCase();
+    tradedItemsApi.list({ search: model, isActive: true, limit: 10 })
+      .then((found) => {
+        const rows = Array.isArray(found) ? found : found?.data || [];
+        const item = rows.find((entry) => String(entry.modelNumber || '').replace(/\s+/g, ' ').trim().toLowerCase() === key);
+        if (live) setOnTradingMaster(item || null);
+      })
+      .catch(() => live && setOnTradingMaster(null));
+    return () => { live = false; };
+  }, [row.modelNumber, procurement]);
+
+  const priceAsTrade = () => {
+    setProcurement('trade');
+    setTradedItem(onTradingMaster._id);
+    if (onTradingMaster.inwardPrice != null) setCost((current) => ({ ...current, inwardPrice: onTradingMaster.inwardPrice }));
+  };
 
   const number = (value) => (value === '' || value === null ? undefined : Number(value));
 
@@ -284,6 +314,21 @@ export default function CostingSheetForm({ quotation: pricing, line, onClose, on
         a set of numbers with nothing saying whose they are, and the first person to re-cost a
         five-model sheet would reasonably believe they were editing all of it.
       */}
+      {procurement === 'trade' && (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-aqua-500/25 bg-aqua-500/[0.06] px-3.5 py-2.5">
+          <TradingBadge />
+          <p className="text-xs text-steel-300">
+            {row.modelNumber || 'This model'} is bought in and resold — costed at the supplier&rsquo;s inward price, not off a mould.
+          </p>
+        </div>
+      )}
+      {onTradingMaster && (
+        <Notice tone="info">
+          <span className="font-semibold">{onTradingMaster.modelNumber}</span> is a trading model — on the trading master
+          {onTradingMaster.inwardPrice != null ? ` at ₹${onTradingMaster.inwardPrice} inward` : ''}.{' '}
+          <button type="button" className="font-semibold underline" onClick={priceAsTrade}>Price it as Trade</button>
+        </Notice>
+      )}
       {pricing.lines?.length > 1 && (
         <div className="rounded-lg border border-flame-500/20 bg-flame-500/[0.06] px-3.5 py-2.5">
           <p className="text-xs text-steel-300">

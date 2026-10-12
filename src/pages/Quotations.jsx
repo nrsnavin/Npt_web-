@@ -15,6 +15,7 @@ import { formatCompactCurrency, formatCurrency, formatDate, formatNumber, humani
 /* The shared one, not a second copy of it: this date now decides whether the server takes the
    form, so the two must not be able to drift apart. */
 import { inDays } from '../utils/pipeline.js';
+import TradingBadge, { isTradingLine } from '../components/TradingBadge.jsx';
 
 /**
  * Quotations [BLUEPRINT §10].
@@ -768,6 +769,13 @@ export default function Quotations() {
                         {row.lines?.length === 1
                           ? row.lines[0].modelNumber || '—'
                           : `${row.lines?.length ?? 0} models`}
+                        {/* Bought in and resold: said on the row, as on the quotation itself. */}
+                        {(row.lines || []).some(isTradingLine) && (
+                          <TradingBadge
+                            className="ml-1.5"
+                            line={row.lines.length === 1 ? row.lines[0] : undefined}
+                          />
+                        )}
                         {row.lines?.length > 1 && (
                           <p className="truncate text-xs text-steel-500">
                             {row.lines.map((line) => line.modelNumber).filter(Boolean).join(', ')}
