@@ -61,6 +61,7 @@ export default function MouldForm({ mould, onClose, onSaved }) {
           clipsCost: mould.clipsCost ?? '',
           printingCost: mould.printingCost ?? '',
           packingCost: mould.packingCost ?? '',
+          maintenanceEveryShots: mould.maintenanceEveryShots ?? '',
           machineCode: mould.machine?.code ?? '',
           machineTonnage: mould.machine?.tonnage ?? '',
           machineHourRate: mould.machine?.hourRate ?? '',
@@ -148,6 +149,8 @@ export default function MouldForm({ mould, onClose, onSaved }) {
       regrindRecoveryPercent: number(values.regrindRecoveryPercent),
       cycleTimeSeconds: number(values.cycleTimeSeconds),
       efficiencyPercent: number(values.efficiencyPercent),
+      /* Null clears it: the reminder is switched off, not left at the old count. */
+      maintenanceEveryShots: values.maintenanceEveryShots === '' || values.maintenanceEveryShots == null ? null : Number(values.maintenanceEveryShots),
       jobWorkCost: number(values.jobWorkCost),
       hookCost: number(values.hookCost),
       clipsCost: number(values.clipsCost),
@@ -302,6 +305,9 @@ export default function MouldForm({ mould, onClose, onSaved }) {
           </Field>
           <Field label="Achieved (%)" hint="Against the nameplate cycle — nothing runs at 100">
             <input type="number" step="1" min="1" max="100" className="input" {...register('efficiencyPercent')} />
+          </Field>
+          <Field label="Maintenance every (shots)" hint="Polish and check the tool after this many shots — leave empty for no reminder">
+            <input type="number" step="1" min="0" className="input" {...register('maintenanceEveryShots')} />
           </Field>
           <Field label="Status">
             <select className="input" {...register('status')}>

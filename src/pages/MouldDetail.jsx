@@ -8,6 +8,7 @@ import {
 } from '../components/ui.jsx';
 import { MouldThumb } from '../components/MouldPhoto.jsx';
 import MouldForm from '../components/MouldForm.jsx';
+import MouldHistory from '../components/MouldHistory.jsx';
 import { formatCurrency, formatDate, formatNumber, humanise } from '../utils/format.js';
 import { formatGrams } from '../utils/grams.js';
 import {
@@ -328,6 +329,9 @@ export default function MouldDetail() {
           </Section>
         </div>
       </div>
+
+      {/* Runs, maintenance, QC and the shot count — the tool's life, below what the tool is. */}
+      <MouldHistory key={mould.updatedAt} mould={mould} />
 
       <Modal
         open={editing}

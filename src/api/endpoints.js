@@ -1016,3 +1016,45 @@ export const tripsApi = {
   tellBuyers: ({ id, ...payload }) => api.post(`/trips/${id}/tell-buyers`, payload, { feedback: false }).then(unwrap),
   sheet: (trip) => save(`/trips/${trip._id}/sheet`, undefined, `${trip.number}-trip-sheet.pdf`),
 };
+
+/**
+ * QC records [server: services/records.service.js]: the quality team's test sheet for one lot —
+ * resin, mould, size, hook, clips, print, breaking strength and the rest — worked out on the server
+ * from the figures, approved by someone other than the inspector, printed as a test report.
+ */
+export const qcRecordsApi = {
+  list: (params) => api.get('/qc-records', { params }).then((r) => r.data),
+  get: (id) => api.get(`/qc-records/${id}`).then(unwrap),
+  create: (payload) => api.post('/qc-records', payload).then(unwrap),
+  approve: (id) => api.post(`/qc-records/${id}/approve`).then(unwrap),
+  certificate: (record) => save(`/qc-records/${record._id}/certificate`, undefined, `${record.number}-qc-report.pdf`),
+};
+
+/** The moulding machines, and the maintenance and runs made on each. */
+export const machinesApi = {
+  list: (params) => api.get('/machines', { params }).then(unwrap),
+  get: (id) => api.get(`/machines/${id}`).then(unwrap),
+  create: (payload) => api.post('/machines', payload).then(unwrap),
+  update: ({ id, ...payload }) => api.patch(`/machines/${id}`, payload).then(unwrap),
+};
+
+/** Maintenance on a machine or a mould; recording one sets when the next falls due. */
+export const maintenanceApi = {
+  list: (params) => api.get('/maintenance', { params }).then(unwrap),
+  create: (payload) => api.post('/maintenance', payload).then(unwrap),
+};
+
+/** Mould runs: one mould on one machine for an order, its shots added to the mould's life when it ends. */
+export const mouldRunsApi = {
+  list: (params) => api.get('/mould-runs', { params }).then(unwrap),
+  start: (payload) => api.post('/mould-runs', payload).then(unwrap),
+  finish: ({ id, ...payload }) => api.post(`/mould-runs/${id}/finish`, payload).then(unwrap),
+  /** A mould's runs, maintenance and QC records, and where its shot count stands. */
+  mouldHistory: (mouldId) => api.get(`/moulds/${mouldId}/history`).then(unwrap),
+};
+
+/** The dispatch register: every stop on every trip that left, with the LR details. */
+export const dispatchRegisterApi = {
+  list: (params) => api.get('/dispatch-register', { params }).then((r) => r.data),
+  csv: (params) => save('/dispatch-register', { ...params, format: 'csv' }, 'dispatch-register.csv'),
+};

@@ -1,7 +1,7 @@
 const listeners = new Set();
 let sequence = 0;
 const pending = new Map();
-const nouns = { components: 'Component', customers: 'Customer', enquiries: 'Enquiry', samples: 'Sample', orders: 'Order', dispatches: 'Dispatch', payments: 'Payment', pricings: 'Costing', quotations: 'Quotation', production: 'Production', quality: 'Quality check', users: 'User', moulds: 'Model', materials: 'Material', hooks: 'Hook', clips: 'Clip', prints: 'Print', todos: 'Task', notes: 'Note', announcements: 'Announcement', whatsapp: 'Conversation', escalations: 'Escalation', queries: 'Query', profile: 'Profile' };
+const nouns = { components: 'Component', customers: 'Customer', enquiries: 'Enquiry', samples: 'Sample', orders: 'Order', dispatches: 'Dispatch', payments: 'Payment', pricings: 'Costing', quotations: 'Quotation', production: 'Production', quality: 'Quality check', users: 'User', moulds: 'Model', materials: 'Material', hooks: 'Hook', clips: 'Clip', prints: 'Print', todos: 'Task', notes: 'Note', announcements: 'Announcement', whatsapp: 'Conversation', escalations: 'Escalation', queries: 'Query', profile: 'Profile', 'qc-records': 'QC record', machines: 'Machine', maintenance: 'Maintenance', 'mould-runs': 'Mould run' };
 export function actionLabel(config) {
   const parts = String(config.url || '').split(/[/?]/).filter(Boolean);
   const noun = nouns[parts[0] === 'workspace' ? parts[1] : parts[0]] || 'Record';
@@ -15,6 +15,10 @@ export function actionLabel(config) {
   const labels = { activities:'Activity recorded', suggest:'Suggestions ready', group:'Enquiries created', 'promote-mould':'Model created', checks:'Order check updated', priority:'Order priority updated', order:'Order created', inspections:'Inspection recorded', 'follow-ups':'Follow-up recorded', judgement:'Payment follow-up status updated', advance:'Advance requested', production:'Production updated', queries:'Query raised', answers:'Answer recorded', close:'Query closed', escalations:'Escalation raised', updates:'Escalation update recorded', resolve:'Escalation resolved', cost:'Costing saved', decision:'Costing decision recorded', quotation:'Quotation created', revisions:'Quotation revised', send:'Quotation sending recorded', response:'Customer response recorded', assign:'Sample assigned', feedback:'Sample feedback recorded', resample:'New sample requested', 'link-enquiry':'Enquiry linked', 'link-customer':'Customer linked', 'customer-message':'Customer message recorded', logs:'Log entry added', comments:'Comment added', 'reference-photo':'Reference photo uploaded', handoffs:'Task sent', done:'Task done', brief:'Contact details saved', 'send-back':'Task sent back', reschedule:'Due date changed', sync:'Sync completed', documents:'Document uploaded', reassign:'Selected records reassigned', access:'Access updated', reset:'Department access restored' };
   if (labels[last]) return labels[last];
   if (last === 'receipts') return 'Receipt recorded';
+  if (parts[0] === 'qc-records' && last === 'approve') return 'QC record approved';
+  if (parts[0] === 'mould-runs' && last === 'finish') return 'Run finished';
+  if (parts[0] === 'maintenance' && config.method === 'post') return 'Maintenance recorded';
+  if (parts[0] === 'mould-runs' && config.method === 'post' && parts.length === 1) return 'Run started';
   /* A department's own status — the server's key ("preparing") is not words, so none is shown as detail. */
   if (last === 'status' && parts[0] === 'workspace') return 'Status updated';
   /* Noun-aware: `/announcements/:id/read` and `/whatsapp/threads/:id/read` are the same verb on

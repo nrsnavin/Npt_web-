@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { workspace } from '../api/endpoints.js';
 import { buttonFor, useHandoffCatalogue } from '../hooks/useHandoffCatalogue.js';
 import { Field, Modal, Notice } from './ui.jsx';
+import { Link } from 'react-router-dom';
 import TaskPdfLink from './TaskPdfLink.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 import TaskDocuments from './TaskDocuments.jsx';
 import DepartmentTaskDialog from './DepartmentTaskDialog.jsx';
 import { useToast } from '../context/ToastContext.jsx';
@@ -203,8 +205,11 @@ function ContactDialog({ fields, todo, title = 'Edit contact details', onClose, 
   );
 }
 
+const QC_KINDS = ['quality_check', 'quality_issue'];
+
 /** The status list and the workflow's actions, for a task whose department has a workflow. */
 export default function TaskWorkflow({ todo, onChanged, startWith }) {
+  const { canWrite } = useAuth();
   const catalogue = useHandoffCatalogue();
   const button = buttonFor(catalogue, todo?.kind);
   const statuses = button?.form?.statuses || [];
@@ -273,6 +278,15 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
             {action.label}
           </button>
         ))}
+        {/* A Quality task's test sheet, opened with the task and its enquiry filled in. */}
+        {QC_KINDS.includes(todo.kind) && canWrite('quality') && (
+          <Link
+            to={`/qc-records/new?task=${todo._id}${todo.enquiry ? `&enquiry=${todo.enquiry._id || todo.enquiry}` : ''}&stage=${todo.kind === 'quality_issue' ? 'complaint' : 'pre_dispatch'}`}
+            className="btn-secondary px-3 py-1.5 text-xs"
+          >
+            Fill a QC record
+          </Link>
+        )}
         {resultStep && (
           <button type="button" className="btn-primary px-3 py-1.5 text-xs" onClick={() => setUploading(true)}>
             {button.form.resultLabel || `Upload PDF — ${resultStep.label}`}
