@@ -8,6 +8,7 @@ import {
 } from '../components/ui.jsx';
 import { MouldThumb } from '../components/MouldPhoto.jsx';
 import MouldForm from '../components/MouldForm.jsx';
+import DeleteRecordButton from '../components/DeleteRecordButton.jsx';
 import ExportButton from '../components/ExportButton.jsx';
 import { SortHeader, useSort } from '../components/SortHeader.jsx';
 import { formatCurrency, formatNumber } from '../utils/format.js';
@@ -41,7 +42,7 @@ const grams = (value) =>
   value === undefined || value === null ? '—' : `${Number(value).toFixed(2)} g`;
 
 export default function Moulds() {
-  const { canWrite } = useAuth();
+  const { canWrite, isAdmin } = useAuth();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const [material, setMaterial] = useState('');
@@ -226,6 +227,15 @@ export default function Moulds() {
                             <button type="button" className="row-action" onClick={() => setEditing(mould)}>
                               Edit
                             </button>
+                            {isAdmin && (
+                              <DeleteRecordButton
+                                name={mould.mouldCode}
+                                onDelete={() => mouldsApi.remove(mould._id)}
+                                onRetire={() => mouldsApi.update({ id: mould._id, status: 'retired' })}
+                                onDone={reload}
+                                className="row-action ml-3 text-danger-400"
+                              />
+                            )}
                           </td>
                         )}
                       </tr>

@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { tradedItems as tradedItemsApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useRecord } from '../hooks/useRecords.js';
 import { Badge, ErrorState, Facts, Modal, PageHeader, Section, Spinner } from '../components/ui.jsx';
 import TradedItemForm from '../components/TradedItemForm.jsx';
+import DeleteRecordButton from '../components/DeleteRecordButton.jsx';
 import { MouldThumb } from '../components/MouldPhoto.jsx';
 import { formatDate } from '../utils/format.js';
 import { HANGER_CATEGORIES, optionLabel } from '../utils/pipeline.js';
@@ -17,7 +18,8 @@ const rupees = (value) => (value === undefined || value === null ? '—' : `₹$
  */
 export default function TradedItemDetail() {
   const { id } = useParams();
-  const { canWrite } = useAuth();
+  const { canWrite, isAdmin } = useAuth();
+  const navigate = useNavigate();
   const mayKeep = canWrite('pricing');
   const fetch = useCallback(() => tradedItemsApi.get(id), [id]);
   const { data: item, loading, error, reload } = useRecord(fetch, id);
@@ -44,6 +46,16 @@ export default function TradedItemDetail() {
           <div className="flex items-center gap-2">
             {item.isActive === false && <Badge status="inactive" />}
             {mayKeep && <button type="button" className="btn-primary" onClick={() => setEditing(true)}>Edit</button>}
+            {isAdmin && (
+              <DeleteRecordButton
+                name={item.modelNumber}
+                onDelete={() => tradedItemsApi.remove(item._id)}
+                onRetire={() => tradedItemsApi.update({ id: item._id, isActive: false })}
+                retireLabel="Mark it no longer bought"
+                onDone={(outcome) => (outcome === 'deleted' ? navigate('/trading') : reload())}
+                className="btn-secondary text-danger-400"
+              />
+            )}
           </div>
         }
       />

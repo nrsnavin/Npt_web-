@@ -180,7 +180,13 @@ export default function MouldForm({ mould, onClose, onSaved }) {
 
     try {
       let saved = editing
-        ? await mouldsApi.update({ id: mould._id, expectedUpdatedAt: mould.updatedAt, ...payload })
+        ? await mouldsApi.update({
+          id: mould._id,
+          expectedUpdatedAt: mould.updatedAt,
+          ...payload,
+          /* Sent only when corrected: the records using the mould follow it by id. */
+          ...(values.mouldCode && values.mouldCode.trim().toUpperCase() !== mould.mouldCode ? { mouldCode: values.mouldCode.trim() } : {}),
+        })
         : await mouldsApi.create({ mouldCode: values.mouldCode, ...payload });
 
       /*
@@ -211,12 +217,11 @@ export default function MouldForm({ mould, onClose, onSaved }) {
   return (
     <form onSubmit={handleSubmit(submit)} className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Mould number" error={errors.mouldCode} hint={editing ? 'Stamped on the tool — not editable' : 'e.g. M-142'} required>
+        <Field label="Mould number" error={errors.mouldCode} hint={editing ? 'Correct it here — enquiries, quotations and runs follow the mould' : 'e.g. M-142'} required>
           <input
             className="input uppercase"
-            disabled={editing}
             defaultValue={mould?.mouldCode}
-            {...(editing ? {} : register('mouldCode', { required: 'The mould number is required' }))}
+            {...register('mouldCode', { required: 'The mould number is required' })}
           />
         </Field>
         {/* Across both columns, above the numbers: it is the one field on this form somebody

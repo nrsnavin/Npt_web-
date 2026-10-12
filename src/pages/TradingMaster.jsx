@@ -9,6 +9,7 @@ import {
 import ExportButton from '../components/ExportButton.jsx';
 import { SortHeader, useSort } from '../components/SortHeader.jsx';
 import TradedItemForm from '../components/TradedItemForm.jsx';
+import DeleteRecordButton from '../components/DeleteRecordButton.jsx';
 import { MouldThumb } from '../components/MouldPhoto.jsx';
 import TradingUpload from '../components/TradingUpload.jsx';
 import { formatDate } from '../utils/format.js';
@@ -29,7 +30,7 @@ const STALE_DAYS = 90;
 const isStale = (at) => (at ? (Date.now() - new Date(at).getTime()) / 86400000 > STALE_DAYS : false);
 
 export default function TradingMaster() {
-  const { canWrite } = useAuth();
+  const { canWrite, isAdmin } = useAuth();
   /* Keeping the list is costing work: the same grant that sees the cost on a quotation. */
   const mayKeep = canWrite('pricing');
   const [search, setSearch] = useState('');
@@ -164,6 +165,16 @@ export default function TradingMaster() {
                       {mayKeep && (
                         <td className="px-4 py-3.5 text-right">
                           <button type="button" className="row-action" onClick={() => setEditing(item)}>Edit</button>
+                          {isAdmin && (
+                            <DeleteRecordButton
+                              name={item.modelNumber}
+                              onDelete={() => tradedItemsApi.remove(item._id)}
+                              onRetire={() => tradedItemsApi.update({ id: item._id, isActive: false })}
+                              retireLabel="Mark it no longer bought"
+                              onDone={reload}
+                              className="row-action ml-3 text-danger-400"
+                            />
+                          )}
                         </td>
                       )}
                     </tr>
