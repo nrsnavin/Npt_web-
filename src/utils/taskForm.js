@@ -112,6 +112,35 @@ export const todayInIndia = (now = new Date()) =>
  * What a task was asked, in lines: "Mould / model: NH-400 · Colour: Black" for plain answers,
  * and one line per row of a table — "UTJRSH-0 · PP · Black · Compulsory colour · 5 pcs".
  */
+/**
+ * The same, as label / value pairs for a facts table — a row of a table becomes one entry under
+ * the table's label ("Items: NH-400 · PP · Black · 5 pcs"), a plain answer one entry of its own.
+ */
+export function briefEntries(button, brief) {
+  if (!brief) return [];
+  const asks = button?.asks || [];
+  const entries = [];
+  for (const [key, value] of Object.entries(brief)) {
+    const field = asks.find((entry) => entry.key === key);
+    if (value === undefined || value === null || value === '' || value === false) continue;
+    if (Array.isArray(value)) {
+      for (const row of value) {
+        const cells = (field?.columns || Object.keys(row).map((column) => ({ key: column })))
+          .filter((column) => row[column.key])
+          .map((column) => (column.key === 'quantity' ? `${row[column.key]} pcs` : row[column.key]));
+        if (cells.length) entries.push({ key: `${key}-${entries.length}`, label: field?.label || key, value: cells.join(' · ') });
+      }
+    } else {
+      /* A number reads as one: 10,000 pieces, not 10000. */
+      const shown = value === true ? 'Yes'
+        : (field?.type === 'number' || key === 'quantity') && Number.isFinite(Number(value)) && String(value).trim() !== '' ? Number(value).toLocaleString('en-IN')
+          : String(value);
+      entries.push({ key, label: field?.label || key, value: shown });
+    }
+  }
+  return entries;
+}
+
 export function describeBrief(button, brief) {
   if (!brief) return [];
   const asks = button?.asks || [];

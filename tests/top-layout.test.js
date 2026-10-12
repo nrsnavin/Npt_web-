@@ -166,8 +166,9 @@ test('every task on the board opens into its panel: Admin works any department�
   assert.match(panel, /\{!holder && <button type="button" className="row-action" onClick=\{claim\}>I’ll take it<\/button>\}/);
   assert.match(panel, /mayWork && !task\.completed \?/);
   assert.match(panel, /Read-only — this task is on the \{departmentLabel\(task\.department\)\} queue\./);
-  assert.match(panel, /task\.updates\.map\(\(update\) =>/);
-  assert.match(panel, /describeBrief\(button, task\.brief\)/);
+  /* What was asked and what happened are drawn by the shared facts table and timeline [TaskHistory]. */
+  assert.match(panel, /<TaskFacts button=\{button\} task=\{task\} \/>/);
+  assert.match(panel, /<TaskTimeline task=\{task\} button=\{button\} \/>/);
 });
 
 test('Quality, Assembly and Printing are one desk: one choice on the board, each department under its own header; marketing’s figures are gone', () => {

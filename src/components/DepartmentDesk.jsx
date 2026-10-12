@@ -3,7 +3,7 @@ import { handoffs as handoffsApi } from '../api/endpoints.js';
 import TaskPdfLink from './TaskPdfLink.jsx';
 import TaskWorkflow from './TaskWorkflow.jsx';
 import DepartmentTaskDialog from './DepartmentTaskDialog.jsx';
-import { describeBrief } from '../utils/taskForm.js';
+import { TaskFacts, TaskTimeline } from './TaskHistory.jsx';
 import { useHandoffCatalogue } from '../hooks/useHandoffCatalogue.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import HandoffTaskActions from './HandoffTaskActions.jsx';
@@ -282,62 +282,36 @@ export default function DepartmentDesk({ enquiry, onChanged }) {
               const state = STATE(task);
               const overdue = !task.completed && task.dueDate && new Date(task.dueDate) < new Date();
               const button = catalogue.buttons.find((item) => item.key === task.kind);
-              const fields = task.outcome?.fields ? Object.entries(task.outcome.fields) : [];
+              const currentStatus = button?.form?.statuses?.find((entry) => entry.key === task.status)?.label;
+              /*
+               * One card, read top to bottom: what and for whom · who raised it, when, when due ·
+               * what was asked, as facts · what happened, as a timeline · what can be done now.
+               */
               return (
-                <li key={task._id} className="px-3 py-2.5">
+                <li key={task._id} className="space-y-2 px-3 py-3">
                   <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
                     <p className="text-sm font-semibold text-steel-100">
                       {button?.label || task.title}
-                      <span className="font-normal text-steel-400">
-                        {' → '}{departmentLabel(task.department)}
-                      </span>
+                      <span className="font-normal text-steel-400">{' → '}{departmentLabel(task.department)}</span>
                     </p>
-                    <span className={`text-xs ${state.tone}`}>{state.text}</span>
+                    <span className={`text-xs font-semibold ${state.tone}`}>{state.text}</span>
                   </div>
-                  <p className="mt-0.5 text-xs text-steel-500">
-                    {task.createdBy?.name && `${task.createdBy.name}${task.fromDepartment ? ` (${departmentLabel(task.fromDepartment)})` : ''} · `}
+                  <p className="text-xs text-steel-500">
+                    {task.createdBy?.name && <>Raised by <span className="text-steel-300">{task.createdBy.name}</span>{task.fromDepartment ? ` (${departmentLabel(task.fromDepartment)})` : ''} · </>}
                     {formatDate(task.createdAt)}
                     {task.dueDate && !task.completed && (
-                      <span className={overdue ? 'text-danger-400' : ''}>{` · due ${formatDate(task.dueDate)}${overdue ? ' — late' : ''}`}</span>
+                      <span className={overdue ? 'font-semibold text-danger-400' : ''}>{` · due ${formatDate(task.dueDate)}${overdue ? ' — late' : ''}`}</span>
                     )}
+                    {currentStatus && !task.completed && <> · <span className="font-semibold text-accent">{currentStatus}</span></>}
                   </p>
-                  {describeBrief(button, task.brief).map((line) => (
-                    <p key={line} className="mt-1 text-xs text-steel-200"><span className="text-steel-500">Asked: </span>{line}</p>
-                  ))}
-                  <TaskPdfLink file={task.attachment} className="mt-1" />
+                  <TaskFacts button={button} task={task} />
+                  <TaskPdfLink file={task.attachment} />
+                  <TaskTimeline task={task} button={button} />
                   {button?.form?.statuses && (mayAct(task) || task.completed) && (
-                    <div className="mt-2"><TaskWorkflow todo={task} onChanged={refresh} /></div>
-                  )}
-                  {button?.form?.statuses && !mayAct(task) && !task.completed && (
-                    <p className="mt-1 text-xs font-semibold text-accent">
-                      {button.form.statuses.find((entry) => entry.key === task.status)?.label || ''}
-                    </p>
-                  )}
-                  {task.notes && <p className="mt-1 text-xs text-steel-300">“{task.notes}”</p>}
-                  {task.reschedules?.map((change, index) => (
-                    <p key={index} className="mt-1 text-xs text-steel-400">
-                      Date moved to {formatDate(change.to)} by {change.by?.name || 'someone'}: {change.reason}
-                    </p>
-                  ))}
-                  {task.updates?.map((update) => (
-                    <p key={`${update.at}-${update.note}`} className="mt-1 text-xs text-steel-300">
-                      <span className="text-steel-500">Update · {update.by?.name || 'someone'} {formatDate(update.at)}: </span>
-                      {update.note}
-                    </p>
-                  ))}
-                  {task.outcome?.note && task.kind !== 'photos_sent' && task.kind !== 'task_closed' && (
-                    <p className="mt-1 text-xs text-steel-200">
-                      {{ returned: 'Sent back', moved: 'Moved on' }[task.outcome.result] || 'Done'} by {task.outcome.by?.name || 'someone'}: {task.outcome.note}
-                      {task.outcome.next && ` → ${catalogue.buttons.find((item) => item.key === task.outcome.next)?.label || 'next step'}`}
-                    </p>
-                  )}
-                  {fields.length > 0 && (
-                    <p className="mt-0.5 text-xs text-steel-400">
-                      {fields.map(([key, value]) => `${button?.records?.find((record) => record.key === key)?.label || key}: ${value}`).join(' · ')}
-                    </p>
+                    <div className="pt-1"><TaskWorkflow todo={task} onChanged={refresh} /></div>
                   )}
                   {!task.completed && mayAct(task) && (
-                    <div className="mt-1.5 flex flex-wrap gap-3">
+                    <div className="flex flex-wrap gap-x-4 gap-y-1.5 border-t border-line/[0.06] pt-2">
                       <HandoffTaskActions todo={task} onChanged={refresh} />
                     </div>
                   )}
