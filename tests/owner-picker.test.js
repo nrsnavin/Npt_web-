@@ -99,7 +99,8 @@ test('the owner is asked on create and never on edit', () => {
    * decision. A picker on the edit form would be a control that mostly refuses.
    */
   for (const [name, source] of [['the customer form', CUSTOMER_FORM]]) {
-    const mounted = source.match(/\{!editing && \(\s*<OwnerPicker/);
+    /* …and not when converting a prospect, whose customer is the enquiry owner's [BuyerContactCard]. */
+    const mounted = source.match(/\{!editing && !ownerFixed && \(\s*<OwnerPicker/);
     assert.ok(mounted, `${name} only offers it on create`);
   }
 });

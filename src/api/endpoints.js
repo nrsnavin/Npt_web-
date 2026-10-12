@@ -350,6 +350,9 @@ export const customers = {
   update: ({ id, ...payload }) => api.patch(`/customers/${id}`, payload).then(unwrap),
   /** Admin's word on the buyer's credit: Watch or Hold with a reason, or nothing to clear it. */
   setCredit: ({ id, ...payload }) => api.post(`/customers/${id}/credit`, payload).then(unwrap),
+  /** The customer's own follow-up: its history, and set / log / close [components/TodaysActions.jsx]. */
+  followUp: (id) => api.get(`/customers/${id}/follow-up`).then(unwrap),
+  followUpAction: ({ id, ...payload }) => api.post(`/customers/${id}/follow-up`, payload).then(unwrap),
   /** Warns before submitting, on the same GST-then-number rule the server enforces. */
   checkDuplicate: (params) => api.get('/customers/check-duplicate', { params }).then(unwrap),
   /**
@@ -415,6 +418,8 @@ export const overview = {
   /** `department` (Admin: any) and `state` — open, done or all. */
   tasks: (params) => api.get('/dashboard/tasks', { params }).then(unwrap),
   parties: (params) => api.get('/dashboard/parties', { params }).then(unwrap),
+  /** Today's actions beside the customer list: open customer follow-ups and enquiries due by tonight. */
+  followUps: (params) => api.get('/dashboard/follow-ups', { params }).then(unwrap),
 };
 
 export const enquiries = {
@@ -424,6 +429,11 @@ export const enquiries = {
   get: (id) => api.get(`/enquiries/${id}`).then(unwrap),
   create: (payload) => api.post('/enquiries', payload).then(unwrap),
   createGroup: (payload) => api.post('/enquiries/group', payload).then(unwrap),
+  /**
+   * A prospect's enquiry made a customer's: `{ customer }` links one already on the register,
+   * anything else is the new customer's form. The whole conversation moves with it.
+   */
+  convert: ({ id, ...payload }) => api.post(`/enquiries/${id}/customer`, payload).then(unwrap),
   update: ({ id, ...payload }) => api.patch(`/enquiries/${id}`, payload).then(unwrap),
   setStatus: ({ id, ...payload }) => api.post(`/enquiries/${id}/status`, payload).then(unwrap),
   /**

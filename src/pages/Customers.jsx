@@ -13,7 +13,7 @@ import OwnerPicker from '../components/OwnerPicker.jsx';
 import PlaceInput from '../components/PlaceInput.jsx';
 import { SortHeader, useSort } from '../components/SortHeader.jsx';
 import { formatCompactCurrency, formatDate } from '../utils/format.js';
-import { CUSTOMER_TYPES, SOURCES, optionLabel } from '../utils/pipeline.js';
+import { CUSTOMER_TYPES, LANDMARK_ROUTES, SOURCES, optionLabel } from '../utils/pipeline.js';
 import useOpenFromLink from '../hooks/useOpenFromLink.js';
 import QcStandardsFields, { standardsPayload } from '../components/QcStandardsFields.jsx';
 
@@ -38,7 +38,70 @@ const DELIVERY_MODES = [
 ];
 const idOf = (value) => (value && typeof value === 'object' ? value._id : value) || '';
 
-export function CustomerForm({ customer, onClose, onSaved }) {
+/* A stored number shown without the +91 the box already prints; anything else shown as it is. */
+const localPhone = (phone) => (phone ? String(phone).replace(/^\+91/, '') : '');
+
+const roleContactDefaults = (contact) => ({
+  sameAsOrder: Boolean(contact?.sameAsOrder),
+  name: contact?.name || '',
+  phone: localPhone(contact?.phone),
+});
+
+/* The same as the order contact, a person of its own, or — left empty — nothing said. */
+function roleContactPayload(values, editing) {
+  if (values?.sameAsOrder) return { sameAsOrder: true };
+  const name = values?.name?.trim();
+  const phone = values?.phone?.trim();
+  if (name || phone) return { sameAsOrder: false, name: name || undefined, phone: phone || undefined };
+  return editing ? { sameAsOrder: false } : undefined;
+}
+
+const primaryContactOf = (customer) => customer?.contacts?.find((contact) => contact.isPrimary) || customer?.contacts?.[0];
+
+/** The order contact's name goes on the buyer's primary contact; the other contacts are kept. */
+function contactsPayload(customer, values) {
+  const name = values.orderContact?.trim();
+  const kept = (customer?.contacts || []).map(({ _id, ...contact }) => contact);
+  if (!name) return kept.length ? kept : undefined;
+  const at = kept.findIndex((contact) => contact.isPrimary);
+  const index = at >= 0 ? at : kept.length ? 0 : -1;
+  if (index >= 0) {
+    kept[index] = { ...kept[index], name, isPrimary: true };
+    return kept;
+  }
+  return [{ name, mobile: values.mobile || undefined, whatsapp: values.whatsapp || undefined, email: values.email || undefined, isPrimary: true }];
+}
+
+/** Delivery, or accounts & payments: the order contact, or a person and a number of their own. */
+function RoleContactFields({ register, watch, name, title, personLabel, phoneLabel }) {
+  const same = watch(`${name}.sameAsOrder`);
+  return (
+    <fieldset className="rounded-lg border border-line/[0.08] p-4" aria-label={title}>
+      <legend className="px-1 text-xs font-bold uppercase tracking-[0.08em] text-steel-400">
+        {title} <span className="font-normal normal-case tracking-normal text-steel-500">— optional</span>
+      </legend>
+      <label className="flex items-center gap-2 text-sm text-steel-200">
+        <input type="checkbox" className="h-4 w-4 accent-flame-500" {...register(`${name}.sameAsOrder`)} />
+        {title} is the same as order contact
+      </label>
+      {!same && (
+        <div className="mt-3 grid gap-4 sm:grid-cols-2">
+          <Field label={personLabel}>
+            <input className="input" {...register(`${name}.name`)} />
+          </Field>
+          <Field label={phoneLabel}>
+            <div className="flex">
+              <span className="inline-flex items-center rounded-l-lg border border-r-0 border-line/[0.12] bg-line/[0.04] px-2.5 text-sm text-steel-400">+91</span>
+              <input type="tel" inputMode="tel" className="input rounded-l-none" {...register(`${name}.phone`)} />
+            </div>
+          </Field>
+        </div>
+      )}
+    </fieldset>
+  );
+}
+
+export function CustomerForm({ customer, onClose, onSaved, onCreate, submitLabel, ownerFixed = false }) {
   const [error, setError] = useState(null);
   const [duplicate, setDuplicate] = useState(null);
   const editing = Boolean(customer?._id);
@@ -62,7 +125,16 @@ export function CustomerForm({ customer, onClose, onSaved }) {
     formState: { errors, isSubmitting },
   } = useForm({
     defaultValues: editing
-      ? { ...customer, usualTransporter: idOf(customer.usualTransporter), deliveryRoute: idOf(customer.deliveryRoute), deliveryMode: customer.deliveryMode || '', qcStandards: { ...(customer.qcStandards || {}) } }
+      ? {
+          ...customer,
+          usualTransporter: idOf(customer.usualTransporter),
+          deliveryRoute: idOf(customer.deliveryRoute),
+          deliveryMode: customer.deliveryMode || '',
+          qcStandards: { ...(customer.qcStandards || {}) },
+          orderContact: primaryContactOf(customer)?.name || '',
+          deliveryContact: roleContactDefaults(customer.deliveryContact),
+          accountsContact: roleContactDefaults(customer.accountsContact),
+        }
       : {
           customerType: 'garment_factory',
           rating: 'B',
@@ -70,6 +142,9 @@ export function CustomerForm({ customer, onClose, onSaved }) {
           country: 'India',
           notifications: { whatsapp: true, email: true },
           ...customer,
+          orderContact: primaryContactOf(customer)?.name || customer?.orderContact || '',
+          deliveryContact: roleContactDefaults(customer?.deliveryContact),
+          accountsContact: roleContactDefaults(customer?.accountsContact),
         },
   });
 
@@ -88,8 +163,13 @@ export function CustomerForm({ customer, onClose, onSaved }) {
   const submit = async (values) => {
     setError(null);
     const numeric = (value) => (value === '' || value == null ? undefined : Number(value));
+    const { orderContact: _orderContact, ...rest } = values;
     const payload = {
-      ...values,
+      ...rest,
+      contacts: contactsPayload(customer, values),
+      deliveryContact: roleContactPayload(values.deliveryContact, editing),
+      accountsContact: roleContactPayload(values.accountsContact, editing),
+      landmark: values.landmark || (editing ? '' : undefined),
       creditTermsDays: numeric(values.creditTermsDays),
       email: values.email || undefined,
       gstin: values.gstin || undefined,
@@ -108,7 +188,7 @@ export function CustomerForm({ customer, onClose, onSaved }) {
           // The version this form was opened on, so a colleague's save is not silently
           // overwritten by ours.
           ? await customersApi.update({ id: customer._id, expectedUpdatedAt: customer.updatedAt, ...payload })
-          : await customersApi.create(payload)
+          : await (onCreate || customersApi.create)(payload)
       );
       onClose();
     } catch (submitError) {
@@ -141,7 +221,8 @@ export function CustomerForm({ customer, onClose, onSaved }) {
           The account owner. Only on create: moving a customer afterwards is a reassignment, and
           the server holds that to be a management decision — see `assertReassignment`.
         */}
-        {!editing && (
+        {/* Converting a prospect: the customer is the enquiry owner's, so nothing to choose. */}
+        {!editing && !ownerFixed && (
           <OwnerPicker
             register={register}
             watch={watch}
@@ -155,6 +236,9 @@ export function CustomerForm({ customer, onClose, onSaved }) {
         </Field>
         <Field label="WhatsApp" hint="Leave blank if the same as mobile">
           <input type="tel" className="input" onBlurCapture={checkForDuplicate} {...register('whatsapp')} />
+        </Field>
+        <Field label="Order contact person" hint="Who places the orders — delivery and accounts can be the same person">
+          <input className="input" {...register('orderContact')} />
         </Field>
         <Field label="Email" error={errors.email}>
           <input type="email" className="input" {...register('email')} />
@@ -179,8 +263,15 @@ export function CustomerForm({ customer, onClose, onSaved }) {
         <Field label="Area / locality">
           <input className="input" placeholder="Kumar Nagar" {...register('area')} />
         </Field>
-        <Field label="Landmark" hint="What a driver asks for — the bus stop, mill or temple nearby">
-          <input className="input" placeholder="Near Kumar Nagar bus stop" {...register('landmark')} />
+        <Field label="Landmark / route" hint="This route will be sent to the Dispatch Team for vehicle planning.">
+          <select className="input" {...register('landmark')}>
+            <option value="">Select route</option>
+            {LANDMARK_ROUTES.map((route) => <option key={route} value={route}>{route}</option>)}
+            {/* A landmark typed before the list existed stays choosable rather than silently blanked. */}
+            {customer?.landmark && !LANDMARK_ROUTES.includes(customer.landmark) && (
+              <option value={customer.landmark}>{customer.landmark}</option>
+            )}
+          </select>
         </Field>
         {/* How the goods go — the trip planner groups transport bookings by transporter and our own
             deliveries by route, then landmark. */}
@@ -249,6 +340,23 @@ export function CustomerForm({ customer, onClose, onSaved }) {
         </Field>
       </div>
 
+      <RoleContactFields
+        register={register}
+        watch={watch}
+        name="deliveryContact"
+        title="Delivery contact"
+        personLabel="Delivery contact person"
+        phoneLabel="Delivery contact phone"
+      />
+      <RoleContactFields
+        register={register}
+        watch={watch}
+        name="accountsContact"
+        title="Accounts & Payments contact"
+        personLabel="Accounts & Payments contact person"
+        phoneLabel="Accounts & Payments phone / WhatsApp"
+      />
+
       <div className="rounded-lg border border-line/[0.06] p-4">
         <p className="eyebrow mb-1">Automatic updates</p>
         <p className="mb-3 text-xs leading-relaxed text-steel-500">
@@ -299,7 +407,7 @@ export function CustomerForm({ customer, onClose, onSaved }) {
       <div className="flex justify-end gap-2">
         <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
         <button type="submit" className="btn-primary" disabled={isSubmitting}>
-          {isSubmitting ? 'Saving…' : editing ? 'Save changes' : 'Create customer'}
+          {isSubmitting ? 'Saving…' : editing ? 'Save changes' : submitLabel || 'Create customer'}
         </button>
       </div>
     </form>

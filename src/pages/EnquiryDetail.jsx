@@ -14,6 +14,7 @@ import {
 import Documents from '../components/Documents.jsx';
 import EnquiryActivities from '../components/EnquiryActivities.jsx';
 import EnquiryContactPanel from '../components/EnquiryContactPanel.jsx';
+import BuyerContactCard from '../components/BuyerContactCard.jsx';
 import DelegateEnquiry from '../components/DelegateEnquiry.jsx';
 import DepartmentDesk from '../components/DepartmentDesk.jsx';
 import EnquiryRecords from '../components/EnquiryRecords.jsx';
@@ -568,9 +569,13 @@ export default function EnquiryDetail() {
         title={enquiry.number}
         subtitle={
           <>
-            <Link to={`/customers/${enquiry.customer?._id}`} className="hover:text-accent">
-              {enquiry.customer?.name}
-            </Link>
+            {enquiry.customer ? (
+              <Link to={`/customers/${enquiry.customer._id}`} className="hover:text-accent">
+                {enquiry.customer.name}
+              </Link>
+            ) : (
+              <>{enquiry.prospect?.name} <span className="text-warn-400">(prospect)</span></>
+            )}
             {' · '}
             {formatDate(enquiry.enquiryDate)}
           </>
@@ -701,6 +706,13 @@ export default function EnquiryDetail() {
         </div>
 
         <div className="space-y-5">
+          {/* Who to talk to — order, delivery, accounts — or the prospect, and converting them. */}
+          <BuyerContactCard
+            enquiry={enquiry}
+            canConvert={mayWrite && canWrite('customers')}
+            onConverted={reload}
+          />
+
           {/* Where it stands with marketing, the buyer on the company WhatsApp and mail, and
               everything that happened — the timeline folds away. */}
           <EnquiryContactPanel
