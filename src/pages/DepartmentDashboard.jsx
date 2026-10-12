@@ -404,7 +404,7 @@ function DepartmentDesk() {
  */
 export default function DepartmentDashboard() {
   const { key = 'mine' } = useParams();
-  const { isAdmin, departments = [] } = useAuth();
-  if (key === 'mine' && (isAdmin || departments.includes('marketing'))) return <OverviewDashboard />;
+  const { isManagement, departments = [] } = useAuth();
+  if (key === 'mine' && (isManagement || departments.includes('marketing'))) return <OverviewDashboard />;
   return <DepartmentDesk />;
 }

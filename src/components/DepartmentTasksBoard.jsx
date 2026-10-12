@@ -77,7 +77,8 @@ export default function DepartmentTasksBoard({
   state: chosenState = 'open',
   onFilter,
 }) {
-  const { isAdmin, departments = [] } = useAuth();
+  const { isManagement: isAdmin, departments = [], user } = useAuth();
+  const me = String(user?.id || user?._id || '');
   /* Controlled by the page when it keeps them in the address; held here otherwise. */
   const [ownDepartment, setOwnDepartment] = useState(chosenDepartment);
   const [ownState, setOwnState] = useState(chosenState);
@@ -122,7 +123,8 @@ export default function DepartmentTasksBoard({
     });
   }, [tasks, chip, search]);
 
-  const mayWork = (task) => isAdmin || departments.includes(task.department);
+  /* The server's rule [handoff.service `mayWorkOnHandoff`]: Admin, the person it is assigned to, or its department. */
+  const mayWork = (task) => isAdmin || (me && String(task.user?._id || task.user || '') === me) || departments.includes(task.department);
   const statusesOf = (task) => buttonFor(catalogue, task.kind)?.form?.statuses || [];
 
   return (

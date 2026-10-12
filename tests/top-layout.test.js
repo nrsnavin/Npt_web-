@@ -76,7 +76,10 @@ test('the layout: the bar, account bar with email · role and initials, no sideb
 
 test('Admin and marketing open on the overview; every other department on its desk', () => {
   const dashboard = read('pages/DepartmentDashboard.jsx');
-  assert.match(dashboard, /if \(key === 'mine' && \(isAdmin \|\| departments\.includes\('marketing'\)\)\) return <OverviewDashboard \/>;/);
+  /* Admin as the server means it — the role or the Management department [AuthContext isManagement]. */
+  assert.match(dashboard, /if \(key === 'mine' && \(isManagement \|\| departments\.includes\('marketing'\)\)\) return <OverviewDashboard \/>;/);
+  assert.match(read('context/AuthContext.jsx'), /isManagement: user\?\.role === 'admin' \|\| \(user\?\.departments \|\| \[user\?\.department\]\)\.includes\('management'\)/);
+  assert.match(read('pages/OverviewDashboard.jsx'), /isManagement: isAdmin/);
   const page = read('pages/OverviewDashboard.jsx');
   for (const text of ['Company activity overview', '+ Add Party', '+ New Enquiry', 'My customers', 'Due today', 'Active enquiries', 'Quotations', 'Edit / Verify enquiry →', 'Customer / Party Master', 'No activity 7+ days']) {
     assert.ok(page.includes(text), text);
@@ -88,7 +91,9 @@ test('Admin and marketing open on the overview; every other department on its de
 
 test('Department Tasks: a status list only for whoever works the task, and the move opens with its remark', () => {
   const board = read('components/DepartmentTasksBoard.jsx');
-  assert.match(board, /const mayWork = \(task\) => isAdmin \|\| departments\.includes\(task\.department\);/);
+  assert.match(board, /const \{ isManagement: isAdmin, departments = \[\], user \} = useAuth\(\);/);
+  /* The server's rule: Admin, the person it is assigned to, or its department. */
+  assert.match(board, /const mayWork = \(task\) => isAdmin \|\| \(me && String\(task\.user\?\._id \|\| task\.user \|\| ''\) === me\) \|\| departments\.includes\(task\.department\);/);
   assert.match(board, /if \(!statuses\.length \|\| !mayWork \|\|/);
   assert.match(board, /<TaskWorkflow\s+todo=\{moving\.task\}\s+startWith=\{moving\.status\}/);
   assert.match(read('components/TaskWorkflow.jsx'), /todo\?\.completed \|\| startWith === todo\?\.status\) return;\s+started\.current = true;\s+choose\(startWith\);/);
