@@ -3,6 +3,7 @@ import { workspace } from '../api/endpoints.js';
 import { buttonFor, useHandoffCatalogue } from '../hooks/useHandoffCatalogue.js';
 import { Field, Modal, Notice } from './ui.jsx';
 import TaskPdfLink from './TaskPdfLink.jsx';
+import TaskDocuments from './TaskDocuments.jsx';
 import DepartmentTaskDialog from './DepartmentTaskDialog.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import { todayInIndia } from '../utils/taskForm.js';
@@ -234,6 +235,7 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
       <div className="flex flex-wrap items-center gap-2 text-xs">
         <span className="rounded-full bg-success-500/15 px-2.5 py-1 font-semibold text-success-400">{current?.label || 'Done'}</span>
         <TaskPdfLink file={todo.resultFile} />
+        <TaskDocuments todo={todo} kinds={button.form.documents} />
       </div>
     );
   }
@@ -277,6 +279,7 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
           </button>
         )}
       </div>
+      <TaskDocuments todo={todo} kinds={button.form.documents} />
       {problem && <Notice tone="danger">{problem}</Notice>}
       {moving && (
         <MoveForm

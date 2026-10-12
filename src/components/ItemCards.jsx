@@ -135,7 +135,7 @@ function ItemCard({
   const set = (patch) => onChange({ ...item, ...patch });
 
   return (
-    <li className="overflow-hidden rounded-xl border border-line/[0.09] bg-line/[0.02]">
+    <li className="rounded-xl border border-line/[0.09] bg-line/[0.02]">
       <div className="flex flex-wrap items-center gap-3 px-4 py-3">
         <button
           type="button"

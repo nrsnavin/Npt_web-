@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { customers as customersApi, departments as departmentsApi, overview } from '../api/endpoints.js';
+import { buyerCards as buyerCardsApi, customers as customersApi, departments as departmentsApi, overview } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useRecord } from '../hooks/useRecords.js';
 import AttentionPanel from '../components/AttentionPanel.jsx';
@@ -9,6 +9,7 @@ import EnquiryForm from '../components/EnquiryForm.jsx';
 import { CustomerForm } from './Customers.jsx';
 import { DashboardSkeleton, ErrorState, Modal, Notice } from '../components/ui.jsx';
 import { departmentLabel } from '../utils/pipeline.js';
+import { formatDate } from '../utils/format.js';
 
 /**
  * The overview dashboard [the plant's own layout] — Admin's company-wide, a marketing person's
@@ -17,7 +18,8 @@ import { departmentLabel } from '../utils/pipeline.js';
  *   Company activity overview   + Add Party · + New Enquiry
  *   who is signed in            name, access, the role badge
  *   four figures                my customers · due today · active enquiries · quotations
- *   New Enquiries               the ones still at Enquiry received, to edit and verify
+ *   New Enquiries               the drafts to finish (a WhatsApp chat or card, highlighted, first)
+ *                               and the enquiries still at Enquiry received, to edit and verify
  *   Department Tasks            the requests followed, with their status reply
  *   Customer / Party Master     every customer, with where its newest enquiry stands
  */
@@ -169,6 +171,14 @@ export default function OverviewDashboard() {
   /* "Needs your action" — the questions and the departments' moves on my enquiries. */
   const fetchDesk = useCallback(() => departmentsApi.dashboard('mine'), []);
   const desk = useRecord(fetchDesk, 'department-mine');
+  /*
+   * Draft enquiries — a chat screenshot or a visiting card sent on WhatsApp, waiting to be finished
+   * [pages/BuyerCards.jsx]. With the new enquiries rather than on a screen of their own, so a lead
+   * that came in on the phone is seen the same morning as one typed in. Theirs for marketing,
+   * every one for Admin — the server scopes the list.
+   */
+  const fetchDrafts = useCallback(() => buyerCardsApi.list().catch(() => ({ data: [] })), []);
+  const drafts = useRecord(fetchDrafts, 'overview-drafts');
   const [adding, setAdding] = useState(null);
   const [partiesKey, setPartiesKey] = useState(0);
 
@@ -176,6 +186,7 @@ export default function OverviewDashboard() {
   if (error) return <ErrorState error={error} onRetry={reload} />;
 
   const { figures, newEnquiries } = data;
+  const draftRows = drafts.data?.data || [];
   const role = isAdmin ? 'Admin' : departmentLabel(user?.department) || 'Marketing';
   const access = isAdmin
     ? 'Masters, customers, enquiries, quotations, approvals, users and permissions'
@@ -185,6 +196,7 @@ export default function OverviewDashboard() {
   const refresh = () => {
     reload();
     desk.reload();
+    drafts.reload();
     setPartiesKey((value) => value + 1);
   };
 
@@ -229,13 +241,32 @@ export default function OverviewDashboard() {
       <section className="card space-y-3 p-4 sm:p-5" aria-label="New Enquiries">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h2 className="text-lg font-bold text-steel-50">New Enquiries ({newEnquiries.total})</h2>
-            <p className="text-sm text-steel-400">Enquiry received: {newEnquiries.total}</p>
+            <h2 className="text-lg font-bold text-steel-50">New Enquiries ({newEnquiries.total + draftRows.length})</h2>
+            <p className="text-sm text-steel-400">
+              Enquiry received: {newEnquiries.total}
+              {draftRows.length > 0 && <> · <span className="font-semibold text-warn-400">Drafts to finish: {draftRows.length}</span></>}
+            </p>
           </div>
           <Link to="/enquiries?marketingStatus=enquiry_received" className="text-sm font-semibold text-accent hover:underline">View all →</Link>
         </div>
-        {newEnquiries.rows.length ? (
+        {newEnquiries.rows.length || draftRows.length ? (
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {/* Drafts first, and marked: a lead from the phone is not an enquiry until somebody finishes it. */}
+            {draftRows.map((card) => (
+              <div key={card._id} data-draft className="rounded-xl border-2 border-warn-500/50 bg-warn-500/[0.08] p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="truncate font-semibold text-steel-50">{card.reading?.company || card.reading?.contactName || 'A draft to fill in'}</p>
+                  <span className="shrink-0 rounded-full bg-warn-500/20 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-warn-400">Draft</span>
+                </div>
+                <p className="text-xs text-steel-400">
+                  {card.kind === 'chat' ? 'WhatsApp chat' : 'Visiting card'} · {card.sender?.name || 'Someone'} · {formatDate(card.createdAt)}
+                  {card.status === 'reading' ? ' · being read…' : ''}
+                </p>
+                <Link to={`/enquiries/drafts?card=${card._id}`} className="mt-2 inline-block text-sm font-semibold text-accent hover:underline">
+                  Finish the draft →
+                </Link>
+              </div>
+            ))}
             {newEnquiries.rows.map((row) => (
               <div key={row._id} className="rounded-xl border border-line/10 p-3">
                 <p className="truncate font-semibold text-steel-50">{row.customer?.name || row.number}</p>
@@ -250,7 +281,7 @@ export default function OverviewDashboard() {
             ))}
           </div>
         ) : (
-          <p className="text-sm text-steel-400">No new enquiry waiting to be verified.</p>
+          <p className="text-sm text-steel-400">No new enquiry or draft waiting.</p>
         )}
       </section>
 

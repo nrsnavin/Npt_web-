@@ -118,3 +118,22 @@ test('Admin filters Department Tasks by any department, and open / done / all', 
   assert.match(page, /params\.get\('state'\) \|\| 'open'/);
   assert.match(read('pages/DepartmentsOverview.jsx'), /to=\{`\/tasks\?department=\$\{row\.department\}`\}/);
 });
+
+test('draft enquiries sit, highlighted, inside New Enquiries — not a menu item of their own', () => {
+  assert.doesNotMatch(read('components/Layout.jsx'), /label: 'Draft enquiries'/);
+  const page = read('pages/OverviewDashboard.jsx');
+  assert.match(page, /buyerCardsApi\.list\(\)/);
+  assert.match(page, /New Enquiries \(\{newEnquiries\.total \+ draftRows\.length\}\)/);
+  assert.match(page, /data-draft className="rounded-xl border-2 border-warn-500\/50 bg-warn-500\/\[0\.08\] p-3"/);
+  assert.match(page, /to=\{`\/enquiries\/drafts\?card=\$\{card\._id\}`\}/);
+});
+
+test('papers go with a message to the buyer; Dispatch and Reception upload theirs on the task', () => {
+  const panel = read('components/EnquiryContactPanel.jsx');
+  assert.match(panel, /<AttachPicker documents=\{documents\} picked=\{picked\.whatsapp\}/);
+  assert.match(panel, /<AttachPicker documents=\{documents\} picked=\{picked\.email\}/);
+  assert.match(panel, /enquiriesApi\.attachables\(enquiry\._id\)/);
+  assert.match(panel, /channel, body: whatsapp\.trim\(\), attachments \}/);
+  assert.match(read('components/TaskWorkflow.jsx'), /<TaskDocuments todo=\{todo\} kinds=\{button\.form\.documents\} \/>/);
+  assert.match(read('api/endpoints.js'), /api\.post\(`\/workspace\/todos\/\$\{id\}\/documents`, form, \{ feedback: false \}\)/);
+});

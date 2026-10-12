@@ -78,6 +78,65 @@ function Fold({ title, count, open, onToggle, children }) {
   );
 }
 
+/* The papers the app draws itself, and the ones a team uploaded [server: enquiryDocuments.service]. */
+const MADE_BY_APP = ['enquiry', 'quotation', 'sample'];
+const keyOf = (doc) => `${doc.type}:${doc.id}`;
+
+/**
+ * Papers to send with the message — the quote, the enquiry's and samples' details, and what the
+ * teams uploaded: the SO (SO team), the invoice and dispatch details (Dispatch), the LR copy
+ * (Reception). Folded until wanted, saying how many are picked.
+ */
+export function AttachPicker({ documents, picked, onChange, channel }) {
+  const [open, setOpen] = useState(false);
+  if (!documents?.length) return null;
+  const toggle = (doc) => {
+    const key = keyOf(doc);
+    onChange(picked.includes(key) ? picked.filter((entry) => entry !== key) : [...picked, key].slice(0, 6));
+  };
+  const groups = [
+    { title: 'Made by the app', rows: documents.filter((doc) => MADE_BY_APP.includes(doc.type)) },
+    { title: 'Uploaded by the teams', rows: documents.filter((doc) => !MADE_BY_APP.includes(doc.type)) },
+  ].filter((group) => group.rows.length);
+  return (
+    <div className="mt-2 rounded-lg border border-line/[0.08]">
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-label={`Attach documents to the ${channel === 'email' ? 'email' : 'WhatsApp'}`}
+        onClick={() => setOpen((value) => !value)}
+        className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm font-semibold text-steel-200"
+      >
+        <span>📎 Attach documents{picked.length ? ` · ${picked.length} picked` : ''}</span>
+        <span aria-hidden className="text-steel-500">{open ? '▴' : '▾'}</span>
+      </button>
+      {open && (
+        <div className="space-y-3 border-t border-line/[0.06] px-3 py-2">
+          {groups.map((group) => (
+            <fieldset key={group.title}>
+              <legend className="mb-1 text-xs font-semibold text-steel-400">{group.title}</legend>
+              <ul className="space-y-1">
+                {group.rows.map((doc) => (
+                  <li key={keyOf(doc)}>
+                    <label className="flex min-h-9 cursor-pointer items-center gap-2 rounded-md px-1 text-sm text-steel-200 hover:bg-line/[0.04]">
+                      <input type="checkbox" className="h-4 w-4" checked={picked.includes(keyOf(doc))} onChange={() => toggle(doc)} />
+                      <span className="min-w-0 flex-1 truncate">{doc.label}</span>
+                      {doc.uploaded && <span className="shrink-0 truncate text-xs text-steel-500" title={doc.filename}>{doc.filename}</span>}
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            </fieldset>
+          ))}
+          <p className="text-xs text-steel-500">
+            {channel === 'email' ? 'Attached to the email.' : 'Each goes as a document on WhatsApp, the first with your message.'} Six at most.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function EnquiryContactPanel({ enquiry, isOwner, canWrite, onSent, refreshKey }) {
   const [whatsapp, setWhatsapp] = useState('');
   const [email, setEmail] = useState({ subject: '', body: '' });
@@ -88,14 +147,18 @@ export default function EnquiryContactPanel({ enquiry, isOwner, canWrite, onSent
   const [conversation, setConversation] = useState(null);
   const [showTimeline, setShowTimeline] = useState(false);
   const [showConversation, setShowConversation] = useState(false);
+  const [documents, setDocuments] = useState([]);
+  const [picked, setPicked] = useState({ whatsapp: [], email: [] });
 
   const load = useCallback(async () => {
-    const [entries, messages] = await Promise.all([
+    const [entries, messages, papers] = await Promise.all([
       enquiriesApi.timeline(enquiry._id).catch(() => []),
       isOwner ? enquiriesApi.messages(enquiry._id).catch(() => null) : Promise.resolve(null),
+      isOwner ? enquiriesApi.attachables(enquiry._id).catch(() => null) : Promise.resolve(null),
     ]);
     setTimeline(entries || []);
     setConversation(messages?.meta?.mayRead ? messages.data : null);
+    setDocuments(papers?.meta?.mayAttach ? papers.data : []);
   }, [enquiry._id, isOwner]);
 
   useEffect(() => {
@@ -107,14 +170,20 @@ export default function EnquiryContactPanel({ enquiry, isOwner, canWrite, onSent
     setError(null);
     setSentNote(null);
     try {
+      const attachments = picked[channel]
+        .map((key) => documents.find((doc) => keyOf(doc) === key))
+        .filter(Boolean)
+        .map(({ type, id }) => ({ type, id }));
       await enquiriesApi.sendMessage(
         channel === 'whatsapp'
-          ? { id: enquiry._id, channel, body: whatsapp.trim() }
-          : { id: enquiry._id, channel, subject: email.subject.trim(), body: email.body.trim() }
+          ? { id: enquiry._id, channel, body: whatsapp.trim(), attachments }
+          : { id: enquiry._id, channel, subject: email.subject.trim(), body: email.body.trim(), attachments }
       );
       if (channel === 'whatsapp') setWhatsapp('');
       else setEmail({ subject: '', body: '' });
-      setSentNote(channel === 'whatsapp' ? 'WhatsApp sent and recorded.' : 'Email sent and recorded.');
+      setPicked((current) => ({ ...current, [channel]: [] }));
+      const withPapers = attachments.length ? ` with ${attachments.length} document${attachments.length === 1 ? '' : 's'}` : '';
+      setSentNote(channel === 'whatsapp' ? `WhatsApp sent${withPapers} and recorded.` : `Email sent${withPapers} and recorded.`);
       await load();
       onSent?.();
     } catch (sendError) {
@@ -143,6 +212,7 @@ export default function EnquiryContactPanel({ enquiry, isOwner, canWrite, onSent
                 value={whatsapp}
                 onChange={(event) => setWhatsapp(event.target.value)}
               />
+              <AttachPicker documents={documents} picked={picked.whatsapp} channel="whatsapp" onChange={(next) => setPicked((current) => ({ ...current, whatsapp: next }))} />
               <p className="mt-2 text-xs text-steel-500">Only the assigned user can see the conversation. Admin sees CRM activity only.</p>
               <button
                 type="button"
@@ -170,6 +240,7 @@ export default function EnquiryContactPanel({ enquiry, isOwner, canWrite, onSent
                 value={email.body}
                 onChange={(event) => setEmail({ ...email, body: event.target.value })}
               />
+              <AttachPicker documents={documents} picked={picked.email} channel="email" onChange={(next) => setPicked((current) => ({ ...current, email: next }))} />
               <p className="text-xs text-steel-500">Sending from your connected company email.</p>
               <button
                 type="button"
@@ -204,6 +275,9 @@ export default function EnquiryContactPanel({ enquiry, isOwner, canWrite, onSent
                   >
                     {message.subject && <p className="font-semibold text-steel-100">{message.subject}</p>}
                     <p className="whitespace-pre-line text-steel-200">{message.body}</p>
+                    {message.attachments?.length > 0 && (
+                      <p className="mt-1 text-xs text-steel-300">📎 {message.attachments.map((paper) => paper.label).join(' · ')}</p>
+                    )}
                     <p className="mt-1 text-[0.75rem] text-steel-500">
                       {message.direction === 'in' ? 'Buyer' : message.automatic ? 'Sent automatically' : message.by || 'You'}
                       {' · '}{message.channel === 'email' ? 'Email' : 'WhatsApp'}
