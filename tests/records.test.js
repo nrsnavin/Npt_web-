@@ -35,8 +35,8 @@ test('breaking strength and the other tests are worked out from the figures, as 
 
 test('the QC form covers resin, mould, moulding type, size, print, hook and clips, and refuses a pass against its own figures', () => {
   const form = read('pages/QcRecordForm.jsx');
-  for (const section of ['What was checked', 'Resin', 'Hook', 'Clips', 'Print', 'Weight and measurements', 'Strength tests', 'Sample and defects', 'Verdict']) {
-    assert.match(form, new RegExp(`title="\\d · ${section}"`), section);
+  for (const section of ['What was checked', 'Resin', 'Hook', 'Clips', 'Print', 'Weight and measurements', 'Strength tests', 'Packing', 'Sample and defects', 'Verdict']) {
+    assert.match(form, new RegExp(`title="\\d+ · ${section}"`), section);
   }
   for (const field of ['resin.grade', 'resin.batch', 'resin.masterbatchPercent', 'resin.regrindPercent', 'hook.pullActualKg', 'clip.gripActualKg', 'print.type', 'mouldingType', 'size', 'breaking.samples', 'hangLoad.deflectionMm']) {
     assert.ok(form.includes(`'${field}'`), field);
@@ -117,7 +117,7 @@ test('the SO page carries its QC records and its dispatch details; the QC form p
   assert.match(endpoints, /api\.get\(`\/orders\/\$\{orderId\}\/qc-records`\)/);
   assert.match(endpoints, /api\.get\(`\/orders\/\$\{orderId\}\/dispatch-details`\)/);
   const form = read('pages/QcRecordForm.jsx');
-  assert.match(form, /ordersApi\.list\(\{ enquiry: sheet\.enquiry, limit: 20 \}\)/);
+  assert.match(form, /ordersApi\.list\(\{ enquiry: sheet\.enquiry, open: 'true', limit: 20 \}\)/);
   assert.match(form, /params\.get\('orderLine'\)/);
   assert.match(form, /qcRecordsApi\.prefill\(query\)/);
   assert.match(form, /const out = fillFrom\(current, answer, before\);/);
@@ -169,4 +169,104 @@ test('the enquiry page shows its SOs, QC records and dispatch details', () => {
   assert.match(read('components/OrderDispatchDetails.jsx'), /export function DispatchBody\(\{ data, showOrder = false \}\)/);
   assert.match(read('api/endpoints.js'), /api\.get\(`\/enquiries\/\$\{enquiryId\}\/records`\)/);
   assert.match(read('api/endpoints.js'), /api\.get\('\/qc-records\/prefill', \{ params, feedback: false \}\)/);
+});
+
+test('AQL plans match the standard table, and the new tests work out as the server does', async () => {
+  const { aqlPlan } = await import('../src/utils/records.js');
+  assert.deepEqual(aqlPlan(10000, 2.5), { letter: 'L', sampleSize: 200, accept: 10, reject: 11 });
+  assert.deepEqual(aqlPlan(500, 1), { letter: 'H', sampleSize: 50, accept: 1, reject: 2 });
+  assert.deepEqual(aqlPlan(30, 0.65), { letter: 'D', sampleSize: 20, accept: 0, reject: 1 }, 'the arrow points down to the 20-piece plan');
+  assert.equal(aqlPlan(200000, 6.5).sampleSize, 200, 'and up');
+  assert.equal(aqlPlan(1, 2.5), null);
+  const worked = workOut({
+    hookTurns: { required: 500, achieved: 420 },
+    shrinkage: { mouldMm: 402, partMm: 400, maxPercent: 1 },
+    resinChecks: { moisturePercent: 0.1, moistureMaxPercent: 0.2, mfi: 14, mfiMin: 8, mfiMax: 12 },
+    packing: { piecesPerCarton: 200, piecesFound: 200, labels: 'fail' },
+    aql: 2.5, lotSize: 10000, rejected: 12,
+  });
+  assert.equal(worked.hookTurns, 'fail');
+  assert.deepEqual([worked.shrinkagePercent, worked.shrinkage], [0.5, 'pass']);
+  assert.deepEqual([worked.moisture, worked.mfi], ['pass', 'fail']);
+  assert.equal(worked.packing, 'fail', 'labels wrong');
+  assert.equal(worked.aql.result, 'fail');
+});
+
+test('the prefill brings the standards in, and the form has the new tests, packing and AQL', () => {
+  const filled = fillFrom({ enquiry: '', order: '', orderLine: '', breaking: { requiredKg: '', samples: '' }, measurements: [{ name: 'Width', unit: 'mm', target: '', tolerance: '', actual: '' }] }, {
+    lineKind: 'order', fields: { breaking: { requiredKg: 18 }, resinChecks: { moistureMaxPercent: 0.2 }, aql: 2.5, standardsFrom: 'Standards: buyer X', measurements: [{ name: 'Width', unit: 'mm', target: 400, tolerance: 2 }] },
+  }).sheet;
+  assert.equal(filled.breaking.requiredKg, 18);
+  assert.equal(filled.resinChecks.moistureMaxPercent, 0.2, 'a section the sheet had no object for yet');
+  assert.equal(filled.aql, 2.5);
+  assert.equal(filled.measurements[0].tolerance, 2);
+  const form = read('pages/QcRecordForm.jsx');
+  for (const field of ['resinChecks.moisturePercent', 'resinChecks.mfi', 'hookTurns.achieved', 'shrinkage.partMm', 'uv.hours', 'packing.piecesFound', 'cartonDrop.heightCm']) assert.ok(form.includes(`'${field}'`), field);
+  assert.match(form, /const cleanPass = !failed\.length && rejected <= \(worked\.aql \? worked\.aql\.accept : 0\);/);
+  assert.match(form, /AQL_LEVELS\.map/);
+  assert.match(read('components/MouldForm.jsx'), /<QcStandardsFields register=\{register\} who="model"/);
+  assert.match(read('pages/Customers.jsx'), /<QcStandardsFields register=\{register\} who="buyer"/);
+  assert.match(read('components/QcStandardsFields.jsx'), /register\(`qcStandards\.\$\{key\}`\)/);
+});
+
+test('dispatch sees the QC verdict and is never held; buyers can be asked for their location', () => {
+  const flag = read('components/QcFlag.jsx');
+  assert.match(flag, /rejected: \{ label: 'QC rejected'/);
+  assert.match(flag, /askCustomerLocation\(customerId\)/);
+  assert.match(read('components/TripPlanner.jsx'), /\{stop\.qc && <p className="mt-1"><QcFlag qc=\{stop\.qc\} \/><\/p>\}/);
+  assert.match(read('pages/TripDetail.jsx'), /<QcFlag qc=\{stop\.qc\} \/>/);
+  assert.match(read('components/OrderDispatchDetails.jsx'), /<QcFlag qc=\{request\.qc\} \/>/);
+  assert.match(read('components/TripPlanner.jsx'), /canPlan && !stop\.site && stop\.customer\?\._id && <p className="mt-1"><AskLocation/);
+  assert.match(read('pages/CustomerDetail.jsx'), /!customer\.site && mayWrite/);
+  assert.match(read('api/endpoints.js'), /api\.post\(`\/customers\/\$\{customerId\}\/ask-location`\)/);
+});
+
+test('reject report, runs on an SO line, the resin store, and the SO on a task', () => {
+  assert.match(read('pages/QcReport.jsx'), /qcReportApi\(\{ from, to \}\)/);
+  assert.match(read('App.jsx'), /path="qc-records\/report"/);
+  assert.match(read('components/Layout.jsx'), /\{ to: '\/qc-records\/report', label: 'Reject report', module: \['quality', 'production'\] \}/);
+  const runs = read('pages/MouldRuns.jsx');
+  assert.match(runs, /orderLine: values\.orderLine \|\| undefined/);
+  assert.match(runs, /material: values\.resinMaterial \|\| undefined/);
+  assert.match(read('components/RecordTables.jsx'), /run\.productionNote/);
+  const stock = read('components/StockDialog.jsx');
+  assert.match(stock, /materialStock\.move\(\{ id: material\._id, kind: values\.kind, kg: Number\(values\.kg\)/);
+  assert.match(read('pages/Materials.jsx'), /<StockDialog material=\{stocking\}/);
+  assert.match(read('components/MaterialForm.jsx'), /register\('reorderKg'\)/);
+  const dialog = read('components/DepartmentTaskDialog.jsx');
+  assert.match(dialog, /\.\.\.\(order \? \{ order \} : \{\}\)/);
+  assert.match(dialog, /orders\.length > 1 &&/);
+  assert.match(read('components/Combobox.jsx'), /fallbackLabel/);
+});
+
+test('several open SOs: every form asks which, and the planner can ask unpinned buyers for their location in one go', () => {
+  const dialog = read('components/DepartmentTaskDialog.jsx');
+  assert.match(dialog, /\|\| \(orders\.length > 1 && !order && !fromTask && !team\);/);
+  assert.match(dialog, /<option value="">Pick the SO…<\/option>/);
+  const form = read('pages/QcRecordForm.jsx');
+  assert.match(form, /prefill\?\.orderChoices\?\.length > 0 && !sheet\.order/);
+  assert.match(read('pages/MouldRuns.jsx'), /disabled=\{busy \|\| !values\.mould \|\| needsOrder\}/);
+  const planner = read('components/TripPlanner.jsx');
+  assert.match(planner, /canPlan && plan\.unpinned\?\.length > 0 && <AskAllUnpinned buyers=\{plan\.unpinned\} \/>/);
+  assert.match(planner, /await askCustomerLocation\(buyer\._id\)/);
+});
+
+test('audit: one form for Quality, a run from the Production task, and Admin\'s setup checklist', () => {
+  const quality = read('components/OrderQuality.jsx');
+  assert.match(quality, /to=\{`\/qc-records\/new\?order=\$\{order\._id\}/);
+  assert.match(quality, /Quick check on a consignment/);
+  const workflow = read('components/TaskWorkflow.jsx');
+  assert.match(workflow, /todo\.kind === 'ask_edd' && todo\.enquiry && canWrite\('production'\)/);
+  assert.match(workflow, /to=\{`\/mould-runs\?start=1&enquiry=/);
+  const runs = read('pages/MouldRuns.jsx');
+  assert.match(runs, /params\.get\('start'\) \? \{ enquiry: params\.get\('enquiry'\)/);
+  assert.match(runs, /enquiry: initial\.enquiry \|\| ''/);
+  assert.match(runs, /fallbackLabel=\{values\.enquiry && values\.enquiry === initial\.enquiry \? initial\.label : undefined\}/);
+  assert.match(workflow, /&label=\$\{encodeURIComponent/);
+  const checklist = read('components/SetupChecklist.jsx');
+  assert.match(checklist, /setupChecklist\(\)\.then/);
+  assert.match(checklist, /if \(!open\.length\) return null;/);
+  assert.match(read('pages/OverviewDashboard.jsx'), /\{isAdmin && <SetupChecklist \/>\}/);
+  assert.match(read('api/endpoints.js'), /api\.get\('\/setup-checklist'/);
+  assert.match(read('pages/QcRecordDetail.jsx'), /label: 'SO inspection'/);
 });

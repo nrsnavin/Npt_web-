@@ -278,6 +278,15 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
             {action.label}
           </button>
         ))}
+        {/* Production's job, on the press: a mould run for this enquiry's SO, started from the task. */}
+        {todo.kind === 'ask_edd' && todo.enquiry && canWrite('production') && (
+          <Link
+            to={`/mould-runs?start=1&enquiry=${todo.enquiry._id || todo.enquiry}${todo.order ? `&order=${todo.order._id || todo.order}` : ''}${todo.enquiry.number ? `&label=${encodeURIComponent(`${todo.enquiry.number}${todo.customer?.name ? ` — ${todo.customer.name}` : ''}`)}` : ''}`}
+            className="btn-secondary px-3 py-1.5 text-xs"
+          >
+            Start a run
+          </Link>
+        )}
         {/* A Quality task's test sheet, opened with the task and its enquiry filled in. */}
         {QC_KINDS.includes(todo.kind) && canWrite('quality') && (
           <Link

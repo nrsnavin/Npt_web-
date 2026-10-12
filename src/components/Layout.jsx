@@ -121,6 +121,7 @@ const MODULES = [
         children: [{ to: '/quality/report', label: 'Quality report' }],
       },
       { to: '/qc-records', label: 'QC records' },
+      { to: '/qc-records/report', label: 'Reject report', module: ['quality', 'production'] },
     ],
   },
   {

@@ -1060,6 +1060,21 @@ export const mouldRunsApi = {
 /** The dispatch register: every stop on every trip that left, with the LR details. */
 /** How an SO's goods went: its dispatch requests, the trips they went on, and the LR details. */
 /** What an enquiry led to: its SOs, QC records and every dispatch request, trip and LR. */
+/** Ask a buyer on WhatsApp to share their delivery location; the location they share is pinned. */
+export const askCustomerLocation = (customerId) => api.post(`/customers/${customerId}/ask-location`).then(unwrap);
+
+/** The resin store: a material's stock book, and receipts or corrected counts. */
+export const materialStock = {
+  book: (materialId) => api.get(`/materials/${materialId}/stock`).then(unwrap),
+  move: ({ id, ...payload }) => api.post(`/materials/${id}/stock`, payload).then(unwrap),
+};
+
+/** Where the rejects come from: QC sheets and press rejects by mould, machine, defect and test. */
+export const qcReportApi = (params) => api.get('/qc-records/report', { params }).then(unwrap);
+
+/** Admin's setup checklist: what is still to fill in before the plant screens have data. */
+export const setupChecklist = () => api.get('/setup-checklist', { feedback: false }).then(unwrap);
+
 export const enquiryRecords = (enquiryId) => api.get(`/enquiries/${enquiryId}/records`).then(unwrap);
 export const orderDispatchDetails = (orderId) => api.get(`/orders/${orderId}/dispatch-details`).then(unwrap);
 

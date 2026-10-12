@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import StockDialog from '../components/StockDialog.jsx';
 import { Link } from 'react-router-dom';
 import { downloads, materials as materialsApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -38,6 +39,7 @@ export default function Materials() {
   const [type, setType] = useState('');
   const [page, setPage] = useState(1);
   const [editing, setEditing] = useState(null);
+  const [stocking, setStocking] = useState(null);
   const [active, setActive] = useState('');
   const { sort, toggle } = useSort();
 
@@ -132,6 +134,7 @@ export default function Materials() {
                     {/* Oldest first is this register's housekeeping list: a rate nobody has
                         confirmed in months is a costing built on a guess. */}
                     <SortHeader field="rateUpdatedAt" label="Confirmed" sort={sort} onToggle={sortBy} className="px-4" />
+                    <SortHeader field="stockKg" label="In store" sort={sort} onToggle={sortBy} align="right" className="px-4" />
                     {mayWrite && <th className="px-4 py-3" />}
                   </tr>
                 </thead>
@@ -179,6 +182,12 @@ export default function Materials() {
                         </span>
                         {material.isActive === false && <Badge status="inactive" />}
                       </td>
+                      <td className="px-4 py-3.5 text-right tabular-nums">
+                        <button type="button" className={`font-semibold hover:underline ${material.reorderKg != null && (material.stockKg || 0) <= material.reorderKg ? 'text-danger-400' : 'text-steel-100'}`} onClick={() => setStocking(material)} aria-label={`Store for ${material.name}`}>
+                          {Math.round(material.stockKg || 0).toLocaleString('en-IN')} kg
+                        </button>
+                        {material.reorderKg != null && (material.stockKg || 0) <= material.reorderKg && <p className="text-xs text-danger-400">reorder</p>}
+                      </td>
                       {mayWrite && (
                         <td className="px-4 py-3.5 text-right">
                           <button type="button" className="row-action" onClick={() => setEditing(material)}>
@@ -195,6 +204,8 @@ export default function Materials() {
           <Pagination pagination={pagination} onChange={setPage} />
         </>
       ))}
+
+      {stocking && <StockDialog material={stocking} mayWrite={mayWrite} onClose={() => setStocking(null)} onChanged={reload} />}
 
       <Modal
         open={Boolean(editing)}

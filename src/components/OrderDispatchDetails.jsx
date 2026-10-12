@@ -4,6 +4,7 @@ import { orderDispatchDetails } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { Badge, ErrorState, Section } from './ui.jsx';
 import TaskPdfLink from './TaskPdfLink.jsx';
+import QcFlag from './QcFlag.jsx';
 import { formatNumber } from '../utils/format.js';
 
 /**
@@ -45,6 +46,7 @@ export function DispatchBody({ data, showOrder = false }) {
             <Badge tone={request.completed ? 'success' : 'info'}>{request.statusLabel || 'Raised'}</Badge>
           </div>
           {request.remark && <p className="mt-1 text-xs text-steel-400">{request.remark}</p>}
+          {request.qc && <p className="mt-1"><QcFlag qc={request.qc} /></p>}
           {request.trips.length ? (
             <ul className="mt-3 space-y-2 text-sm">
               {request.trips.map((leg) => (

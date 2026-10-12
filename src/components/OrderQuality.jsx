@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useCallback, useEffect, useState } from 'react';
 import { quality as qualityApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -291,9 +292,22 @@ export default function OrderQuality({ order }) {
       title="Quality"
       actions={
         mayInspect && options ? (
-          <button type="button" className="row-action" onClick={() => setRecording(true)}>
-            Record an inspection
-          </button>
+          /*
+           * One form for Quality: the QC record writes this line's inspection too [server:
+           * records.service `syncInspection`]. The quick check stays for a before-dispatch check on
+           * one named consignment, which a QC sheet cannot pick.
+           */
+          <span className="flex items-center gap-3">
+            <Link
+              to={`/qc-records/new?order=${order._id}${order.enquiry ? `&enquiry=${order.enquiry._id || order.enquiry}` : ''}&stage=final`}
+              className="row-action"
+            >
+              Fill a QC record
+            </Link>
+            <button type="button" className="text-xs font-semibold text-steel-400 hover:text-accent" onClick={() => setRecording(true)}>
+              Quick check on a consignment
+            </button>
+          </span>
         ) : null
       }
     >

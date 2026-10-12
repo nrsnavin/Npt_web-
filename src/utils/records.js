@@ -96,15 +96,77 @@ export function workOut(sheet) {
     weight: known(sheet.weight?.actual) && known(sheet.weight?.target) ? (within(Number(sheet.weight.actual), Number(sheet.weight.target), Number(sheet.weight.tolerance) || 0) ? 'pass' : 'fail') : undefined,
     hang: compare(sheet.hangLoad?.deflectionMm, sheet.hangLoad?.allowedDeflectionMm, (a, w) => a <= w),
     measurements: (sheet.measurements || []).map((row) => (known(row.actual) && known(row.target) ? (within(Number(row.actual), Number(row.target), Number(row.tolerance) || 0) ? 'pass' : 'fail') : undefined)),
+    hookTurns: compare(sheet.hookTurns?.achieved, sheet.hookTurns?.required, (a, w) => a >= w),
+    ...shrinkageOf(sheet.shrinkage),
+    moisture: compare(sheet.resinChecks?.moisturePercent, sheet.resinChecks?.moistureMaxPercent, (a, w) => a <= w),
+    mfi: known(sheet.resinChecks?.mfi) && (known(sheet.resinChecks?.mfiMin) || known(sheet.resinChecks?.mfiMax))
+      ? ((!known(sheet.resinChecks.mfiMin) || Number(sheet.resinChecks.mfi) >= Number(sheet.resinChecks.mfiMin)) && (!known(sheet.resinChecks.mfiMax) || Number(sheet.resinChecks.mfi) <= Number(sheet.resinChecks.mfiMax)) ? 'pass' : 'fail')
+      : undefined,
+    packing: packingOf(sheet.packing),
+    aql: aqlOf(sheet),
   };
+}
+
+function shrinkageOf(row) {
+  if (!known(row?.mouldMm) || !Number(row.mouldMm) || !known(row?.partMm)) return {};
+  const percent = Math.round(((Number(row.mouldMm) - Number(row.partMm)) / Number(row.mouldMm)) * 10000) / 100;
+  return { shrinkagePercent: percent, shrinkage: known(row.maxPercent) ? (Math.abs(percent) <= Number(row.maxPercent) ? 'pass' : 'fail') : undefined };
+}
+
+function packingOf(row) {
+  if (!row || (!known(row.piecesFound) && !row.labels)) return undefined;
+  const counted = !known(row.piecesPerCarton) || !known(row.piecesFound) || Number(row.piecesFound) === Number(row.piecesPerCarton);
+  return counted && row.labels !== 'fail' ? 'pass' : 'fail';
+}
+
+function aqlOf(sheet) {
+  const plan = sheet.aql ? aqlPlan(sheet.lotSize, sheet.aql) : null;
+  if (!plan) return null;
+  const rejected = known(sheet.rejected) ? Number(sheet.rejected) : null;
+  return { ...plan, result: rejected == null ? undefined : rejected <= plan.accept ? 'pass' : 'fail' };
+}
+
+/* ------------------------------------------------------------------ AQL --- */
+
+/**
+ * Sampling by AQL — ISO 2859-1 (IS 2500 Part 1), single sampling, normal inspection, level II. The
+ * same table as the server [server: utils/aql.js]: the lot gives a code letter, the letter a sample,
+ * the AQL the rejects the sample may hold. Where the table points up or down, that plan's sample size.
+ */
+export const AQL_LEVELS = [0.65, 1, 1.5, 2.5, 4, 6.5];
+const AQL_LETTERS = [[8, 'A'], [15, 'B'], [25, 'C'], [50, 'D'], [90, 'E'], [150, 'F'], [280, 'G'], [500, 'H'], [1200, 'J'], [3200, 'K'], [10000, 'L'], [35000, 'M'], [150000, 'N'], [500000, 'P'], [Infinity, 'Q']];
+const AQL_TABLE = [
+  ['A', 2, 'd', 'd', 'd', 'd', 'd', 0], ['B', 3, 'd', 'd', 'd', 'd', 0, 'u'], ['C', 5, 'd', 'd', 'd', 0, 'u', 'd'],
+  ['D', 8, 'd', 'd', 0, 'u', 'd', 1], ['E', 13, 'd', 0, 'u', 'd', 1, 2], ['F', 20, 0, 'u', 'd', 1, 2, 3],
+  ['G', 32, 'u', 'd', 1, 2, 3, 5], ['H', 50, 'd', 1, 2, 3, 5, 7], ['J', 80, 1, 2, 3, 5, 7, 10],
+  ['K', 125, 2, 3, 5, 7, 10, 14], ['L', 200, 3, 5, 7, 10, 14, 21], ['M', 315, 5, 7, 10, 14, 21, 'u'],
+  ['N', 500, 7, 10, 14, 21, 'u', 'u'], ['P', 800, 10, 14, 21, 'u', 'u', 'u'], ['Q', 1250, 14, 21, 'u', 'u', 'u', 'u'], ['R', 2000, 21, 'u', 'u', 'u', 'u', 'u'],
+];
+export function aqlPlan(lotSize, aql) {
+  const lot = Number(lotSize);
+  const column = AQL_LEVELS.indexOf(Number(aql));
+  if (!(lot >= 2) || column < 0) return null;
+  const letter = AQL_LETTERS.find(([upTo]) => lot <= upTo)[1];
+  let row = AQL_TABLE.findIndex((entry) => entry[0] === letter);
+  for (let guard = 0; guard < AQL_TABLE.length; guard += 1) {
+    const cell = AQL_TABLE[row][column + 2];
+    if (cell === 'd') row += 1;
+    else if (cell === 'u') row -= 1;
+    else return { letter, sampleSize: Math.min(AQL_TABLE[row][1], lot), accept: cell, reject: cell + 1 };
+  }
+  return null;
 }
 
 /* ----------------------------------------------------------- QC prefill --- */
 
 const PREFILL_PATHS = [
-  'modelNumber', 'size', 'mould', 'mouldingType', 'cavities', 'lotSize',
+  'modelNumber', 'size', 'mould', 'mouldingType', 'cavities', 'lotSize', 'aql', 'standardsFrom',
   'resin.material', 'resin.name', 'resin.colour', 'resin.supplier',
   'hook.type', 'hook.finish', 'clip.type', 'print.type', 'print.colour', 'print.artwork', 'weight.target',
+  /* The minimums, from the model's and the buyer's test standards. */
+  'breaking.requiredKg', 'hook.pullRequiredKg', 'clip.gripRequiredKg', 'hangLoad.loadKg', 'hangLoad.hours', 'hangLoad.allowedDeflectionMm',
+  'weight.tolerance', 'drop.heightCm', 'drop.drops', 'resinChecks.moistureMaxPercent', 'resinChecks.mfiMin', 'resinChecks.mfiMax',
+  'shrinkage.maxPercent', 'hookTurns.required', 'uv.hours', 'cartonDrop.heightCm', 'packing.piecesPerCarton',
 ];
 const at = (object, path) => path.split('.').reduce((value, key) => value?.[key], object);
 const blankMeasures = (rows) => rows.every((row) => row.target === '' && row.tolerance === '' && row.actual === '');
@@ -128,13 +190,13 @@ export function fillFrom(current, answer, before = {}) {
     if (mine === '' || mine === undefined || (path in before && mine === before[path])) {
       const keys = path.split('.');
       let target = next;
-      keys.slice(0, -1).forEach((key) => { target = target[key]; });
+      keys.slice(0, -1).forEach((key) => { target[key] = target[key] || {}; target = target[key]; });
       target[keys.at(-1)] = value ?? '';
     }
   }
   const measures = answer.fields.measurements;
   if (measures && (blankMeasures(next.measurements) || JSON.stringify(next.measurements) === before.measurements)) {
-    next.measurements = measures.map((row) => ({ name: row.name, unit: row.unit || 'mm', target: row.target ?? '', tolerance: '', actual: '' }));
+    next.measurements = measures.map((row) => ({ name: row.name, unit: row.unit || 'mm', target: row.target ?? '', tolerance: row.tolerance ?? '', actual: '' }));
     now.measurements = JSON.stringify(next.measurements);
   }
   return { sheet: next, filled: now };

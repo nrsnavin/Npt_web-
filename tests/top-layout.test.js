@@ -148,7 +148,7 @@ test('Queries: a panel at the bottom right with its unread count and an alert fo
   const hook = read('hooks/useQueryInbox.js');
   assert.match(hook, /const POLL_MS = 30000;/);
   assert.match(hook, /toast\(title, body\);/);
-  assert.match(hook, /new Notification\(title, \{ body, tag: 'npt-queries'/);
+  assert.match(hook, /new window\.Notification\(title, \{ body, tag: 'npt-queries'/);
   assert.match(hook, /document\.title = count \?/);
   const panel = read('components/dock/QueriesPanel.jsx');
   assert.match(panel, /queriesApi\.read\(id\)/, 'opening a thread marks it read');

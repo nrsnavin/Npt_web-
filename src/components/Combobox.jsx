@@ -43,6 +43,12 @@ export default function Combobox({
    */
   onCreate,
   createLabel = 'Add',
+  /**
+   * What to call the chosen record when it cannot be read back — someone who may fill a form for
+   * it but not open the record itself (Quality on an enquiry it never worked). Without it the box
+   * would show the prompt, as if nothing were chosen.
+   */
+  fallbackLabel,
   'aria-label': ariaLabel,
 }) {
   const [open, setOpen] = useState(false);
@@ -80,20 +86,22 @@ export default function Combobox({
       return undefined;
     }
 
+    const fallback = () => { if (!cancelled && fallbackLabel) setChosen({ value, label: fallbackLabel }); };
     loadOne?.(value)
       .then((record) => {
-        if (cancelled || !record) return;
-        const option = toOption(record);
+        if (cancelled) return;
+        const option = record ? toOption(record) : null;
         // A label-less option would render as an empty box with no placeholder either —
         // indistinguishable from having chosen nothing. Better to leave the prompt showing.
         if (option?.label) setChosen(option);
+        else fallback();
       })
-      .catch(() => {});
+      .catch(fallback);
 
     return () => {
       cancelled = true;
     };
-  }, [value, chosen, options, loadOne, toOption]);
+  }, [value, chosen, options, loadOne, toOption, fallbackLabel]);
 
   /* Query while open. Closed, it costs nothing. */
   useEffect(() => {
