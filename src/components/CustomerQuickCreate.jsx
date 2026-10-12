@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { customers as customersApi } from '../api/endpoints.js';
 import { Field, FormError, Modal, Notice } from './ui.jsx';
-import { CUSTOMER_TYPES } from '../utils/pipeline.js';
+import { CUSTOMER_TYPES, LANDMARK_ROUTES } from '../utils/pipeline.js';
 import OwnerPicker from './OwnerPicker.jsx';
 
 /**
@@ -123,8 +123,11 @@ export default function CustomerQuickCreate({ open, initialName = '', onClose, o
           <Field label="Area / locality">
             <input className="input" placeholder="Kumar Nagar" {...register('area')} />
           </Field>
-          <Field label="Landmark" hint="The bus stop, mill or temple a driver asks for">
-            <input className="input" placeholder="Near Kumar Nagar bus stop" {...register('landmark')} />
+          <Field label="Landmark / route" hint="This route will be sent to the Dispatch Team for vehicle planning.">
+            <select className="input" {...register('landmark')}>
+              <option value="">Select route</option>
+              {LANDMARK_ROUTES.map((route) => <option key={route} value={route}>{route}</option>)}
+            </select>
           </Field>
           <Field label="City">
             <input className="input" placeholder="Tiruppur" {...register('city')} />

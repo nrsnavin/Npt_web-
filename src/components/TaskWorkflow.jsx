@@ -243,6 +243,8 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
   if (!statuses.length) return null;
 
   const current = statuses.find((entry) => entry.key === todo.status);
+  /* The readiness tasks this one asked for and are still open. */
+  const waiting = (todo.waitingOn || []).filter((task) => (button.form.actions || []).some((action) => action.kind === task.kind));
   const resultStep = statuses.find((entry) => entry.pdf);
   const editable = (button.asks || []).filter((field) => field.editable);
 
@@ -275,10 +277,27 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-2">
         <label className="text-xs font-semibold text-steel-400" htmlFor={`status-${todo._id}`}>Status update</label>
-        <select id={`status-${todo._id}`} className="input w-auto min-w-[12rem] py-1.5 text-sm" value={moving?.key || todo.status || ''} onChange={(event) => choose(event.target.value)}>
+        <select
+          id={`status-${todo._id}`}
+          className="input w-auto min-w-[12rem] py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-80"
+          value={moving?.key || todo.status || ''}
+          disabled={waiting.length > 0}
+          aria-describedby={waiting.length ? `waiting-${todo._id}` : undefined}
+          onChange={(event) => choose(event.target.value)}
+        >
           {statuses.map((entry) => <option key={entry.key} value={entry.key}>{entry.label}</option>)}
         </select>
       </div>
+      {/* Asked Production / Assembly for readiness: theirs to answer, so the status waits on it [server: `assertNotWaiting`]. */}
+      {waiting.length > 0 && (
+        <p id={`waiting-${todo._id}`} className="rounded-lg bg-warn-500/10 px-3 py-2 text-xs text-warn-400 ring-1 ring-warn-500/20">
+          Waiting on {waiting.map((task) => {
+            const said = buttonFor(catalogue, task.kind)?.form?.statuses?.find((entry) => entry.key === task.status)?.label;
+            return `${departmentLabel(task.department)}${said ? ` — ${said}` : ''}`;
+          }).join(' and ')}.
+          {' '}The status can be changed once {waiting.length > 1 ? 'those tasks are' : 'that task is'} closed.
+        </p>
+      )}
       <div className="flex flex-wrap gap-2">
         {editable.length > 0 && (
           <button type="button" className="btn-secondary px-3 py-1.5 text-xs" onClick={() => setEditing(true)}>{button.form.editLabel || 'Edit contact details'}</button>

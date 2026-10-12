@@ -5,12 +5,13 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { useRecord } from '../hooks/useRecords.js';
 import AttentionPanel from '../components/AttentionPanel.jsx';
 import DepartmentTasksBoard from '../components/DepartmentTasksBoard.jsx';
+import TodaysActions, { FollowUpDialog } from '../components/TodaysActions.jsx';
 import EnquiryForm from '../components/EnquiryForm.jsx';
 import { CustomerForm } from './Customers.jsx';
 import Enquiries from './Enquiries.jsx';
 import { DashboardSkeleton, ErrorState, Modal, Notice } from '../components/ui.jsx';
 import { departmentLabel } from '../utils/pipeline.js';
-import { formatDate } from '../utils/format.js';
+import { formatDate, formatDateTime } from '../utils/format.js';
 
 /**
  * The overview dashboard [the plant's own layout] — Admin's company-wide, a marketing person's
@@ -22,7 +23,8 @@ import { formatDate } from '../utils/format.js';
  *   New Enquiries               the drafts to finish (a WhatsApp chat or card, highlighted, first)
  *                               and the enquiries still at Enquiry received, to edit and verify
  *   Department Tasks            the requests followed, with their status reply
- *   Customer / Party Master     every customer, with where its newest enquiry stands
+ *   Customer / Party Master     every customer, with where its newest enquiry stands — and
+ *                               beside it Today's actions: the follow-ups due, worked from there
  */
 
 const PARTY_CHIPS = [
@@ -59,20 +61,24 @@ function FigureTile({ label, value, hint, to }) {
   );
 }
 
-function PartyMaster({ isAdmin, onAdd }) {
+function PartyMaster({ isAdmin, onAdd, onFollowUpChanged, refreshKey = 0 }) {
   const navigate = useNavigate();
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [editing, setEditing] = useState(null);
   const [problem, setProblem] = useState(null);
+  const [following, setFollowing] = useState(null);
   const fetch = useCallback(() => overview.parties({ filter, page, search: search.trim() || undefined }), [filter, page, search]);
-  const { data, loading, error, reload } = useRecord(fetch, `parties-${filter}-${page}-${search}`);
+  const { data, loading, error, reload } = useRecord(fetch, `parties-${filter}-${page}-${search}-${refreshKey}`);
 
   const edit = async (row) => {
     setProblem(null);
     try {
-      setEditing(await customersApi.get(row._id));
+      /* The detail call answers `{ customer, timeline }`: the form wants the customer itself, or it
+         sees no id, takes it for a new party and opens empty. */
+      const found = await customersApi.get(row._id);
+      setEditing(found?.customer || found);
     } catch (failure) {
       setProblem(failure.message);
     }
@@ -129,11 +135,23 @@ function PartyMaster({ isAdmin, onAdd }) {
                   {row.isNew && <span className="rounded-full bg-aqua-500/15 px-2 py-0.5 text-[0.75rem] font-semibold text-aqua-600">New Enquiry</span>}
                 </div>
                 <p className="truncate text-xs text-steel-400">{row.line}{isAdmin && row.owner ? ` · ${row.owner}` : ''}</p>
-                <p className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-steel-300">
+                <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs font-semibold text-steel-300">
                   <span aria-hidden className={`h-2 w-2 rounded-full ${dotFor(row)}`} />
                   {row.status}
+                  {row.customerFollowUp && (
+                    <span className={`ml-1 rounded-full px-2 py-0.5 font-semibold ${new Date(row.customerFollowUp.due) < new Date() ? 'bg-danger-500/15 text-danger-400' : 'bg-aqua-500/15 text-aqua-600'}`}>
+                      Follow-up {formatDateTime(row.customerFollowUp.due)}{row.customerFollowUp.note ? ` · ${row.customerFollowUp.note}` : ''}
+                    </span>
+                  )}
                 </p>
               </div>
+              <button
+                type="button"
+                className="btn-secondary shrink-0 px-3 py-1.5 text-xs"
+                onClick={() => setFollowing({ customer: { _id: row._id, name: row.name }, mode: row.customerFollowUp ? 'log' : 'set' })}
+              >
+                {row.customerFollowUp ? 'Log / close' : 'Follow-up'}
+              </button>
               <button type="button" className="btn-secondary shrink-0 px-3 py-1.5 text-xs" onClick={() => edit(row)}>Edit</button>
               <button
                 type="button"
@@ -161,6 +179,14 @@ function PartyMaster({ isAdmin, onAdd }) {
       <Modal open={Boolean(editing)} title="Edit customer" size="lg" onClose={() => setEditing(null)}>
         {editing && <CustomerForm customer={editing} onClose={() => setEditing(null)} onSaved={reload} />}
       </Modal>
+      {following && (
+        <FollowUpDialog
+          customer={following.customer}
+          mode={following.mode}
+          onClose={() => setFollowing(null)}
+          onChanged={() => { reload(); onFollowUpChanged?.(); }}
+        />
+      )}
     </section>
   );
 }
@@ -182,6 +208,9 @@ export default function OverviewDashboard() {
   const drafts = useRecord(fetchDrafts, 'overview-drafts');
   const [adding, setAdding] = useState(null);
   const [partiesKey, setPartiesKey] = useState(0);
+  const [actionsKey, setActionsKey] = useState(0);
+  /* A follow-up worked from the card shows on its row without the list losing its filter or page. */
+  const [partiesRefresh, setPartiesRefresh] = useState(0);
 
   if (loading && !data) return <DashboardSkeleton label="Loading the overview" tiles={4} />;
   if (error) return <ErrorState error={error} onRetry={reload} />;
@@ -199,6 +228,7 @@ export default function OverviewDashboard() {
     desk.reload();
     drafts.reload();
     setPartiesKey((value) => value + 1);
+    setActionsKey((value) => value + 1);
   };
 
   return (
@@ -274,7 +304,7 @@ export default function OverviewDashboard() {
             ))}
             {newEnquiries.rows.map((row) => (
               <div key={row._id} className="rounded-xl border border-line/10 p-3">
-                <p className="truncate font-semibold text-steel-50">{row.customer?.name || row.number}</p>
+                <p className="truncate font-semibold text-steel-50">{row.customer?.name || row.prospect?.name || row.number}</p>
                 <p className="text-xs text-steel-400">
                   Enquiry received · {row.assignedTo?.name || 'Unassigned'}
                   {row.requirement?.modelNumber ? ` · ${row.requirement.modelNumber}` : ''}
@@ -306,7 +336,18 @@ export default function OverviewDashboard() {
 
       <DepartmentTasksBoard />
 
-      {canRead('customers') && <PartyMaster key={partiesKey} isAdmin={isAdmin} onAdd={() => setAdding('party')} />}
+      {canRead('customers') && (
+        <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_22rem]">
+          <PartyMaster
+            key={partiesKey}
+            isAdmin={isAdmin}
+            onAdd={() => setAdding('party')}
+            refreshKey={partiesRefresh}
+            onFollowUpChanged={() => setActionsKey((value) => value + 1)}
+          />
+          <TodaysActions refreshKey={actionsKey} onChanged={() => setPartiesRefresh((value) => value + 1)} />
+        </div>
+      )}
 
       <Modal open={adding === 'party'} title="New customer" description="Check for an existing record before creating a second one" size="lg" onClose={() => setAdding(null)}>
         {adding === 'party' && <CustomerForm onClose={() => setAdding(null)} onSaved={refresh} />}

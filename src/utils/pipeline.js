@@ -756,3 +756,12 @@ export const MARKETING_STATUSES = [
 
 export const marketingStatusLabel = (value) =>
   MARKETING_STATUSES.find((entry) => entry.value === value)?.label || value || '—';
+
+/**
+ * The roads out of Tiruppur a delivery is planned along — a customer's landmark, which the
+ * Dispatch Team groups a vehicle by [components/TripPlanner.jsx].
+ */
+export const LANDMARK_ROUTES = [
+  'Kangeyam Road', 'Uthukuli Road', 'Dharapuram Road', 'Palladam Road',
+  'College Road', 'Mangalam Road', 'PN Road', 'Avinashi Road',
+];

@@ -358,9 +358,17 @@ export default function Enquiries({ embedded = false }) {
                           <p className="text-xs text-steel-400">{formatDate(enquiry.enquiryDate)}</p>
                         </td>
                         <td className="px-1.5 py-3.5">
-                          <Link to={`/customers/${enquiry.customer?._id}`} className="text-steel-200 hover:text-accent">
-                            {enquiry.customer?.name || '—'}
-                          </Link>
+                          {enquiry.customer ? (
+                            <Link to={`/customers/${enquiry.customer._id}`} className="text-steel-200 hover:text-accent">
+                              {enquiry.customer.name || '—'}
+                            </Link>
+                          ) : (
+                            /* Not a customer yet: the name taken down on the call, until it is converted. */
+                            <>
+                              <span className="text-steel-200">{enquiry.prospect?.name || '—'}</span>
+                              <span className="ml-1.5 inline-block rounded-full bg-warn-500/15 px-2 py-0.5 text-xs font-semibold text-warn-400">Prospect</span>
+                            </>
+                          )}
                         </td>
                         <td className="px-1.5 py-3.5">
                           <p className="text-steel-200">
