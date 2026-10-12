@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { mouldRunsApi, orders as ordersApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { EmptyState, ErrorState, Field, FormError, Modal, PageHeader, Section, Spinner } from '../components/ui.jsx';
@@ -22,8 +22,8 @@ const elapsed = (from) => {
   return minutes < 60 ? `${minutes} min` : `${Math.floor(minutes / 60)} h ${minutes % 60} min`;
 };
 
-function StartRun({ onClose, onStarted }) {
-  const [values, setValues] = useState({ mould: '', machine: '', enquiry: '', order: '', orderLine: '', colour: '', plannedQuantity: '', shift: '', operator: '', counterStart: '', resinMaterial: '', resinName: '', resinBatch: '' });
+function StartRun({ onClose, onStarted, initial = {} }) {
+  const [values, setValues] = useState({ mould: '', machine: '', enquiry: initial.enquiry || '', order: initial.order || '', orderLine: '', colour: '', plannedQuantity: '', shift: '', operator: '', counterStart: '', resinMaterial: '', resinName: '', resinBatch: '' });
   /* The enquiry's SOs, to say which SO line the run makes — its good pieces are added to that line. */
   const [orders, setOrders] = useState([]);
   useEffect(() => {
@@ -69,7 +69,7 @@ function StartRun({ onClose, onStarted }) {
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Mould" required><MouldSelect value={values.mould} onChange={set('mould')} allowCreate={false} /></Field>
           <Field label="Machine"><MachineSelect value={values.machine} onChange={set('machine')} emptyLabel="Pick the machine…" /></Field>
-          <Field label="For enquiry / order" className="sm:col-span-2"><EnquirySelect value={values.enquiry} onChange={(value) => setValues((current) => ({ ...current, enquiry: value, order: '', orderLine: '' }))} won emptyLabel="Stock run — no order" /></Field>
+          <Field label="For enquiry / order" className="sm:col-span-2"><EnquirySelect value={values.enquiry} onChange={(value) => setValues((current) => ({ ...current, enquiry: value, order: '', orderLine: '' }))} won emptyLabel="Stock run — no order" fallbackLabel={values.enquiry && values.enquiry === initial.enquiry ? initial.label : undefined} /></Field>
           {orders.length > 0 && (
             <Field label="Sales order" hint="Good pieces are added to the SO line when the run ends">
               <select className="input" value={values.order} onChange={(event) => setValues((current) => ({ ...current, order: event.target.value, orderLine: '' }))}>
@@ -178,7 +178,10 @@ export default function MouldRuns() {
   const mayRun = canWrite('production');
   const [runs, setRuns] = useState(null);
   const [error, setError] = useState(null);
-  const [starting, setStarting] = useState(false);
+  /* Opened from a Production task (Start a run): the dialog opens with the enquiry and its SO. */
+  const [params, setParams] = useSearchParams();
+  const fromTask = params.get('start') ? { enquiry: params.get('enquiry') || '', order: params.get('order') || '', label: params.get('label') || undefined } : null;
+  const [starting, setStarting] = useState(Boolean(fromTask));
   const [finishing, setFinishing] = useState(null);
   const load = useCallback(() => mouldRunsApi.list({ limit: 150 }).then((rows) => { setRuns(rows); setError(null); }).catch(setError), []);
   useEffect(() => { load(); }, [load]);
@@ -222,7 +225,13 @@ export default function MouldRuns() {
           <RunsTable rows={ended} showMould showMachine empty="" />
         </Section>
       )}
-      {starting && <StartRun onClose={() => setStarting(false)} onStarted={load} />}
+      {starting && (
+        <StartRun
+          initial={fromTask || {}}
+          onClose={() => { setStarting(false); if (fromTask) setParams({}, { replace: true }); }}
+          onStarted={load}
+        />
+      )}
       {finishing && <FinishRun run={finishing} onClose={() => setFinishing(null)} onFinished={load} />}
     </div>
   );

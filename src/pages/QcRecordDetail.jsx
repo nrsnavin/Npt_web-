@@ -139,6 +139,7 @@ export default function QcRecordDetail() {
                 { label: 'Produced on', value: record.producedOn && formatDate(record.producedOn) },
                 { label: 'Run', value: record.run?.number },
                 { label: 'Quality task', value: record.task?.title },
+                { label: 'SO inspection', value: record.inspection ? `${record.inspection.number} · written on the SO line` : record.inspectionNote },
               ]}
             />
           </Section>

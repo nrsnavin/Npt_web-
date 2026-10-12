@@ -250,3 +250,23 @@ test('several open SOs: every form asks which, and the planner can ask unpinned 
   assert.match(planner, /canPlan && plan\.unpinned\?\.length > 0 && <AskAllUnpinned buyers=\{plan\.unpinned\} \/>/);
   assert.match(planner, /await askCustomerLocation\(buyer\._id\)/);
 });
+
+test('audit: one form for Quality, a run from the Production task, and Admin\'s setup checklist', () => {
+  const quality = read('components/OrderQuality.jsx');
+  assert.match(quality, /to=\{`\/qc-records\/new\?order=\$\{order\._id\}/);
+  assert.match(quality, /Quick check on a consignment/);
+  const workflow = read('components/TaskWorkflow.jsx');
+  assert.match(workflow, /todo\.kind === 'ask_edd' && todo\.enquiry && canWrite\('production'\)/);
+  assert.match(workflow, /to=\{`\/mould-runs\?start=1&enquiry=/);
+  const runs = read('pages/MouldRuns.jsx');
+  assert.match(runs, /params\.get\('start'\) \? \{ enquiry: params\.get\('enquiry'\)/);
+  assert.match(runs, /enquiry: initial\.enquiry \|\| ''/);
+  assert.match(runs, /fallbackLabel=\{values\.enquiry && values\.enquiry === initial\.enquiry \? initial\.label : undefined\}/);
+  assert.match(workflow, /&label=\$\{encodeURIComponent/);
+  const checklist = read('components/SetupChecklist.jsx');
+  assert.match(checklist, /setupChecklist\(\)\.then/);
+  assert.match(checklist, /if \(!open\.length\) return null;/);
+  assert.match(read('pages/OverviewDashboard.jsx'), /\{isAdmin && <SetupChecklist \/>\}/);
+  assert.match(read('api/endpoints.js'), /api\.get\('\/setup-checklist'/);
+  assert.match(read('pages/QcRecordDetail.jsx'), /label: 'SO inspection'/);
+});
