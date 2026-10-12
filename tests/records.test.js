@@ -263,10 +263,7 @@ test('audit: one form for Quality, a run from the Production task, and Admin\'s 
   assert.match(runs, /enquiry: initial\.enquiry \|\| ''/);
   assert.match(runs, /fallbackLabel=\{values\.enquiry && values\.enquiry === initial\.enquiry \? initial\.label : undefined\}/);
   assert.match(workflow, /&label=\$\{encodeURIComponent/);
-  const checklist = read('components/SetupChecklist.jsx');
-  assert.match(checklist, /setupChecklist\(\)\.then/);
-  assert.match(checklist, /if \(!open\.length\) return null;/);
-  assert.match(read('pages/OverviewDashboard.jsx'), /\{isAdmin && <SetupChecklist \/>\}/);
-  assert.match(read('api/endpoints.js'), /api\.get\('\/setup-checklist'/);
+  /* The "Finish setting up" card was taken off the dashboard at the plant's request. */
+  assert.doesNotMatch(read('pages/OverviewDashboard.jsx'), /SetupChecklist|Finish setting up/);
   assert.match(read('pages/QcRecordDetail.jsx'), /label: 'SO inspection'/);
 });

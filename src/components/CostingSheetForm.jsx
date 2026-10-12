@@ -5,6 +5,7 @@ import {
 } from '../api/endpoints.js';
 import { Field, Notice } from './ui.jsx';
 import Combobox from './Combobox.jsx';
+import PreviousQuotes from './PreviousQuotes.jsx';
 import { MINIMUM_TIER, STANDARD_TIERS, priceAt as priceFor } from '../utils/pricing.js';
 import { changedParts } from '../utils/pricing.js';
 import { GRAM_STEP, cutGrams } from '../utils/grams.js';
@@ -377,6 +378,9 @@ export default function CostingSheetForm({ quotation: pricing, line, onClose, on
           />
         </Field>
       </div>
+
+      {/* What this mould in this material went out at before, once both are picked. */}
+      <PreviousQuotes mould={mould} material={materialRef} hook={hookRef} clip={clipRef} exclude={pricing._id} />
 
       <div className="grid gap-4 sm:grid-cols-2">
         {costField('gramWeight', 'Gram weight', 'Grams a piece consumes, in this resin — up to five decimals', GRAM_STEP)}

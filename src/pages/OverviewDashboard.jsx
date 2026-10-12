@@ -1,5 +1,4 @@
 import { useCallback, useState } from 'react';
-import SetupChecklist from '../components/SetupChecklist.jsx';
 import { Link, useNavigate } from 'react-router-dom';
 import { buyerCards as buyerCardsApi, customers as customersApi, departments as departmentsApi, overview } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -241,9 +240,6 @@ export default function OverviewDashboard() {
           <FigureTile label="Quotations" value={figures.quotations} hint="Preparing, sent & negotiation" to={canRead('pricing') ? '/quotations' : undefined} />
         </div>
       )}
-
-      {/* Admin: what the plant still has to fill in before the newer screens do anything. */}
-      {isAdmin && <SetupChecklist />}
 
       {desk.data && <AttentionPanel attention={desk.data.attention} onChanged={refresh} />}
 

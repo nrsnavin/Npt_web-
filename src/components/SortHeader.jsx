@@ -61,12 +61,12 @@ function Arrow({ state }) {
  * to a screen reader, and gives no focus ring. `aria-sort` on the cell is what actually tells
  * assistive software which column the table is ordered by — the arrow is for everybody else.
  */
-export function SortHeader({ field, label, sort, onToggle, align = 'left', className = '' }) {
+export function SortHeader({ field, label, sort, onToggle, align = 'left', className = '', padding = 'px-3' }) {
   const state = sort === `-${field}` ? 'desc' : sort === field ? 'asc' : null;
 
   return (
     <th
-      className={`px-3 py-3 ${align === 'right' ? 'text-right' : ''} ${className}`}
+      className={`${padding} py-3 ${align === 'right' ? 'text-right' : ''} ${className}`}
       aria-sort={state === 'desc' ? 'descending' : state === 'asc' ? 'ascending' : 'none'}
     >
       <button

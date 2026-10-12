@@ -699,6 +699,8 @@ export const quotations = {
   cost: ({ id, lineId, ...payload }) => api.patch(`/quotations/${id}/lines/${lineId}/cost`, payload).then(unwrap),
   /** Admin signs off, or refuses, a price under its line's minimum [§9]. */
   decide: ({ id, lineId, ...payload }) => api.post(`/quotations/${id}/lines/${lineId}/decision`, payload).then(unwrap),
+  /** What this mould in this material was quoted at before: `{ same, similar }` — same hook and clips first. */
+  previous: (params) => api.get('/quotations/previous', { params, feedback: false }).then(unwrap),
   get: (id) => api.get(`/quotations/${id}`).then(unwrap),
   create: (payload) => api.post('/quotations', payload).then(unwrap),
   update: ({ id, ...payload }) => api.patch(`/quotations/${id}`, payload).then(unwrap),
@@ -1076,8 +1078,6 @@ export const materialStock = {
 /** Where the rejects come from: QC sheets and press rejects by mould, machine, defect and test. */
 export const qcReportApi = (params) => api.get('/qc-records/report', { params }).then(unwrap);
 
-/** Admin's setup checklist: what is still to fill in before the plant screens have data. */
-export const setupChecklist = () => api.get('/setup-checklist', { feedback: false }).then(unwrap);
 
 export const enquiryRecords = (enquiryId) => api.get(`/enquiries/${enquiryId}/records`).then(unwrap);
 export const orderDispatchDetails = (orderId) => api.get(`/orders/${orderId}/dispatch-details`).then(unwrap);
