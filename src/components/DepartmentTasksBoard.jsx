@@ -108,10 +108,13 @@ export default function DepartmentTasksBoard({
 
   const tasks = useMemo(() => data || [], [data]);
   const teams = useMemo(() => [...new Set(tasks.map((task) => task.department).filter(Boolean))], [tasks]);
+  /* The payment reminders people put on their own list — Admin's every one, a marketing person's their own. */
+  const isPaymentFollowUp = (task) => task.kind === 'my_payment_followup';
   const chips = [
     { key: 'all', label: 'All', count: tasks.length },
     { key: 'new', label: 'New', count: tasks.filter(isFresh).length },
     { key: 'highlighted', label: 'Highlighted', count: tasks.filter(isHighlighted).length },
+    { key: 'payment', label: 'My Payment Follow-up', count: tasks.filter(isPaymentFollowUp).length },
     ...teams.map((team) => ({ key: team, label: departmentLabel(team), count: tasks.filter((task) => task.department === team).length })),
   ];
   const shown = useMemo(() => {
@@ -119,7 +122,8 @@ export default function DepartmentTasksBoard({
     return tasks.filter((task) => {
       if (chip === 'new' && !isFresh(task)) return false;
       if (chip === 'highlighted' && !isHighlighted(task)) return false;
-      if (!['all', 'new', 'highlighted'].includes(chip) && task.department !== chip) return false;
+      if (chip === 'payment' && !isPaymentFollowUp(task)) return false;
+      if (!['all', 'new', 'highlighted', 'payment'].includes(chip) && task.department !== chip) return false;
       if (!term) return true;
       return [task.customer?.name, task.enquiry?.number, modelOf(task), task.label, task.createdBy?.name, task.user?.name]
         .filter(Boolean).some((text) => text.toLowerCase().includes(term));

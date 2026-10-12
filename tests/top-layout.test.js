@@ -18,7 +18,6 @@ const ADMIN = [
   { key: 'dashboard', label: 'Dashboard', features: [
     { to: '/departments/mine', label: 'Dashboard' },
     { to: '/enquiries', label: 'All enquiries', end: true, children: [{ to: '/enquiries/drafts', label: 'Draft enquiries' }] },
-    { to: '/dashboard/marketing', label: 'My figures' },
     { to: '/departments', label: 'All departments', end: true },
   ] },
   { key: 'queries', label: 'Queries', features: [{ to: '/queries', label: 'Questions & answers' }] },
@@ -34,7 +33,7 @@ test('the bar is the five in the plant’s words, then More', () => {
   assert.deepEqual(items.map((item) => item.label), ['Dashboard', 'Enquiries', 'Department Tasks', 'Quotations', 'Masters & Access', 'More']);
   const by = Object.fromEntries(items.map((item) => [item.key, item.features.map((feature) => feature.to)]));
   assert.deepEqual(by.dashboard, ['/departments/mine']);
-  assert.deepEqual(by.enquiries, ['/enquiries', '/dashboard/marketing']);
+  assert.deepEqual(by.enquiries, ['/enquiries']);
   assert.deepEqual(by.tasks, ['/tasks', '/departments']);
   assert.deepEqual(by.quotations, ['/quotations', '/quotations/sent']);
   assert.deepEqual(by.masters, ['/customers', '/moulds', '/users']);
@@ -186,4 +185,15 @@ test('Quality, Assembly and Printing are one desk: one choice on the board, each
   assert.match(desk, /bySection\(requests, \(task\) => task\.department\)\.map/);
   const overview = read('pages/OverviewDashboard.jsx');
   assert.match(overview, /\{isAdmin && \(\s*<div className="grid grid-cols-2 gap-3 lg:grid-cols-4">\s*<FigureTile label="Customers"/, 'the figures are Admin’s only');
+});
+
+test('My Payment Follow-up is a chip on the board; the dashboard lists every open enquiry; the marketing figures screen is gone', () => {
+  const board = read('components/DepartmentTasksBoard.jsx');
+  assert.match(board, /\{ key: 'payment', label: 'My Payment Follow-up', count: tasks\.filter\(isPaymentFollowUp\)\.length \}/);
+  assert.match(board, /if \(chip === 'payment' && !isPaymentFollowUp\(task\)\) return false;/);
+  const overview = read('pages/OverviewDashboard.jsx');
+  assert.match(overview, /aria-label="Open enquiries"/);
+  assert.match(overview, /<Enquiries embedded \/>/, 'the same list, with its filters, scoped by the server');
+  assert.match(read('App.jsx'), /<Route path="dashboard\/marketing" element=\{<Navigate to="\/departments\/mine" replace \/>\} \/>/);
+  assert.doesNotMatch(read('components/Layout.jsx'), /My figures/);
 });

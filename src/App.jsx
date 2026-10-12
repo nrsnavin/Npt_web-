@@ -54,7 +54,6 @@ const Samples = lazyPage(() => import('./pages/Samples.jsx'));
 const SampleDetail = lazyPage(() => import('./pages/SampleDetail.jsx'));
 const SamplingDashboard = lazyPage(() => import('./pages/SamplingDashboard.jsx'));
 const SampleAnalytics = lazyPage(() => import('./pages/SampleAnalytics.jsx'));
-const MarketingDashboard = lazyPage(() => import('./pages/MarketingDashboard.jsx'));
 /* Order to payment: sales orders, production, quality, dispatch and payments. */
 const Orders = lazyPage(() => import('./pages/Orders.jsx'));
 const OrderDetail = lazyPage(() => import('./pages/OrderDetail.jsx'));
@@ -207,14 +206,8 @@ export default function App() {
           {/* Phase 1: the pipeline that runs from a customer to an enquiry. */}
           {/* "Dashboard" is everyone's one screen: their department's enquiries and all they may see. */}
           <Route path="dashboard" element={<Navigate to="/departments/mine" replace />} />
-          <Route
-            path="dashboard/marketing"
-            element={
-              <RequireModule moduleKey="enquiries">
-                <MarketingDashboard />
-              </RequireModule>
-            }
-          />
+          {/* The marketing figures screen was removed: an old link lands on the dashboard. */}
+          <Route path="dashboard/marketing" element={<Navigate to="/departments/mine" replace />} />
           {/* Leads were removed: an old link or bookmark lands on the enquiries instead. */}
           <Route path="leads/*" element={<Navigate to="/enquiries" replace />} />
           {/* Chat screenshots and cards waiting to be saved. Above `enquiries/:id`, which would

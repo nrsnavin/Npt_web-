@@ -8,6 +8,7 @@ import AttentionPanel from '../components/AttentionPanel.jsx';
 import DepartmentTasksBoard from '../components/DepartmentTasksBoard.jsx';
 import EnquiryForm from '../components/EnquiryForm.jsx';
 import { CustomerForm } from './Customers.jsx';
+import Enquiries from './Enquiries.jsx';
 import { DashboardSkeleton, ErrorState, Modal, Notice } from '../components/ui.jsx';
 import { departmentLabel } from '../utils/pipeline.js';
 import { formatDate } from '../utils/format.js';
@@ -292,6 +293,20 @@ export default function OverviewDashboard() {
           <p className="text-sm text-steel-400">No new enquiry or draft waiting.</p>
         )}
       </section>
+
+      {/* Every open enquiry — Admin's all of them, a marketing person's their own — with the list's own filters. */}
+      {canRead('enquiries') && (
+        <section className="card space-y-3 p-4 sm:p-5" aria-label="Open enquiries">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="text-lg font-bold text-steel-50">Open enquiries</h2>
+              <p className="text-sm text-steel-400">{isAdmin ? 'Every enquiry still open, whoever holds it.' : 'Your enquiries still open, wherever their work is.'}</p>
+            </div>
+            <Link to="/enquiries?view=open" className="text-sm font-semibold text-accent hover:underline">Open the full list →</Link>
+          </div>
+          <Enquiries embedded />
+        </section>
+      )}
 
       <DepartmentTasksBoard />
 

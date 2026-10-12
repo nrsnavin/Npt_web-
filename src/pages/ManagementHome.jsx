@@ -241,8 +241,8 @@ export default function ManagementHome() {
             <button type="button" className="btn-secondary" onClick={load}>
               Refresh
             </button>
-            <Link to="/dashboard/marketing" className="btn-ghost">
-              Sales analytics
+            <Link to="/enquiries?view=open" className="btn-ghost">
+              Open enquiries
             </Link>
           </div>
         }
