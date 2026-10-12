@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import HandoffTaskActions from './HandoffTaskActions.jsx';
 import TaskWorkflow from './TaskWorkflow.jsx';
 import TaskPdfLink from './TaskPdfLink.jsx';
-import { Modal } from './ui.jsx';
+import { Modal, Notice } from './ui.jsx';
 import { TaskFacts, TaskTimeline } from './TaskHistory.jsx';
 import { buttonFor, useHandoffCatalogue } from '../hooks/useHandoffCatalogue.js';
 import { formatDate } from '../utils/format.js';
@@ -62,6 +62,17 @@ export default function TaskPanel({ task, startWith, mayWork, onClose, onChanged
             </dd>
           </div>
         </dl>
+
+        {/* The rule's proposal on a collection case — the collector or Admin presses Escalated to PRT, or not. */}
+        {!task.completed && task.suggestion?.kind === 'escalate_prt' && (
+          <Notice tone="warn">
+            <p>
+              <span className="font-bold">Escalate to PRT?</span> {task.suggestion.reason}
+              {task.suggestion.at ? ` · noted ${formatDate(task.suggestion.at)}` : ''}.
+              {mayWork ? ' Choose “Escalated to PRT” below to send it to the field, or any other step to keep it on the phone.' : ''}
+            </p>
+          </Notice>
+        )}
 
         {(task.brief || task.attachment) && (
           <div className="rounded-xl border border-line/[0.08] p-3">

@@ -187,5 +187,6 @@ const DEPARTMENTS = [
   'reception',
   'accounts',
   'payment_collection',
+  'payment_recovery',
   'management',
 ];

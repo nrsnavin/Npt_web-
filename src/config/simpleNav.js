@@ -24,6 +24,8 @@ export const SIMPLE_NAV = {
   reception: ['dashboard', 'dispatch', 'queries'],
   accounts: ['dashboard', 'payments', 'queries'],
   payment_collection: ['dashboard', 'payments', 'queries'],
+  /* The field half of the chase works the same screens, from its own queue. */
+  payment_recovery: ['dashboard', 'payments', 'customers', 'queries'],
 };
 
 /** Departments that keep the whole menu. */

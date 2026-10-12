@@ -683,8 +683,18 @@ export const DEPARTMENTS = [
   { key: 'reception', label: 'Reception' },
   { key: 'accounts', label: 'Accounts' },
   { key: 'payment_collection', label: 'Payment Collection' },
+  { key: 'payment_recovery', label: 'Payment Recovery (PRT)' },
   { key: 'audit', label: 'Audit' },
 ];
+
+/** How a buyer pays, in one word [server: models/Customer.js `credit`]: a Hold warns, it does not stop anything. */
+export const CREDIT_STATUSES = [
+  { key: 'good', label: 'Credit good', tone: 'success' },
+  { key: 'watch', label: 'Credit watch', tone: 'progress' },
+  { key: 'hold', label: 'Credit hold', tone: 'danger' },
+];
+export const creditStatusOf = (customer) => customer?.credit?.status || customer?.credit?.override?.status || customer?.credit?.derived?.status || 'good';
+export const creditLabel = (status) => CREDIT_STATUSES.find((entry) => entry.key === status)?.label || 'Credit good';
 
 export const departmentLabel = (key) =>
   DEPARTMENTS.find((department) => department.key === key)?.label ||

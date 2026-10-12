@@ -258,6 +258,7 @@ export const DEPARTMENT_WORKSPACES = {
   payment_collection: {
     purpose: 'Rings the buyer until the money is in.',
     pages: [
+      { label: 'Today’s calls', to: '/today', module: 'payments', hint: 'Who to ring, broken promises, cases proposed for PRT' },
       { label: 'Follow-up list', to: '/payments?open=true', module: 'payments' },
       { label: 'Overdue', to: '/payments?overdue=true', module: 'payments' },
       { label: 'Broken promises', to: '/payments?broken=true', module: 'payments', hint: 'Committed dates that passed' },
@@ -271,6 +272,23 @@ export const DEPARTMENT_WORKSPACES = {
       'Keep the commitment, callback, promised-payment and next follow-up dates.',
     ],
     toConfirm: ['Whether collections are split by buyer or by area.'],
+  },
+
+  payment_recovery: {
+    purpose: 'Goes to the buyer when the phone has stopped working: the PRT case, the visit, the money or the promise.',
+    pages: [
+      { label: 'Today’s cases', to: '/today', module: 'payments', hint: 'The chase: with PRT, proposed for PRT, by collector' },
+      { label: 'Overdue', to: '/payments?overdue=true', module: 'payments' },
+      { label: 'Broken promises', to: '/payments?broken=true', module: 'payments' },
+      { label: 'Customers', to: '/customers', module: 'customers' },
+    ],
+    jobs: [
+      'Take the case Payment Collection escalates, or Admin raises: plan the visit, with a date.',
+      'Record the visit — who was met, what was said — and what was collected or promised.',
+      'Record the money taken in Payments; Accounts confirms it once it is in the bank.',
+      'Say when a balance cannot be recovered, so Admin decides: legal notice, write-off or a credit hold.',
+    ],
+    toConfirm: ['Whether PRT members are assigned by area, and whether a visit sheet is printed.'],
   },
 
   audit: {
