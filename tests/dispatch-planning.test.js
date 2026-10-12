@@ -114,3 +114,26 @@ test('a group missing delivery details can still be made into a trip — the dia
   const planner = read('components/TripPlanner.jsx');
   assert.match(planner, />Make trip anyway<\/button>/);
 });
+
+test('suggested trips: a draft to untick and change, made in one press, with what was refused shown', () => {
+  const suggest = read('components/SuggestTrips.jsx');
+  assert.match(suggest, /dispatchPlanning\.suggest\(\)/);
+  assert.match(suggest, /const picked = rows\.filter\(\(row\) => row\.picked\);/);
+  assert.match(suggest, /dispatchPlanning\.makeSuggested\(\{/);
+  assert.match(suggest, /Not made: \{row\.message\}/);
+  assert.match(read('components/TripPlanner.jsx'), /<SuggestTrips open=\{suggesting\} onClose=\{\(\) => setSuggesting\(false\)\} onMade=\{load\} \/>/);
+});
+
+test('distance: nearby groups are named, and a trip can be put in order from the plant', () => {
+  assert.match(read('components/TripPlanner.jsx'), /Near: \{group\.nearby\.map/);
+  assert.match(read('pages/TripDetail.jsx'), /orderByDistance: true/);
+});
+
+test('the dispatch report: headline figures, by day, vehicle fill, and what was not delivered', () => {
+  const report = read('pages/DispatchReport.jsx');
+  assert.match(report, /dispatchPlanning\.report\(\{ from, to \}\)/);
+  assert.match(report, /label="Left on time"/);
+  assert.match(report, /tone=\{row\.fill > 100 \? 'danger' : 'accent'\}/);
+  assert.match(read('App.jsx'), /path="dispatch\/report"/);
+  assert.match(read('components/Layout.jsx'), /\{ to: '\/dispatch\/report', label: 'Dispatch report' \}/);
+});
