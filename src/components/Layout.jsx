@@ -122,7 +122,11 @@ const MODULES = [
     key: 'dispatch',
     label: 'Dispatch',
     module: 'dispatch',
-    features: [{ to: '/dispatches', label: 'Consignments' }],
+    features: [
+      { to: '/dispatch/plan', label: 'Plan trips' },
+      { to: '/dispatches', label: 'Consignments' },
+      { to: '/dispatch/lists', label: 'Transporters & routes' },
+    ],
   },
   {
     key: 'payments',

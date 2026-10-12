@@ -963,3 +963,28 @@ export const auth = {
   requestVerification: (target) => api.post('/auth/verify/request', { target }).then(unwrap),
   confirmVerification: (payload) => api.post('/auth/verify/confirm', payload).then(unwrap),
 };
+
+/**
+ * Dispatch planning [server: services/dispatchPlanning.service.js]: the open dispatch requests in
+ * groups that can go together, a schedule for a whole group in one press, and the delivery
+ * details (usual way, transporter, route, area, landmark) set on several buyers at once.
+ */
+export const dispatchPlanning = {
+  plan: () => api.get('/dispatch-planning/plan').then(unwrap),
+  schedule: (payload) => api.post('/dispatch-planning/schedule', payload).then(unwrap),
+  customerDelivery: (payload) => api.post('/dispatch-planning/customer-delivery', payload).then(unwrap),
+};
+
+/** The transport companies the plant books with, and their booking offices. */
+export const transportersApi = {
+  list: (params) => api.get('/transporters', { params }).then(unwrap),
+  create: (payload) => api.post('/transporters', payload).then(unwrap),
+  update: ({ id, ...payload }) => api.patch(`/transporters/${id}`, payload).then(unwrap),
+};
+
+/** The plant's own delivery routes — the roads its vehicle runs and the days it goes. */
+export const deliveryRoutesApi = {
+  list: (params) => api.get('/delivery-routes', { params }).then(unwrap),
+  create: (payload) => api.post('/delivery-routes', payload).then(unwrap),
+  update: ({ id, ...payload }) => api.patch(`/delivery-routes/${id}`, payload).then(unwrap),
+};
