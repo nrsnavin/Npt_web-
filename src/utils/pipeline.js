@@ -318,12 +318,20 @@ export const MATERIALS = [
 export const MATERIAL_TYPES = [
   { value: 'pp', label: 'PP' },
   { value: 'hips', label: 'HIPS' },
+  { value: 'gpps', label: 'GPPS' },
   { value: 'ld', label: 'LD' },
+  { value: 'hd', label: 'HD' },
   { value: 'abs', label: 'ABS' },
+  { value: 'eva', label: 'EVA' },
+  { value: 'kresin', label: 'Kresin' },
   { value: 'ps', label: 'PS' },
   { value: 'recycled_pp', label: 'Recycled PP' },
   { value: 'other', label: 'Other' },
 ];
+
+/** Grammage over PP a resin throws from the same cavity: HIPS 18.8% heavier, the rest as PP. */
+export const HIPS_GRAMMAGE_PERCENT = 18.8;
+export const grammageFor = (type) => (type === 'hips' ? HIPS_GRAMMAGE_PERCENT : 0);
 
 /** Where a tool is in its life. A retired mould stays on the register; it stops running. */
 export const MOULD_STATUSES = [

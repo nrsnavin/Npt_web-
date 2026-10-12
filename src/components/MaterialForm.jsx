@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { materials as materialsApi } from '../api/endpoints.js';
 import { Field, FormError } from './ui.jsx';
-import { MATERIAL_TYPES } from '../utils/pipeline.js';
+import { MATERIAL_TYPES, grammageFor } from '../utils/pipeline.js';
 
 /**
  * Adding a resin to the register, or correcting one.
@@ -21,6 +21,7 @@ export default function MaterialForm({ material, onClose, onSaved }) {
   const {
     register,
     handleSubmit,
+    setValue,
     watch,
     formState: { errors, isSubmitting },
   } = useForm({
@@ -80,7 +81,13 @@ export default function MaterialForm({ material, onClose, onSaved }) {
           />
         </Field>
         <Field label="Polymer">
-          <select className="input" {...register('type')}>
+          <select
+            className="input"
+            {...register('type', {
+              /* The plant's own figure, filled in as the polymer is picked — still editable below. */
+              onChange: (event) => setValue('grammageFactorPercent', grammageFor(event.target.value)),
+            })}
+          >
             {MATERIAL_TYPES.map((option) => (
               <option key={option.value} value={option.value}>{option.label}</option>
             ))}
@@ -100,11 +107,11 @@ export default function MaterialForm({ material, onClose, onSaved }) {
         </Field>
         {/*
           The physical number, and the one that is easy to get wrong by hand. Zero for the resins
-          a mould's grammage is recorded in; 18 for HIPS, which is the plant's own figure.
+          a mould's grammage is recorded in; 18.8 for HIPS, which is the plant's own figure.
         */}
         <Field
           label="Grammage over PP (%)"
-          hint="0 for PP and LD · 18 for HIPS"
+          hint="18.8 for HIPS · 0 for every other resin"
         >
           <input type="number" step="0.1" className="input" {...register('grammageFactorPercent')} />
         </Field>

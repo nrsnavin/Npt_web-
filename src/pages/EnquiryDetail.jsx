@@ -15,6 +15,7 @@ import Documents from '../components/Documents.jsx';
 import EnquiryActivities from '../components/EnquiryActivities.jsx';
 import EnquiryContactPanel from '../components/EnquiryContactPanel.jsx';
 import BuyerContactCard from '../components/BuyerContactCard.jsx';
+import TradingBadge, { isTradingLine } from '../components/TradingBadge.jsx';
 import DelegateEnquiry from '../components/DelegateEnquiry.jsx';
 import DepartmentDesk from '../components/DepartmentDesk.jsx';
 import EnquiryRecords from '../components/EnquiryRecords.jsx';
@@ -501,6 +502,7 @@ function EnquiryCommercials({ enquiryId, canSeeQuotes }) {
                   <Link to={`/quotations/${row._id}`} className="text-sm font-semibold text-steel-100 hover:text-accent">
                     {row.number}
                   </Link>
+                  {(row.lines || []).some(isTradingLine) && <TradingBadge className="ml-2" />}
                   <p className="text-xs text-steel-400">
                     Rev {row.revision ?? 0} · {row.lines?.length === 1 ? row.lines[0].modelNumber : `${row.lines?.length ?? 0} models`} · {rateOf(row)}
                     {row.validUntil ? ` · valid to ${formatDate(row.validUntil)}` : ''}

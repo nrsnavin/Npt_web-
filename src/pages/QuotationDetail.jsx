@@ -9,6 +9,7 @@ import QuotationPdf from '../components/QuotationPdf.jsx';
 import CostingSheetForm from '../components/CostingSheetForm.jsx';
 import PricingDecision from '../components/PricingDecision.jsx';
 import { MouldThumb } from '../components/MouldPhoto.jsx';
+import TradingBadge, { isTradingLine } from '../components/TradingBadge.jsx';
 import { QuotationForm, ResponseForm, RevisionForm } from './Quotations.jsx';
 import { formatDate, formatNumber, humanise } from '../utils/format.js';
 import { costedWith } from '../utils/pricing.js';
@@ -284,11 +285,18 @@ export default function QuotationDetail() {
                       <tr key={line._id}>
                         <td className="px-3 py-3">
                           <div className="flex items-center gap-2.5">
-                            <MouldThumb mould={line.mould} />
+                            <MouldThumb mould={line.mould || (isTradingLine(line) ? line.tradedItem : null)} />
                             <div className="min-w-0">
-                              <p className="font-semibold text-steel-100">{line.modelNumber || '—'}</p>
+                              <p className="flex flex-wrap items-center gap-1.5 font-semibold text-steel-100">
+                                {line.modelNumber || '—'}
+                                <TradingBadge line={line} />
+                              </p>
                               <p className="text-xs text-steel-500">
-                                {[costedWith(line), line.colour].filter(Boolean).join(' · ') || line.mould?.name || ''}
+                                {[
+                                  isTradingLine(line) ? line.tradedItem?.supplier : null,
+                                  costedWith(line),
+                                  line.colour,
+                                ].filter(Boolean).join(' · ') || line.mould?.name || ''}
                               </p>
                             </div>
                           </div>
