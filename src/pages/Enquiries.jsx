@@ -14,22 +14,14 @@ import { SortHeader, useSort } from '../components/SortHeader.jsx';
 import ViewSwitch from '../components/ViewSwitch.jsx';
 import { useViewMode } from '../hooks/useBoard.js';
 import { CustomerSelect } from '../components/pickers.jsx';
-import BulkBar, { RowCheckbox, useSelection } from '../components/BulkReassign.jsx';
 import ExportButton from '../components/ExportButton.jsx';
 import MarketingStatusSelect from '../components/MarketingStatusSelect.jsx';
-import { formatCompactCurrency, formatDate, formatNumber } from '../utils/format.js';
+import { formatDate, formatNumber } from '../utils/format.js';
 import {
-  CLOSED_STAGES, ENQUIRY_STAGES, MARKETING_STATUSES, SOURCES, buildEnquiryPayload, departmentLabel, followUpState, stageLabel,
+  CLOSED_STAGES, ENQUIRY_STAGES, MARKETING_STATUSES, SOURCES, buildEnquiryPayload, departmentLabel, stageLabel,
 } from '../utils/pipeline.js';
 import useOpenFromLink from '../hooks/useOpenFromLink.js';
 import { useHandoffCatalogue } from '../hooks/useHandoffCatalogue.js';
-
-const TONE_TEXT = {
-  danger: 'text-danger-400',
-  warn: 'text-warn-400',
-  info: 'text-aqua-300',
-  neutral: 'text-steel-400',
-};
 
 /**
  * What the list hook fetches while the board is showing: nothing.
@@ -45,7 +37,7 @@ const idle = async () => ({ data: [], pagination: null });
  * and buttons, without a page title of its own.
  */
 export default function Enquiries({ embedded = false }) {
-  const { canWrite, isAdmin } = useAuth();
+  const { canWrite } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
@@ -127,7 +119,6 @@ export default function Enquiries({ embedded = false }) {
   );
 
   const mayWrite = canWrite('enquiries');
-  const selection = useSelection(data);
 
   const change = (setter) => (value) => {
     setter(value);
@@ -158,7 +149,8 @@ export default function Enquiries({ embedded = false }) {
         * is the thing a board exists to show. It still scrolls when it has to; it just does not
         * start out having to.
         */
-      embedded || board ? 'w-full' : 'mx-auto max-w-6xl'
+      /* The table too: every column on screen at once, rather than half of them off the right edge. */
+      'w-full'
     }>
       {(() => {
         const actions = (
@@ -320,7 +312,7 @@ export default function Enquiries({ embedded = false }) {
 
       {board && <EnquiryBoard filters={filters} canMove={mayWrite} />}
 
-      {!board && loading && <TableSkeleton columns={13} />}
+      {!board && loading && <TableSkeleton columns={11} />}
       {!board && error && <ErrorState error={error} onRetry={reload} />}
 
       {!board && !loading && !error && (data.length === 0 ? (
@@ -336,107 +328,80 @@ export default function Enquiries({ embedded = false }) {
         <>
           <div className="card overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
+              <table className="min-w-full text-[13px]">
                 <thead className="table-head">
                   <tr>
-                    {isAdmin && (
-                      <th className="w-10 px-3 py-3">
-                        <RowCheckbox
-                          checked={selection.allSelected}
-                          onChange={selection.toggleAll}
-                          label="Select every enquiry on this page"
-                        />
-                      </th>
-                    )}
                     {/* By the enquiry's own date rather than its number: they agree today, and
                         the date is the fact somebody means by "newest". */}
-                    <SortHeader field="enquiryDate" label="Enquiry" sort={sort} onToggle={sortBy} />
-                    <th className="px-3 py-3">Customer</th>
-                    <th className="px-3 py-3">Model</th>
-                    <th className="px-3 py-3">Colour</th>
-                    <SortHeader field="estimatedValue" label="Value" sort={sort} onToggle={sortBy} align="right" />
-                    <SortHeader field="nextFollowUpDate" label="Next action" sort={sort} onToggle={sortBy} />
-                    <th className="px-3 py-3">Owner</th>
-                    <th className="px-3 py-3">Marketing status</th>
+                    <SortHeader field="enquiryDate" label="Enquiry" sort={sort} onToggle={sortBy} padding="px-1.5" />
+                    <th className="px-1.5 py-3">Customer</th>
+                    <th className="px-1.5 py-3">Model</th>
+                    <th className="px-1.5 py-3">Colour</th>
+                    <th className="px-1.5 py-3">Owner</th>
+                    <th className="px-1.5 py-3">Marketing status</th>
                     {/* Where it is with the departments [server: handoff.service `enquiryProgress`]. */}
-                    <th className="px-3 py-3">Stage</th>
-                    <th className="px-3 py-3" title="Expected ready date of the mould">ERD</th>
-                    <th className="px-3 py-3" title="Expected date Production gave">EDD</th>
-                    <th className="px-3 py-3">Issues</th>
-                    <SortHeader field="status" label="Sales stage" sort={sort} onToggle={sortBy} />
+                    <th className="px-1.5 py-3">Stage</th>
+                    <th className="px-1.5 py-3" title="Expected ready date of the mould">ERD</th>
+                    <th className="px-1.5 py-3" title="Expected date Production gave">EDD</th>
+                    <th className="px-1.5 py-3">Issues</th>
+                    <SortHeader field="status" label="Sales stage" sort={sort} onToggle={sortBy} padding="px-1.5" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line/[0.04]">
                   {data.map((enquiry) => {
-                    const due = followUpState(enquiry.nextFollowUpDate);
                     return (
                       <tr key={enquiry._id} className="row-hover">
-                        {isAdmin && (
-                          <td className="px-3 py-3.5">
-                            <RowCheckbox
-                              checked={selection.selected.has(enquiry._id)}
-                              onChange={() => selection.toggle(enquiry._id)}
-                              label={`Select ${enquiry.number}`}
-                            />
-                          </td>
-                        )}
-                        <td className="whitespace-nowrap px-3 py-3.5">
-                          <Link to={`/enquiries/${enquiry._id}`} className="font-semibold text-steel-100 hover:text-accent">
+                        <td className="px-1.5 py-3.5">
+                          <Link to={`/enquiries/${enquiry._id}`} className="whitespace-nowrap font-semibold text-steel-100 hover:text-accent">
                             {enquiry.number}
                           </Link>
                           <p className="text-xs text-steel-400">{formatDate(enquiry.enquiryDate)}</p>
                         </td>
-                        <td className="min-w-[10rem] px-3 py-3.5">
+                        <td className="px-1.5 py-3.5">
                           <Link to={`/customers/${enquiry.customer?._id}`} className="text-steel-200 hover:text-accent">
                             {enquiry.customer?.name || '—'}
                           </Link>
                         </td>
-                        <td className="px-3 py-3.5">
+                        <td className="px-1.5 py-3.5">
                           <p className="text-steel-200">
                             {enquiry.requirement?.modelNumber || enquiry.mould?.mouldCode || '—'}
                           </p>
-                          {enquiry.isNewDevelopment && <Badge tone="accent">New development</Badge>}
+                          {enquiry.isNewDevelopment && <p className="text-xs font-semibold text-flame-400">New development</p>}
                         </td>
-                        <td className="whitespace-nowrap px-3 py-3.5 text-steel-300">
+                        <td className="px-1.5 py-3.5 text-steel-300">
                           {enquiry.requirement?.colour || '—'}
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-3.5 text-right tabular-nums text-steel-100">
-                          {enquiry.estimatedValue ? formatCompactCurrency(enquiry.estimatedValue) : '—'}
-                        </td>
-                        <td className="max-w-[11rem] px-3 py-3.5">
-                          <p className="truncate text-steel-300">{enquiry.nextAction || '—'}</p>
-                          {due && <p className={`text-xs ${TONE_TEXT[due.tone]}`}>{due.text}</p>}
                         </td>
                         {/* Whose enquiry it is — the question most often asked about
                             somebody else's, and previously answerable only by opening it. */}
-                        <td className="whitespace-nowrap px-3 py-3.5 text-steel-300">
+                        <td className="px-1.5 py-3.5 text-steel-300">
                           {enquiry.assignedTo?.name || <span className="text-warn-400">Unassigned</span>}
                         </td>
                         {/* Changed right here, without opening the enquiry. */}
-                        <td className="px-3 py-2.5">
+                        <td className="px-1.5 py-2.5">
                           <MarketingStatusSelect enquiry={enquiry} canWrite={mayWrite} onChanged={reload} compact />
                         </td>
-                        <td className="whitespace-nowrap px-3 py-3.5 text-steel-200">
+                        <td className="px-1.5 py-3.5 text-steel-200">
                           {catalogue?.stages?.find((stage) => stage.key === enquiry.stage)?.label || '—'}
                         </td>
-                        <td className="whitespace-nowrap px-3 py-3.5 text-steel-300" aria-label={`ERD of ${enquiry.number}`}>
+                        <td className="min-w-[3.5rem] px-1.5 py-3.5 text-steel-300" aria-label={`ERD of ${enquiry.number}`}>
                           {enquiry.progress?.erd ? formatDate(enquiry.progress.erd.date) : '—'}
                         </td>
-                        <td className="whitespace-nowrap px-3 py-3.5 text-steel-300" aria-label={`EDD of ${enquiry.number}`}>
+                        <td className="min-w-[3.5rem] px-1.5 py-3.5 text-steel-300" aria-label={`EDD of ${enquiry.number}`}>
                           {enquiry.progress?.edd ? formatDate(enquiry.progress.edd.date) : '—'}
                         </td>
-                        <td className="px-3 py-3.5" aria-label={`Issues on ${enquiry.number}`}>
+                        <td className="min-w-[6.5rem] px-1.5 py-3.5" aria-label={`Issues on ${enquiry.number}`}>
                           {enquiry.progress?.issues?.length ? (
                             <div className="flex flex-col items-start gap-1">
                               {enquiry.progress.issues.map((issue) => (
-                                <span key={`${issue.department}-${issue.label}`} className="whitespace-nowrap rounded-full bg-danger-500/15 px-2 py-0.5 text-xs font-semibold text-danger-400">
+                                <span key={`${issue.department}-${issue.label}`} className="rounded-lg bg-danger-500/15 px-2 py-0.5 text-xs font-semibold leading-snug text-danger-400">
                                   {departmentLabel(issue.department)}: {issue.label}
                                 </span>
                               ))}
                             </div>
                           ) : <span className="text-steel-500">—</span>}
                         </td>
-                        <td className="whitespace-nowrap px-3 py-3.5">
+                        {/* The badge may wrap here, so a long stage does not widen the whole table. */}
+                        <td className="px-1.5 py-3.5 [&>span]:whitespace-normal">
                           <Badge status={enquiry.status}>{stageLabel(enquiry.status)}</Badge>
                         </td>
                       </tr>
@@ -447,9 +412,6 @@ export default function Enquiries({ embedded = false }) {
             </div>
           </div>
           <Pagination pagination={pagination} onChange={setPage} />
-          {isAdmin && (
-            <BulkBar collection="enquiries" selection={selection} noun="enquiries" onDone={reload} />
-          )}
         </>
       ))}
 

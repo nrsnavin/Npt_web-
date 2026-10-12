@@ -90,7 +90,10 @@ test('the enquiry shows where Production has its task', () => {
 
 test('marketing’s enquiry list shows the stage, the mould’s ERD, Production’s EDD and the open issues', () => {
   const list = read('pages/Enquiries.jsx');
-  assert.match(list, /<th className="px-3 py-3">Stage<\/th>/);
+  assert.match(list, /<th className="px-1.5 py-3">Stage<\/th>/);
+  /* Value, Next action and the reassign tick boxes are off the list, so every column fits on screen. */
+  assert.doesNotMatch(list, /label="Value"|label="Next action"|RowCheckbox|BulkBar/);
+  assert.doesNotMatch(list, /max-w-6xl/, 'the list takes the full width');
   assert.match(list, /catalogue\?\.stages\?\.find\(\(stage\) => stage\.key === enquiry\.stage\)\?\.label/);
   assert.match(list, /formatDate\(enquiry\.progress\.erd\.date\)/);
   assert.match(list, /formatDate\(enquiry\.progress\.edd\.date\)/);
