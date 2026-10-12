@@ -65,6 +65,7 @@ const DispatchPlan = lazyPage(() => import('./pages/DispatchPlan.jsx'));
 const DispatchLists = lazyPage(() => import('./pages/DispatchLists.jsx'));
 const Trips = lazyPage(() => import('./pages/Trips.jsx'));
 const TripDetail = lazyPage(() => import('./pages/TripDetail.jsx'));
+const DispatchReport = lazyPage(() => import('./pages/DispatchReport.jsx'));
 const Quality = lazyPage(() => import('./pages/Quality.jsx'));
 const QualityReport = lazyPage(() => import('./pages/QualityReport.jsx'));
 const Payments = lazyPage(() => import('./pages/Payments.jsx'));
@@ -378,6 +379,14 @@ export default function App() {
             element={
               <RequireModule moduleKey="dispatch">
                 <TripDetail />
+              </RequireModule>
+            }
+          />
+          <Route
+            path="dispatch/report"
+            element={
+              <RequireModule moduleKey="dispatch">
+                <DispatchReport />
               </RequireModule>
             }
           />

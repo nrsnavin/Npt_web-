@@ -211,7 +211,14 @@ export default function TripDetail() {
       </section>
 
       <section aria-label="Stops" className="space-y-2">
-        <h2 className="text-base font-bold text-steel-50">Stops, in order</h2>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-base font-bold text-steel-50">Stops, in order</h2>
+          {editable && trip.stops.filter((stop) => stop.customer?.site?.lat != null).length > 1 && (
+            <button type="button" className="btn-secondary px-3 py-1.5 text-xs" disabled={busy} onClick={() => run(() => tripsApi.update({ id: trip._id, expectedUpdatedAt: trip.updatedAt, orderByDistance: true }))}>
+              Order by distance from the plant
+            </button>
+          )}
+        </div>
         <ol className="space-y-2">
           {trip.stops.map((stop, index) => (
             <StopRow

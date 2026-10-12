@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { dispatchPlanning } from '../api/endpoints.js';
 import MakeTripDialog from './MakeTripDialog.jsx';
+import SuggestTrips from './SuggestTrips.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { EmptyState, ErrorState, Field, Modal, Spinner } from './ui.jsx';
 import { formatDate } from '../utils/format.js';
@@ -105,7 +106,11 @@ function GroupCard({ group, schedules, canPlan, onSchedule, onDetails, onMakeTri
           {group.totals.quantity ? ` · ${pcs(group.totals.quantity)}` : ''}
           {group.stops.length > 1 && !group.needsDetails && group.mode === 'transport' ? ' · one drop at the booking office' : ''}
           {group.stops.length > 1 && !group.needsDetails && group.mode === 'own_vehicle' ? ' · one vehicle' : ''}
+          {group.orderedByDistance ? ' · in route order by map pins' : ''}
         </p>
+        {group.nearby?.length > 0 && (
+          <p className="text-xs text-accent">Near: {group.nearby.map((other) => `${other.label} (${other.km} km)`).join(' · ')} — could share the vehicle</p>
+        )}
       </header>
 
       <ul className="mt-3 space-y-2">
@@ -309,6 +314,7 @@ export default function TripPlanner() {
   const [mode, setMode] = useState('all');
   const [details, setDetails] = useState(null);
   const [making, setMaking] = useState(null);
+  const [suggesting, setSuggesting] = useState(false);
   const navigate = useNavigate();
 
   const load = useCallback(() => dispatchPlanning.plan().then((data) => { setPlan(data); setError(null); }).catch(setError), []);
@@ -340,6 +346,9 @@ export default function TripPlanner() {
             <span className="text-xs text-steel-400" title="Buyers the planner can place without guessing — with a route, transporter, landmark or area">
               {plan.coverage.placed} of {plan.coverage.customers} buyers have delivery details
             </span>
+          )}
+          {canPlan && plan.groups.some((group) => !group.needsDetails) && (
+            <button type="button" className="btn-primary px-3 py-1.5 text-xs" onClick={() => setSuggesting(true)}>Suggest trips</button>
           )}
           <button type="button" className="btn-secondary px-3 py-1.5 text-xs" onClick={load}>Refresh</button>
         </div>
@@ -379,6 +388,7 @@ export default function TripPlanner() {
       <WaitingList title="Not ready yet" rows={plan.notReady} tone="bg-line/[0.08] text-steel-300" />
 
       <DeliveryDetails open={Boolean(details)} stops={details} plan={plan} onClose={() => setDetails(null)} onSaved={load} />
+      <SuggestTrips open={suggesting} onClose={() => setSuggesting(false)} onMade={load} />
       <MakeTripDialog
         open={Boolean(making)}
         group={making?.group}

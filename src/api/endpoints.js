@@ -973,6 +973,11 @@ export const dispatchPlanning = {
   plan: () => api.get('/dispatch-planning/plan').then(unwrap),
   schedule: (payload) => api.post('/dispatch-planning/schedule', payload).then(unwrap),
   customerDelivery: (payload) => api.post('/dispatch-planning/customer-delivery', payload).then(unwrap),
+  /** A draft of trips for the ready groups — nothing saved until confirmed. */
+  suggest: () => api.get('/dispatch-planning/suggest').then(unwrap),
+  /* The reply says which were made and which were refused; the screen shows both, so no toast. */
+  makeSuggested: (payload) => api.post('/dispatch-planning/suggest', payload, { feedback: false }).then((r) => r.data),
+  report: (params) => api.get('/dispatch-planning/report', { params }).then(unwrap),
 };
 
 /** The transport companies the plant books with, and their booking offices. */
