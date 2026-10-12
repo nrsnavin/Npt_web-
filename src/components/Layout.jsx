@@ -105,7 +105,11 @@ const MODULES = [
     key: 'production',
     label: 'Production',
     module: 'production',
-    features: [{ to: '/production', label: 'Production status' }],
+    features: [
+      { to: '/production', label: 'Production status' },
+      { to: '/mould-runs', label: 'Mould runs', module: ['production', 'moulds'] },
+      { to: '/machines', label: 'Machines & maintenance', module: ['production', 'moulds'] },
+    ],
   },
   {
     key: 'quality',
@@ -116,6 +120,7 @@ const MODULES = [
         to: '/quality', label: 'Inspections', end: true,
         children: [{ to: '/quality/report', label: 'Quality report' }],
       },
+      { to: '/qc-records', label: 'QC records' },
     ],
   },
   {
@@ -126,6 +131,7 @@ const MODULES = [
       { to: '/dispatch/plan', label: 'Plan trips' },
       { to: '/dispatch/trips', label: 'Trips' },
       { to: '/dispatch/report', label: 'Dispatch report' },
+      { to: '/dispatch/register', label: 'Dispatch register' },
       { to: '/dispatches', label: 'Consignments' },
       { to: '/dispatch/lists', label: 'Vehicles & transporters' },
     ],
@@ -350,8 +356,9 @@ export default function Layout() {
   const readable = useMemo(() => {
     const mayOpen = (feature, entry) => {
       if (feature.admin && !isAdmin) return false;
+      /* A list means any one of them: the tool room reads the machines without the production grant. */
       const grant = feature.module ?? entry.module;
-      return !grant || canRead(grant);
+      return !grant || [].concat(grant).some(canRead);
     };
 
     return MODULES.map((entry) => ({

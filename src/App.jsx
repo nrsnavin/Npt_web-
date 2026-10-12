@@ -66,6 +66,14 @@ const DispatchLists = lazyPage(() => import('./pages/DispatchLists.jsx'));
 const Trips = lazyPage(() => import('./pages/Trips.jsx'));
 const TripDetail = lazyPage(() => import('./pages/TripDetail.jsx'));
 const DispatchReport = lazyPage(() => import('./pages/DispatchReport.jsx'));
+const DispatchRegister = lazyPage(() => import('./pages/DispatchRegister.jsx'));
+/* The plant's records: QC test sheets, machines and their maintenance, mould runs. */
+const QcRecords = lazyPage(() => import('./pages/QcRecords.jsx'));
+const QcRecordForm = lazyPage(() => import('./pages/QcRecordForm.jsx'));
+const QcRecordDetail = lazyPage(() => import('./pages/QcRecordDetail.jsx'));
+const Machines = lazyPage(() => import('./pages/Machines.jsx'));
+const MachineDetail = lazyPage(() => import('./pages/MachineDetail.jsx'));
+const MouldRuns = lazyPage(() => import('./pages/MouldRuns.jsx'));
 const Quality = lazyPage(() => import('./pages/Quality.jsx'));
 const QualityReport = lazyPage(() => import('./pages/QualityReport.jsx'));
 const Payments = lazyPage(() => import('./pages/Payments.jsx'));
@@ -109,9 +117,10 @@ function Landing() {
 }
 
 /** Blocks a route unless the user may read the module behind it. */
+/** `moduleKey` may be a list: any one of the grants opens the screen. */
 function RequireModule({ moduleKey, children }) {
   const { canRead } = useAuth();
-  if (!canRead(moduleKey)) return <Navigate to="/" replace />;
+  if (![].concat(moduleKey).some(canRead)) return <Navigate to="/" replace />;
   return children;
 }
 
@@ -387,6 +396,62 @@ export default function App() {
             element={
               <RequireModule moduleKey="dispatch">
                 <DispatchReport />
+              </RequireModule>
+            }
+          />
+          <Route
+            path="dispatch/register"
+            element={
+              <RequireModule moduleKey="dispatch">
+                <DispatchRegister />
+              </RequireModule>
+            }
+          />
+          <Route
+            path="qc-records"
+            element={
+              <RequireModule moduleKey="quality">
+                <QcRecords />
+              </RequireModule>
+            }
+          />
+          <Route
+            path="qc-records/new"
+            element={
+              <RequireModule moduleKey="quality">
+                <QcRecordForm />
+              </RequireModule>
+            }
+          />
+          <Route
+            path="qc-records/:id"
+            element={
+              <RequireModule moduleKey="quality">
+                <QcRecordDetail />
+              </RequireModule>
+            }
+          />
+          <Route
+            path="machines"
+            element={
+              <RequireModule moduleKey={['production', 'moulds']}>
+                <Machines />
+              </RequireModule>
+            }
+          />
+          <Route
+            path="machines/:id"
+            element={
+              <RequireModule moduleKey={['production', 'moulds']}>
+                <MachineDetail />
+              </RequireModule>
+            }
+          />
+          <Route
+            path="mould-runs"
+            element={
+              <RequireModule moduleKey={['production', 'moulds']}>
+                <MouldRuns />
               </RequireModule>
             }
           />
