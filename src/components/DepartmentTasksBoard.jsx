@@ -4,11 +4,11 @@ import { overview } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useRecord } from '../hooks/useRecords.js';
 import { buttonFor, useHandoffCatalogue } from '../hooks/useHandoffCatalogue.js';
-import TaskWorkflow from './TaskWorkflow.jsx';
+import TaskPanel from './TaskPanel.jsx';
 import DepartmentTaskDialog from './DepartmentTaskDialog.jsx';
-import { ErrorState, Modal, TableSkeleton } from './ui.jsx';
+import { ErrorState, TableSkeleton } from './ui.jsx';
 import { formatDate, humanise } from '../utils/format.js';
-import { DEPARTMENTS, departmentLabel } from '../utils/pipeline.js';
+import { DEPARTMENT_CHOICES, departmentLabel, deskOf } from '../utils/pipeline.js';
 
 /**
  * Department Tasks [the plant's own layout]: every open request this person follows — Admin all
@@ -17,8 +17,10 @@ import { DEPARTMENTS, departmentLabel } from '../utils/pipeline.js';
  *
  * One row a task: Customer / Model · Requested by / Assigned to · Status reply · Due. The status
  * is a list for whoever works the task (its department, or Admin) — picking a step opens the
- * move with its remark and date [components/TaskWorkflow.jsx]; anyone else reads it. A late or
- * urgent task is highlighted, and "Highlighted" shows just those.
+ * move with its remark and date [components/TaskWorkflow.jsx]; anyone else reads it. Every row
+ * opens into the task itself [components/TaskPanel.jsx]: what was asked, its updates, and for
+ * whoever works it, Update / Done / Send back / Change date — so Admin works any department's
+ * task from here. A late or urgent task is highlighted, and "Highlighted" shows just those.
  *
  * Admin picks any department — every one is listed, even with nothing open — and everyone can
  * switch between open, done and all [server: `trackedTasks` `department`, `state`].
@@ -98,7 +100,8 @@ export default function DepartmentTasksBoard({
   const catalogue = useHandoffCatalogue();
   const [chip, setChip] = useState('all');
   const [search, setSearch] = useState('');
-  const [moving, setMoving] = useState(null);
+  /* The task opened in its panel — from a status picked on the row, or from Open. */
+  const [opened, setOpened] = useState(null);
   const [assigning, setAssigning] = useState(false);
   const firstTask = (catalogue?.buttons || []).find((button) => button.department && !button.hidden && button.form)?.key;
   const mayAssign = isAdmin || departments.includes('marketing');
@@ -126,6 +129,11 @@ export default function DepartmentTasksBoard({
   /* The server's rule [handoff.service `mayWorkOnHandoff`]: Admin, the person it is assigned to, or its department. */
   const mayWork = (task) => isAdmin || (me && String(task.user?._id || task.user || '') === me) || departments.includes(task.department);
   const statusesOf = (task) => buttonFor(catalogue, task.kind)?.form?.statuses || [];
+  /* A shared desk picked (Quality · Assembling · Printing): each department's tasks under its own header. */
+  const desk = department && deskOf(department)?.key === department ? deskOf(department) : null;
+  const sections = desk
+    ? desk.departments.map((key) => ({ key, label: departmentLabel(key), rows: shown.filter((task) => task.department === key) })).filter((section) => section.rows.length)
+    : [{ key: 'all', label: null, rows: shown }];
 
   return (
     <section className="card space-y-4 p-4 sm:p-5" aria-label={title}>
@@ -163,7 +171,7 @@ export default function DepartmentTasksBoard({
             onChange={(event) => { setFilter({ department: event.target.value }); setChip('all'); }}
           >
             <option value="">All departments</option>
-            {DEPARTMENTS.map((entry) => <option key={entry.key} value={entry.key}>{entry.label}</option>)}
+            {DEPARTMENT_CHOICES.map((entry) => <option key={entry.key} value={entry.key}>{entry.label}</option>)}
           </select>
         )}
         <select
@@ -201,14 +209,24 @@ export default function DepartmentTasksBoard({
                 </tr>
               </thead>
               <tbody>
-                {shown.map((task) => (
+                {sections.map((section) => [
+                  section.label && (
+                    <tr key={`head-${section.key}`} className="border-t border-line/10 bg-line/[0.03]">
+                      <th scope="colgroup" colSpan={4} className="px-4 py-2 text-left text-xs font-bold uppercase tracking-wide text-steel-300">{section.label} <span className="font-normal normal-case tabular-nums text-steel-500">{section.rows.length}</span></th>
+                    </tr>
+                  ),
+                  ...section.rows.map((task) => (
                   <tr key={task._id} data-highlighted={isHighlighted(task) || undefined} className={`border-t border-line/10 align-top ${isHighlighted(task) ? 'bg-warn-500/[0.08]' : ''}`}>
                     <td className="px-4 py-3">
-                      <p className="font-semibold text-steel-50">{task.customer?.name || task.label}</p>
+                      <button type="button" className="text-left font-semibold text-steel-50 hover:text-accent" onClick={() => setOpened({ task })}>
+                        {task.customer?.name || task.label}
+                      </button>
                       <p className="text-xs text-steel-400">
                         {task.label}
                         {modelOf(task) ? ` · ${modelOf(task)}` : ''}
                         {task.enquiry?.number && <> · <Link className="text-accent hover:underline" to={`/enquiries/${task.enquiry._id}`}>{task.enquiry.number}</Link></>}
+                        {' · '}
+                        <button type="button" className="row-action" onClick={() => setOpened({ task })}>{mayWork(task) && !task.completed ? 'Open / update' : 'Open'}</button>
                       </p>
                     </td>
                     <td className="px-4 py-3">
@@ -216,19 +234,22 @@ export default function DepartmentTasksBoard({
                       <p className="text-xs text-steel-400">{task.user?.name || task.team || departmentLabel(task.department)}</p>
                     </td>
                     <td className="px-4 py-3">
-                      <StatusReply task={task} statuses={statusesOf(task)} mayWork={mayWork(task)} onPick={(status) => setMoving({ task, status })} />
+                      <StatusReply task={task} statuses={statusesOf(task)} mayWork={mayWork(task)} onPick={(status) => setOpened({ task, status })} />
                     </td>
                     <td className={`whitespace-nowrap px-4 py-3 ${isLate(task) ? 'font-semibold text-danger-400' : 'text-steel-300'}`}>
                       {whenOf(task) || '—'}
                     </td>
                   </tr>
-                ))}
+                  )),
+                ])}
               </tbody>
             </table>
           </div>
           {/* …and cards on a phone. */}
           <ul className="space-y-3 md:hidden">
-            {shown.map((task) => (
+            {sections.map((section) => [
+              section.label && <li key={`head-${section.key}`} className="pt-1 text-xs font-bold uppercase tracking-wide text-steel-300">{section.label}</li>,
+              ...section.rows.map((task) => (
               <li key={task._id} className={`rounded-xl border p-3 ${isHighlighted(task) ? 'border-warn-500/40 bg-warn-500/[0.08]' : 'border-line/10'}`}>
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
@@ -242,11 +263,13 @@ export default function DepartmentTasksBoard({
                 <p className="mt-1 text-xs text-steel-400">
                   {task.createdBy?.name || '—'} → {task.user?.name || task.team || departmentLabel(task.department)}
                 </p>
-                <div className="mt-2">
-                  <StatusReply task={task} statuses={statusesOf(task)} mayWork={mayWork(task)} onPick={(status) => setMoving({ task, status })} />
+                <div className="mt-2 flex flex-wrap items-center gap-3">
+                  <StatusReply task={task} statuses={statusesOf(task)} mayWork={mayWork(task)} onPick={(status) => setOpened({ task, status })} />
+                  <button type="button" className="row-action" onClick={() => setOpened({ task })}>{mayWork(task) && !task.completed ? 'Open / update' : 'Open'}</button>
                 </div>
               </li>
-            ))}
+              )),
+            ])}
           </ul>
         </>
       ) : (
@@ -255,17 +278,17 @@ export default function DepartmentTasksBoard({
         </p>
       )}
 
-      {moving && (
-        <Modal open title={`${moving.task.label} — ${moving.task.customer?.name || ''}`} onClose={() => setMoving(null)} size="md">
-          <TaskWorkflow
-            todo={moving.task}
-            startWith={moving.status}
-            onChanged={() => {
-              setMoving(null);
-              reload();
-            }}
-          />
-        </Modal>
+      {opened && (
+        <TaskPanel
+          task={opened.task}
+          startWith={opened.status}
+          mayWork={mayWork(opened.task)}
+          onClose={() => setOpened(null)}
+          onChanged={() => {
+            setOpened(null);
+            reload();
+          }}
+        />
       )}
       {assigning && (
         <DepartmentTaskDialog enquiry={null} catalogue={catalogue} kind={firstTask} onClose={() => setAssigning(false)} onSent={reload} />

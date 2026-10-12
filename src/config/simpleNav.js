@@ -18,6 +18,7 @@ export const SIMPLE_NAV = {
   mould: ['dashboard', 'catalogue', 'production', 'queries'],
   quality: ['dashboard', 'quality', 'queries'],
   assembling: ['dashboard', 'production', 'queries'],
+  printing: ['dashboard', 'production', 'queries'],
   despatch: ['dashboard', 'dispatch', 'queries'],
   /* The LR copy and the dispatch details after fulfilment — worked from the dashboard. */
   reception: ['dashboard', 'dispatch', 'queries'],

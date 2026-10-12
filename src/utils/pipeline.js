@@ -678,6 +678,7 @@ export const DEPARTMENTS = [
   { key: 'mould', label: 'Mould' },
   { key: 'quality', label: 'Quality' },
   { key: 'assembling', label: 'Assembly' },
+  { key: 'printing', label: 'Printing' },
   { key: 'despatch', label: 'Dispatch' },
   { key: 'reception', label: 'Reception' },
   { key: 'accounts', label: 'Accounts' },
@@ -688,6 +689,24 @@ export const DEPARTMENTS = [
 export const departmentLabel = (key) =>
   DEPARTMENTS.find((department) => department.key === key)?.label ||
   String(key || '').replace(/_/g, ' ');
+
+/**
+ * Departments that are one desk [server: config/modules.js DESK_GROUPS]: Quality, Assembly and
+ * Printing are the same few people, so they are offered as one choice and shown as one screen —
+ * each department's tasks under its own header.
+ */
+export const DESK_GROUPS = [
+  { key: 'finishing', label: 'Quality · Assembling · Printing', departments: ['quality', 'assembling', 'printing'] },
+];
+
+export const deskOf = (key) => DESK_GROUPS.find((desk) => desk.key === key || desk.departments.includes(key)) || null;
+
+/** The departments to choose from, a shared desk collapsed into one choice where its first member sat. */
+export const DEPARTMENT_CHOICES = DEPARTMENTS.flatMap((department) => {
+  const desk = deskOf(department.key);
+  if (!desk) return [department];
+  return desk.departments[0] === department.key ? [{ key: desk.key, label: desk.label }] : [];
+});
 
 /**
  * Whether somebody may hold a buyer — own a customer, enquiry or quotation. The server's

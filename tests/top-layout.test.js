@@ -82,7 +82,7 @@ test('Admin and marketing open on the overview; every other department on its de
   assert.match(read('context/AuthContext.jsx'), /isManagement: user\?\.role === 'admin' \|\| \(user\?\.departments \|\| \[user\?\.department\]\)\.includes\('management'\)/);
   assert.match(read('pages/OverviewDashboard.jsx'), /isManagement: isAdmin/);
   const page = read('pages/OverviewDashboard.jsx');
-  for (const text of ['Company activity overview', '+ Add Party', '+ New Enquiry', 'My customers', 'Due today', 'Active enquiries', 'Quotations', 'Edit / Verify enquiry →', 'Customer / Party Master', 'No activity 7+ days']) {
+  for (const text of ['Company activity overview', '+ Add Party', '+ New Enquiry', 'label="Customers"', 'Due today', 'Active enquiries', 'Quotations', 'Edit / Verify enquiry →', 'Customer / Party Master', 'No activity 7+ days']) {
     assert.ok(page.includes(text), text);
   }
   assert.match(page, /overview\.parties\(\{ filter, page, search/);
@@ -96,7 +96,8 @@ test('Department Tasks: a status list only for whoever works the task, and the m
   /* The server's rule: Admin, the person it is assigned to, or its department. */
   assert.match(board, /const mayWork = \(task\) => isAdmin \|\| \(me && String\(task\.user\?\._id \|\| task\.user \|\| ''\) === me\) \|\| departments\.includes\(task\.department\);/);
   assert.match(board, /if \(!statuses\.length \|\| !mayWork \|\|/);
-  assert.match(board, /<TaskWorkflow\s+todo=\{moving\.task\}\s+startWith=\{moving\.status\}/);
+  assert.match(board, /<TaskPanel\s+task=\{opened\.task\}\s+startWith=\{opened\.status\}\s+mayWork=\{mayWork\(opened\.task\)\}/);
+  assert.match(read('components/TaskPanel.jsx'), /<TaskWorkflow todo=\{task\} startWith=\{startWith\} onChanged=\{onChanged\} \/>/);
   assert.match(read('components/TaskWorkflow.jsx'), /todo\?\.completed \|\| startWith === todo\?\.status\) return;\s+started\.current = true;\s+choose\(startWith\);/);
   const endpoints = read('api/endpoints.js');
   assert.match(endpoints, /tasks: \(params\) => api\.get\('\/dashboard\/tasks', \{ params \}\)/);
@@ -106,7 +107,7 @@ test('Department Tasks: a status list only for whoever works the task, and the m
 test('Admin filters Department Tasks by any department, and open / done / all', () => {
   const board = read('components/DepartmentTasksBoard.jsx');
   assert.match(board, /\{isAdmin && \(\s*<select\s+aria-label="Department"/);
-  assert.match(board, /\{DEPARTMENTS\.map\(\(entry\) => <option key=\{entry\.key\} value=\{entry\.key\}>\{entry\.label\}<\/option>\)\}/, 'every department listed, even with nothing open');
+  assert.match(board, /\{DEPARTMENT_CHOICES\.map\(\(entry\) => <option key=\{entry\.key\} value=\{entry\.key\}>\{entry\.label\}<\/option>\)\}/, 'every department listed, even with nothing open — a shared desk as one');
   assert.match(board, /aria-label="Open or done"/);
   /* A department chip picked on Open may have nothing under Done: the chips start over. */
   assert.match(board, /setFilter\(\{ state: event\.target\.value \}\); setChip\('all'\);/);
@@ -154,4 +155,34 @@ test('Queries: a panel at the bottom right with its unread count and an alert fo
   assert.match(panel, /queriesApi\.read\(id\)/, 'opening a thread marks it read');
   assert.match(panel, /queriesApi\.say\(\{ id, kind: 'reply', body: text \}\)/);
   assert.match(read('api/endpoints.js'), /unread: \(\) => api\.get\('\/queries\/unread'/);
+});
+
+test('every task on the board opens into its panel: Admin works any department’s task from there', () => {
+  const board = read('components/DepartmentTasksBoard.jsx');
+  assert.match(board, /onClick=\{\(\) => setOpened\(\{ task \}\)\}>\{mayWork\(task\) && !task\.completed \? 'Open \/ update' : 'Open'\}<\/button>/);
+  assert.doesNotMatch(board, /\bModal\b/, 'the panel owns its dialog');
+  const panel = read('components/TaskPanel.jsx');
+  assert.match(panel, /<HandoffTaskActions todo=\{task\} onChanged=\{onChanged\} \/>/, 'Update / Done / Send back / Change date');
+  assert.match(panel, /\{!holder && <button type="button" className="row-action" onClick=\{claim\}>I’ll take it<\/button>\}/);
+  assert.match(panel, /mayWork && !task\.completed \?/);
+  assert.match(panel, /Read-only — this task is on the \{departmentLabel\(task\.department\)\} queue\./);
+  assert.match(panel, /task\.updates\.map\(\(update\) =>/);
+  assert.match(panel, /describeBrief\(button, task\.brief\)/);
+});
+
+test('Quality, Assembly and Printing are one desk: one choice on the board, each department under its own header; marketing’s figures are gone', () => {
+  const pipeline = read('utils/pipeline.js');
+  assert.match(pipeline, /\{ key: 'printing', label: 'Printing' \}/);
+  assert.match(pipeline, /key: 'finishing', label: 'Quality · Assembling · Printing', departments: \['quality', 'assembling', 'printing'\]/);
+  assert.match(pipeline, /export const DEPARTMENT_CHOICES = DEPARTMENTS\.flatMap/);
+  const board = read('components/DepartmentTasksBoard.jsx');
+  assert.match(board, /const desk = department && deskOf\(department\)\?\.key === department \? deskOf\(department\) : null;/);
+  assert.match(board, /<th scope="colgroup" colSpan=\{4\}[^>]*>\{section\.label\}/, 'a header row per department on the table');
+  assert.match(board, /section\.label && <li key=\{`head-\$\{section\.key\}`\}/, 'and on the phone list');
+  const desk = read('pages/DepartmentDashboard.jsx');
+  assert.match(desk, /const deskMembers = data\.desk\?\.departments \|\| \[figures\.department\];/);
+  assert.match(desk, /bySection\(shown, \(row\) => row\.task\.department\)\.map/);
+  assert.match(desk, /bySection\(requests, \(task\) => task\.department\)\.map/);
+  const overview = read('pages/OverviewDashboard.jsx');
+  assert.match(overview, /\{isAdmin && \(\s*<div className="grid grid-cols-2 gap-3 lg:grid-cols-4">\s*<FigureTile label="Customers"/, 'the figures are Admin’s only');
 });
