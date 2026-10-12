@@ -40,8 +40,6 @@ const MODULES = [
          own: they sit, highlighted, in New Enquiries on the dashboard, and open the drafts screen
          from there. A draft is a new enquiry nobody has finished, not a separate place to visit. */
       { to: '/enquiries', label: 'All enquiries', end: true, module: 'enquiries' },
-      /* "How am I doing" — marketing's own figures over weeks rather than a day. */
-      { to: '/dashboard/marketing', label: 'My figures', module: 'enquiries' },
       { to: '/departments', label: 'All departments', admin: true, end: true },
     ],
   },

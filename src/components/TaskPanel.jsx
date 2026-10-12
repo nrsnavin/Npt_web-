@@ -5,8 +5,8 @@ import HandoffTaskActions from './HandoffTaskActions.jsx';
 import TaskWorkflow from './TaskWorkflow.jsx';
 import TaskPdfLink from './TaskPdfLink.jsx';
 import { Modal } from './ui.jsx';
+import { TaskFacts, TaskTimeline } from './TaskHistory.jsx';
 import { buttonFor, useHandoffCatalogue } from '../hooks/useHandoffCatalogue.js';
-import { describeBrief } from '../utils/taskForm.js';
 import { formatDate } from '../utils/format.js';
 import { departmentLabel } from '../utils/pipeline.js';
 
@@ -17,15 +17,12 @@ import { departmentLabel } from '../utils/pipeline.js';
  * Anyone else reads it. Admin works any department's task from here without going to that
  * department's desk; an update Admin writes leaves the task on the department's queue.
  */
-const OUTCOME_WORDS = { returned: 'Sent back', moved: 'Moved on', done: 'Done' };
-
 export default function TaskPanel({ task, startWith, mayWork, onClose, onChanged }) {
   const { user } = useAuth();
   const catalogue = useHandoffCatalogue();
   const button = buttonFor(catalogue, task.kind);
   const me = String(user?.id || user?._id || '');
   const holder = task.user?._id ? task.user : null;
-  const asked = describeBrief(button, task.brief);
   const enquiry = task.enquiry && typeof task.enquiry === 'object' ? task.enquiry : null;
   const late = !task.completed && task.dueDate && new Date(task.dueDate) < new Date();
   const claim = async () => {
@@ -66,32 +63,18 @@ export default function TaskPanel({ task, startWith, mayWork, onClose, onChanged
           </div>
         </dl>
 
-        {(asked.length > 0 || task.notes || task.attachment) && (
-          <div className="rounded-xl border border-line/[0.08] p-3 text-sm">
-            <p className="text-xs font-semibold text-steel-400">What was asked</p>
-            {asked.map((line) => <p key={line} className="text-steel-200">{line}</p>)}
-            {task.notes && <p className="text-steel-300">“{task.notes}”</p>}
+        {(task.brief || task.attachment) && (
+          <div className="rounded-xl border border-line/[0.08] p-3">
+            <p className="mb-1 text-xs font-semibold text-steel-400">What was asked</p>
+            <TaskFacts button={button} task={task} />
             <TaskPdfLink file={task.attachment} className="mt-1" />
           </div>
         )}
 
-        {(task.updates || []).length > 0 && (
-          <div>
-            <p className="text-xs font-semibold text-steel-400">Updates</p>
-            <ul className="mt-1 space-y-1 text-sm">
-              {task.updates.map((update) => (
-                <li key={`${update.at}-${update.note}`} className="text-steel-200">
-                  <span className="text-steel-500">{update.by?.name || 'Update'} · {formatDate(update.at)}: </span>{update.note}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-        {task.outcome?.note && (
-          <p className="text-sm text-steel-200">
-            {OUTCOME_WORDS[task.outcome.result] || 'Done'}{task.outcome.by?.name ? ` by ${task.outcome.by.name}` : ''}: {task.outcome.note}
-          </p>
-        )}
+        <div>
+          <p className="mb-1 text-xs font-semibold text-steel-400">What happened</p>
+          <TaskTimeline task={task} button={button} />
+        </div>
 
         {mayWork && !task.completed ? (
           <div className="space-y-3 border-t border-line/[0.06] pt-3">

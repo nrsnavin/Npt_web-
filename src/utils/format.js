@@ -40,6 +40,14 @@ export const formatDate = (value) => {
   });
 };
 
+/** "12 Oct 2026, 2:19 pm" — for a line in a history, where the order within a day matters. */
+export const formatDateTime = (value) => {
+  if (!value) return '—';
+  return new Date(value).toLocaleString('en-IN', {
+    day: '2-digit', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true,
+  }).replace(/\s?(am|pm)$/i, (match) => match.toLowerCase());
+};
+
 /**
  * A count and its noun, agreeing.
  *

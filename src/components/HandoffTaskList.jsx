@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { workspace } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import HandoffTaskActions from './HandoffTaskActions.jsx';
+import { TaskTimeline } from './TaskHistory.jsx';
 import { buttonFor, useHandoffCatalogue } from '../hooks/useHandoffCatalogue.js';
 import { departmentLabel } from '../utils/pipeline.js';
 import { formatDate } from '../utils/format.js';
@@ -23,8 +24,6 @@ function stateOf(task) {
   }
   return { text: `Due ${formatDate(task.dueDate)}`, tone: 'text-warn-400' };
 }
-
-const OUTCOME_WORDS = { returned: 'Sent back', moved: 'Moved on', done: 'Done' };
 
 export default function HandoffTaskList({ tasks, onChanged, perspective = 'holder', empty }) {
   const { user, worksIn } = useAuth();
@@ -62,21 +61,9 @@ export default function HandoffTaskList({ tasks, onChanged, perspective = 'holde
                 : `${task.createdBy?.name ? ` — from ${task.createdBy.name}${task.fromDepartment ? ` (${departmentLabel(task.fromDepartment)})` : ''}` : ''}`}
               {!task.completed && perspective === 'holder' && (holder ? ` · with ${String(holder._id) === me ? 'you' : holder.name}` : ' · nobody has picked it up')}
             </p>
-            {task.notes && <p className="mt-1 text-xs text-steel-300">“{task.notes}”</p>}
-            {/* The last few updates, newest last — how it is going while it is still here. */}
-            {(task.updates || []).slice(-2).map((update) => (
-              <p key={`${update.at}-${update.note}`} className="mt-1 text-xs text-steel-300">
-                <span className="text-steel-500">Update{update.by?.name ? ` · ${update.by.name}` : ''} {formatDate(update.at)}: </span>
-                {update.note}
-              </p>
-            ))}
-            {task.outcome?.note && (
-              <p className="mt-1 text-xs text-steel-200">
-                {OUTCOME_WORDS[task.outcome.result] || 'Done'}
-                {task.outcome.by?.name ? ` by ${task.outcome.by.name}` : ''}: {task.outcome.note}
-                {task.outcome.next && ` → ${buttonFor(catalogue, task.outcome.next)?.label || 'next step'}`}
-              </p>
-            )}
+            {/* The last few things that happened, as a short timeline — how it is going while it is still here. */}
+            <TaskTimeline task={task} button={buttonFor(catalogue, task.kind)} compact className="mt-1.5" />
+            {task.outcome?.next && <p className="mt-1 text-xs text-steel-400">→ {buttonFor(catalogue, task.outcome.next)?.label || 'next step'}</p>}
             {!task.completed && mayAct(task) && (
               <div className="mt-1.5 flex flex-wrap gap-3">
                 {!holder && (
