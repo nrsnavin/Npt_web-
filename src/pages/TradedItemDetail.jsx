@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { useRecord } from '../hooks/useRecords.js';
 import { Badge, ErrorState, Facts, Modal, PageHeader, Section, Spinner } from '../components/ui.jsx';
 import TradedItemForm from '../components/TradedItemForm.jsx';
+import { MouldThumb } from '../components/MouldPhoto.jsx';
 import { formatDate } from '../utils/format.js';
 import { HANGER_CATEGORIES, optionLabel } from '../utils/pipeline.js';
 
@@ -103,6 +104,27 @@ export default function TradedItemDetail() {
         </div>
 
         <div className="space-y-5">
+          <Section title="Photo">
+            <MouldThumb mould={item} size="lg" eager className="!h-48 !w-full" />
+          </Section>
+
+          {/* The price sheet's build-up — cost, so only for whoever sees the price. */}
+          {item.buildUp && (
+            <Section title="Cost build-up">
+              <Facts
+                columns={1}
+                items={[
+                  { label: 'Grammage as PP', value: item.buildUp.partWeightGrams != null ? `${item.buildUp.partWeightGrams} g` : undefined },
+                  { label: 'Runner grammage', value: item.buildUp.runnerWeightGrams != null ? `${item.buildUp.runnerWeightGrams} g` : undefined },
+                  { label: 'Job work', value: item.buildUp.jobWorkCost != null ? rupees(item.buildUp.jobWorkCost) : undefined },
+                  { label: 'Hook', value: item.buildUp.hookCost != null ? rupees(item.buildUp.hookCost) : undefined },
+                  { label: 'Clips', value: item.buildUp.clipsCost != null ? rupees(item.buildUp.clipsCost) : undefined },
+                  { label: 'Packing', value: item.buildUp.packingCost != null ? rupees(item.buildUp.packingCost) : undefined },
+                ].filter((row) => row.value !== undefined)}
+              />
+            </Section>
+          )}
+
           {item.inwardPrice !== undefined ? (
             <Section title="Inward price">
               <p className="text-3xl font-bold tabular-nums text-steel-50">{rupees(item.inwardPrice)}</p>

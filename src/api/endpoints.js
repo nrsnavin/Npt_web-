@@ -932,6 +932,12 @@ export const tradedItems = {
   get: (id) => api.get(`/traded-items/${id}`).then(unwrap),
   create: (payload) => api.post('/traded-items', payload).then(unwrap),
   update: ({ id, ...payload }) => api.patch(`/traded-items/${id}`, payload).then(unwrap),
+  /** The piece's photo, as on the mould register. Multipart. */
+  setPhoto: (id, file) => {
+    const form = new FormData();
+    form.append('photo', file);
+    return api.put(`/traded-items/${id}/photo`, form).then(unwrap);
+  },
   /** An Excel/CSV upload: `commit: false` answers the preview, `true` writes it. */
   importSheet: ({ file, commit }) => {
     const form = new FormData();
