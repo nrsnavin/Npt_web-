@@ -230,12 +230,16 @@ export default function OverviewDashboard() {
         </span>
       </section>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <FigureTile label="My customers" value={figures.customers} hint="Assigned accounts" to={canRead('customers') ? '/customers' : undefined} />
-        <FigureTile label="Due today" value={figures.dueToday} hint="Open today’s follow-ups" to="/enquiries?view=due" />
-        <FigureTile label="Active enquiries" value={figures.activeEnquiries} hint="View active enquiry status" to="/enquiries?view=open" />
-        <FigureTile label="Quotations" value={figures.quotations} hint="Preparing, sent & negotiation" to={canRead('pricing') ? '/quotations' : undefined} />
-      </div>
+      {/* The company's figures — Admin's view. A marketing person's own figures were taken off their
+          dashboard: the new enquiries, the tasks and the party master below are what they work from. */}
+      {isAdmin && (
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <FigureTile label="Customers" value={figures.customers} hint="All accounts" to={canRead('customers') ? '/customers' : undefined} />
+          <FigureTile label="Due today" value={figures.dueToday} hint="Open today’s follow-ups" to="/enquiries?view=due" />
+          <FigureTile label="Active enquiries" value={figures.activeEnquiries} hint="View active enquiry status" to="/enquiries?view=open" />
+          <FigureTile label="Quotations" value={figures.quotations} hint="Preparing, sent & negotiation" to={canRead('pricing') ? '/quotations' : undefined} />
+        </div>
+      )}
 
       {/* Admin: what the plant still has to fill in before the newer screens do anything. */}
       {isAdmin && <SetupChecklist />}

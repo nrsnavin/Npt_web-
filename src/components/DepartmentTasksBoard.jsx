@@ -8,7 +8,7 @@ import TaskPanel from './TaskPanel.jsx';
 import DepartmentTaskDialog from './DepartmentTaskDialog.jsx';
 import { ErrorState, TableSkeleton } from './ui.jsx';
 import { formatDate, humanise } from '../utils/format.js';
-import { DEPARTMENTS, departmentLabel } from '../utils/pipeline.js';
+import { DEPARTMENT_CHOICES, departmentLabel, deskOf } from '../utils/pipeline.js';
 
 /**
  * Department Tasks [the plant's own layout]: every open request this person follows — Admin all
@@ -129,6 +129,11 @@ export default function DepartmentTasksBoard({
   /* The server's rule [handoff.service `mayWorkOnHandoff`]: Admin, the person it is assigned to, or its department. */
   const mayWork = (task) => isAdmin || (me && String(task.user?._id || task.user || '') === me) || departments.includes(task.department);
   const statusesOf = (task) => buttonFor(catalogue, task.kind)?.form?.statuses || [];
+  /* A shared desk picked (Quality · Assembling · Printing): each department's tasks under its own header. */
+  const desk = department && deskOf(department)?.key === department ? deskOf(department) : null;
+  const sections = desk
+    ? desk.departments.map((key) => ({ key, label: departmentLabel(key), rows: shown.filter((task) => task.department === key) })).filter((section) => section.rows.length)
+    : [{ key: 'all', label: null, rows: shown }];
 
   return (
     <section className="card space-y-4 p-4 sm:p-5" aria-label={title}>
@@ -166,7 +171,7 @@ export default function DepartmentTasksBoard({
             onChange={(event) => { setFilter({ department: event.target.value }); setChip('all'); }}
           >
             <option value="">All departments</option>
-            {DEPARTMENTS.map((entry) => <option key={entry.key} value={entry.key}>{entry.label}</option>)}
+            {DEPARTMENT_CHOICES.map((entry) => <option key={entry.key} value={entry.key}>{entry.label}</option>)}
           </select>
         )}
         <select
@@ -204,7 +209,13 @@ export default function DepartmentTasksBoard({
                 </tr>
               </thead>
               <tbody>
-                {shown.map((task) => (
+                {sections.map((section) => [
+                  section.label && (
+                    <tr key={`head-${section.key}`} className="border-t border-line/10 bg-line/[0.03]">
+                      <th scope="colgroup" colSpan={4} className="px-4 py-2 text-left text-xs font-bold uppercase tracking-wide text-steel-300">{section.label} <span className="font-normal normal-case tabular-nums text-steel-500">{section.rows.length}</span></th>
+                    </tr>
+                  ),
+                  ...section.rows.map((task) => (
                   <tr key={task._id} data-highlighted={isHighlighted(task) || undefined} className={`border-t border-line/10 align-top ${isHighlighted(task) ? 'bg-warn-500/[0.08]' : ''}`}>
                     <td className="px-4 py-3">
                       <button type="button" className="text-left font-semibold text-steel-50 hover:text-accent" onClick={() => setOpened({ task })}>
@@ -229,13 +240,16 @@ export default function DepartmentTasksBoard({
                       {whenOf(task) || '—'}
                     </td>
                   </tr>
-                ))}
+                  )),
+                ])}
               </tbody>
             </table>
           </div>
           {/* …and cards on a phone. */}
           <ul className="space-y-3 md:hidden">
-            {shown.map((task) => (
+            {sections.map((section) => [
+              section.label && <li key={`head-${section.key}`} className="pt-1 text-xs font-bold uppercase tracking-wide text-steel-300">{section.label}</li>,
+              ...section.rows.map((task) => (
               <li key={task._id} className={`rounded-xl border p-3 ${isHighlighted(task) ? 'border-warn-500/40 bg-warn-500/[0.08]' : 'border-line/10'}`}>
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
@@ -254,7 +268,8 @@ export default function DepartmentTasksBoard({
                   <button type="button" className="row-action" onClick={() => setOpened({ task })}>{mayWork(task) && !task.completed ? 'Open / update' : 'Open'}</button>
                 </div>
               </li>
-            ))}
+              )),
+            ])}
           </ul>
         </>
       ) : (

@@ -82,7 +82,7 @@ test('Admin and marketing open on the overview; every other department on its de
   assert.match(read('context/AuthContext.jsx'), /isManagement: user\?\.role === 'admin' \|\| \(user\?\.departments \|\| \[user\?\.department\]\)\.includes\('management'\)/);
   assert.match(read('pages/OverviewDashboard.jsx'), /isManagement: isAdmin/);
   const page = read('pages/OverviewDashboard.jsx');
-  for (const text of ['Company activity overview', '+ Add Party', '+ New Enquiry', 'My customers', 'Due today', 'Active enquiries', 'Quotations', 'Edit / Verify enquiry →', 'Customer / Party Master', 'No activity 7+ days']) {
+  for (const text of ['Company activity overview', '+ Add Party', '+ New Enquiry', 'label="Customers"', 'Due today', 'Active enquiries', 'Quotations', 'Edit / Verify enquiry →', 'Customer / Party Master', 'No activity 7+ days']) {
     assert.ok(page.includes(text), text);
   }
   assert.match(page, /overview\.parties\(\{ filter, page, search/);
@@ -107,7 +107,7 @@ test('Department Tasks: a status list only for whoever works the task, and the m
 test('Admin filters Department Tasks by any department, and open / done / all', () => {
   const board = read('components/DepartmentTasksBoard.jsx');
   assert.match(board, /\{isAdmin && \(\s*<select\s+aria-label="Department"/);
-  assert.match(board, /\{DEPARTMENTS\.map\(\(entry\) => <option key=\{entry\.key\} value=\{entry\.key\}>\{entry\.label\}<\/option>\)\}/, 'every department listed, even with nothing open');
+  assert.match(board, /\{DEPARTMENT_CHOICES\.map\(\(entry\) => <option key=\{entry\.key\} value=\{entry\.key\}>\{entry\.label\}<\/option>\)\}/, 'every department listed, even with nothing open — a shared desk as one');
   assert.match(board, /aria-label="Open or done"/);
   /* A department chip picked on Open may have nothing under Done: the chips start over. */
   assert.match(board, /setFilter\(\{ state: event\.target\.value \}\); setChip\('all'\);/);
@@ -168,4 +168,21 @@ test('every task on the board opens into its panel: Admin works any department�
   assert.match(panel, /Read-only — this task is on the \{departmentLabel\(task\.department\)\} queue\./);
   assert.match(panel, /task\.updates\.map\(\(update\) =>/);
   assert.match(panel, /describeBrief\(button, task\.brief\)/);
+});
+
+test('Quality, Assembly and Printing are one desk: one choice on the board, each department under its own header; marketing’s figures are gone', () => {
+  const pipeline = read('utils/pipeline.js');
+  assert.match(pipeline, /\{ key: 'printing', label: 'Printing' \}/);
+  assert.match(pipeline, /key: 'finishing', label: 'Quality · Assembling · Printing', departments: \['quality', 'assembling', 'printing'\]/);
+  assert.match(pipeline, /export const DEPARTMENT_CHOICES = DEPARTMENTS\.flatMap/);
+  const board = read('components/DepartmentTasksBoard.jsx');
+  assert.match(board, /const desk = department && deskOf\(department\)\?\.key === department \? deskOf\(department\) : null;/);
+  assert.match(board, /<th scope="colgroup" colSpan=\{4\}[^>]*>\{section\.label\}/, 'a header row per department on the table');
+  assert.match(board, /section\.label && <li key=\{`head-\$\{section\.key\}`\}/, 'and on the phone list');
+  const desk = read('pages/DepartmentDashboard.jsx');
+  assert.match(desk, /const deskMembers = data\.desk\?\.departments \|\| \[figures\.department\];/);
+  assert.match(desk, /bySection\(shown, \(row\) => row\.task\.department\)\.map/);
+  assert.match(desk, /bySection\(requests, \(task\) => task\.department\)\.map/);
+  const overview = read('pages/OverviewDashboard.jsx');
+  assert.match(overview, /\{isAdmin && \(\s*<div className="grid grid-cols-2 gap-3 lg:grid-cols-4">\s*<FigureTile label="Customers"/, 'the figures are Admin’s only');
 });

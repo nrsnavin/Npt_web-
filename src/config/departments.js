@@ -187,6 +187,23 @@ export const DEPARTMENT_WORKSPACES = {
     toConfirm: ['The assembly fields to record.'],
   },
 
+  /* One desk with Quality and Assembly [utils/pipeline.js DESK_GROUPS]: the same people, a third queue. */
+  printing: {
+    purpose: 'Prints the hanger to the buyer’s artwork and reports what is done and what is pending.',
+    pages: [
+      { label: 'Enquiries at Assembly / Printing', to: '/enquiries?stage=assembling', module: 'enquiries' },
+      { label: 'Order / model details', to: '/orders', module: 'orders' },
+      { label: 'Production status', to: '/production', module: 'production' },
+      { label: 'Models', to: '/moulds', module: 'moulds' },
+    ],
+    jobs: [
+      'Work from the print instructions on each task — artwork, colours, pieces.',
+      'Update completed and pending work.',
+      'Tell Dispatch and marketing when it is ready.',
+    ],
+    toConfirm: ['The print fields to record.'],
+  },
+
   despatch: {
     purpose: 'Sends the goods and proves they went.',
     pages: [

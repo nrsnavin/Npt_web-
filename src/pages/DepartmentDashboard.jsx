@@ -228,8 +228,13 @@ function DepartmentDesk() {
   const everyone = isAdmin || figures.department === 'management';
   const tab = chosenTab || firstDashboardTab(figures.department, { isAdmin: everyone, seesEnquiries });
   const seesAll = mayDelete;
+  /* A shared desk (Quality · Assembling · Printing): every member's tasks here, each under its own header. */
+  const deskMembers = data.desk?.departments || [figures.department];
+  const bySection = (rows, departmentOf) => (data.desk
+    ? deskMembers.map((key) => ({ key, label: departmentLabel(key), rows: rows.filter((row) => departmentOf(row) === key) })).filter((section) => section.rows.length)
+    : [{ key: 'all', label: null, rows }]);
   /* The person's other desks, when they work in more than one department. */
-  const otherDesks = departments.filter((entry) => entry !== figures.department);
+  const otherDesks = departments.filter((entry) => !deskMembers.includes(entry));
   const late = enquiries.filter((row) => row.late).length;
   const today = enquiries.filter((row) => row.dueToday).length;
   const unclaimed = enquiries.filter((row) => !row.task.user).length;
@@ -344,11 +349,16 @@ function DepartmentDesk() {
           </div>
 
           {shown.length ? (
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {shown.map((row) => (
-                <EnquiryCard key={row.task._id} row={row} department={figures.department} me={me} onChanged={reload} />
-              ))}
-            </div>
+            bySection(shown, (row) => row.task.department).map((section) => (
+              <div key={section.key} className="space-y-3">
+                {section.label && <h2 className="text-sm font-bold uppercase tracking-wide text-steel-300">{section.label} <span className="font-normal normal-case tabular-nums text-steel-500">{section.rows.length}</span></h2>}
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {section.rows.map((row) => (
+                    <EnquiryCard key={row.task._id} row={row} department={row.task.department || figures.department} me={me} onChanged={reload} />
+                  ))}
+                </div>
+              </div>
+            ))
           ) : (
             <div className="card px-6 py-10 text-center">
               <p className="text-base font-semibold text-steel-200">
@@ -373,8 +383,13 @@ function DepartmentDesk() {
       )}
 
       {tab === 'requests' && (
-        <section className="card p-5">
-          <HandoffTaskList tasks={requests} onChanged={reload} empty="No side requests — only the enquiries themselves." />
+        <section className="card space-y-4 p-5">
+          {requests.length ? bySection(requests, (task) => task.department).map((section) => (
+            <div key={section.key}>
+              {section.label && <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-steel-300">{section.label}</h2>}
+              <HandoffTaskList tasks={section.rows} onChanged={reload} />
+            </div>
+          )) : <HandoffTaskList tasks={[]} onChanged={reload} empty="No side requests — only the enquiries themselves." />}
         </section>
       )}
       {tab === 'waiting' && (
