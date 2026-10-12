@@ -49,7 +49,7 @@ test('the API, routes and menu reach the planner and the lists', () => {
   assert.match(app, /path="dispatch\/lists"/);
   const layout = read('components/Layout.jsx');
   assert.match(layout, /\{ to: '\/dispatch\/plan', label: 'Plan trips' \}/);
-  assert.match(layout, /\{ to: '\/dispatch\/lists', label: 'Transporters & routes' \}/);
+  assert.match(layout, /\{ to: '\/dispatch\/lists', label: 'Vehicles & transporters' \}/);
 });
 
 test('the lists edit with the version they were opened on, and nothing is deleted — only switched off', () => {
@@ -68,4 +68,49 @@ test('the customer form keeps how the goods go: the usual way, transporter and r
   assert.match(form, /deliveryMode: values\.deliveryMode \|\| \(editing \? null : undefined\)/);
   /* Without the dispatch grant the lists fail quietly and the two pickers stay hidden. */
   assert.match(form, /transportersApi\.list\(\{ active: 'true' \}\)\.catch\(\(\) => \[\]\)/);
+});
+
+test('a group is made into a trip — day, vehicle or transporter, driver, cartons against what the vehicle carries', () => {
+  const planner = read('components/TripPlanner.jsx');
+  assert.match(planner, /onClick=\{\(\) => onMakeTrip\(group, chosen\)\}/);
+  assert.match(planner, /onMade=\{\(trip\) => navigate\(`\/dispatch\/trips\/\$\{trip\._id\}`\)\}/);
+  /* Setting only a schedule is still there, but no longer the main button. */
+  assert.match(planner, /or only set when they go, without a trip/);
+  const dialog = read('components/MakeTripDialog.jsx');
+  assert.match(dialog, /tasks: stops\.map\(\(stop\) => stop\.task\)/);
+  assert.match(dialog, /const over = values\.mode === 'own_vehicle' && vehicle\?\.capacityCartons && total > vehicle\.capacityCartons;/);
+  assert.match(dialog, /Pick the transporter the goods are booked with\./);
+});
+
+test('the trip page: one next step at a time, stops reordered before it leaves, ticked after', () => {
+  const page = read('pages/TripDetail.jsx');
+  assert.match(page, /planned: \{ main: \['loading', 'Start loading'\]/);
+  assert.match(page, /loading: \{ main: \['left', 'Left the plant'\]/);
+  assert.match(page, /left: \{ main: \['completed', 'Trip completed'\]/);
+  assert.match(page, /const editable = canEdit && \['planned', 'loading'\]\.includes\(trip\.status\);/);
+  assert.match(page, /tripsApi\.update\(\{ id: trip\._id, expectedUpdatedAt: trip\.updatedAt, stops \}\)/);
+  assert.match(page, /tripsApi\.stop\(\{ id: trip\._id, stopId: stop\._id, status, note \}\)/);
+  /* Not delivered asks why before it saves. */
+  assert.match(page, /disabled=\{reason\.trim\(\)\.length < 3\}/);
+  /* Telling the buyers twice is a question, not a failure. */
+  assert.match(page, /if \(failure\.status === 409\) setAskAgain\(failure\.message\);/);
+  assert.match(page, /tripsApi\.sheet\(trip\)/);
+});
+
+test('trips and vehicles are reachable: routes, menu, and the vehicles list', () => {
+  const app = read('App.jsx');
+  assert.match(app, /path="dispatch\/trips"/);
+  assert.match(app, /path="dispatch\/trips\/:id"/);
+  assert.match(read('components/Layout.jsx'), /\{ to: '\/dispatch\/trips', label: 'Trips' \}/);
+  const lists = read('pages/DispatchLists.jsx');
+  assert.match(lists, /<List kind="vehicle" canEdit=\{canEdit\} \/>/);
+  assert.match(lists, /numbers: \['capacityCartons'\]/);
+  const endpoints = read('api/endpoints.js');
+  assert.match(endpoints, /create: \(payload\) => api\.post\('\/trips', payload\)/);
+  assert.match(endpoints, /sheet: \(trip\) => save\(`\/trips\/\$\{trip\._id\}\/sheet`/);
+});
+
+test('a group missing delivery details can still be made into a trip — the dialog asks for what is missing', () => {
+  const planner = read('components/TripPlanner.jsx');
+  assert.match(planner, />Make trip anyway<\/button>/);
 });

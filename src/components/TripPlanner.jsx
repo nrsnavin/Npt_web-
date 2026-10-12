@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { dispatchPlanning } from '../api/endpoints.js';
+import MakeTripDialog from './MakeTripDialog.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { EmptyState, ErrorState, Field, Modal, Spinner } from './ui.jsx';
 import { formatDate } from '../utils/format.js';
@@ -61,11 +62,12 @@ function Stop({ stop, index, checked, onToggle, canPlan }) {
   );
 }
 
-function GroupCard({ group, schedules, canPlan, onSchedule, onDetails }) {
+function GroupCard({ group, schedules, canPlan, onSchedule, onDetails, onMakeTrip }) {
   const [picked, setPicked] = useState(() => new Set(group.stops.map((stop) => String(stop.task))));
   const [schedule, setSchedule] = useState('');
   const [remark, setRemark] = useState('');
   const [busy, setBusy] = useState(false);
+  const [onlyWhen, setOnlyWhen] = useState(false);
   useEffect(() => { setPicked(new Set(group.stops.map((stop) => String(stop.task)))); }, [group]);
 
   const chosen = group.stops.filter((stop) => picked.has(String(stop.task)));
@@ -115,9 +117,22 @@ function GroupCard({ group, schedules, canPlan, onSchedule, onDetails }) {
       {canPlan && (
         <div className="mt-3 space-y-2 border-t border-line/[0.06] pt-3">
           {group.needsDetails ? (
-            <button type="button" className="btn-primary w-full" onClick={() => onDetails(group.stops)}>Fix now — add how these go</button>
+            <>
+              <button type="button" className="btn-primary w-full" onClick={() => onDetails(group.stops)}>Fix now — add how these go</button>
+              {/* The trip can still go today; the dialog asks for what is missing. */}
+              <button type="button" className="btn-secondary w-full" disabled={!chosen.length} onClick={() => onMakeTrip(group, chosen)}>Make trip anyway</button>
+            </>
           ) : (
             <>
+              <button type="button" className="btn-primary w-full" disabled={!chosen.length} onClick={() => onMakeTrip(group, chosen)}>
+                {`Make trip${chosen.length !== group.stops.length ? ` with ${chosen.length}` : ''}`}
+              </button>
+              {!onlyWhen && (
+                <button type="button" className="text-xs font-semibold text-steel-400 hover:text-accent hover:underline" onClick={() => setOnlyWhen(true)}>
+                  or only set when they go, without a trip
+                </button>
+              )}
+              {onlyWhen && (
               <div className="flex flex-wrap gap-2">
                 <select
                   className="input min-w-0 flex-1"
@@ -128,11 +143,12 @@ function GroupCard({ group, schedules, canPlan, onSchedule, onDetails }) {
                   <option value="">Pick when they go…</option>
                   {schedules.map((entry) => <option key={entry.key} value={entry.key}>{entry.label}</option>)}
                 </select>
-                <button type="button" className="btn-primary" disabled={!schedule || !chosen.length || busy} onClick={go}>
+                <button type="button" className="btn-secondary" disabled={!schedule || !chosen.length || busy} onClick={go}>
                   {busy ? 'Saving…' : `Schedule ${chosen.length === group.stops.length ? (chosen.length === 1 ? 'it' : 'all') : chosen.length}`}
                 </button>
               </div>
-              {schedule && (
+              )}
+              {onlyWhen && schedule && (
                 <input
                   className="input"
                   value={remark}
@@ -218,6 +234,47 @@ function DeliveryDetails({ open, stops, plan, onClose, onSaved }) {
   );
 }
 
+const TRIP_STATUS = {
+  cancelled: ['Cancelled', 'bg-danger-500/15 text-danger-400'],
+  planned: ['Planned', 'bg-line/[0.08] text-steel-300'],
+  loading: ['Loading', 'bg-warn-500/15 text-warn-400'],
+  left: ['On the road', 'bg-accent/15 text-accent'],
+  completed: ['Completed', 'bg-success-500/15 text-success-400'],
+};
+
+/** The trips made from the plan: still to go, on the road, and those finished today. */
+export function TripsLane({ trips, today, title = 'Trips' }) {
+  if (!trips.length) return null;
+  const when = (date) => (date === today ? 'Today' : new Date(`${date}T12:00:00+05:30`).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' }));
+  return (
+    <section aria-label="Trips" className="space-y-2">
+      <h2 className="text-sm font-bold text-steel-100">{title}</h2>
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        {trips.map((trip) => {
+          const [label, tone] = TRIP_STATUS[trip.status] || [trip.status, ''];
+          return (
+            <Link key={trip._id} to={`/dispatch/trips/${trip._id}`} data-trip={trip.status} className="block rounded-xl border border-line/[0.1] p-3 hover:border-accent/50 hover:bg-accent/[0.03]">
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="text-sm font-bold text-steel-50">{trip.number}</span>
+                <span className={`rounded-full px-2 text-xs font-semibold leading-5 ${tone}`}>{label}</span>
+              </div>
+              <p className="text-sm text-steel-200">{trip.goesBy}</p>
+              <p className="text-xs text-steel-400">
+                {[`${when(trip.date)}${trip.departAt ? `, ${trip.departAt}` : ''}`, trip.driver && `driver ${trip.driver}`].filter(Boolean).join(' · ')}
+              </p>
+              <p className={`mt-1 text-xs ${trip.over ? 'font-semibold text-danger-400' : 'text-steel-400'}`}>
+                {trip.stops} {trip.stops === 1 ? 'stop' : 'stops'}{trip.status === 'left' ? ` · ${trip.delivered} delivered` : ''}
+                {trip.cartons ? ` · ${trip.cartons}${trip.capacity ? ` / ${trip.capacity}` : ''} cartons` : ''}{trip.over ? ' — over capacity' : ''}
+              </p>
+              {trip.buyers.length > 0 && <p className="truncate text-xs text-steel-500">{trip.buyers.join(', ')}</p>}
+            </Link>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 function WaitingList({ title, rows, tone }) {
   const [open, setOpen] = useState(false);
   if (!rows.length) return null;
@@ -251,6 +308,8 @@ export default function TripPlanner() {
   const [error, setError] = useState(null);
   const [mode, setMode] = useState('all');
   const [details, setDetails] = useState(null);
+  const [making, setMaking] = useState(null);
+  const navigate = useNavigate();
 
   const load = useCallback(() => dispatchPlanning.plan().then((data) => { setPlan(data); setError(null); }).catch(setError), []);
   useEffect(() => { load(); }, [load]);
@@ -260,6 +319,7 @@ export default function TripPlanner() {
 
   if (error) return <ErrorState error={error} onRetry={load} />;
   if (!plan) return <Spinner label="Putting the requests into groups" />;
+  plan.vehicles ||= [];
 
   const schedule = async (payload) => {
     await dispatchPlanning.schedule(payload);
@@ -303,7 +363,7 @@ export default function TripPlanner() {
       {groups.length ? (
         <div className="grid gap-3 lg:grid-cols-2">
           {groups.map((group) => (
-            <GroupCard key={group.key} group={group} schedules={plan.schedules} canPlan={canPlan} onSchedule={schedule} onDetails={setDetails} />
+            <GroupCard key={group.key} group={group} schedules={plan.schedules} canPlan={canPlan} onSchedule={schedule} onDetails={setDetails} onMakeTrip={(group, stops) => setMaking({ group, stops })} />
           ))}
         </div>
       ) : (
@@ -313,10 +373,20 @@ export default function TripPlanner() {
         />
       )}
 
+      <TripsLane trips={plan.trips || []} today={plan.today} />
+
       <WaitingList title="Waiting for payment" rows={plan.waitingPayment} tone="bg-warn-500/15 text-warn-400" />
       <WaitingList title="Not ready yet" rows={plan.notReady} tone="bg-line/[0.08] text-steel-300" />
 
       <DeliveryDetails open={Boolean(details)} stops={details} plan={plan} onClose={() => setDetails(null)} onSaved={load} />
+      <MakeTripDialog
+        open={Boolean(making)}
+        group={making?.group}
+        stops={making?.stops || []}
+        plan={plan}
+        onClose={() => setMaking(null)}
+        onMade={(trip) => navigate(`/dispatch/trips/${trip._id}`)}
+      />
     </div>
   );
 }

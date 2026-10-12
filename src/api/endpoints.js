@@ -988,3 +988,26 @@ export const deliveryRoutesApi = {
   create: (payload) => api.post('/delivery-routes', payload).then(unwrap),
   update: ({ id, ...payload }) => api.patch(`/delivery-routes/${id}`, payload).then(unwrap),
 };
+
+/** The plant's own vehicles, with their usual driver and how many cartons they carry. */
+export const vehiclesApi = {
+  list: (params) => api.get('/vehicles', { params }).then(unwrap),
+  create: (payload) => api.post('/vehicles', payload).then(unwrap),
+  update: ({ id, ...payload }) => api.patch(`/vehicles/${id}`, payload).then(unwrap),
+};
+
+/**
+ * Trips [server: services/trip.service.js]: a group made into a vehicle on a day, loaded, sent and
+ * ticked off. Leaving marks every request on it Dispatched, which gives Reception the LR copy.
+ */
+export const tripsApi = {
+  list: (params) => api.get('/trips', { params }).then(unwrap),
+  get: (id) => api.get(`/trips/${id}`).then(unwrap),
+  create: (payload) => api.post('/trips', payload).then(unwrap),
+  update: ({ id, ...payload }) => api.patch(`/trips/${id}`, payload).then(unwrap),
+  status: ({ id, ...payload }) => api.post(`/trips/${id}/status`, payload).then(unwrap),
+  stop: ({ id, stopId, ...payload }) => api.post(`/trips/${id}/stops/${stopId}`, payload).then(unwrap),
+  /* The 409 asking to send again is a question, answered in the screen — no red toast for it. */
+  tellBuyers: ({ id, ...payload }) => api.post(`/trips/${id}/tell-buyers`, payload, { feedback: false }).then(unwrap),
+  sheet: (trip) => save(`/trips/${trip._id}/sheet`, undefined, `${trip.number}-trip-sheet.pdf`),
+};

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { deliveryRoutesApi, transportersApi } from '../api/endpoints.js';
+import { deliveryRoutesApi, transportersApi, vehiclesApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { EmptyState, ErrorState, Field, Modal, PageHeader, Spinner } from '../components/ui.jsx';
 
@@ -25,6 +25,22 @@ const KINDS = {
       { key: 'serves', label: 'Goes to', placeholder: 'Bangalore, Hosur, Salem' },
     ],
     line: (row) => [row.bookingOffice, row.serves && `to ${row.serves}`, row.phone].filter(Boolean).join(' · '),
+  },
+  vehicle: {
+    api: vehiclesApi,
+    title: 'Vehicles',
+    one: 'vehicle',
+    titleKey: 'number',
+    blank: { number: '', kind: '', capacityCartons: '', driverName: '', driverPhone: '', notes: '' },
+    numbers: ['capacityCartons'],
+    fields: [
+      { key: 'number', label: 'Vehicle number', placeholder: 'TN 39 AB 4521' },
+      { key: 'kind', label: 'Type', placeholder: 'Tata Ace, Eicher 14 ft' },
+      { key: 'capacityCartons', label: 'Carries (cartons)', placeholder: '80', type: 'number' },
+      { key: 'driverName', label: 'Usual driver', placeholder: 'Selvam' },
+      { key: 'driverPhone', label: "Driver's phone", placeholder: '98xxxxxxxx' },
+    ],
+    line: (row) => [row.kind, row.capacityCartons && `${row.capacityCartons} cartons`, row.driverName && `driver ${row.driverName}`, row.driverPhone].filter(Boolean).join(' · '),
   },
   route: {
     api: deliveryRoutesApi,
@@ -51,7 +67,7 @@ function Editor({ kind, row, onClose, onSaved }) {
     event.preventDefault();
     setBusy(true);
     setProblem(null);
-    const payload = Object.fromEntries(Object.keys(spec.blank).map((key) => [key, values[key]]));
+    const payload = Object.fromEntries(Object.keys(spec.blank).map((key) => [key, (spec.numbers || []).includes(key) ? (values[key] === '' || values[key] == null ? null : Number(values[key])) : values[key]]));
     try {
       if (row) await spec.api.update({ id: row._id, expectedUpdatedAt: row.updatedAt, ...payload, active: values.active !== false });
       else await spec.api.create(payload);
@@ -69,11 +85,11 @@ function Editor({ kind, row, onClose, onSaved }) {
       <form onSubmit={save} className="space-y-4">
         {/* The name is the one thing every entry needs. */}
         <Field label={spec.fields[0].label} required>
-          <input className="input" value={values.name || ''} onChange={set('name')} placeholder={spec.fields[0].placeholder} required minLength={2} maxLength={120} />
+          <input className="input" value={values[spec.titleKey || 'name'] || ''} onChange={set(spec.titleKey || 'name')} placeholder={spec.fields[0].placeholder} required minLength={2} maxLength={120} />
         </Field>
         {spec.fields.slice(1).map((field) => (
           <Field key={field.key} label={field.label}>
-            <input className="input" value={values[field.key] || ''} onChange={set(field.key)} placeholder={field.placeholder} maxLength={field.key === 'areas' ? 500 : 200} />
+            <input className="input" type={field.type || 'text'} min={field.type === 'number' ? 0 : undefined} value={values[field.key] ?? ''} onChange={set(field.key)} placeholder={field.placeholder} maxLength={field.key === 'areas' ? 500 : 200} />
           </Field>
         ))}
         {kind === 'route' && (
@@ -130,7 +146,7 @@ function List({ kind, canEdit }) {
           {rows.map((row) => (
             <li key={row._id} className={`flex items-start justify-between gap-3 py-2.5 ${row.active === false ? 'opacity-60' : ''}`}>
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-steel-100">{row.name}{row.active === false && <span className="ml-2 text-xs font-normal text-steel-500">not in use</span>}</p>
+                <p className="text-sm font-semibold text-steel-100">{row[spec.titleKey || 'name']}{row.active === false && <span className="ml-2 text-xs font-normal text-steel-500">not in use</span>}</p>
                 <p className="text-xs text-steel-400">{spec.line(row) || '—'}</p>
               </div>
               {canEdit && <button type="button" className="shrink-0 text-xs font-semibold text-accent hover:underline" onClick={() => setEditing(row)}>Edit</button>}
@@ -149,11 +165,12 @@ export default function DispatchLists() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Transporters & routes"
+        title="Vehicles, transporters & routes"
         subtitle="What the trip planner groups buyers by. Set them on buyers from Plan trips or the customer form."
         actions={<Link to="/dispatch/plan" className="btn-secondary">Plan trips</Link>}
       />
       <div className="grid gap-4 lg:grid-cols-2">
+        <List kind="vehicle" canEdit={canEdit} />
         <List kind="transporter" canEdit={canEdit} />
         <List kind="route" canEdit={canEdit} />
       </div>

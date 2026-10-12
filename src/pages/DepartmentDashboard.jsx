@@ -365,8 +365,8 @@ function DepartmentDesk() {
       {tab === 'baskets' && (
         <section className="card space-y-3 p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm text-steel-300">Ready requests in groups that can go together — tick who goes, pick when, press Schedule.</p>
-            <Link to="/dispatch/lists" className="text-xs font-semibold text-accent hover:underline">Transporters &amp; routes</Link>
+            <p className="text-sm text-steel-300">Ready requests in groups that can go together — tick who goes and press Make trip.</p>
+            <Link to="/dispatch/lists" className="text-xs font-semibold text-accent hover:underline">Vehicles &amp; transporters</Link>
           </div>
           <TripPlanner />
         </section>

@@ -8,8 +8,8 @@ export default function DispatchPlan() {
     <div className="space-y-6">
       <PageHeader
         title="Plan trips"
-        subtitle="Ready dispatch requests, grouped by transporter, route and place. Tick who goes, pick when, press Schedule."
-        actions={<Link to="/dispatch/lists" className="btn-secondary">Transporters &amp; routes</Link>}
+        subtitle="Ready dispatch requests, grouped by transporter, route and place. Tick who goes and press Make trip."
+        actions={<Link to="/dispatch/lists" className="btn-secondary">Vehicles &amp; transporters</Link>}
       />
       <TripPlanner />
     </div>
