@@ -26,10 +26,10 @@ import { formatCurrency, formatDate, humanise } from '../utils/format.js';
  * that goes nowhere. The server does the netting, because an advance against an order later
  * invoiced in full is not an additional debt and summing the balances would say it was.
  *
- * **A receipt is accounts' to record, a follow-up is anybody's.** Not a seniority distinction:
- * a receipt is a claim about a bank account, and the person who can look at the bank account
- * should be the one making it. Marketing told "we paid Tuesday" logs that as what it is —
- * something they were told.
+ * **A receipt is recorded by whoever took the money, and confirmed by Accounts.** A collector or
+ * a PRT member records cash taken at the buyer's desk, and the chase stops for it; only once
+ * Accounts has seen it in the bank does it open the order's payment gate. Marketing told "we
+ * paid Tuesday" logs that as what it is — something they were told.
  *
  * **Disputed and on hold are the only two states a person sets.** Everything else is what the
  * dates and the receipts say. Both stop the escalation ladder, and the screen says so, because
@@ -262,7 +262,7 @@ const fetch = (id) => paymentsApi.get(id);
 
 export default function PaymentDetail() {
   const { id } = useParams();
-  const { canWrite } = useAuth();
+  const { canWrite, departments = [], isManagement } = useAuth();
   /* The payment statuses, named as the server lists them (TPCF and the rest). */
   const [statuses, setStatuses] = useState([]);
   useEffect(() => {
@@ -280,11 +280,20 @@ export default function PaymentDetail() {
 
   const receivable = data.data;
   const position = data.order;
-  /* Accounts writes receipts and judgements; marketing may log a call. */
+  /* Accounts, Payment Collection and PRT write receipts and judgements; marketing may log a call. */
   const mayWrite = canWrite('payments');
+  /* Only the people who can see the bank confirm a receipt, and only theirs opens the payment gate. */
+  const seesTheBank = isManagement || departments.includes('accounts');
   const statusLabel = (key) => statuses.find((row) => row.key === key)?.label || key;
 
   const absorb = (next) => setData({ ...data, data: next.data ?? next });
+  const confirm = async (receiptId) => {
+    try {
+      absorb(await paymentsApi.confirmReceipt({ id: receivable._id, receiptId }));
+    } catch (failure) {
+      window.alert(failure.message);
+    }
+  };
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -340,6 +349,17 @@ export default function PaymentDetail() {
                   {receivable.judgementNote}
                 </p>
                 <p className="mt-1 text-xs">Nobody is being chased or reminded while this stands.</p>
+              </Notice>
+            )}
+
+            {/* Money a collector or PRT recorded that Accounts has not yet seen in the bank: it stops
+                the chase, but the order's payment gate waits for the confirmation. */}
+            {receivable.awaitingConfirmation > 0 && (
+              <Notice tone="info">
+                <p>
+                  <span className="font-bold">{formatCurrency(receivable.awaitingConfirmation)} awaits Accounts’ confirmation.</span>{' '}
+                  Recorded by the collector; production or dispatch held for this money waits until Accounts sees it in the bank.
+                </p>
               </Notice>
             )}
 
@@ -440,7 +460,7 @@ export default function PaymentDetail() {
                   .map((receipt) => (
                     <li
                       key={receipt._id}
-                      className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 rounded-lg border border-line/[0.08] px-3 py-2"
+                      className={`flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 rounded-lg border px-3 py-2 ${receipt.confirmed?.at ? 'border-line/[0.08]' : 'border-warn-500/40 bg-warn-500/[0.04]'}`}
                     >
                       <span className="text-sm font-bold tabular-nums text-steel-100">
                         {formatCurrency(receipt.amount)}
@@ -451,6 +471,19 @@ export default function PaymentDetail() {
                         {' · '}
                         {formatDate(receipt.receivedAt)}
                         {receipt.recordedBy?.name ? ` · ${receipt.recordedBy.name}` : ''}
+                      </span>
+                      {/* Confirmed by Accounts, or waiting for them — with the button for whoever can see the bank. */}
+                      <span className="flex w-full items-center justify-between gap-2 text-xs">
+                        {receipt.confirmed?.at ? (
+                          <span className="text-success-400">Confirmed{receipt.confirmed.by?.name ? ` by ${receipt.confirmed.by.name}` : ''} · {formatDate(receipt.confirmed.at)}</span>
+                        ) : (
+                          <span className="font-semibold text-warn-400">Awaiting Accounts’ confirmation</span>
+                        )}
+                        {!receipt.confirmed?.at && seesTheBank && (
+                          <button type="button" className="btn-secondary px-3 py-1 text-xs" onClick={() => confirm(receipt._id)}>
+                            Confirm — seen in the bank
+                          </button>
+                        )}
                       </span>
                     </li>
                   ))}

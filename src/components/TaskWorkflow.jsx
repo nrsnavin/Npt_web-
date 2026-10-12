@@ -9,6 +9,7 @@ import TaskDocuments from './TaskDocuments.jsx';
 import DepartmentTaskDialog from './DepartmentTaskDialog.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import { todayInIndia } from '../utils/taskForm.js';
+import { departmentLabel } from '../utils/pipeline.js';
 
 /**
  * A department's own workflow on its task [server: config/departmentTaskForms.js `statuses`]:
@@ -76,10 +77,20 @@ function MoveForm({ todo, form, step, onCancel, onMoved }) {
 
 const PDF_LIMIT = 1024 * 1024;
 
-function CommentDialog({ step, onClose, onSave }) {
+function CommentDialog({ step, target, onClose, onSave }) {
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState(null);
+  /* What the comment goes with: a question to the enquiry's marketing person, or another
+     department's task (Disputed → A/C Clarify; Escalated to PRT → the PRT case), or just a note. */
+  const asksMarketing = step.raises && (!target || target.department === 'owner');
+  const description = asksMarketing
+    ? 'The enquiry’s marketing person gets a task to answer this; their answer comes back onto this task.'
+    : step.raises
+      ? `${target.label} is raised for ${departmentLabel(target.department)} with this note${step.done ? ', and this task closes' : ''}.`
+      : undefined;
+  const label = asksMarketing ? 'What needs clarifying' : step.raises ? `What ${departmentLabel(target.department)} should know` : 'Why';
+  const button = asksMarketing ? 'Ask marketing' : step.label;
   const save = async (event) => {
     event.preventDefault();
     setBusy(true);
@@ -94,15 +105,15 @@ function CommentDialog({ step, onClose, onSave }) {
     }
   };
   return (
-    <Modal open title={step.label} description={step.raises ? 'The enquiry’s marketing person gets a task to answer this; their answer comes back onto this task.' : undefined} onClose={onClose}>
+    <Modal open title={step.label} description={description} onClose={onClose}>
       <form onSubmit={save} className="space-y-4">
-        <Field label="What needs clarifying" required>
+        <Field label={label} required>
           <textarea rows={3} className="input" value={note} onChange={(event) => setNote(event.target.value)} autoFocus />
         </Field>
         {problem && <Notice tone="danger">{problem}</Notice>}
         <div className="flex justify-end gap-2">
           <button type="button" className="btn-ghost" onClick={onClose} disabled={busy}>Cancel</button>
-          <button type="submit" className="btn-primary" disabled={busy || note.trim().length < 3}>{busy ? 'Saving…' : 'Ask marketing'}</button>
+          <button type="submit" className="btn-primary" disabled={busy || note.trim().length < 3}>{busy ? 'Saving…' : button}</button>
         </div>
       </form>
     </Modal>
@@ -322,6 +333,7 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
       {asking && (
         <CommentDialog
           step={asking}
+          target={asking.raises ? buttonFor(catalogue, asking.raises) : null}
           onClose={() => setAsking(null)}
           onSave={async (note) => onChanged?.(await workspace.todos.status({ id: todo._id, status: asking.key, note }))}
         />

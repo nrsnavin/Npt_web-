@@ -228,6 +228,7 @@ export default function DepartmentTasksBoard({
                       <p className="text-xs text-steel-400">
                         {task.label}
                         {modelOf(task) ? ` · ${modelOf(task)}` : ''}
+                        {task.suggestion?.kind === 'escalate_prt' && !task.completed && <> · <span className="font-semibold text-warn-400">Escalate to PRT?</span></>}
                         {task.enquiry?.number && <> · <Link className="text-accent hover:underline" to={`/enquiries/${task.enquiry._id}`}>{task.enquiry.number}</Link></>}
                         {' · '}
                         <button type="button" className="row-action" onClick={() => setOpened({ task })}>{mayWork(task) && !task.completed ? 'Open / update' : 'Open'}</button>

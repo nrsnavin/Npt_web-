@@ -348,6 +348,8 @@ export const customers = {
   clearSite: (id) => api.delete(`/customers/${id}/site`).then(unwrap),
   create: (payload) => api.post('/customers', payload).then(unwrap),
   update: ({ id, ...payload }) => api.patch(`/customers/${id}`, payload).then(unwrap),
+  /** Admin's word on the buyer's credit: Watch or Hold with a reason, or nothing to clear it. */
+  setCredit: ({ id, ...payload }) => api.post(`/customers/${id}/credit`, payload).then(unwrap),
   /** Warns before submitting, on the same GST-then-number rule the server enforces. */
   checkDuplicate: (params) => api.get('/customers/check-duplicate', { params }).then(unwrap),
   /**
@@ -572,8 +574,10 @@ export const payments = {
   followUpOptions: () => api.get('/payments/follow-up-options').then(unwrap),
   /** Who to speak to about the money — accounts keeps it. */
   setContact: ({ id, ...payload }) => api.put(`/payments/${id}/contact`, payload).then(unwrap),
-  /** Money in — accounts only. */
+  /** Money in — Accounts, Payment Collection or PRT; only Accounts' counts at the payment gate until confirmed. */
   receipt: ({ id, ...payload }) => api.post(`/payments/${id}/receipts`, payload).then(unwrap),
+  /** Accounts has seen a collector's receipt in the bank. */
+  confirmReceipt: ({ id, receiptId }) => api.post(`/payments/${id}/receipts/${receiptId}/confirm`).then(unwrap),
   /** Disputed or on hold, and clearing it again. Both stop the escalation ladder. */
   judgement: ({ id, ...payload }) => api.post(`/payments/${id}/judgement`, payload).then(unwrap),
   /** The advance a buyer owes before anything is made, against the order it belongs to. */

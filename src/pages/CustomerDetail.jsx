@@ -4,7 +4,7 @@ import { Link, useParams } from 'react-router-dom';
 import { customers as customersApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useRecord } from '../hooks/useRecords.js';
-import { Badge, ErrorState, Facts, FormError, Modal, PageHeader, Section, Spinner } from '../components/ui.jsx';
+import { Badge, ErrorState, Facts, Field, FormError, Modal, PageHeader, Section, Spinner } from '../components/ui.jsx';
 import Documents from '../components/Documents.jsx';
 import CustomerQueries from '../components/CustomerQueries.jsx';
 import CustomerMap from '../components/CustomerMap.jsx';
@@ -14,7 +14,7 @@ import HistoryPanel from '../components/HistoryPanel.jsx';
 import { accuracyLabel, directionsUrl, mapsUrl, placeLabel } from '../utils/maps.js';
 import { formatCompactCurrency, formatCurrency, formatDate, formatNumber } from '../utils/format.js';
 import {
-  CUSTOMER_TYPES, SAMPLE_PURPOSES, SOURCES, optionLabel, ownsRecord, sampleStageLabel,
+  CREDIT_STATUSES, CUSTOMER_TYPES, SAMPLE_PURPOSES, SOURCES, creditLabel, creditStatusOf, optionLabel, ownsRecord, sampleStageLabel,
   stageLabel,
 } from '../utils/pipeline.js';
 import { CustomerForm } from './Customers.jsx';
@@ -38,10 +38,59 @@ function ContactCard({ contact }) {
   );
 }
 
+/**
+ * Admin's word on the buyer's credit [server: models/Customer.js `credit`]: Watch or Hold by
+ * hand with the reason, or cleared so the rule's own reading shows again. A Hold warns on the
+ * enquiry, the SO and the dispatch request — it never stops them; the payment gate does that.
+ */
+function CreditDialog({ customer, onClose, onSaved }) {
+  const [status, setStatus] = useState(customer.credit?.override?.status || creditStatusOf(customer));
+  const [reason, setReason] = useState(customer.credit?.override?.reason || '');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const save = async (event, clear = false) => {
+    event?.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      await customersApi.setCredit(clear ? { id: customer._id } : { id: customer._id, status, reason: reason.trim() });
+      onSaved();
+      onClose();
+    } catch (failure) {
+      setError(failure);
+      setBusy(false);
+    }
+  };
+  return (
+    <Modal open title="Credit status" description={`${customer.name} — the rule says ${creditLabel(customer.credit?.derived?.status || 'good').toLowerCase()}${customer.credit?.derived?.reason ? ` (${customer.credit.derived.reason})` : ''}`} onClose={onClose}>
+      <form onSubmit={save} className="space-y-4">
+        <Field label="Admin says">
+          <select className="input" value={status} onChange={(event) => setStatus(event.target.value)}>
+            {CREDIT_STATUSES.map((entry) => <option key={entry.key} value={entry.key}>{entry.label}</option>)}
+          </select>
+        </Field>
+        <Field label="Why" required hint="The marketing person and the buyer will both ask">
+          <textarea rows={3} className="input" value={reason} onChange={(event) => setReason(event.target.value)} autoFocus />
+        </Field>
+        <p className="text-xs text-steel-500">A hold warns on new enquiries, sales orders and dispatch requests for this buyer. It does not stop them — the order’s payment terms do that.</p>
+        {error && <FormError error={error} />}
+        <div className="flex flex-wrap justify-end gap-2 border-t border-line/[0.06] pt-4">
+          {customer.credit?.override?.status && (
+            <button type="button" className="btn-secondary mr-auto" disabled={busy} onClick={(event) => save(event, true)}>Clear — back to the rule</button>
+          )}
+          <button type="button" className="btn-ghost" onClick={onClose} disabled={busy}>Cancel</button>
+          <button type="submit" className="btn-primary" disabled={busy || reason.trim().length < 3}>{busy ? 'Saving…' : 'Save'}</button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
 export default function CustomerDetail() {
   const { id } = useParams();
-  const { canRead, canWrite, user } = useAuth();
+  const { canRead, canWrite, user, isManagement } = useAuth();
   const [editing, setEditing] = useState(false);
+  const [crediting, setCrediting] = useState(false);
   const [siteError, setSiteError] = useState(null);
   /*
    * List or map, remembered per person. The list stays the default and stays complete: exact
@@ -76,6 +125,23 @@ export default function CustomerDetail() {
         actions={
           <div className="flex items-center gap-2">
             <Badge status={customer.status} />
+            {/* How the buyer pays, from the rule or from Admin — Admin may change it from here. */}
+            {(creditStatusOf(customer) !== 'good' || isManagement) && (
+              isManagement ? (
+                <button
+                  type="button"
+                  className="inline-flex"
+                  title={customer.credit?.override?.reason || customer.credit?.derived?.reason || 'Set the credit status'}
+                  onClick={() => setCrediting(true)}
+                >
+                  <Badge tone={CREDIT_STATUSES.find((entry) => entry.key === creditStatusOf(customer))?.tone}>{creditLabel(creditStatusOf(customer))}{customer.credit?.override?.status ? ' · Admin' : ''}</Badge>
+                </button>
+              ) : (
+                <span title={customer.credit?.override?.reason || customer.credit?.derived?.reason || ''}>
+                  <Badge tone={CREDIT_STATUSES.find((entry) => entry.key === creditStatusOf(customer))?.tone}>{creditLabel(creditStatusOf(customer))}</Badge>
+                </span>
+              )
+            )}
             <ViewSwitch
               mode={mode}
               onChange={setMode}
@@ -384,6 +450,7 @@ export default function CustomerDetail() {
       <Modal open={editing} title={`Edit ${customer.name}`} size="lg" onClose={() => setEditing(false)}>
         <CustomerForm customer={customer} onClose={() => setEditing(false)} onSaved={reload} />
       </Modal>
+      {crediting && <CreditDialog customer={customer} onClose={() => setCrediting(false)} onSaved={reload} />}
     </div>
   );
 }

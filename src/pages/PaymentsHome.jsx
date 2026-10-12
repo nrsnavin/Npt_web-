@@ -7,6 +7,7 @@ import FollowUpForm from '../components/FollowUp.jsx';
 import EscalationFeed from '../components/EscalationFeed.jsx';
 import NeedsYouToday from '../components/NeedsYouToday.jsx';
 import { formatCurrency, formatDate, plural } from '../utils/format.js';
+import { creditLabel } from '../utils/pipeline.js';
 
 /**
  * The chase, as a day's work [BLUEPRINT §20, §25].
@@ -268,6 +269,86 @@ function Group({ title, hint, children, count }) {
   );
 }
 
+/**
+ * The cases beside the money [docs/PAYMENT-COLLECTION-WORKFLOW.md §5]: what the rule proposes
+ * for the field, what is with the Payment Recovery Team and with whom, what each collector
+ * holds, and the buyers whose credit status says stop and ask. Each links to the task or the
+ * buyer, because the next thing to do is on that screen, not this one.
+ */
+function CaseRow({ row }) {
+  return (
+    <li className={`rounded-xl border p-3 ${row.priority === 'high' || row.suggestion?.kind ? 'border-warn-500/40 bg-warn-500/[0.04]' : 'border-line/10'}`}>
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <p className="text-sm font-bold text-steel-50">
+          <Link to={`/tasks?department=${row.kind === 'prt_recovery' ? 'payment_recovery' : 'payment_collection'}`} className="hover:text-accent">{row.customer?.name || 'Customer not named'}</Link>
+          {row.order?.number ? <span className="font-normal text-steel-400"> · {row.order.number}</span> : null}
+        </p>
+        <p className="text-sm font-extrabold tabular-nums text-steel-100">{formatCurrency(row.owed)}</p>
+      </div>
+      <p className="mt-1 text-xs text-steel-400">
+        {row.statusLabel}
+        {row.with ? ` · with ${row.with}` : ' · nobody has taken it'}
+        {row.dueDate ? ` · due ${formatDate(row.dueDate)}` : ''}
+        {row.promisesBroken ? ` · ${plural(row.promisesBroken, 'promise broken', 'promises broken')}` : ''}
+      </p>
+      {row.suggestion?.kind === 'escalate_prt' && (
+        <p className="mt-1 text-xs font-semibold text-warn-400">Escalate to PRT? {row.suggestion.reason}</p>
+      )}
+    </li>
+  );
+}
+
+function Cases({ day, meta }) {
+  const suggested = day.suggested || [];
+  const recovery = day.recovery || [];
+  const collectors = day.collectors || [];
+  const credit = day.credit || { watch: [], hold: [] };
+  const flagged = [...credit.hold.map((row) => ({ ...row, status: 'hold' })), ...credit.watch.map((row) => ({ ...row, status: 'watch' }))];
+  if (!suggested.length && !recovery.length && !collectors.length && !flagged.length) return null;
+  return (
+    <>
+      <Group title="Proposed for the field" hint="The rule says the phone has stopped working — the collector or Admin presses Escalated to PRT, or not" count={suggested.length}>
+        {suggested.map((row) => <CaseRow key={row._id} row={row} />)}
+      </Group>
+      <Group title="With the Payment Recovery Team" hint="Out in the field, by member" count={recovery.length}>
+        {recovery.map((row) => <CaseRow key={row._id} row={row} />)}
+      </Group>
+      {collectors.length > 0 && (
+        <section className="mt-7">
+          <h2 className="text-lg font-bold tracking-tight text-steel-50">By collector</h2>
+          <p className="mt-0.5 text-sm text-steel-400">Open cases on the phone, and what their buyers owe</p>
+          <dl className="mt-3 grid gap-3 sm:grid-cols-2">
+            {collectors.map((row) => (
+              <div key={row.name} className="rounded-xl border border-line/10 p-3">
+                <dt className="text-sm font-bold text-steel-100">{row.name}</dt>
+                <dd className="text-xs text-steel-400">
+                  {plural(row.cases, 'case')} · {formatCurrency(row.owed)}
+                  {row.broken ? ` · ${plural(row.broken, 'promise broken', 'promises broken')}` : ''}
+                  {row.suggested ? ` · ${row.suggested} proposed for PRT` : ''}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      )}
+      <Group title="Credit watch and hold" hint={`Hold: ${meta.creditRule?.holdDays || 46}+ days overdue, ${meta.creditRule?.holdBroken || 2} promises broken or a PRT case. A hold warns — it does not stop a dispatch`} count={flagged.length}>
+        {flagged.map((row) => (
+          <li key={row._id} className={`rounded-xl border p-3 ${row.status === 'hold' ? 'border-danger-500/40 bg-danger-500/[0.04]' : 'border-warn-500/40 bg-warn-500/[0.04]'}`}>
+            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+              <p className="text-sm font-bold text-steel-50">
+                <Link to={`/customers/${row._id}`} className="hover:text-accent">{row.name}</Link>
+                <span className={`ml-2 text-xs font-semibold ${row.status === 'hold' ? 'text-danger-400' : 'text-warn-400'}`}>{creditLabel(row.status)}{row.byAdmin ? ' · Admin' : ''}</span>
+              </p>
+              <p className="text-sm font-extrabold tabular-nums text-steel-100">{formatCurrency(row.owed)}</p>
+            </div>
+            {row.reason && <p className="mt-1 text-xs text-steel-400">{row.reason}</p>}
+          </li>
+        ))}
+      </Group>
+    </>
+  );
+}
+
 export default function PaymentsHome() {
   const { user, canRead } = useAuth();
   const [day, setDay] = useState(null);
@@ -299,7 +380,7 @@ export default function PaymentsHome() {
   if (error) return <ErrorState error={error} onRetry={load} />;
   if (!day) return <Spinner label="Loading what is owed" />;
 
-  const nothing = !GROUPS.some((group) => day[group.key]?.length);
+  const nothing = !GROUPS.some((group) => day[group.key]?.length) && !day.recovery?.length && !day.suggested?.length;
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -328,13 +409,17 @@ export default function PaymentsHome() {
           hint={
             meta.awaitingAdvance
               ? `Including ${formatCurrency(meta.awaitingAdvance)} of advances not in yet`
-              : `Across ${plural(meta.open || 0, 'open item')}`
+              : meta.awaitingConfirmation
+                ? `${formatCurrency(meta.awaitingConfirmation)} recorded, awaiting Accounts’ confirmation`
+                : `Across ${plural(meta.open || 0, 'open item')}`
           }
           tone="calm"
         />
       </div>
 
       <Ageing bands={meta.ageing} total={meta.overdueValue || 0} />
+
+      <Cases day={day} meta={meta} />
 
       {/*
         Orders the floor has stopped on. Accounts is on this list more often than anybody

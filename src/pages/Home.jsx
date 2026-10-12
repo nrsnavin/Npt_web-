@@ -62,6 +62,8 @@ const HOME_BY_DEPARTMENT = {
   accounts: () => <PaymentsHome />,
   /* Collections chase the same receivables, so they open on the same screen. */
   payment_collection: () => <PaymentsHome />,
+  /* And the Payment Recovery Team: its cases are listed on the same screen, under "With PRT". */
+  payment_recovery: () => <PaymentsHome />,
   /*
    * And management, which was the last department still falling through to My day.
    *

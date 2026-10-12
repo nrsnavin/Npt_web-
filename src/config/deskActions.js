@@ -76,6 +76,10 @@ export const DESK_ACTIONS = {
     { label: 'Payments to chase', to: () => '/payments?open=true', primary: true },
     { label: 'Order', to: order },
   ],
+  payment_recovery: [
+    { label: 'Payments to recover', to: () => '/payments?overdue=true', primary: true },
+    { label: 'Order', to: order },
+  ],
   audit: [
     { label: 'Open enquiry', to: enquiry, primary: true },
     { label: 'Order', to: order },
