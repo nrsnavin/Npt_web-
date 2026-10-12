@@ -115,6 +115,13 @@ export function AuthProvider({ children }) {
         return Boolean(user?.modules?.find((module) => module.key === moduleKey)?.canQuote);
       },
       isAdmin: user?.role === 'admin',
+      /**
+       * Admin as the department screens and tasks mean it [server: utils/departments.js
+       * `isManagement`]: the admin role, or the Admin (management) department, main or extra. The
+       * server hands these people every department's tasks and lets them move any; `isAdmin`
+       * stays the role alone, for what the server keeps to the role (users, integrations).
+       */
+      isManagement: user?.role === 'admin' || (user?.departments || [user?.department]).includes('management'),
       /** Every department this person works in, their main one first [server: utils/departments.js]. */
       departments: user?.departments || (user?.department ? [user.department] : []),
       /** True when they work in that department, as their main one or an extra one. */

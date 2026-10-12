@@ -163,7 +163,7 @@ function PartyMaster({ isAdmin, onAdd }) {
 }
 
 export default function OverviewDashboard() {
-  const { user, isAdmin, departments = [], canRead } = useAuth();
+  const { user, isManagement: isAdmin, departments = [], canRead } = useAuth();
   const fetch = useCallback(() => overview.summary(), []);
   const { data, loading, error, reload } = useRecord(fetch, 'overview');
   /* "Needs your action" — the questions and the departments' moves on my enquiries. */
