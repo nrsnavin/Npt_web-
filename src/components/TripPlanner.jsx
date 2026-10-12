@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { dispatchPlanning } from '../api/endpoints.js';
+import { askCustomerLocation, dispatchPlanning } from '../api/endpoints.js';
 import MakeTripDialog from './MakeTripDialog.jsx';
 import QcFlag, { AskLocation } from './QcFlag.jsx';
 import SuggestTrips from './SuggestTrips.jsx';
@@ -28,6 +28,38 @@ const MODES = [
 const MODE_OPTIONS = MODES.filter((mode) => mode.key !== 'all');
 const SCHEDULE_NAMES = ['Top Most Urgent', 'Today', 'Today Evening', 'Tomorrow First', 'Tomorrow'];
 const pcs = (value) => (value ? `${Number(value).toLocaleString('en-IN')} pcs` : null);
+
+/**
+ * Buyers on our own vehicle with no location pin: one press asks each of them on WhatsApp to share
+ * it. As the pins come in, the planner groups them by real distance [server: dispatchPlanning].
+ */
+function AskAllUnpinned({ buyers }) {
+  const [state, setState] = useState({ phase: 'idle', asked: 0, failed: [] });
+  const ask = async () => {
+    if (!window.confirm(`Ask ${buyers.length} ${buyers.length === 1 ? 'buyer' : 'buyers'} on WhatsApp to share their delivery location?`)) return;
+    setState({ phase: 'busy', asked: 0, failed: [] });
+    let asked = 0;
+    const failed = [];
+    for (const buyer of buyers) {
+      try { await askCustomerLocation(buyer._id); asked += 1; } catch (failure) { failed.push(`${buyer.name}: ${failure.message}`); }
+      setState({ phase: 'busy', asked, failed: [...failed] });
+    }
+    setState({ phase: 'done', asked, failed });
+  };
+  if (state.phase === 'done') {
+    return (
+      <span className="text-xs text-success-400" title={state.failed.join('\n') || undefined}>
+        Asked {state.asked} on WhatsApp{state.failed.length ? <span className="text-warn-400"> · {state.failed.length} could not be asked</span> : null}
+      </span>
+    );
+  }
+  return (
+    <button type="button" className="btn-secondary px-3 py-1.5 text-xs" disabled={state.phase === 'busy'} onClick={ask}
+      title="So the planner can group them by real distance">
+      {state.phase === 'busy' ? `Asking… ${state.asked}/${buyers.length}` : `${buyers.length} without a location pin — ask them`}
+    </button>
+  );
+}
 
 function Stop({ stop, index, checked, onToggle, canPlan }) {
   return (
@@ -351,6 +383,7 @@ export default function TripPlanner() {
               {plan.coverage.placed} of {plan.coverage.customers} buyers have delivery details
             </span>
           )}
+          {canPlan && plan.unpinned?.length > 0 && <AskAllUnpinned buyers={plan.unpinned} />}
           {canPlan && plan.groups.some((group) => !group.needsDetails) && (
             <button type="button" className="btn-primary px-3 py-1.5 text-xs" onClick={() => setSuggesting(true)}>Suggest trips</button>
           )}

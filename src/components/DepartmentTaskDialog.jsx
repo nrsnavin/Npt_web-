@@ -137,7 +137,7 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
   useEffect(() => {
     let live = true;
     if (team || fromTask) return undefined;
-    ordersApi.list({ enquiry: enquiry._id, limit: 20, sort: '-createdAt' }).then((answer) => live && setOrders(answer?.data || [])).catch(() => {});
+    ordersApi.list({ enquiry: enquiry._id, open: 'true', limit: 20, sort: '-createdAt' }).then((answer) => live && setOrders(answer?.data || [])).catch(() => {});
     return () => { live = false; };
   }, [team, fromTask, enquiry?._id]);
 
@@ -182,7 +182,7 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
   const mustExplain = (noteNeeded(button, answers) || Boolean(fromTask) || team) && note.trim().length < 3;
   const tooBig = file && file.size > PDF_LIMIT;
   const notPdf = file && file.type !== 'application/pdf';
-  const blocked = !prefill || Boolean(missing) || mustExplain || tooBig || notPdf;
+  const blocked = !prefill || Boolean(missing) || mustExplain || tooBig || notPdf || (orders.length > 1 && !order && !fromTask && !team);
 
   const submit = async (event) => {
     event.preventDefault();
@@ -286,9 +286,9 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
             <input type="file" accept="application/pdf" className="input" onChange={(event) => setFile(event.target.files?.[0] || null)} />
           </Field>
           {orders.length > 1 && (
-            <Field label="For sales order" hint="The enquiry has more than one SO">
-              <select className="input" value={order} onChange={(event) => setOrder(event.target.value)}>
-                <option value="">The latest — {orders[0].number}</option>
+            <Field label="For sales order" hint="The enquiry has more than one open SO — say which this is for" required>
+              <select className="input" value={order} onChange={(event) => setOrder(event.target.value)} required>
+                <option value="">Pick the SO…</option>
                 {orders.map((row) => <option key={row._id} value={row._id}>{row.number}{row.customerPo?.number ? ` · PO ${row.customerPo.number}` : ''}</option>)}
               </select>
             </Field>

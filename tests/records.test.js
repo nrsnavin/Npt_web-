@@ -117,7 +117,7 @@ test('the SO page carries its QC records and its dispatch details; the QC form p
   assert.match(endpoints, /api\.get\(`\/orders\/\$\{orderId\}\/qc-records`\)/);
   assert.match(endpoints, /api\.get\(`\/orders\/\$\{orderId\}\/dispatch-details`\)/);
   const form = read('pages/QcRecordForm.jsx');
-  assert.match(form, /ordersApi\.list\(\{ enquiry: sheet\.enquiry, limit: 20 \}\)/);
+  assert.match(form, /ordersApi\.list\(\{ enquiry: sheet\.enquiry, open: 'true', limit: 20 \}\)/);
   assert.match(form, /params\.get\('orderLine'\)/);
   assert.match(form, /qcRecordsApi\.prefill\(query\)/);
   assert.match(form, /const out = fillFrom\(current, answer, before\);/);
@@ -237,4 +237,16 @@ test('reject report, runs on an SO line, the resin store, and the SO on a task',
   assert.match(dialog, /\.\.\.\(order \? \{ order \} : \{\}\)/);
   assert.match(dialog, /orders\.length > 1 &&/);
   assert.match(read('components/Combobox.jsx'), /fallbackLabel/);
+});
+
+test('several open SOs: every form asks which, and the planner can ask unpinned buyers for their location in one go', () => {
+  const dialog = read('components/DepartmentTaskDialog.jsx');
+  assert.match(dialog, /\|\| \(orders\.length > 1 && !order && !fromTask && !team\);/);
+  assert.match(dialog, /<option value="">Pick the SO…<\/option>/);
+  const form = read('pages/QcRecordForm.jsx');
+  assert.match(form, /prefill\?\.orderChoices\?\.length > 0 && !sheet\.order/);
+  assert.match(read('pages/MouldRuns.jsx'), /disabled=\{busy \|\| !values\.mould \|\| needsOrder\}/);
+  const planner = read('components/TripPlanner.jsx');
+  assert.match(planner, /canPlan && plan\.unpinned\?\.length > 0 && <AskAllUnpinned buyers=\{plan\.unpinned\} \/>/);
+  assert.match(planner, /await askCustomerLocation\(buyer\._id\)/);
 });

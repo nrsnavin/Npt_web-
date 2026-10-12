@@ -29,10 +29,11 @@ function StartRun({ onClose, onStarted }) {
   useEffect(() => {
     let live = true;
     if (!values.enquiry) { setOrders([]); return undefined; }
-    ordersApi.list({ enquiry: values.enquiry, limit: 20 }).then((answer) => live && setOrders(answer?.data || [])).catch(() => live && setOrders([]));
+    ordersApi.list({ enquiry: values.enquiry, open: 'true', limit: 20 }).then((answer) => live && setOrders(answer?.data || [])).catch(() => live && setOrders([]));
     return () => { live = false; };
   }, [values.enquiry]);
   const chosenOrder = orders.find((row) => row._id === values.order) || (orders.length === 1 ? orders[0] : null);
+  const needsOrder = orders.length > 1 && !values.order;
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState(null);
   const set = (key) => (value) => setValues((current) => ({ ...current, [key]: value?.target ? value.target.value : value }));
@@ -72,7 +73,7 @@ function StartRun({ onClose, onStarted }) {
           {orders.length > 0 && (
             <Field label="Sales order" hint="Good pieces are added to the SO line when the run ends">
               <select className="input" value={values.order} onChange={(event) => setValues((current) => ({ ...current, order: event.target.value, orderLine: '' }))}>
-                <option value="">{orders.length > 1 ? 'The enquiry’s latest SO' : orders[0].number}</option>
+                <option value="">{orders.length > 1 ? 'Pick the SO…' : orders[0].number}</option>
                 {orders.length > 1 && orders.map((row) => <option key={row._id} value={row._id}>{row.number}</option>)}
               </select>
             </Field>
@@ -104,7 +105,7 @@ function StartRun({ onClose, onStarted }) {
         {problem && <FormError error={problem} />}
         <div className="flex justify-end gap-2">
           <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
-          <button type="submit" className="btn-primary" disabled={busy || !values.mould}>{busy ? 'Starting…' : 'Start the run'}</button>
+          <button type="submit" className="btn-primary" disabled={busy || !values.mould || needsOrder}>{busy ? 'Starting…' : 'Start the run'}</button>
         </div>
       </form>
     </Modal>

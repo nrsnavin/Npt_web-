@@ -137,7 +137,7 @@ export default function QcRecordForm() {
   useEffect(() => {
     let live = true;
     if (!sheet.enquiry) { setOrders([]); return undefined; }
-    ordersApi.list({ enquiry: sheet.enquiry, limit: 20 })
+    ordersApi.list({ enquiry: sheet.enquiry, open: 'true', limit: 20 })
       .then((answer) => live && setOrders(answer?.data || []))
       .catch(() => live && setOrders([]));
     return () => { live = false; };
@@ -202,7 +202,9 @@ export default function QcRecordForm() {
   const sampleSize = sheet.sampleSize === '' ? null : Number(sheet.sampleSize);
   const defectCount = sheet.defects.reduce((sum, row) => sum + (Number(row.count) || 0), 0);
 
-  const blocked = !sheet.verdict
+  const blocked = prefill?.orderChoices?.length > 0 && !sheet.order
+    ? 'This enquiry has more than one open sales order — pick which one the lot is for'
+    : !sheet.verdict
     ? 'Pick the verdict'
     : sheet.verdict === 'passed' && !cleanPass
       ? `${failed.length ? `${failed.join(', ')} failed` : 'Pieces were rejected'} — it cannot be a clean pass. Pick Passed with deviation (and say why) or Rejected.`
@@ -274,9 +276,9 @@ export default function QcRecordForm() {
           <Field label="Enquiry" hint="The buyer is taken from it">
             <EnquirySelect value={sheet.enquiry} onChange={pickEnquiry} won emptyLabel="No enquiry (stock or incoming)" fallbackLabel={prefill?.enquiry ? `${prefill.enquiry.number}${prefill.customer ? ` — ${prefill.customer}` : ''}` : undefined} />
           </Field>
-          <Field label="Sales order" hint={orders.length ? 'Left empty, the enquiry’s latest SO is used' : sheet.enquiry ? 'No SO on this enquiry yet' : 'Pick the enquiry first'}>
-            <select className="input" value={sheet.order} onChange={(event) => setSheet((current) => ({ ...current, order: event.target.value, orderLine: '' }))} disabled={!orders.length}>
-              <option value="">{orders.length ? 'The enquiry’s SO' : '—'}</option>
+          <Field label="Sales order" hint={orders.length > 1 ? 'More than one open SO — say which this lot is for' : orders.length ? 'The enquiry’s SO' : sheet.enquiry ? 'No SO on this enquiry yet' : 'Pick the enquiry first'}>
+            <select className="input" value={sheet.order} onChange={(event) => setSheet((current) => ({ ...current, order: event.target.value, orderLine: '' }))} disabled={!orders.length} aria-invalid={prefill?.orderChoices?.length > 0 && !sheet.order ? true : undefined}>
+              <option value="">{orders.length > 1 ? 'Pick the SO…' : orders.length ? 'The enquiry’s SO' : '—'}</option>
               {orders.map((row) => <option key={row._id} value={row._id}>{row.number}{row.customerPo?.number ? ` · PO ${row.customerPo.number}` : ''}</option>)}
             </select>
           </Field>
