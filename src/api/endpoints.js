@@ -94,6 +94,15 @@ export const workspace = {
       /* Said by the screen itself, with whether Production was asked [TaskWorkflow]. */
       return api.post(`/workspace/todos/${id}/result`, form, { feedback: false }).then((response) => response.data);
     },
+    /** Papers a department keeps on its task — Dispatch's invoice and dispatch details, Reception's. */
+    documents: (id) => api.get(`/workspace/todos/${id}/documents`).then(unwrap),
+    addDocument: ({ id, docType, file }) => {
+      const form = new FormData();
+      form.append('docType', docType);
+      form.append('file', file);
+      /* Said by the task itself, with what happens next [TaskDocuments]. */
+      return api.post(`/workspace/todos/${id}/documents`, form, { feedback: false }).then(unwrap);
+    },
     remove: (id) => api.delete(`/workspace/todos/${id}`).then(unwrap),
   },
   /**
@@ -432,6 +441,8 @@ export const enquiries = {
   messages: (id) => api.get(`/enquiries/${id}/messages`).then((response) => response.data),
   /** WhatsApp from the company number, or email from the company mail: `{ channel, subject?, body }`. */
   sendMessage: ({ id, ...payload }) => api.post(`/enquiries/${id}/messages`, payload).then(unwrap),
+  /** The papers to attach to a message: quote, enquiry and sample details, SO, invoice, dispatch details, LR. */
+  attachables: (id) => api.get(`/enquiries/${id}/attachables`).then((response) => response.data),
   /** Marketing's own status for the enquiry; two of them also start work (see MARKETING_STATUSES). */
   setMarketingStatus: ({ id, ...payload }) =>
     api.post(`/enquiries/${id}/marketing-status`, payload).then((response) => response.data),
