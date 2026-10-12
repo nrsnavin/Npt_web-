@@ -319,6 +319,8 @@ export const queries = {
    * pressed anything, so there is nothing to confirm.
    */
   read: (id) => api.post(`/queries/${id}/read`, {}, { feedback: false }).then(unwrap),
+  /** The Queries panel: unread count, threads with something new, the latest threads [QueriesPanel]. */
+  unread: () => api.get('/queries/unread', { feedback: false }).then(unwrap),
   close: (id) => api.post(`/queries/${id}/close`).then(unwrap),
   reopen: (id) => api.post(`/queries/${id}/reopen`).then(unwrap),
 };
