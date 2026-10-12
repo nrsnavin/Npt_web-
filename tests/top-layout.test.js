@@ -38,7 +38,8 @@ test('the bar is the five in the plant’s words, then More', () => {
   assert.deepEqual(by.tasks, ['/tasks', '/departments']);
   assert.deepEqual(by.quotations, ['/quotations', '/quotations/sent']);
   assert.deepEqual(by.masters, ['/customers', '/moulds', '/users']);
-  assert.deepEqual(by.more, ['/queries', '/production'], 'nothing is lost — the rest is under More');
+  assert.deepEqual(by.more, ['/production'], 'the rest is under More');
+  assert.equal(items.some((item) => item.features.some((feature) => feature.to === '/queries')), false, 'Queries live in the panel, not on the bar');
 });
 
 test('a department keeps its own screen on the bar, beside the five', () => {
@@ -46,7 +47,7 @@ test('a department keeps its own screen on the bar, beside the five', () => {
     .filter((entry) => ['dashboard', 'queries', 'production'].includes(entry.key))
     .map((entry) => (entry.key === 'dashboard' ? { ...entry, features: entry.features.filter((feature) => feature.to === '/departments/mine') } : entry));
   const items = barItems(production, ['dashboard', 'production', 'queries']);
-  assert.deepEqual(items.map((item) => item.label), ['Dashboard', 'Department Tasks', 'Queries', 'Production']);
+  assert.deepEqual(items.map((item) => item.label), ['Dashboard', 'Department Tasks', 'Production']);
   assert.equal(items.some((item) => item.key === 'more'), false);
 });
 
@@ -136,4 +137,21 @@ test('papers go with a message to the buyer; Dispatch and Reception upload their
   assert.match(panel, /channel, body: whatsapp\.trim\(\), attachments \}/);
   assert.match(read('components/TaskWorkflow.jsx'), /<TaskDocuments todo=\{todo\} kinds=\{button\.form\.documents\} \/>/);
   assert.match(read('api/endpoints.js'), /api\.post\(`\/workspace\/todos\/\$\{id\}\/documents`, form, \{ feedback: false \}\)/);
+});
+
+test('Queries: a panel at the bottom right with its unread count and an alert for new ones', () => {
+  const rail = read('components/dock/WorkspaceRail.jsx');
+  assert.match(rail, /const inbox = useQueryInbox\(\{ enabled: seesQueries/);
+  assert.match(rail, /aria-label=\{`Queries\$\{unreadQueries \? `, \$\{unreadQueries\} unread` : ''\}`\}/, 'the badge is said to a screen reader too');
+  assert.match(rail, /\? <QueriesPanel inbox=\{inbox\} openId=\{queryId\} onOpen=\{setQueryId\} \/>/, 'drawn directly, so a typed reply survives each poll');
+  assert.match(rail, /fixed bottom-4 right-4 z-40 flex flex-col items-end gap-2 sm:hidden/, 'its own corner button on a phone');
+  const hook = read('hooks/useQueryInbox.js');
+  assert.match(hook, /const POLL_MS = 30000;/);
+  assert.match(hook, /toast\(title, body\);/);
+  assert.match(hook, /new Notification\(title, \{ body, tag: 'npt-queries'/);
+  assert.match(hook, /document\.title = count \?/);
+  const panel = read('components/dock/QueriesPanel.jsx');
+  assert.match(panel, /queriesApi\.read\(id\)/, 'opening a thread marks it read');
+  assert.match(panel, /queriesApi\.say\(\{ id, kind: 'reply', body: text \}\)/);
+  assert.match(read('api/endpoints.js'), /unread: \(\) => api\.get\('\/queries\/unread'/);
 });

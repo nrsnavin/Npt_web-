@@ -6,6 +6,8 @@ import TodoPanel from './TodoPanel.jsx';
 import NotesPanel from './NotesPanel.jsx';
 import AnnouncementsPanel from './AnnouncementsPanel.jsx';
 import JarvisPanel from './JarvisPanel.jsx';
+import QueriesPanel from './QueriesPanel.jsx';
+import useQueryInbox from '../../hooks/useQueryInbox.js';
 
 /**
  * The right-hand workspace: to-dos, notes, announcements and Jarvis, on every screen.
@@ -53,6 +55,29 @@ export default function WorkspaceRail() {
   const stored = readStored();
   const [open, setOpen] = useState(stored?.open ?? false);
   const [activeKey, setActiveKey] = useState(stored?.key || 'todos');
+  /* The thread open in the Queries panel, if any. */
+  const [queryId, setQueryId] = useState(null);
+  const seesQueries = canRead('queries');
+
+  /*
+   * Queries live here, at the bottom right, rather than as a screen on the top bar: the questions
+   * people are waiting on, answered without leaving the page you are on [QueriesPanel]. The badge
+   * is what is unread; a new one is announced [useQueryInbox].
+   */
+  const inbox = useQueryInbox({ enabled: seesQueries, onOpen: (id) => { setQueryId(id); setActiveKey('queries'); setOpen(true); } });
+  const queriesItem = seesQueries
+    ? {
+        key: 'queries',
+        label: 'Queries',
+        short: 'Queries',
+        icon: 'chat',
+        badge: inbox.data?.unread || 0,
+        urgent: (inbox.data?.unread || 0) > 0,
+        /* Drawn directly below, not as a component made here: one made on every render would be
+           a new component each time, and the reply being typed would vanish with each poll. */
+        Panel: null,
+      }
+    : null;
 
   const items = [
     {
@@ -93,8 +118,10 @@ export default function WorkspaceRail() {
       ? [{ key: 'jarvis', label: 'Ask Jarvis', short: 'Jarvis', icon: 'spark', Panel: JarvisPanel }]
       : []),
   ];
+  /* Pinned at the foot of the rail — the bottom-right corner — apart from the tools above. */
+  const allItems = queriesItem ? [...items, queriesItem] : items;
 
-  const active = items.find((item) => item.key === activeKey) || items[0];
+  const active = allItems.find((item) => item.key === activeKey) || items[0];
 
   const show = useCallback((key) => {
     setActiveKey(key);
@@ -127,10 +154,24 @@ export default function WorkspaceRail() {
   /** The count on the collapsed rail: everything actually waiting, in one number. */
   const waiting = items.reduce((sum, item) => sum + (item.badge || 0), 0);
   const anyUrgent = items.some((item) => item.urgent && item.badge > 0);
+  const unreadQueries = queriesItem?.badge || 0;
 
   return (
     <>
-      {!open && <button type="button" className="btn-secondary fixed bottom-4 right-4 z-40 shadow-modal sm:hidden" onClick={() => show(activeKey)}>Workspace{waiting > 0 ? ` (${waiting})` : ''}</button>}
+      {!open && (
+        <div className="fixed bottom-4 right-4 z-40 flex flex-col items-end gap-2 sm:hidden">
+          {/* On a phone the rail is folded away, so Queries gets its own button in the corner. */}
+          {queriesItem && (
+            <button type="button" aria-label={`Queries${unreadQueries ? `, ${unreadQueries} unread` : ''}`} className="btn-primary relative gap-1.5 shadow-modal" onClick={() => show('queries')}>
+              <DockIcon name="chat" className="h-4 w-4" /> Queries
+              {unreadQueries > 0 && (
+                <span className="absolute -right-1.5 -top-1.5 min-w-[1.25rem] rounded-full bg-danger-500 px-1 text-xs font-bold leading-5 text-white ring-2 ring-ink-900">{unreadQueries > 99 ? '99+' : unreadQueries}</span>
+              )}
+            </button>
+          )}
+          <button type="button" className="btn-secondary shadow-modal" onClick={() => show(activeKey === 'queries' ? 'todos' : activeKey)}>Workspace{waiting > 0 ? ` (${waiting})` : ''}</button>
+        </div>
+      )}
       {/* The scrim, and only where the panel overlays rather than pushes. */}
       {open && (
         <button
@@ -156,7 +197,7 @@ export default function WorkspaceRail() {
             <header className="flex shrink-0 items-center justify-between gap-2 border-b border-line/[0.06] px-4 py-2.5">
               <div className="flex items-center gap-2 text-steel-100">
                 <DockIcon name={active.icon} className="h-4 w-4 text-accent" />
-                <h2 className="text-xs font-bold tracking-tight">{active.label}</h2>
+                <h2 className="text-xs font-bold tracking-tight">{active.label}{active.key === 'queries' && unreadQueries > 0 ? ` · ${unreadQueries} unread` : ''}</h2>
               </div>
               <button
                 type="button"
@@ -171,7 +212,9 @@ export default function WorkspaceRail() {
 
             {/* `min-h-0` so the panel inside scrolls rather than pushing the column taller. */}
             <div className="min-h-0 flex-1">
-              <active.Panel />
+              {active.key === 'queries'
+                ? <QueriesPanel inbox={inbox} openId={queryId} onOpen={setQueryId} />
+                : <active.Panel />}
             </div>
           </section>
         )}
@@ -223,7 +266,7 @@ export default function WorkspaceRail() {
           {!open && waiting > 0 && (
             <button
               type="button"
-              onClick={() => show(activeKey)}
+              onClick={() => show(activeKey === 'queries' ? 'todos' : activeKey)}
               title={`${waiting} waiting`}
               className="mt-auto flex flex-col items-center gap-0.5 rounded-lg px-1 py-2 text-steel-400 transition-colors hover:bg-line/[0.05] hover:text-steel-100"
             >
@@ -235,6 +278,29 @@ export default function WorkspaceRail() {
                 {waiting > 99 ? '99+' : waiting}
               </span>
               <span className="text-[0.75rem] font-semibold">waiting</span>
+            </button>
+          )}
+
+          {queriesItem && (
+            <button
+              type="button"
+              title={`Queries${unreadQueries ? ` — ${unreadQueries} unread` : ''}`}
+              aria-label={`Queries${unreadQueries ? `, ${unreadQueries} unread` : ''}`}
+              aria-expanded={open && active.key === 'queries'}
+              onClick={() => toggle('queries')}
+              className={`relative ${!open && waiting > 0 ? 'mt-2' : 'mt-auto'} flex w-[3.4rem] flex-col items-center gap-1 rounded-lg border px-1 py-2 text-[0.75rem] font-semibold transition-colors ${
+                open && active.key === 'queries'
+                  ? 'border-flame-500/40 bg-line/[0.08] text-accent'
+                  : 'border-line/[0.1] text-steel-200 hover:bg-line/[0.05] hover:text-steel-50'
+              }`}
+            >
+              <DockIcon name="chat" className="h-5 w-5" />
+              Queries
+              {unreadQueries > 0 && (
+                <span className="absolute -right-1 -top-1.5 min-w-[1.25rem] rounded-full bg-danger-500 px-1 text-xs font-bold leading-5 tabular-nums text-white">
+                  {unreadQueries > 99 ? '99+' : unreadQueries}
+                </span>
+              )}
             </button>
           )}
         </nav>

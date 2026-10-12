@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import { customers as customersApi, downloads } from '../api/endpoints.js';
+import { customers as customersApi, deliveryRoutesApi, downloads, transportersApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useDebounced, useRecordList } from '../hooks/useRecords.js';
 import {
@@ -28,10 +28,29 @@ const RATINGS = [
  * On create it checks for a duplicate before submitting, on the same GST-then-number rule
  * the server enforces — the warning is worth more before the work than after the rejection.
  */
+/** How this buyer's goods usually travel — what the trip planner groups them by [TripPlanner]. */
+const DELIVERY_MODES = [
+  { value: 'own_vehicle', label: 'Our vehicle' },
+  { value: 'transport', label: 'Transport booking' },
+  { value: 'party_collects', label: 'Party collects' },
+  { value: 'courier', label: 'Courier' },
+];
+const idOf = (value) => (value && typeof value === 'object' ? value._id : value) || '';
+
 export function CustomerForm({ customer, onClose, onSaved }) {
   const [error, setError] = useState(null);
   const [duplicate, setDuplicate] = useState(null);
   const editing = Boolean(customer?._id);
+  /* The dispatch lists, when this person may read them; without the grant the two pickers stay hidden. */
+  const [lists, setLists] = useState({ transporters: [], routes: [] });
+  useEffect(() => {
+    let live = true;
+    Promise.all([
+      transportersApi.list({ active: 'true' }).catch(() => []),
+      deliveryRoutesApi.list({ active: 'true' }).catch(() => []),
+    ]).then(([transporters, routes]) => live && setLists({ transporters, routes }));
+    return () => { live = false; };
+  }, []);
 
   const {
     register,
@@ -42,7 +61,7 @@ export function CustomerForm({ customer, onClose, onSaved }) {
     formState: { errors, isSubmitting },
   } = useForm({
     defaultValues: editing
-      ? customer
+      ? { ...customer, usualTransporter: idOf(customer.usualTransporter), deliveryRoute: idOf(customer.deliveryRoute), deliveryMode: customer.deliveryMode || '' }
       : {
           customerType: 'garment_factory',
           rating: 'B',
@@ -75,6 +94,10 @@ export function CustomerForm({ customer, onClose, onSaved }) {
       gstin: values.gstin || undefined,
       mobile: values.mobile || undefined,
       whatsapp: values.whatsapp || undefined,
+      /* Cleared on an edit is cleared on the record; left blank on a new buyer is simply not set. */
+      deliveryMode: values.deliveryMode || (editing ? null : undefined),
+      usualTransporter: values.usualTransporter || (editing ? null : undefined),
+      deliveryRoute: values.deliveryRoute || (editing ? null : undefined),
     };
 
     try {
@@ -149,14 +172,38 @@ export function CustomerForm({ customer, onClose, onSaved }) {
         >
           <textarea rows={2} className="input" {...register('address')} />
         </Field>
-        {/* The locality and the landmark a driver asks for — Dispatch puts buyers at the same
-            landmark (or the same PIN) in one basket, for one vehicle. */}
+        {/* The locality and the landmark a driver asks for — the trip planner groups buyers at the
+            same landmark (or area, or PIN) for one vehicle. */}
         <Field label="Area / locality">
           <input className="input" placeholder="Kumar Nagar" {...register('area')} />
         </Field>
         <Field label="Landmark" hint="What a driver asks for — the bus stop, mill or temple nearby">
           <input className="input" placeholder="Near Kumar Nagar bus stop" {...register('landmark')} />
         </Field>
+        {/* How the goods go — the trip planner groups transport bookings by transporter and our own
+            deliveries by route, then landmark. */}
+        <Field label="Goods usually go by" hint="Dispatch plans trips from this">
+          <select className="input" {...register('deliveryMode')}>
+            <option value="">Not set</option>
+            {DELIVERY_MODES.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+          </select>
+        </Field>
+        {lists.transporters.length > 0 && (
+          <Field label="Usual transporter">
+            <select className="input" {...register('usualTransporter')}>
+              <option value="">Not set</option>
+              {lists.transporters.map((row) => <option key={row._id} value={row._id}>{row.name}{row.bookingOffice ? ` · ${row.bookingOffice}` : ''}</option>)}
+            </select>
+          </Field>
+        )}
+        {lists.routes.length > 0 && (
+          <Field label="Delivery route" hint="For our own vehicle">
+            <select className="input" {...register('deliveryRoute')}>
+              <option value="">Not set</option>
+              {lists.routes.map((row) => <option key={row._id} value={row._id}>{row.name}</option>)}
+            </select>
+          </Field>
+        )}
         {/* The same suggestion list the other forms use. Suggesting on one and not the other
             would leave half the records free text, and the by-city report reads both. */}
         <Field label="City">

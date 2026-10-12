@@ -23,7 +23,10 @@ export const TOP = [
 ];
 
 /** The bar's items from what this person may open: the five, their department's own, then More. */
-export function barItems(readable, ownKeys = []) {
+export function barItems(everything, ownKeys = []) {
+  /* Queries are not a screen on the bar: they live in the panel at the bottom right, with their
+     unread count [dock/WorkspaceRail.jsx, QueriesPanel] — the full list is one link from there. */
+  const readable = everything.filter((entry) => entry.key !== 'queries');
   const used = new Set();
   const pick = (moduleKey, paths) => {
     const entry = readable.find((row) => row.key === moduleKey);

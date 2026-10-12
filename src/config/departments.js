@@ -190,12 +190,14 @@ export const DEPARTMENT_WORKSPACES = {
   despatch: {
     purpose: 'Sends the goods and proves they went.',
     pages: [
+      { label: 'Plan trips', to: '/dispatch/plan', module: 'dispatch' },
       { label: 'Ready / pending dispatch', to: '/dispatches', module: 'dispatch' },
       { label: 'Enquiries to invoice', to: '/enquiries?stage=invoice_dispatch,lr_copy', module: 'enquiries' },
       { label: 'Orders', to: '/orders', module: 'orders' },
       { label: 'Quality status', to: '/quality', module: 'quality' },
     ],
     jobs: [
+      'Plan trips: ready requests grouped by transporter, route and landmark — schedule a group in one press.',
       'See the customer, order, model and quantity to send.',
       'Record the dispatch date and quantity sent.',
       'Record the courier or transporter and the AWB / docket number.',

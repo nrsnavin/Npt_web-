@@ -132,7 +132,7 @@ test('Admin and marketing raise a team task with no enquiry; the desk shows it w
   assert.match(read('components/AttentionPanel.jsx'), /<span className="font-normal text-steel-300">Team task<\/span>/);
 });
 
-test('customers carry area and landmark; Dispatch plans vehicles from baskets of the same place', () => {
+test('customers carry area and landmark; Dispatch plans its trips from groups of the same place', () => {
   const quick = read('components/CustomerQuickCreate.jsx');
   for (const field of ['address', 'area', 'landmark', 'pincode']) assert.match(quick, new RegExp(`register\\('${field}'\\)`));
   assert.match(quick, /landmark: values\.landmark\?\.trim\(\) \|\| undefined/);
@@ -140,11 +140,8 @@ test('customers carry area and landmark; Dispatch plans vehicles from baskets of
   assert.match(full, /register\('area'\)/);
   assert.match(full, /register\('landmark'\)/);
   const dashboard = read('pages/DepartmentDashboard.jsx');
-  assert.match(dashboard, /\.\.\.\(data\.baskets \? \[\{ key: 'baskets', label: 'Baskets'/);
-  assert.match(dashboard, /<DispatchBaskets baskets=\{data\.baskets\} \/>/);
-  const baskets = read('components/DispatchBaskets.jsx');
-  assert.match(baskets, /Nearby, same PIN: \{basket\.nearby\.join\(' · '\)\}/);
-  assert.match(baskets, /' — one vehicle'/);
+  assert.match(dashboard, /\.\.\.\(data\.baskets \? \[\{ key: 'baskets', label: 'Plan trips'/);
+  assert.match(dashboard, /<TripPlanner \/>/);
 });
 
 test('the enquiry shows each sample’s team log: its status trail, despatch and the notes and photos', () => {
