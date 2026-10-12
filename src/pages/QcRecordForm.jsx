@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { orders as ordersApi, qcRecordsApi } from '../api/endpoints.js';
 import { Badge, Field, FormError, PageHeader, Section } from '../components/ui.jsx';
@@ -6,7 +6,7 @@ import { EnquirySelect, MaterialSelect, MouldSelect } from '../components/picker
 import MachineSelect from '../components/MachineSelect.jsx';
 import useQualityOptions from '../hooks/useQualityOptions.js';
 import {
-  MOULDING_TYPES, PRINT_TYPES, QC_STAGES, QC_VERDICTS, RESULT, SHIFTS, workOut,
+  MOULDING_TYPES, PRINT_TYPES, QC_STAGES, QC_VERDICTS, RESULT, SHIFTS, fillFrom, workOut,
 } from '../utils/records.js';
 
 /**
@@ -135,28 +135,37 @@ export default function QcRecordForm() {
       .catch(() => live && setOrders([]));
     return () => { live = false; };
   }, [sheet.enquiry]);
-  /* Opened from an SO without its enquiry: the enquiry comes off the SO. */
-  const orderParam = params.get('order');
+  /*
+   * The prefill [server: records.service `qcPrefill`]: from the task, enquiry, SO and line (or the
+   * enquiry's item before there is an SO), what is known about the lot — buyer, model, size, mould,
+   * cavities, moulding type, resin and colour, hook, clips, print, part weight, width and lot size.
+   * It fills empty boxes, and replaces only what it filled before: a figure typed stays typed.
+   */
+  const [prefill, setPrefill] = useState(null);
+  const [item, setItem] = useState(params.get('item') || '');
+  const filled = useRef({});
   useEffect(() => {
-    if (!orderParam || params.get('enquiry')) return;
-    ordersApi.get(orderParam).then((answer) => {
-      const enquiry = answer?.data?.enquiry;
-      if (enquiry) setSheet((current) => ({ ...current, enquiry: current.enquiry || enquiry._id || enquiry }));
-    }).catch(() => {});
-  }, [orderParam, params]);
-  const chosenOrder = orders.find((row) => row._id === sheet.order);
-  /* A line picked in the link (Check this line on the SO): its model and mould, once the SO loads. */
-  const linkedLine = chosenOrder?.lines?.find((row) => row._id === sheet.orderLine);
-  useEffect(() => {
-    if (!linkedLine) return;
-    setSheet((current) => ({
-      ...current,
-      modelNumber: current.modelNumber || linkedLine.modelNumber || '',
-      mould: current.mould || linkedLine.mould?._id || linkedLine.mould || '',
-    }));
-  }, [linkedLine]);
-  const pickEnquiry = (value) => setSheet((current) => ({ ...current, enquiry: value, ...(value === current.enquiry ? {} : { order: '', orderLine: '' }) }));
+    if (!sheet.task && !sheet.enquiry && !sheet.order) { setPrefill(null); return undefined; }
+    let live = true;
+    const query = Object.fromEntries(Object.entries({ task: sheet.task, enquiry: sheet.enquiry, order: sheet.order, orderLine: sheet.orderLine, item }).filter(([, value]) => value));
+    qcRecordsApi.prefill(query).then((answer) => {
+      if (!live || !answer) return;
+      setPrefill(answer);
+      const before = filled.current;
+      setSheet((current) => {
+        const out = fillFrom(current, answer, before);
+        filled.current = out.filled;
+        return out.sheet;
+      });
+    }).catch(() => live && setPrefill(null));
+    return () => { live = false; };
+  }, [sheet.task, sheet.enquiry, sheet.order, sheet.orderLine, item]);
+  const pickEnquiry = (value) => {
+    setItem('');
+    setSheet((current) => ({ ...current, enquiry: value, ...(value === current.enquiry ? {} : { order: '', orderLine: '' }) }));
+  };
   const pickLine = (lineId) => setSheet((current) => ({ ...current, orderLine: lineId }));
+  const pickedLine = prefill?.lines?.find((row) => row._id === prefill.line);
 
   const samples = useMemo(() => parseSamples(sheet.breaking.samples), [sheet.breaking.samples]);
   const worked = useMemo(() => workOut({ ...sheet, breaking: { ...sheet.breaking, samplesKg: samples } }), [sheet, samples]);
@@ -232,8 +241,17 @@ export default function QcRecordForm() {
             ))}
           </div>
         </fieldset>
+        {prefill && (prefill.customer || prefill.order) && (
+          <p className="mt-4 rounded-lg bg-flame-500/10 px-3 py-2 text-sm text-steel-200" role="status">
+            {prefill.customer && <b className="text-steel-50">{prefill.customer}</b>}
+            {prefill.order && <> · {prefill.order.number}{prefill.order.buyerPo ? ` · PO ${prefill.order.buyerPo}` : ''}</>}
+            {pickedLine
+              ? <> — filled from {pickedLine.label}. Check and change anything that differs.</>
+              : prefill.lines.length > 1 ? <> — pick the {prefill.lineKind === 'order' ? 'line' : 'model'} below to fill the rest.</> : null}
+          </p>
+        )}
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <Field label="Enquiry" hint="The buyer is taken from it">
+          <Field label="Enquiry" hint={prefill?.enquiry ? `${prefill.enquiry.number} · the buyer is taken from it` : 'The buyer is taken from it'}>
             <EnquirySelect value={sheet.enquiry} onChange={pickEnquiry} won emptyLabel="No enquiry (stock or incoming)" />
           </Field>
           <Field label="Sales order" hint={orders.length ? 'Left empty, the enquiry’s latest SO is used' : sheet.enquiry ? 'No SO on this enquiry yet' : 'Pick the enquiry first'}>
@@ -242,11 +260,19 @@ export default function QcRecordForm() {
               {orders.map((row) => <option key={row._id} value={row._id}>{row.number}{row.customerPo?.number ? ` · PO ${row.customerPo.number}` : ''}</option>)}
             </select>
           </Field>
-          {chosenOrder?.lines?.length > 0 && (
-            <Field label="Line of the order">
+          {prefill?.lineKind === 'order' && prefill.lines.length > 1 && (
+            <Field label="Line of the order" hint="Picking the line fills the model, resin, hook, clips and print">
               <select className="input" value={sheet.orderLine} onChange={(event) => pickLine(event.target.value)}>
                 <option value="">Whole order</option>
-                {chosenOrder.lines.map((line) => <option key={line._id} value={line._id}>{[line.modelNumber, line.colour, line.quantity && `${line.quantity} pcs`].filter(Boolean).join(' · ')}</option>)}
+                {prefill.lines.map((line) => <option key={line._id} value={line._id}>{line.label}</option>)}
+              </select>
+            </Field>
+          )}
+          {prefill?.lineKind === 'enquiry' && prefill.lines.length > 1 && (
+            <Field label="Model of the enquiry" hint="Picking it fills the model, resin, hook, clips and print">
+              <select className="input" value={item} onChange={(event) => setItem(event.target.value)}>
+                <option value="">Pick the model…</option>
+                {prefill.lines.map((line) => <option key={line._id} value={line._id}>{line.label}</option>)}
               </select>
             </Field>
           )}

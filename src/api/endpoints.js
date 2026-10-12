@@ -1030,6 +1030,8 @@ export const qcRecordsApi = {
   certificate: (record) => save(`/qc-records/${record._id}/certificate`, undefined, `${record.number}-qc-report.pdf`),
   /** An SO's QC sheets, and the latest verdict on each of its lines. */
   onOrder: (orderId) => api.get(`/orders/${orderId}/qc-records`).then((r) => r.data),
+  /** What a new sheet starts with, from the task, enquiry, SO and line it is opened from. */
+  prefill: (params) => api.get('/qc-records/prefill', { params, feedback: false }).then(unwrap),
 };
 
 /** The moulding machines, and the maintenance and runs made on each. */
@@ -1057,6 +1059,8 @@ export const mouldRunsApi = {
 
 /** The dispatch register: every stop on every trip that left, with the LR details. */
 /** How an SO's goods went: its dispatch requests, the trips they went on, and the LR details. */
+/** What an enquiry led to: its SOs, QC records and every dispatch request, trip and LR. */
+export const enquiryRecords = (enquiryId) => api.get(`/enquiries/${enquiryId}/records`).then(unwrap);
 export const orderDispatchDetails = (orderId) => api.get(`/orders/${orderId}/dispatch-details`).then(unwrap);
 
 export const dispatchRegisterApi = {
