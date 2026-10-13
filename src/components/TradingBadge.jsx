@@ -9,7 +9,7 @@ export default function TradingBadge({ line, className = '' }) {
   if (line && !isTradingLine(line)) return null;
   return (
     <span
-      className={`inline-flex items-center rounded-full bg-aqua-500/15 px-2 py-0.5 text-xs font-semibold text-aqua-600 ${className}`}
+      className={`inline-flex items-center rounded-full bg-aqua-500/15 px-2 py-0.5 text-xs font-semibold text-aqua-400 ${className}`}
       title="Bought in and resold — costed at the supplier's inward price"
     >
       Trading model

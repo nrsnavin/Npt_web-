@@ -23,7 +23,7 @@ function Card({ row, column }) {
           {row.subject}
         </p>
         {row.unread > 0 && (
-          <span className="flex h-5 min-w-[1.25rem] shrink-0 items-center justify-center rounded-full bg-flame-500 px-1.5 text-[0.75rem] font-bold text-white">
+          <span className="flex h-5 min-w-[1.25rem] shrink-0 items-center justify-center rounded-full bg-flame-700 px-1.5 text-[0.75rem] font-bold text-white">
             {row.unread}
           </span>
         )}

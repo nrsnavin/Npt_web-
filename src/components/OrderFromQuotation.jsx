@@ -45,7 +45,9 @@ export default function OrderFromQuotation({ quotation, onClose, onOrdered }) {
       packing: line.packing || '',
       hookRef: line.hookRef || '',
       clipRef: line.clipRef || '',
-      missingOnQuote: missingDetails(line),
+      /* A bought-in piece comes as it is — no hook, clip or packing of ours to confirm, as on the costing sheet. */
+      boughtIn: line.procurement === 'trade',
+      missingOnQuote: line.procurement === 'trade' ? [] : missingDetails(line),
     }))
   );
   /* Booking goes ahead with blanks only on the word that the buyer confirmed the details. */
@@ -64,7 +66,7 @@ export default function OrderFromQuotation({ quotation, onClose, onOrdered }) {
     (sum, row) => sum + (Number(row.quantity) || 0) * (Number(row.unitPrice) || 0),
     0
   );
-  const unconfirmed = chosen.filter((row) => missingDetails(row).length > 0);
+  const unconfirmed = chosen.filter((row) => !row.boughtIn && missingDetails(row).length > 0);
   const incomplete = chosen.some((row) => !Number(row.quantity)) || (unconfirmed.length > 0 && !confirmed);
 
   const submit = async (event) => {
