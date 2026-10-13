@@ -108,8 +108,9 @@
   --flame-50: 255 241 230;
   --flame-100: 255 220 194;
   --flame-200: 255 190 138;
-  --flame-300: 217 90 0;
-  --flame-400: 194 81 10;
+  /* Text shades on a light canvas: 4.5:1 or better on white and on the tinted panels. */
+  --flame-300: 194 81 10;
+  --flame-400: 178 70 8;
   --flame-500: 247 104 0;
   --flame-600: 217 90 0;
   --flame-700: 178 74 0;
@@ -155,7 +156,7 @@
   /* Hairlines and hover washes darken the surface they sit on. */
   --line: 15 30 41;
   --scrim: 12 20 26;
-  --accent: 194 81 10;
+  --accent: 178 70 8;
 
   /* Lift on a light canvas is a soft, tinted drop shadow rather than a black one. */
   --shadow-raised: 0 1px 2px rgba(15, 30, 41, 0.05), 0 1px 3px rgba(15, 30, 41, 0.06);
@@ -182,8 +183,8 @@
   --primary-hover: #8a3a00;
   --primary-text: #ffffff;
 
-    --flame-300: 217 90 0;
-    --flame-400: 194 81 10;
+    --flame-300: 194 81 10;
+    --flame-400: 178 70 8;
 
     --aqua-300: 16 112 127;
     --aqua-400: 33 120 134;
@@ -215,7 +216,7 @@
     --danger-600: 158 22 41;
 
     --line: 15 30 41;
-    --accent: 194 81 10;
+    --accent: 178 70 8;
 
     --shadow-raised: 0 1px 2px rgba(15, 30, 41, 0.05), 0 1px 3px rgba(15, 30, 41, 0.06);
     --shadow-float: 0 4px 10px rgba(15, 30, 41, 0.07), 0 12px 28px rgba(15, 30, 41, 0.09);

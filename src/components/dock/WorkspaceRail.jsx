@@ -165,7 +165,7 @@ export default function WorkspaceRail() {
             <button type="button" aria-label={`Queries${unreadQueries ? `, ${unreadQueries} unread` : ''}`} className="btn-primary relative gap-1.5 shadow-modal" onClick={() => show('queries')}>
               <DockIcon name="chat" className="h-4 w-4" /> Queries
               {unreadQueries > 0 && (
-                <span className="absolute -right-1.5 -top-1.5 min-w-[1.25rem] rounded-full bg-danger-500 px-1 text-xs font-bold leading-5 text-white ring-2 ring-ink-900">{unreadQueries > 99 ? '99+' : unreadQueries}</span>
+                <span className="absolute -right-1.5 -top-1.5 min-w-[1.25rem] rounded-full bg-danger-600 px-1 text-xs font-bold leading-5 text-white ring-2 ring-ink-900">{unreadQueries > 99 ? '99+' : unreadQueries}</span>
               )}
             </button>
           )}
@@ -248,7 +248,7 @@ export default function WorkspaceRail() {
                 {item.badge > 0 && (
                   <span
                     className={`absolute right-1 top-1 min-w-[1rem] rounded-full px-1 text-[0.75rem] font-bold leading-4 tabular-nums text-white ${
-                      item.urgent ? 'bg-danger-500' : 'bg-steel-500'
+                      item.urgent ? 'bg-danger-600' : 'bg-aqua-600'
                     }`}
                   >
                     {item.badge > 99 ? '99+' : item.badge}
@@ -272,7 +272,7 @@ export default function WorkspaceRail() {
             >
               <span
                 className={`min-w-[1.4rem] rounded-full px-1.5 py-0.5 text-xs font-bold leading-4 tabular-nums text-white ${
-                  anyUrgent ? 'bg-danger-500' : 'bg-flame-500'
+                  anyUrgent ? 'bg-danger-600' : 'bg-flame-700'
                 }`}
               >
                 {waiting > 99 ? '99+' : waiting}
@@ -297,7 +297,7 @@ export default function WorkspaceRail() {
               <DockIcon name="chat" className="h-5 w-5" />
               Queries
               {unreadQueries > 0 && (
-                <span className="absolute -right-1 -top-1.5 min-w-[1.25rem] rounded-full bg-danger-500 px-1 text-xs font-bold leading-5 tabular-nums text-white">
+                <span className="absolute -right-1 -top-1.5 min-w-[1.25rem] rounded-full bg-danger-600 px-1 text-xs font-bold leading-5 tabular-nums text-white">
                   {unreadQueries > 99 ? '99+' : unreadQueries}
                 </span>
               )}

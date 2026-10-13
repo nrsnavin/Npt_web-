@@ -50,7 +50,7 @@ function FigureTile({ label, value, hint, to }) {
   const body = (
     <>
       <p className="text-sm font-semibold text-steel-300">{label}</p>
-      <p className="mt-1 text-3xl font-extrabold tabular-nums text-aqua-600">{value}</p>
+      <p className="mt-1 text-3xl font-extrabold tabular-nums text-aqua-400">{value}</p>
       <p className="mt-1 text-xs text-steel-500">{hint}</p>
     </>
   );
@@ -132,14 +132,14 @@ function PartyMaster({ isAdmin, onAdd, onFollowUpChanged, refreshKey = 0 }) {
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="truncate font-semibold text-steel-50">{row.name}</p>
-                  {row.isNew && <span className="rounded-full bg-aqua-500/15 px-2 py-0.5 text-[0.75rem] font-semibold text-aqua-600">New Enquiry</span>}
+                  {row.isNew && <span className="rounded-full bg-aqua-500/15 px-2 py-0.5 text-[0.75rem] font-semibold text-aqua-400">New Enquiry</span>}
                 </div>
                 <p className="truncate text-xs text-steel-400">{row.line}{isAdmin && row.owner ? ` · ${row.owner}` : ''}</p>
                 <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs font-semibold text-steel-300">
                   <span aria-hidden className={`h-2 w-2 rounded-full ${dotFor(row)}`} />
                   {row.status}
                   {row.customerFollowUp && (
-                    <span className={`ml-1 rounded-full px-2 py-0.5 font-semibold ${new Date(row.customerFollowUp.due) < new Date() ? 'bg-danger-500/15 text-danger-400' : 'bg-aqua-500/15 text-aqua-600'}`}>
+                    <span className={`ml-1 rounded-full px-2 py-0.5 font-semibold ${new Date(row.customerFollowUp.due) < new Date() ? 'bg-danger-500/15 text-danger-400' : 'bg-aqua-500/15 text-aqua-400'}`}>
                       Follow-up {formatDateTime(row.customerFollowUp.due)}{row.customerFollowUp.note ? ` · ${row.customerFollowUp.note}` : ''}
                     </span>
                   )}

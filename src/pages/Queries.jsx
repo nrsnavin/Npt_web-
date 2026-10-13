@@ -797,7 +797,7 @@ export default function Queries() {
                       {unread > 0 && (
                         <span
                           className="flex h-5 min-w-[1.25rem] shrink-0 items-center justify-center
-                            rounded-full bg-flame-500 px-1.5 text-[0.75rem] font-bold text-white"
+                            rounded-full bg-flame-700 px-1.5 text-[0.75rem] font-bold text-white"
                           aria-label={`${unread} unread`}
                         >
                           {unread > 99 ? '99+' : unread}

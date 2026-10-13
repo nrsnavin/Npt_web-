@@ -142,7 +142,7 @@ export default function QueriesPanel({ inbox, openId, onOpen }) {
                     {row.number}{row.last?.text ? ` · ${row.last.by?.name ? `${row.last.by.name}: ` : ''}${row.last.text}` : ''}
                   </span>
                   {row.unread > 0 && (
-                    <span className="shrink-0 rounded-full bg-danger-500 px-1.5 text-xs font-bold leading-5 text-white" aria-label={`${row.unread} unread`}>{row.unread}</span>
+                    <span className="shrink-0 rounded-full bg-danger-600 px-1.5 text-xs font-bold leading-5 text-white" aria-label={`${row.unread} unread`}>{row.unread}</span>
                   )}
                 </span>
                 {row.taggedMe > 0 && <span className="mt-0.5 block text-xs font-semibold text-accent">@ you</span>}
