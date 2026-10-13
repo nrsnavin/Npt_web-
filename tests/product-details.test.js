@@ -79,9 +79,9 @@ test('the costing sheet confirms the blanks before the quote, and saves what was
 
 test('booking from a quotation says what the quote left blank and takes the buyer’s word before booking', () => {
   const form = read('components/OrderFromQuotation.jsx');
-  assert.match(form, /missingOnQuote: missingDetails\(line\)/);
+  assert.match(form, /missingOnQuote: line\.procurement === 'trade' \? \[\] : missingDetails\(line\)/, 'a bought-in piece has nothing of ours to confirm');
   assert.match(form, /Not given on the quotation: \{sayList\(row\.missingOnQuote\)\}/);
-  assert.match(form, /const unconfirmed = chosen\.filter\(\(row\) => missingDetails\(row\)\.length > 0\);/);
+  assert.match(form, /const unconfirmed = chosen\.filter\(\(row\) => !row\.boughtIn && missingDetails\(row\)\.length > 0\);/);
   assert.match(form, /\(unconfirmed\.length > 0 && !confirmed\)/);
   assert.match(form, /category: text\(row\.category\),\s*packing: text\(row\.packing\),/);
   assert.match(form, /aria-label="Product details confirmed with the buyer"/);
@@ -90,7 +90,7 @@ test('booking from a quotation says what the quote left blank and takes the buye
 test('the second door asks the same of every named line', () => {
   const form = read('components/OrderForm.jsx');
   assert.match(form, /category: '', packing: '',/);
-  assert.match(form, /\.filter\(\(entry\) => entry\.named && entry\.missing\.length\)/, 'a blank line is not a line with blanks');
+  assert.match(form, /\.filter\(\(entry\) => entry\.named && !entry\.booked && entry\.missing\.length\)/, 'a blank line is not a line with blanks, and a line already booked is not asked again');
   assert.match(form, /disabled=\{busy \|\| needsConfirm \|\|/);
   assert.match(form, /category: line\.category \|\| undefined,\s*packing: text\(line\.packing\),/);
   assert.match(form, /<ProductDetailsConfirm/);

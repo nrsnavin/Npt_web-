@@ -90,9 +90,10 @@ export default function OrderForm({ order, onClose, onSaved, enquiry: forEnquiry
   const [error, setError] = useState(null);
   /* Lines without their hook, clip, category or packing book only on the buyer's word [components/ProductDetailsConfirm.jsx]. */
   const [confirmed, setConfirmed] = useState(false);
+  /* Asked of the lines being booked now: a line already on a saved order was confirmed when it was booked. */
   const unconfirmed = lines
-    .map((line, index) => ({ index, missing: missingDetails(line), named: Boolean(line.mould || line.modelNumber) }))
-    .filter((entry) => entry.named && entry.missing.length);
+    .map((line, index) => ({ index, missing: missingDetails(line), named: Boolean(line.mould || line.modelNumber), booked: Boolean(line._id) }))
+    .filter((entry) => entry.named && !entry.booked && entry.missing.length);
   const needsConfirm = unconfirmed.length > 0 && !confirmed;
 
   const setLine = (index, key) => (value) =>
