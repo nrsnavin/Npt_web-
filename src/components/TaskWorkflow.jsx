@@ -9,6 +9,7 @@ import TaskDocuments from './TaskDocuments.jsx';
 import DepartmentTaskDialog from './DepartmentTaskDialog.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import { todayInIndia } from '../utils/taskForm.js';
+import { ladderOf } from '../utils/taskState.js';
 import { departmentLabel } from '../utils/pipeline.js';
 
 /**
@@ -247,6 +248,9 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
   const waiting = (todo.waitingOn || []).filter((task) => (button.form.actions || []).some((action) => action.kind === task.kind));
   const resultStep = statuses.find((entry) => entry.pdf);
   const editable = (button.asks || []).filter((field) => field.editable);
+  /* The obvious move — the rung after the one the task stands on — as the one big button. */
+  const next = ladderOf(button, todo)?.next;
+  const nextIsButton = next && !next.pdf && !waiting.length;
 
   if (todo.completed) {
     return (
@@ -276,10 +280,16 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-2">
-        <label className="text-xs font-semibold text-steel-400" htmlFor={`status-${todo._id}`}>Status update</label>
+        {nextIsButton && (
+          <button type="button" className="btn-primary px-3 py-1.5 text-xs" onClick={() => choose(next.key)}>
+            {next.label} →
+          </button>
+        )}
+        <label className="sr-only" htmlFor={`status-${todo._id}`}>Status update</label>
         <select
           id={`status-${todo._id}`}
-          className="input w-auto min-w-[12rem] py-1.5 text-sm disabled:cursor-not-allowed disabled:opacity-80"
+          aria-label="Change status"
+          className="input w-auto min-w-[11rem] py-1.5 text-xs disabled:cursor-not-allowed disabled:opacity-80"
           value={moving?.key || todo.status || ''}
           disabled={waiting.length > 0}
           aria-describedby={waiting.length ? `waiting-${todo._id}` : undefined}

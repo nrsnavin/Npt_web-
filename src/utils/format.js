@@ -49,6 +49,36 @@ export const formatDateTime = (value) => {
 };
 
 /**
+ * How long ago, as a person says it — "just now", "25 min ago", "3 h ago", "yesterday",
+ * "4 days ago" — and the date itself once it is more than a week old. For a line in a
+ * history that is read the same day it was written; the exact time goes on hover.
+ */
+export const formatRelative = (value, now = Date.now()) => {
+  if (!value) return '';
+  const then = new Date(value).getTime();
+  if (!Number.isFinite(then)) return '';
+  const seconds = Math.round((now - then) / 1000);
+  if (seconds < 60) return 'just now';
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24 && isoDay(then) === isoDay(now)) return `${hours} h ago`;
+  const days = Math.round((new Date(isoDay(now)) - new Date(isoDay(then))) / 86400000);
+  if (days <= 1) return 'yesterday';
+  if (days < 7) return `${days} days ago`;
+  return formatDate(value);
+};
+
+/** Two letters for a marker: "Ramesh Plant" → "RP", "Nandhini" → "N". */
+export const initialsOf = (name = '') =>
+  String(name || '')
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((word) => word[0].toUpperCase())
+    .join('') || '?';
+
+/**
  * A count and its noun, agreeing.
  *
  * Written out at every call site until now, which is how "1 task need you" reached a screen
