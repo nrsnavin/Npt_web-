@@ -2,8 +2,9 @@ import { useState } from 'react';
 import PaymentTermsPicker from './PaymentTermsPicker.jsx';
 import { orders as ordersApi } from '../api/endpoints.js';
 import { Field, Notice } from './ui.jsx';
+import { missingDetails, sayList } from './ProductDetailsConfirm.jsx';
 import { formatCurrency, formatNumber } from '../utils/format.js';
-import { text } from '../utils/pipeline.js';
+import { HANGER_CATEGORIES, text } from '../utils/pipeline.js';
 
 /**
  * Booking the order an accepted quotation became [§12].
@@ -39,8 +40,16 @@ export default function OrderFromQuotation({ quotation, onClose, onOrdered }) {
       unitPrice: String(line.unitPrice ?? ''),
       colour: '',
       deliveryDate: '',
+      /* The product details the costing sheet confirmed — or did not [components/ProductDetailsConfirm.jsx]. */
+      category: line.category || '',
+      packing: line.packing || '',
+      hookRef: line.hookRef || '',
+      clipRef: line.clipRef || '',
+      missingOnQuote: missingDetails(line),
     }))
   );
+  /* Booking goes ahead with blanks only on the word that the buyer confirmed the details. */
+  const [confirmed, setConfirmed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
@@ -55,7 +64,8 @@ export default function OrderFromQuotation({ quotation, onClose, onOrdered }) {
     (sum, row) => sum + (Number(row.quantity) || 0) * (Number(row.unitPrice) || 0),
     0
   );
-  const incomplete = chosen.some((row) => !Number(row.quantity));
+  const unconfirmed = chosen.filter((row) => missingDetails(row).length > 0);
+  const incomplete = chosen.some((row) => !Number(row.quantity)) || (unconfirmed.length > 0 && !confirmed);
 
   const submit = async (event) => {
     event.preventDefault();
@@ -74,6 +84,8 @@ export default function OrderFromQuotation({ quotation, onClose, onOrdered }) {
             unitPrice: Number(row.unitPrice),
             colour: text(row.colour),
             deliveryDate: text(row.deliveryDate),
+            category: text(row.category),
+            packing: text(row.packing),
           })),
         })
       );
@@ -138,11 +150,16 @@ export default function OrderFromQuotation({ quotation, onClose, onOrdered }) {
                     {row.detail}
                     {row.moq ? ` · minimum ${formatNumber(row.moq)}` : ''}
                   </span>
+                  {row.missingOnQuote.length > 0 && (
+                    <span className="block text-xs font-semibold text-warn-400">
+                      Not given on the quotation: {sayList(row.missingOnQuote)}
+                    </span>
+                  )}
                 </span>
               </label>
 
               {row.taken && (
-                <div className="mt-3 grid gap-3 pl-7 sm:grid-cols-4">
+                <div className="mt-3 grid gap-3 pl-7 sm:grid-cols-3">
                   <Field label="Quantity">
                     <input
                       type="number"
@@ -173,11 +190,40 @@ export default function OrderFromQuotation({ quotation, onClose, onOrdered }) {
                       onChange={setRow(row._id, 'deliveryDate')}
                     />
                   </Field>
+                  <Field label="Category">
+                    <select className="input" value={row.category} onChange={setRow(row._id, 'category')} aria-label={`Category of ${row.label}`}>
+                      <option value="">—</option>
+                      {HANGER_CATEGORIES.map((option) => (
+                        <option key={option.value ?? option} value={option.value ?? option}>{option.label ?? option}</option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field label="Packing">
+                    <input className="input" placeholder="200 pcs per carton" value={row.packing} onChange={setRow(row._id, 'packing')} aria-label={`Packing of ${row.label}`} />
+                  </Field>
                 </div>
               )}
             </div>
           ))}
         </div>
+
+        {unconfirmed.length > 0 && (
+          <label className="mt-3 flex items-start gap-2.5 rounded-lg border border-warn-500/40 bg-warn-500/[0.06] p-3 text-sm text-steel-100">
+            <input
+              type="checkbox"
+              className="mt-0.5 h-4 w-4 accent-flame-500"
+              checked={confirmed}
+              onChange={(event) => setConfirmed(event.target.checked)}
+              aria-label="Product details confirmed with the buyer"
+            />
+            <span>
+              Product details confirmed with the buyer
+              <span className="mt-0.5 block text-xs text-steel-400">
+                {unconfirmed.map((row) => `${row.label}: ${sayList(missingDetails(row))}`).join(' · ')} still blank — fill them above, or tick to book anyway.
+              </span>
+            </span>
+          </label>
+        )}
 
         <div className="mt-3 flex justify-end gap-6 border-t border-line/[0.06] pt-3 text-sm">
           <span className="text-steel-400">

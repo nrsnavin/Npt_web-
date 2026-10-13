@@ -7,6 +7,8 @@ import { Field, Notice } from './ui.jsx';
 import Combobox from './Combobox.jsx';
 import PreviousQuotes from './PreviousQuotes.jsx';
 import TradingBadge from './TradingBadge.jsx';
+import ProductDetailsConfirm, { missingDetails } from './ProductDetailsConfirm.jsx';
+import { HANGER_CATEGORIES } from '../utils/pipeline.js';
 import { MINIMUM_TIER, STANDARD_TIERS, priceAt as priceFor } from '../utils/pricing.js';
 import { changedParts } from '../utils/pricing.js';
 import { GRAM_STEP, cutGrams } from '../utils/grams.js';
@@ -28,6 +30,9 @@ const rupees = (value) =>
  * is spelled out for the same reason it is on the register: the material picker beside this one
  * quotes per kilo.
  */
+/** A bought-in piece comes as it is; only what is made here has a hook, a clip and packing to confirm. */
+const procurementNeedsDetails = (procurement) => procurement !== 'trade';
+
 const partOption = (row) => ({
   value: row._id,
   label: `${row.name}${row.colour ? ` · ${row.colour}` : ''} — ₹${row.ratePerPiece}/pc`,
@@ -67,9 +72,34 @@ export default function CostingSheetForm({ quotation: pricing, line, onClose, on
   const [hookRef, setHookRef] = useState(row.hookRef?._id ?? row.hookRef ?? '');
   const [clipRef, setClipRef] = useState(row.clipRef?._id ?? row.clipRef ?? '');
   const [printRef, setPrintRef] = useState(row.printRef?._id ?? row.printRef ?? '');
+  /*
+   * The product details the enquiry asks for only on a new development [components/ItemCards.jsx]:
+   * what the line arrived without is the reason the confirmation panel is there, and stays its
+   * reason; what is still blank after the sheet is filled in is what the tick vouches for.
+   */
+  const [category, setCategory] = useState(row.category ?? '');
+  const [packing, setPacking] = useState(row.packing ?? '');
+  const [confirmed, setConfirmed] = useState(false);
+  const missingAtOpen = useRef(missingDetails(row)).current;
+  const missingNow = missingDetails({ category, hookRef, clipRef, packing });
+  /* The register's own answer for a mould it knows, offered where the enquiry gave none. */
+  useEffect(() => {
+    const tool = row.mould?._id ?? row.mould;
+    if (!tool || (row.category && row.packing)) return undefined;
+    let live = true;
+    mouldsApi.get(tool)
+      .then((known) => {
+        if (!live) return;
+        if (!row.category && known.category) setCategory((current) => current || known.category);
+        if (!row.packing && known.packingQty) setPacking((current) => current || `${known.packingQty} pcs per carton`);
+      })
+      .catch(() => {});
+    return () => { live = false; };
+  }, [row.mould, row.category, row.packing]);
   const [markupPercent, setMarkup] = useState(row.markupPercent ?? 10);
   const [printing, setPrinting] = useState(row.printing ?? '');
   const [procurement, setProcurement] = useState(row.procurement ?? 'manufacture');
+  const needsConfirm = procurementNeedsDetails(procurement) && missingAtOpen.length > 0 && missingNow.length > 0 && !confirmed;
   /* Blank means "the standing floor" — the 10% tier. Only a job with its own floor fills it. */
   const [minimumOverride, setMinimumOverride] = useState(row.minimumOverride ?? '');
   const [approved, setApproved] = useState(row.unitPrice ?? '');
@@ -280,6 +310,9 @@ export default function CostingSheetForm({ quotation: pricing, line, onClose, on
           ...(pricing.sentAt ? {} : { unitPrice: number(approved) }),
           printing: printing || undefined,
           procurement,
+          /* The product details confirmed on the sheet, only where they moved. */
+          ...(category !== (row.category ?? '') ? { category: category || null } : {}),
+          ...(packing !== (row.packing ?? '') ? { packing } : {}),
           ...chosenParts(),
           /* Only when the pick changed: an unchanged item would re-fill a price typed by hand. */
           ...(tradedItem !== openedItem ? { tradedItem: tradedItem || null } : {}),
@@ -338,6 +371,33 @@ export default function CostingSheetForm({ quotation: pricing, line, onClose, on
             own floor, so the rest are untouched by what is saved here.
           </p>
         </div>
+      )}
+
+      {/* What the enquiry did not ask for, confirmed here before the quote goes out. */}
+      {procurementNeedsDetails(procurement) && (
+        <ProductDetailsConfirm
+          line={{ ...row, category, packing, hookRef: hookRef || undefined, clipRef: clipRef || undefined }}
+          missingAtOpen={missingAtOpen}
+          missingNow={missingNow}
+          confirmed={confirmed}
+          onConfirm={setConfirmed}
+          what="quotation"
+        >
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Category">
+              <select className="input" value={category} onChange={(event) => setCategory(event.target.value)} aria-label="Category">
+                <option value="">—</option>
+                {HANGER_CATEGORIES.map((option) => (
+                  <option key={option.value ?? option} value={option.value ?? option}>{option.label ?? option}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Packing" hint="Pieces per carton, polybag — as the buyer wants it">
+              <input className="input" placeholder="200 pcs per carton" value={packing} onChange={(event) => setPacking(event.target.value)} aria-label="Packing" />
+            </Field>
+          </div>
+          <p className="text-xs text-steel-400">The hook and clip are picked from the registers below.</p>
+        </ProductDetailsConfirm>
       )}
 
       {/*
@@ -639,9 +699,10 @@ export default function CostingSheetForm({ quotation: pricing, line, onClose, on
 
       {error && <Notice tone="danger">{error}</Notice>}
 
-      <div className="flex justify-end gap-2">
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        {needsConfirm && <p className="mr-auto text-xs text-warn-400">Fill in the product details above, or confirm them with the buyer.</p>}
         <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
-        <button type="submit" className="btn-primary" disabled={busy}>
+        <button type="submit" className="btn-primary" disabled={busy || needsConfirm}>
           {busy ? 'Saving…' : 'Save the costing'}
         </button>
       </div>

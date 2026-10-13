@@ -178,14 +178,21 @@ function ConvertToCustomer({ open, enquiry, onClose, onConverted }) {
 
       {mode === 'new' ? (
         <CustomerForm
+          /* Everything the call took down, so nothing is typed twice: the company, the person
+             and their numbers, the city, where the enquiry came from, and whose it is. */
           customer={{
             name: prospect.name || '',
-            mobile: prospect.mobile || '',
-            whatsapp: prospect.whatsapp || '',
+            mobile: prospect.mobile || prospect.whatsapp || '',
+            whatsapp: prospect.whatsapp || prospect.mobile || '',
             email: prospect.email || '',
             city: prospect.city || '',
             orderContact: prospect.contactPerson || '',
-            source: 'manual',
+            contacts: prospect.contactPerson
+              ? [{ name: prospect.contactPerson, mobile: prospect.mobile || prospect.whatsapp || '', email: prospect.email || '', isPrimary: true }]
+              : [],
+            source: enquiry.source || 'manual',
+            assignedTo: enquiry.assignedTo?._id || enquiry.assignedTo || undefined,
+            notes: enquiry.remarks ? `From ${enquiry.number}: ${enquiry.remarks}` : '',
           }}
           onCreate={create}
           submitLabel="Create customer and convert"
