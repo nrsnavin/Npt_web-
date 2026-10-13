@@ -63,18 +63,20 @@ test('what was asked becomes label / value rows, a table row under its table’s
   ]);
 });
 
-test('the enquiry’s task list, the task panel and the desk lists draw the same facts and timeline', () => {
-  const desk = read('components/DepartmentDesk.jsx');
-  assert.match(desk, /<TaskFacts button=\{button\} task=\{task\} \/>/);
-  assert.match(desk, /<TaskTimeline task=\{task\} button=\{button\} \/>/);
-  assert.doesNotMatch(desk, /Update · \{update\.by/, 'no more one-sentence update lines');
-  assert.match(desk, /Raised by <span className="text-steel-300">\{task\.createdBy\.name\}<\/span>/);
+test('the enquiry’s task cards, the task panel and the desk lists draw the same facts and timeline', () => {
+  const card = read('components/TaskCard.jsx');
+  assert.match(card, /<TaskFacts button=\{button\} task=\{task\} \/>/);
+  assert.match(card, /<TaskTimeline task=\{task\} button=\{button\} \/>/);
+  assert.doesNotMatch(card, /Update · \{update\.by/, 'no more one-sentence update lines');
+  assert.match(card, /Raised by <span className="text-steel-300">\{task\.createdBy\.name\}<\/span>/);
+  assert.match(read('components/DepartmentDesk.jsx'), /<TaskCard\s+key=\{task\._id\}\s+task=\{task\}\s+mayAct=\{mayAct\(task\)\}/);
   const panel = read('components/TaskPanel.jsx');
   assert.match(panel, /<TaskFacts button=\{button\} task=\{task\} \/>/);
   assert.match(panel, /<TaskTimeline task=\{task\} button=\{button\} \/>/);
   assert.match(read('components/HandoffTaskList.jsx'), /<TaskTimeline task=\{task\} button=\{buttonFor\(catalogue, task\.kind\)\} compact/);
   const history = read('components/TaskHistory.jsx');
-  assert.match(history, /formatDateTime\(entry\.at\)/, 'the time of day on every line');
+  assert.match(history, /title=\{formatDateTime\(entry\.at\)\}/, 'the exact time of day on hover, on every line');
+  assert.match(history, /formatRelative\(entry\.at\)/, 'how long ago, as read');
   assert.match(history, /<dl className=\{`grid grid-cols-\[auto_1fr\]/, 'facts as a table');
   assert.match(read('utils/format.js'), /export const formatDateTime/);
 });

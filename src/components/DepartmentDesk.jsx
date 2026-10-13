@@ -1,15 +1,18 @@
 import { useCallback, useEffect, useState } from 'react';
 import { handoffs as handoffsApi } from '../api/endpoints.js';
 import TaskPdfLink from './TaskPdfLink.jsx';
-import TaskWorkflow from './TaskWorkflow.jsx';
+import TaskCard from './TaskCard.jsx';
+import Menu from './Menu.jsx';
 import DepartmentTaskDialog from './DepartmentTaskDialog.jsx';
-import { TaskFacts, TaskTimeline } from './TaskHistory.jsx';
+import HandoffTaskActions from './HandoffTaskActions.jsx';
+import { TaskTimeline } from './TaskHistory.jsx';
 import { useHandoffCatalogue } from '../hooks/useHandoffCatalogue.js';
 import { useAuth } from '../context/AuthContext.jsx';
-import HandoffTaskActions from './HandoffTaskActions.jsx';
 import { Field, Modal, Notice, Section } from './ui.jsx';
 import { departmentLabel } from '../utils/pipeline.js';
-import { formatDate } from '../utils/format.js';
+import { formatDate, plural } from '../utils/format.js';
+import { timelineOf } from '../utils/taskHistory.js';
+import { bandOf } from '../utils/taskState.js';
 
 /**
  * The enquiry's departments, and the tasks raised on them — the plant's own screen
@@ -18,19 +21,20 @@ import { formatDate } from '../utils/format.js';
  * The enquiry stays with its marketing person; Admin sees every one. Clicking a department
  * raises that department's task, due by the end of the day, with the answers to the questions
  * the task asks (Sampling: mould, material, colour, preferred or compulsory) — and that task is
- * what the department's dashboard shows. Several departments can have tasks at once. Below is
- * everything that happened — what was asked, updates, what was done.
+ * what the department's dashboard shows. Several departments can have tasks at once.
+ *
+ * Below the tiles, the tasks — each a card read at a glance [components/TaskCard.jsx] — in three
+ * bands: the ones that need the reader (theirs, or their department's), the ones with somebody
+ * else, and the finished ones folded to a line each. Or, switched to Timeline, everything that
+ * happened on every task in the order it happened, filtered by department: the enquiry's story,
+ * for a review or a call with the buyer.
  */
 
-const BUTTON = 'rounded-lg border border-line/20 px-3 py-1.5 text-sm font-semibold text-steel-100 transition-colors hover:border-success-500/60 hover:text-success-400';
-
-const STATE = (task) => {
-  if (task.outcome?.result === 'returned') return { text: 'Sent back', tone: 'text-warn-400' };
-  if (task.outcome?.result === 'moved') return { text: 'Moved on', tone: 'text-steel-400' };
-  if (task.completed) return { text: 'Done', tone: 'text-success-400' };
-  if (task.user) return { text: `With ${task.user.name}`, tone: 'text-steel-300' };
-  return { text: 'Waiting to be picked up', tone: 'text-steel-400' };
-};
+const BANDS = [
+  { key: 'needs_you', label: 'Needs you', open: true },
+  { key: 'in_progress', label: 'In progress', open: false },
+  { key: 'done', label: 'Done', open: false },
+];
 
 /** The buttons that record rather than raise a task: Photos Sent, Task Closed. */
 function SendDialog({ button, enquiry, onClose, onSent }) {
@@ -85,12 +89,35 @@ function SendDialog({ button, enquiry, onClose, onSent }) {
   );
 }
 
+/** By task, or everything in time order — the two ways of reading what happened. */
+function ViewToggle({ view, onChange }) {
+  const option = (key, label) => (
+    <button
+      type="button"
+      aria-pressed={view === key}
+      onClick={() => onChange(key)}
+      className={`rounded-md px-2.5 py-1 text-xs font-semibold transition-colors ${view === key ? 'bg-line/[0.1] text-steel-50' : 'text-steel-400 hover:text-steel-100'}`}
+    >
+      {label}
+    </button>
+  );
+  return (
+    <div className="inline-flex gap-0.5 rounded-lg border border-line/[0.08] p-0.5" role="group" aria-label="How to read the tasks">
+      {option('tasks', 'By task')}
+      {option('timeline', 'Timeline')}
+    </div>
+  );
+}
+
 export default function DepartmentDesk({ enquiry, onChanged }) {
   const catalogue = useHandoffCatalogue();
   const { user, worksIn } = useAuth();
   const [history, setHistory] = useState(null);
   const [problem, setProblem] = useState(null);
   const [sending, setSending] = useState(null);
+  const [view, setView] = useState('tasks');
+  const [showDone, setShowDone] = useState(false);
+  const [feedDepartment, setFeedDepartment] = useState('');
 
   /* Again when the owner changes — a hand-over moves whose list the enquiry is on. */
   const owner = String(enquiry.assignedTo?._id || enquiry.assignedTo || '');
@@ -102,9 +129,10 @@ export default function DepartmentDesk({ enquiry, onChanged }) {
   const stage = history?.stage || enquiry.stage || 'enquiry';
   const closed = stage === 'closed';
   const tasks = history?.data || [];
+  const me = String(user?.id || user?._id || '');
   const mayAct = (task) => user?.role === 'admin'
     || worksIn(task.department)
-    || String(task.user?._id || task.user || '') === String(user?.id || user?._id || '');
+    || String(task.user?._id || task.user || '') === me;
 
   const refresh = () => {
     load();
@@ -112,6 +140,7 @@ export default function DepartmentDesk({ enquiry, onChanged }) {
   };
 
   if (!catalogue) return null;
+  const buttonOf = (task) => catalogue.buttons.find((item) => item.key === task.kind);
   const stages = catalogue.stages.filter((item) => item.number);
   const holder = history?.holder || null;
   const mayMove = Boolean(history?.mayMove);
@@ -123,6 +152,8 @@ export default function DepartmentDesk({ enquiry, onChanged }) {
       ? holder.user.name
       : `${departmentLabel(holder.department)}${holder.user?.name ? ` (${holder.user.name})` : ''}`;
   const holderLate = holder?.dueDate && new Date(holder.dueDate) < new Date();
+  /* The enquiry's own holding task: its follow-up date is the one thing to change on it. */
+  const holding = tasks.find((task) => task.holds && !task.completed);
   const drawn = catalogue.buttons.filter((button) => !button.hidden);
   /* Which departments have a task open right now — several can, at once. */
   const openTasks = tasks.filter((task) => !task.completed && !task.holds);
@@ -136,8 +167,38 @@ export default function DepartmentDesk({ enquiry, onChanged }) {
   const production = history?.production;
   const inProduction = ['production_edd', 'assembling'].includes(stage) || Boolean(production?.asked);
 
+  /* The work itself — the holding task is the enquiry, said above, not a card. */
+  const work = tasks.filter((task) => !task.holds);
+  const bands = BANDS.map((band) => ({
+    ...band,
+    tasks: work.filter((task) => bandOf(task, buttonOf(task), { me, worksIn, owner }) === band.key),
+  })).filter((band) => band.tasks.length);
+  const openCount = work.filter((task) => !task.completed).length;
+
+  /* "+ Raise a task": every button, under its department; the record-only ones last. */
+  const raise = [...drawn.filter((button) => button.department), ...drawn.filter((button) => !button.department)].map((button) => ({
+    key: button.key,
+    label: button.label,
+    hint: button.hint,
+    group: button.department ? departmentLabel(button.department) : 'Record',
+    onSelect: () => setSending(button),
+  }));
+
+  /* The timeline across every task: each entry says which task it is from. */
+  const labelOf = (kind) => catalogue.buttons.find((entry) => entry.key === kind)?.label || 'next step';
+  const feed = work
+    .flatMap((task) => {
+      const button = buttonOf(task);
+      return timelineOf(task, button, { labelOf }).map((entry) => ({
+        ...entry, source: button?.label || task.title, department: task.department, statuses: button?.form?.statuses || [],
+      }));
+    })
+    .sort((a, b) => new Date(a.at || 0) - new Date(b.at || 0));
+  const feedDepartments = [...new Set(work.map((task) => task.department))];
+  const shownFeed = feedDepartment ? feed.filter((entry) => entry.department === feedDepartment) : feed;
+
   return (
-    <Section title="Departments">
+    <Section title="Departments" actions={work.length > 0 ? <ViewToggle view={view} onChange={setView} /> : undefined}>
       <div className="space-y-4">
         {!closed && inProduction && production && (
           <div className="rounded-xl border border-accent/40 bg-accent/[0.07] px-3 py-2.5" aria-label="Expected delivery">
@@ -179,7 +240,7 @@ export default function DepartmentDesk({ enquiry, onChanged }) {
         {results.length > 0 && (
           <div className="space-y-2" aria-label="Uploaded by departments">
             {results.map((task) => {
-              const button = catalogue.buttons.find((item) => item.key === task.kind);
+              const button = buttonOf(task);
               return (
                 <div key={task._id} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-success-500/40 bg-success-500/[0.07] px-3 py-2.5">
                   <p className="text-sm text-steel-100">
@@ -238,87 +299,94 @@ export default function DepartmentDesk({ enquiry, onChanged }) {
         </div>
         {closed && <Notice tone="info">This enquiry is closed.</Notice>}
 
-        {/* Whose enquiry it is — its marketing person, wherever its work is. */}
-        {!closed && holder && (
-          <div className="flex flex-wrap items-baseline justify-between gap-2 rounded-lg border border-accent/30 bg-accent/[0.05] px-3 py-2 text-sm">
-            <p className="text-steel-100">
-              <span className="text-steel-400">Enquiry with </span>
-              <span className="font-semibold">{holderName}</span>
-              {holderButton && holderButton.department !== 'owner' && <span className="text-steel-400"> · {holderButton.label}</span>}
-              {openTasks.length > 0 && <span className="text-steel-400"> · {openTasks.length} department task{openTasks.length === 1 ? '' : 's'} open</span>}
-            </p>
-            {holder.dueDate && (
-              <span className={`text-xs ${holderLate ? 'text-danger-400' : 'text-steel-400'}`}>
-                {holderLate ? `Follow-up late — was due ${formatDate(holder.dueDate)}` : `Follow-up ${formatDate(holder.dueDate)}`}
-              </span>
-            )}
-          </div>
-        )}
-
+        {/* Whose enquiry it is — its marketing person, wherever its work is — and what can be raised on it. */}
         {!closed && (
-          <div className="space-y-2">
-            <p className="text-xs text-steel-500">
-              {mayMove
-                ? 'Tap a department to raise its task, or use a button below.'
-                : `This is ${holderName || 'its marketing person'}’s enquiry. They or Admin raise department tasks on it.`}
-            </p>
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-lg border border-accent/30 bg-accent/[0.05] px-3 py-2 text-sm">
+            <div className="min-w-0">
+              {holder && (
+                <p className="text-steel-100">
+                  <span className="text-steel-400">Enquiry with </span>
+                  <span className="font-semibold">{holderName}</span>
+                  {holderButton && holderButton.department !== 'owner' && <span className="text-steel-400"> · {holderButton.label}</span>}
+                  {openCount > 0 && <span className="text-steel-400"> · {plural(openCount, 'task', 'tasks')} open</span>}
+                </p>
+              )}
+              {holder?.dueDate && (
+                <p className={`flex flex-wrap items-center gap-x-2 text-xs ${holderLate ? 'text-danger-400' : 'text-steel-400'}`}>
+                  <span>{holderLate ? `Follow-up late — was due ${formatDate(holder.dueDate)}` : `Follow-up ${formatDate(holder.dueDate)}`}</span>
+                  {holding && mayAct(holding) && <HandoffTaskActions todo={holding} onChanged={refresh} />}
+                </p>
+              )}
+              {!holder && <p className="text-xs text-steel-500">Tap a department above to raise its task.</p>}
+            </div>
             {mayMove && (
-              <div className="flex flex-wrap gap-2">
-                {drawn.map((button) => (
-                  <button key={button.key} type="button" title={button.hint} onClick={() => setSending(button)} className={`${BUTTON} ${button.department ? '' : 'text-steel-300'}`}>
-                    {button.label}
-                  </button>
-                ))}
-              </div>
+              <Menu label="+ Raise a task" items={raise} align="right" buttonClassName="btn-primary px-3 py-1.5 text-xs" />
+            )}
+            {!mayMove && (
+              <p className="text-xs text-steel-500">{`${holderName || 'Its marketing person'} or Admin raise department tasks on it.`}</p>
             )}
           </div>
         )}
 
         {problem && <Notice tone="danger">{problem}</Notice>}
 
-        {tasks.length > 0 && (
-          <ul className="divide-y divide-line/[0.06] rounded-lg border border-line/[0.06]">
-            {tasks.map((task) => {
-              const state = STATE(task);
-              const overdue = !task.completed && task.dueDate && new Date(task.dueDate) < new Date();
-              const button = catalogue.buttons.find((item) => item.key === task.kind);
-              const currentStatus = button?.form?.statuses?.find((entry) => entry.key === task.status)?.label;
-              /*
-               * One card, read top to bottom: what and for whom · who raised it, when, when due ·
-               * what was asked, as facts · what happened, as a timeline · what can be done now.
-               */
+        {work.length > 0 && view === 'tasks' && (
+          <div className="space-y-4">
+            {bands.map((band) => {
+              const folded = band.key === 'done' && openCount > 0 && !showDone;
               return (
-                <li key={task._id} className="space-y-2 px-3 py-3">
-                  <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-                    <p className="text-sm font-semibold text-steel-100">
-                      {button?.label || task.title}
-                      <span className="font-normal text-steel-400">{' → '}{departmentLabel(task.department)}</span>
-                    </p>
-                    <span className={`text-xs font-semibold ${state.tone}`}>{state.text}</span>
-                  </div>
-                  <p className="text-xs text-steel-500">
-                    {task.createdBy?.name && <>Raised by <span className="text-steel-300">{task.createdBy.name}</span>{task.fromDepartment ? ` (${departmentLabel(task.fromDepartment)})` : ''} · </>}
-                    {formatDate(task.createdAt)}
-                    {task.dueDate && !task.completed && (
-                      <span className={overdue ? 'font-semibold text-danger-400' : ''}>{` · due ${formatDate(task.dueDate)}${overdue ? ' — late' : ''}`}</span>
-                    )}
-                    {currentStatus && !task.completed && <> · <span className="font-semibold text-accent">{currentStatus}</span></>}
-                  </p>
-                  <TaskFacts button={button} task={task} />
-                  <TaskPdfLink file={task.attachment} />
-                  <TaskTimeline task={task} button={button} />
-                  {button?.form?.statuses && (mayAct(task) || task.completed) && (
-                    <div className="pt-1"><TaskWorkflow todo={task} onChanged={refresh} /></div>
+                <div key={band.key}>
+                  {band.key === 'done' && openCount > 0 ? (
+                    <button
+                      type="button"
+                      className="eyebrow mb-1.5 inline-flex items-center gap-1.5 hover:text-steel-100"
+                      aria-expanded={!folded}
+                      onClick={() => setShowDone((value) => !value)}
+                    >
+                      {band.label} · {band.tasks.length}
+                      <span aria-hidden className={`text-xs transition-transform ${folded ? '' : 'rotate-180'}`}>▼</span>
+                    </button>
+                  ) : (
+                    <p className="eyebrow mb-1.5">{band.label} · {band.tasks.length}</p>
                   )}
-                  {!task.completed && mayAct(task) && (
-                    <div className="flex flex-wrap gap-x-4 gap-y-1.5 border-t border-line/[0.06] pt-2">
-                      <HandoffTaskActions todo={task} onChanged={refresh} />
-                    </div>
+                  {!folded && (
+                    <ul className="space-y-2" aria-label={band.label}>
+                      {band.tasks.map((task) => (
+                        <TaskCard
+                          key={task._id}
+                          task={task}
+                          mayAct={mayAct(task)}
+                          open={band.open && openCount <= 4}
+                          onChanged={refresh}
+                        />
+                      ))}
+                    </ul>
                   )}
-                </li>
+                </div>
               );
             })}
-          </ul>
+          </div>
+        )}
+
+        {work.length > 0 && view === 'timeline' && (
+          <div className="space-y-3">
+            {feedDepartments.length > 1 && (
+              <div className="flex flex-wrap gap-1.5" role="group" aria-label="Department">
+                {[['', 'All'], ...feedDepartments.map((key) => [key, departmentLabel(key)])].map(([key, label]) => (
+                  <button
+                    key={key || 'all'}
+                    type="button"
+                    aria-pressed={feedDepartment === key}
+                    onClick={() => setFeedDepartment(key)}
+                    className={`rounded-full border px-2.5 py-1 text-xs font-semibold transition-colors ${feedDepartment === key ? 'border-accent/60 bg-accent/10 text-accent' : 'border-line/[0.1] text-steel-300 hover:text-steel-100'}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+            <TaskTimeline entries={shownFeed} />
+          </div>
         )}
       </div>
 

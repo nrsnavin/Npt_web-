@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { workspace } from '../api/endpoints.js';
 import { buttonFor, useHandoffCatalogue } from '../hooks/useHandoffCatalogue.js';
 import { Field, Modal, Notice } from './ui.jsx';
+import Menu from './Menu.jsx';
 import { describeBrief } from '../utils/taskForm.js';
 import { isoDay } from '../utils/format.js';
 
@@ -142,11 +143,40 @@ export function HandoffDialog({ todo, mode, onClose, onChanged }) {
   );
 }
 
-/** The buttons for a task row. `onChanged` gets the updated task. */
-export default function HandoffTaskActions({ todo, onChanged }) {
+/**
+ * The buttons for a task row. `onChanged` gets the updated task.
+ *
+ * `layout="menu"` is the task card's way: the one thing most likely wanted (`primary`: `done`
+ * for a task without a workflow, nothing for one whose workflow offers the next step) as a
+ * button, and the rest behind "⋯" — four equal buttons under every card were noise.
+ */
+export default function HandoffTaskActions({ todo, onChanged, layout = 'row', primary }) {
   const catalogue = useHandoffCatalogue();
   const [mode, setMode] = useState(null);
   if (!todo?.kind || todo.completed) return null;
+  if (layout === 'menu' && !isTheEnquiry(todo, buttonFor(catalogue, todo.kind))) {
+    const byUpload = (buttonFor(catalogue, todo.kind)?.form?.statuses || []).some((entry) => entry.pdf && entry.done);
+    const choices = [
+      { key: 'update', label: 'Update', hint: 'How it is going — the task stays with you', onSelect: () => setMode('update') },
+      ...(byUpload ? [] : [{ key: 'done', label: todo.holds ? 'Back to marketing' : 'Done', hint: 'Finished — back to whoever asked', onSelect: () => setMode('done') }]),
+      { key: 'back', label: 'Send back', hint: 'With a reason, to whoever asked', onSelect: () => setMode('back') },
+      { key: 'date', label: 'Change date', hint: 'Move the due date, with a reason', onSelect: () => setMode('date') },
+    ];
+    const lead = choices.find((choice) => choice.key === primary);
+    return (
+      <>
+        {lead && <button type="button" className="btn-primary px-3 py-1.5 text-xs" onClick={lead.onSelect}>{lead.label}</button>}
+        <Menu
+          label="⋯"
+          srLabel="More actions"
+          align="right"
+          items={choices.filter((choice) => choice !== lead)}
+          buttonClassName="btn-secondary min-w-9 px-2.5 py-1.5 text-sm leading-none"
+        />
+        <HandoffDialog todo={todo} mode={mode} onClose={() => setMode(null)} onChanged={onChanged} />
+      </>
+    );
+  }
   /* The enquiry itself: its follow-up date moves; it is closed with Task Closed on the enquiry. */
   if (isTheEnquiry(todo, buttonFor(catalogue, todo.kind))) {
     return (
