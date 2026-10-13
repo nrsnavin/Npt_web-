@@ -760,6 +760,8 @@ export const MARKETING_STATUSES = [
   { value: 'qc', label: 'QC' },
   { value: 'dispatch', label: 'Dispatch' },
   { value: 'lr_copy', label: 'LR Copy' },
+  /* The LR uploaded and on its way — the enquiry closes at this [server: config/handoffs.js whenResult]. */
+  { value: 'lr_sent', label: 'LR Sent' },
   { value: 'task_closed', label: 'Task Closed' },
 ];
 
