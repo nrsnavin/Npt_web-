@@ -38,7 +38,8 @@ const BANDS = [
 
 /** The buttons that record rather than raise a task: Photos Sent, Task Closed. */
 function SendDialog({ button, enquiry, onClose, onSent }) {
-  const [note, setNote] = useState('');
+  /* A button may arrive with its note written for it — Close after the LR says why already. */
+  const [note, setNote] = useState(button?.note || '');
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState(null);
   if (!button) return null;
@@ -75,7 +76,7 @@ function SendDialog({ button, enquiry, onClose, onSent }) {
           <textarea rows={3} className="input" value={note} onChange={(event) => setNote(event.target.value)} autoFocus />
         </Field>
         {button.key === 'task_closed' && (
-          <Notice tone="warn">Closing ends every task still open on this enquiry. Nothing more can be sent on it.</Notice>
+          <Notice tone="warn">Closing ends every task still open on this enquiry, except an LR Reception is still tracking to delivery. Nothing more can be sent on it.</Notice>
         )}
         {problem && <Notice tone="danger">{problem}</Notice>}
         <div className="flex justify-end gap-2">
@@ -155,6 +156,7 @@ export default function DepartmentDesk({ enquiry, onChanged }) {
   /* The enquiry's own holding task: its follow-up date is the one thing to change on it. */
   const holding = tasks.find((task) => task.holds && !task.completed);
   const drawn = catalogue.buttons.filter((button) => !button.hidden);
+  const closeButton = catalogue.buttons.find((button) => button.key === 'task_closed');
   /* Which departments have a task open right now — several can, at once. */
   const openTasks = tasks.filter((task) => !task.completed && !task.holds);
   const openFor = (department) => openTasks.filter((task) => task.department === department).length;
@@ -298,6 +300,26 @@ export default function DepartmentDesk({ enquiry, onChanged }) {
           })}
         </div>
         {closed && <Notice tone="info">This enquiry is closed.</Notice>}
+
+        {/*
+          The LR is in: the order has gone. Closing is a person's call — another lorry may still
+          be due — so the enquiry stays open and this offers the close, with the reason written.
+        */}
+        {!closed && mayMove && history?.lrUploaded && closeButton && (
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-lg border border-success-500/40 bg-success-500/[0.08] px-3 py-2.5 text-sm">
+            <div className="min-w-0">
+              <p className="font-semibold text-steel-50">LR uploaded and sent to the buyer</p>
+              <p className="text-xs text-steel-300">When every lorry for this order has gone, close the enquiry. Reception can still mark the goods delivered.</p>
+            </div>
+            <button
+              type="button"
+              className="btn-primary px-3 py-1.5 text-xs"
+              onClick={() => setSending({ ...closeButton, heading: 'Close the enquiry', note: 'LR sent to the buyer — order complete' })}
+            >
+              Close enquiry
+            </button>
+          </div>
+        )}
 
         {/* Whose enquiry it is — its marketing person, wherever its work is — and what can be raised on it. */}
         {!closed && (
