@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { buyerCards as cardsApi } from '../api/endpoints.js';
+import { buyerCards as cardsApi, customers as customersApi } from '../api/endpoints.js';
+import { useAuth } from '../context/AuthContext.jsx';
 import { Badge, EmptyState, ErrorState, Field, Notice, PageHeader } from '../components/ui.jsx';
 import { formatDate } from '../utils/format.js';
 import { SOURCES } from '../utils/pipeline.js';
@@ -76,11 +77,26 @@ function CardEditor({ card, onDone }) {
   const [fields, setFields] = useState({});
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState(null);
+  /*
+   * Admin and management send screenshots too, but do not hold buyers themselves: they say which
+   * salesperson gets this one. Left on automatic, the sender keeps it if they can, else the
+   * marketing rotation picks [server: intake.service ownerForNewBuyer].
+   */
+  const { isManagement } = useAuth();
+  const [team, setTeam] = useState([]);
+  useEffect(() => {
+    if (!isManagement) return undefined;
+    let live = true;
+    customersApi.team().then((answer) => live && setTeam(answer?.data || [])).catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [isManagement]);
 
   /* Only what was recognised. The next step, the date and how we met them start empty: they are
      the salesperson's to give, not the app's to guess. */
   useEffect(() => {
-    setFields({ ...(card.reading || {}), nextAction: '', nextFollowUpDate: '', source: '', estimatedValue: '' });
+    setFields({ ...(card.reading || {}), nextAction: '', nextFollowUpDate: '', source: '', estimatedValue: '', assignedTo: '' });
     setProblem(null);
   }, [card._id]);
 
@@ -107,6 +123,7 @@ function CardEditor({ card, onDone }) {
         ...fields,
         estimatedQuantity: quantityOf(fields.estimatedQuantity),
         estimatedValue: value ? Number(value) : null,
+        assignedTo: fields.assignedTo || undefined,
       });
       onDone(done.card, done.enquiry);
     } catch (failure) {
@@ -228,6 +245,16 @@ function CardEditor({ card, onDone }) {
                   ))}
                 </select>
               </Field>
+              {isManagement && team.length > 0 && (
+                <Field label="Marketing person" hint="Automatic: the sender keeps it, else the marketing rotation">
+                  <select className="input" value={fields.assignedTo || ''} disabled={off} onChange={(event) => set('assignedTo', event.target.value)}>
+                    <option value="">Automatic</option>
+                    {team.map((person) => (
+                      <option key={person._id} value={person._id}>{person.self ? `${person.name} (you)` : person.name}</option>
+                    ))}
+                  </select>
+                </Field>
+              )}
               <Field label="Estimated value (₹)" hint="If you have a feel for it">
                 <input
                   className="input"
