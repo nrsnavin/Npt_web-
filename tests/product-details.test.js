@@ -37,9 +37,10 @@ test('the facts read the names off populated registers, and the blanks as blanks
 test('on the enquiry, the model reference, category, size, hook, clip and packing are asked only of a new development', () => {
   const cards = read('components/ItemCards.jsx');
   assert.match(cards, /const develops = !withMould \|\| Boolean\(item\.isNewDevelopment\);/);
-  for (const label of ['Category', 'Size \\(mm\\)', 'Hook', 'Clip', 'Packing']) {
+  for (const label of ['Size \\(mm\\)', 'Hook', 'Clip', 'Packing']) {
     assert.match(cards, new RegExp(`\\{develops && \\(\\s*<Field label="${label}"`), `${label} is gated on the new-development tick`);
   }
+  assert.doesNotMatch(cards, /<Field label="Category"/, 'the category is never asked on the enquiry');
   assert.match(cards, /\{develops && \(\s*<Field\s+label=\{item\.isNewDevelopment \? 'Describe the model' : 'Model reference'\}/);
   /* Printing and the colour rule stay asked of every item. */
   assert.match(cards, /\n\s*<Field label="Printing">/);
