@@ -14,9 +14,9 @@ import { detailsOf, missingDetails, sayList } from '../src/utils/productDetails.
 const read = (path) => readFileSync(new URL(`../src/${path}`, import.meta.url), 'utf8');
 
 test('what a line does not say, in the sheet’s order, said as a person says a list', () => {
-  assert.deepEqual(missingDetails({}), ['Category', 'Hook', 'Clip', 'Packing']);
+  assert.deepEqual(missingDetails({}), ['Hook', 'Clip', 'Packing'], 'the category is not asked for');
   assert.deepEqual(missingDetails({ category: 'shirt', hookRef: 'h1', clipRef: { _id: 'c1', name: 'Metal clip' }, packing: '200 pcs' }), []);
-  assert.deepEqual(missingDetails({ category: '', hookRef: 'h1', packing: '  ' }), ['Category', 'Clip', 'Packing'], 'blank spaces are not a packing');
+  assert.deepEqual(missingDetails({ category: '', hookRef: 'h1', packing: '  ' }), ['Clip', 'Packing'], 'blank spaces are not a packing');
   assert.equal(sayList(['Category', 'Hook', 'Packing']), 'Category, Hook and Packing');
   assert.equal(sayList(['Hook']), 'Hook');
   assert.equal(sayList([]), '');
@@ -68,6 +68,9 @@ test('the costing sheet confirms the blanks before the quote, and saves what was
   assert.match(sheet, /<ProductDetailsConfirm\s+line=\{\{ \.\.\.row, category, packing/);
   assert.match(sheet, /disabled=\{busy \|\| needsConfirm\}/);
   assert.match(sheet, /\.\.\.\(category !== \(row\.category \?\? ''\) \? \{ category: category \|\| null \} : \{\}\)/);
+  /* Only the packing is typed in the panel — the hook and clip are the parts pickers below, the category comes from the mould. */
+  assert.doesNotMatch(sheet, /Hook to confirm|Clip to confirm|aria-label="Category"/);
+  assert.match(sheet, /The hook and clip are picked from the parts registers below\./);
   assert.match(sheet, /\.\.\.\(packing !== \(row\.packing \?\? ''\) \? \{ packing \} : \{\}\)/);
   /* The register's own category and packing are offered for a mould it knows. */
   assert.match(sheet, /if \(!row\.category && known\.category\) setCategory/);

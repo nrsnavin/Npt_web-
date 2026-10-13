@@ -1,13 +1,13 @@
 import { HANGER_CATEGORIES } from './pipeline.js';
 
 /**
- * The product details a quotation or a sales order must not go out without — category, hook,
- * clip, packing — read off a line, and what the line does not say
- * [components/ProductDetailsConfirm.jsx].
+ * The product details a quotation or a sales order must not go out without — hook, clip,
+ * packing — read off a line, and what the line does not say
+ * [components/ProductDetailsConfirm.jsx]. The category is not one of them: a registered mould
+ * fills its own, and it is shown where known.
  */
 
 export const PRODUCT_DETAILS = [
-  { key: 'category', label: 'Category' },
   { key: 'hookRef', label: 'Hook' },
   { key: 'clipRef', label: 'Clip' },
   { key: 'packing', label: 'Packing' },
