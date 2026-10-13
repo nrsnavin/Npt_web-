@@ -395,8 +395,34 @@ export default function CostingSheetForm({ quotation: pricing, line, onClose, on
             <Field label="Packing" hint="Pieces per carton, polybag — as the buyer wants it">
               <input className="input" placeholder="200 pcs per carton" value={packing} onChange={(event) => setPacking(event.target.value)} aria-label="Packing" />
             </Field>
+            {/* The same hook and clip as the parts registers below — one choice, shown in both places, fills the cost lines. */}
+            <Field label="Hook" hint="From the hook register — fills the hook line below">
+              <Combobox
+                value={hookRef}
+                onChange={setHookRef}
+                loadOptions={loadParts('hook')}
+                loadOne={componentsApi.get}
+                toOption={partOption}
+                placeholder="Search hooks…"
+                emptyLabel="No hook chosen"
+                noMatchLabel="No hook matches"
+                aria-label="Hook to confirm"
+              />
+            </Field>
+            <Field label="Clip" hint="From the clip register — fills the metal clips line below">
+              <Combobox
+                value={clipRef}
+                onChange={setClipRef}
+                loadOptions={loadParts('clip')}
+                loadOne={componentsApi.get}
+                toOption={partOption}
+                placeholder="Search clips…"
+                emptyLabel="No clip chosen"
+                noMatchLabel="No clip matches"
+                aria-label="Clip to confirm"
+              />
+            </Field>
           </div>
-          <p className="text-xs text-steel-400">The hook and clip are picked from the registers below.</p>
         </ProductDetailsConfirm>
       )}
 

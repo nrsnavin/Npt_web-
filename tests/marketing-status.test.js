@@ -11,12 +11,12 @@ import { MARKETING_STATUSES, marketingStatusLabel } from '../src/utils/pipeline.
 
 const read = (path) => readFileSync(new URL(`../src/${path}`, import.meta.url), 'utf8');
 
-test('the twenty options, in the order marketing works them — the plant’s six before Task Closed', () => {
+test('the twenty-one options, in the order marketing works them — the plant’s seven before Task Closed', () => {
   assert.deepEqual(MARKETING_STATUSES.map((entry) => entry.label), [
     'Enquiry received', 'Photos to send', 'Photos sent', 'Model selection requested',
     'Sample requested', 'Sample sent', 'Quotation preparing', 'Quotation sent',
     'Pricing discussion', 'Price approved', 'PO awaiting', 'PO received', 'Sales order sent',
-    'Production', 'Mould', 'Assembling', 'QC', 'Dispatch', 'LR Copy',
+    'Production', 'Mould', 'Assembling', 'QC', 'Dispatch', 'LR Copy', 'LR Sent',
     'Task Closed',
   ]);
   assert.equal(marketingStatusLabel('po_awaiting'), 'PO awaiting');

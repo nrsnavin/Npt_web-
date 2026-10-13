@@ -274,31 +274,14 @@ function ItemCard({
             )}
 
             {/*
-              The model reference, category, size, hook, clip and packing are asked only for a
-              new development — a model on the register already knows its own (the category
-              and size are filled from it), and a bought-in piece comes as it is. Left
-              unasked, the costing sheet and the sales order ask whoever prices or books it to
-              confirm them [components/ProductDetailsConfirm.jsx].
+              The model reference, size, hook, clip and packing are asked only for a new
+              development — a model on the register already knows its own (the category and
+              size are filled from it), and a bought-in piece comes as it is. Left unasked,
+              the costing sheet and the sales order ask whoever prices or books it to confirm
+              them [components/ProductDetailsConfirm.jsx].
             */}
-            {develops && (
-              <Field label="Category">
-                <select
-                  className="input"
-                  value={item.category || ''}
-                  disabled={disabled}
-                  onChange={(event) => set({ category: event.target.value })}
-                  aria-label={`Category for item ${index + 1}`}
-                >
-                  <option value="">—</option>
-                  {HANGER_CATEGORIES.map((option) => (
-                    <option key={option.value ?? option} value={option.value ?? option}>
-                      {option.label ?? option}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-            )}
-
+            {/* The category is never asked on the enquiry: a registered mould fills its own,
+                and the costing sheet asks for a new development's. */}
             {develops && (
               <Field label="Size (mm)">
                 <input
