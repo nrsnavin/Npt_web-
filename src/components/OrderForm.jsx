@@ -6,8 +6,9 @@ import PaymentTermsPicker from './PaymentTermsPicker.jsx';
 import {
   ColourInput, CustomerSelect, EnquirySelect, MaterialSelect, MouldSelect, PartSelect,
 } from './pickers.jsx';
+import ProductDetailsConfirm, { missingDetails, sayList } from './ProductDetailsConfirm.jsx';
 import { formatCurrency } from '../utils/format.js';
-import { numeric, text } from '../utils/pipeline.js';
+import { HANGER_CATEGORIES, numeric, text } from '../utils/pipeline.js';
 
 /* The order screens round to the rupee: a line value is thousands of pieces, and paise on a
    figure that size is noise. Rates are shown to the paisa where they are entered. */
@@ -30,6 +31,7 @@ const blankLine = () => ({
   mould: '', modelNumber: '',
   materialRef: '', colour: '',
   hookRef: '', clipRef: '', printRef: '',
+  category: '', packing: '',
   quantity: '', unitPrice: '', deliveryDate: '',
 });
 
@@ -50,6 +52,8 @@ export default function OrderForm({ order, onClose, onSaved, enquiry: forEnquiry
           hookRef: line.hookRef?._id ?? line.hookRef ?? '',
           clipRef: line.clipRef?._id ?? line.clipRef ?? '',
           printRef: line.printRef?._id ?? line.printRef ?? '',
+          category: line.category ?? '',
+          packing: line.packing ?? '',
           quantity: line.quantity ?? '',
           unitPrice: line.unitPrice ?? '',
           deliveryDate: line.deliveryDate ? line.deliveryDate.slice(0, 10) : '',
@@ -84,6 +88,12 @@ export default function OrderForm({ order, onClose, onSaved, enquiry: forEnquiry
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  /* Lines without their hook, clip, category or packing book only on the buyer's word [components/ProductDetailsConfirm.jsx]. */
+  const [confirmed, setConfirmed] = useState(false);
+  const unconfirmed = lines
+    .map((line, index) => ({ index, missing: missingDetails(line), named: Boolean(line.mould || line.modelNumber) }))
+    .filter((entry) => entry.named && entry.missing.length);
+  const needsConfirm = unconfirmed.length > 0 && !confirmed;
 
   const setLine = (index, key) => (value) =>
     setLines(lines.map((line, at) => (at === index ? { ...line, [key]: value } : line)));
@@ -120,6 +130,8 @@ export default function OrderForm({ order, onClose, onSaved, enquiry: forEnquiry
             hookRef: line.hookRef || undefined,
             clipRef: line.clipRef || undefined,
             printRef: line.printRef || undefined,
+            category: line.category || undefined,
+            packing: text(line.packing),
             /* Left blank, the server fills it from the resin's own colour — see the model. */
             colour: text(line.colour),
             quantity: Number(line.quantity),
@@ -283,6 +295,20 @@ export default function OrderForm({ order, onClose, onSaved, enquiry: forEnquiry
                 </Field>
               </div>
 
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <Field label={index === 0 ? 'Category' : ''}>
+                  <select className="input" value={line.category} onChange={(event) => setLine(index, 'category')(event.target.value)} aria-label={`Category on line ${index + 1}`}>
+                    <option value="">—</option>
+                    {HANGER_CATEGORIES.map((option) => (
+                      <option key={option.value ?? option} value={option.value ?? option}>{option.label ?? option}</option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label={index === 0 ? 'Packing' : ''} hint={index === 0 ? 'Pieces per carton, polybag' : undefined}>
+                  <input className="input" placeholder="200 pcs per carton" value={line.packing} onChange={(event) => setLine(index, 'packing')(event.target.value)} aria-label={`Packing on line ${index + 1}`} />
+                </Field>
+              </div>
+
               <div className="mt-3 grid gap-3 sm:grid-cols-3">
                 <Field label={index === 0 ? 'Quantity' : ''}>
                   <input
@@ -329,6 +355,23 @@ export default function OrderForm({ order, onClose, onSaved, enquiry: forEnquiry
         <button type="button" className="btn-secondary mt-3" onClick={() => setLines([...lines, blankLine()])}>
           + Another model
         </button>
+
+        {unconfirmed.length > 0 && (
+          <ProductDetailsConfirm
+            line={lines.length === 1 ? lines[0] : {}}
+            missingAtOpen={[...new Set(unconfirmed.flatMap((entry) => entry.missing))]}
+            missingNow={[...new Set(unconfirmed.flatMap((entry) => entry.missing))]}
+            confirmed={confirmed}
+            onConfirm={setConfirmed}
+            what="order"
+          >
+            {lines.length > 1 && (
+              <p className="text-xs text-steel-400">
+                {unconfirmed.map((entry) => `Line ${entry.index + 1}: ${sayList(entry.missing)}`).join(' · ')}
+              </p>
+            )}
+          </ProductDetailsConfirm>
+        )}
       </div>
 
       {/* The terms decide what is collected before production and before dispatch. */}
@@ -391,7 +434,7 @@ export default function OrderForm({ order, onClose, onSaved, enquiry: forEnquiry
           </p>
         )}
         <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
-        <button type="submit" className="btn-primary" disabled={busy || (!editing && (!customer || !enquiry))}>
+        <button type="submit" className="btn-primary" disabled={busy || needsConfirm || (!editing && (!customer || !enquiry))}>
           {busy ? 'Saving…' : editing ? 'Save changes' : 'Book the order'}
         </button>
       </div>

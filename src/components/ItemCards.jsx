@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Badge, Field } from './ui.jsx';
 import { ColourInput, MaterialSelect, MouldSelect, PartSelect } from './pickers.jsx';
+import { moulds as mouldsApi } from '../api/endpoints.js';
 import { HANGER_CATEGORIES } from '../utils/pipeline.js';
 
 /**
@@ -133,6 +134,27 @@ function ItemCard({
   onRemove,
 }) {
   const set = (patch) => onChange({ ...item, ...patch });
+  /* On the enquiry, the parts and packing are a new development's questions; a sample's bag
+     (no tool on its rows) asks them of everything, because the bench has nothing else to go on. */
+  const develops = !withMould || Boolean(item.isNewDevelopment);
+
+  /*
+   * A model on the register knows its own category and size, so picking the tool fills them
+   * — and only them, and only where the register has an answer: a mould with no category
+   * leaves the item's blank rather than guessing one.
+   */
+  const pickMould = (value) => {
+    set({ mould: value });
+    if (!value) return;
+    mouldsApi.get(value)
+      .then((known) => onChange({
+        ...item,
+        mould: value,
+        category: known.category || item.category || '',
+        sizeMm: known.sizeMm || item.sizeMm || '',
+      }))
+      .catch(() => {});
+  };
 
   return (
     <li className="rounded-xl border border-line/[0.09] bg-line/[0.02]">
@@ -202,7 +224,7 @@ function ItemCard({
                 >
                   <MouldSelect
                     value={item.mould}
-                    onChange={(value) => set({ mould: value })}
+                    onChange={pickMould}
                     disabled={disabled || item.isNewDevelopment}
                     aria-label={`Model for item ${index + 1}`}
                   />
@@ -235,47 +257,60 @@ function ItemCard({
               </>
             )}
 
-            <Field
-              label={item.isNewDevelopment ? 'Describe the model' : 'Model reference'}
-              className="sm:col-span-2"
-              hint="What the buyer asked for, in their words"
-            >
-              <input
-                className="input"
-                value={item.modelNumber || ''}
-                disabled={disabled}
-                onChange={(event) => set({ modelNumber: event.target.value })}
-                aria-label={`Model reference for item ${index + 1}`}
-              />
-            </Field>
-
-            <Field label="Category">
-              <select
-                className="input"
-                value={item.category || ''}
-                disabled={disabled}
-                onChange={(event) => set({ category: event.target.value })}
-                aria-label={`Category for item ${index + 1}`}
+            {develops && (
+              <Field
+                label={item.isNewDevelopment ? 'Describe the model' : 'Model reference'}
+                className="sm:col-span-2"
+                hint="What the buyer asked for, in their words"
               >
-                <option value="">—</option>
-                {HANGER_CATEGORIES.map((option) => (
-                  <option key={option.value ?? option} value={option.value ?? option}>
-                    {option.label ?? option}
-                  </option>
-                ))}
-              </select>
-            </Field>
+                <input
+                  className="input"
+                  value={item.modelNumber || ''}
+                  disabled={disabled}
+                  onChange={(event) => set({ modelNumber: event.target.value })}
+                  aria-label={`Model reference for item ${index + 1}`}
+                />
+              </Field>
+            )}
 
-            <Field label="Size (mm)">
-              <input
-                type="number"
-                className="input"
-                value={item.sizeMm ?? ''}
-                disabled={disabled}
-                onChange={(event) => set({ sizeMm: event.target.value })}
-                aria-label={`Size for item ${index + 1}`}
-              />
-            </Field>
+            {/*
+              The model reference, category, size, hook, clip and packing are asked only for a
+              new development — a model on the register already knows its own (the category
+              and size are filled from it), and a bought-in piece comes as it is. Left
+              unasked, the costing sheet and the sales order ask whoever prices or books it to
+              confirm them [components/ProductDetailsConfirm.jsx].
+            */}
+            {develops && (
+              <Field label="Category">
+                <select
+                  className="input"
+                  value={item.category || ''}
+                  disabled={disabled}
+                  onChange={(event) => set({ category: event.target.value })}
+                  aria-label={`Category for item ${index + 1}`}
+                >
+                  <option value="">—</option>
+                  {HANGER_CATEGORIES.map((option) => (
+                    <option key={option.value ?? option} value={option.value ?? option}>
+                      {option.label ?? option}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            )}
+
+            {develops && (
+              <Field label="Size (mm)">
+                <input
+                  type="number"
+                  className="input"
+                  value={item.sizeMm ?? ''}
+                  disabled={disabled}
+                  onChange={(event) => set({ sizeMm: event.target.value })}
+                  aria-label={`Size for item ${index + 1}`}
+                />
+              </Field>
+            )}
 
             <Field label="Material" hint="From the register — brings its colour">
               <MaterialSelect
@@ -319,23 +354,27 @@ function ItemCard({
               </span>
             </label>
 
-            <Field label="Hook">
-              <PartSelect
-                kind="hook"
-                value={item.hookRef}
-                onChange={(value) => set({ hookRef: value })}
-                aria-label={`Hook for item ${index + 1}`}
-              />
-            </Field>
+            {develops && (
+              <Field label="Hook">
+                <PartSelect
+                  kind="hook"
+                  value={item.hookRef}
+                  onChange={(value) => set({ hookRef: value })}
+                  aria-label={`Hook for item ${index + 1}`}
+                />
+              </Field>
+            )}
 
-            <Field label="Clip">
-              <PartSelect
-                kind="clip"
-                value={item.clipRef}
-                onChange={(value) => set({ clipRef: value })}
-                aria-label={`Clip for item ${index + 1}`}
-              />
-            </Field>
+            {develops && (
+              <Field label="Clip">
+                <PartSelect
+                  kind="clip"
+                  value={item.clipRef}
+                  onChange={(value) => set({ clipRef: value })}
+                  aria-label={`Clip for item ${index + 1}`}
+                />
+              </Field>
+            )}
 
             <Field label="Printing">
               <PartSelect
@@ -346,16 +385,18 @@ function ItemCard({
               />
             </Field>
 
-            <Field label="Packing">
-              <input
-                className="input"
-                placeholder="200 pcs per carton"
-                value={item.packing || ''}
-                disabled={disabled}
-                onChange={(event) => set({ packing: event.target.value })}
-                aria-label={`Packing for item ${index + 1}`}
-              />
-            </Field>
+            {develops && (
+              <Field label="Packing">
+                <input
+                  className="input"
+                  placeholder="200 pcs per carton"
+                  value={item.packing || ''}
+                  disabled={disabled}
+                  onChange={(event) => set({ packing: event.target.value })}
+                  aria-label={`Packing for item ${index + 1}`}
+                />
+              </Field>
+            )}
 
             {withQuantity && (
               <Field label="Pieces" hint="How many of this model go in the bag">

@@ -372,6 +372,7 @@ export const SOURCES = [
   { value: 'referral', label: 'Referral' },
   { value: 'trade_show', label: 'Trade show' },
   { value: 'whatsapp', label: 'WhatsApp' },
+  { value: 'indiamart', label: 'IndiaMART' },
 ];
 
 /**
