@@ -7,7 +7,9 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { Badge, EmptyState, ErrorState, Field, Notice, PageHeader } from '../components/ui.jsx';
 import { formatDate } from '../utils/format.js';
 import { SOURCES } from '../utils/pipeline.js';
-import { CARD_STATUS, KIND_LABEL, cardProblem, quantityOf, todayIso } from '../utils/buyerCards.js';
+import {
+  CARD_STATUS, COLOUR_TYPES, KIND_LABEL, NEXT_STEPS, cardProblem, nextStepOf, quantityOf, todayIso, withoutStepFields,
+} from '../utils/buyerCards.js';
 
 /**
  * Draft enquiries.
@@ -98,7 +100,12 @@ function CardEditor({ card, onDone }) {
   /* Only what was recognised. The next step, the date and how we met them start empty: they are
      the salesperson's to give, not the app's to guess. */
   useEffect(() => {
-    setFields({ ...(card.reading || {}), nextAction: '', nextFollowUpDate: '', source: '', estimatedValue: '', assignedTo: '' });
+    setFields({
+      ...(card.reading || {}), nextAction: '', nextFollowUpDate: '', source: '', estimatedValue: '', assignedTo: '',
+      /* The next step, picked; a sample or a quotation also raises that department's task. */
+      nextStep: '', stepModel: '', stepColour: '', stepColourType: '', stepPieces: '2',
+      stepQuantity: card.reading?.estimatedQuantity ? String(card.reading.estimatedQuantity) : '', stepTargetPrice: '', stepNote: '',
+    });
     setProblem(null);
   }, [card._id]);
 
@@ -122,7 +129,8 @@ function CardEditor({ card, onDone }) {
       const value = String(fields.estimatedValue ?? '').replace(/,/g, '').trim();
       const done = await cardsApi.confirm({
         id: card._id,
-        ...fields,
+        ...withoutStepFields(fields),
+        ...nextStepOf(fields),
         estimatedQuantity: quantityOf(fields.estimatedQuantity),
         estimatedValue: value ? Number(value) : null,
         assignedTo: fields.assignedTo || undefined,
@@ -218,16 +226,76 @@ function CardEditor({ card, onDone }) {
           <section className="space-y-3 rounded-xl border border-flame-500/20 bg-flame-500/[0.04] p-4">
             <h3 className="text-xs font-bold uppercase tracking-[0.08em] text-flame-400">For you to fill in</h3>
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
-              <Field label="Next step" required className="sm:col-span-2 xl:col-span-1 2xl:col-span-2">
-                <input
-                  required
-                  className="input"
-                  placeholder="Send the rate for 400mm black"
-                  value={fields.nextAction || ''}
-                  disabled={off}
-                  onChange={(event) => set('nextAction', event.target.value)}
-                />
+              <Field
+                label="Next step"
+                required
+                hint={NEXT_STEPS.find((step) => step.value === fields.nextStep)?.hint}
+                className="sm:col-span-2 xl:col-span-1 2xl:col-span-2"
+              >
+                <select required className="input" value={fields.nextStep || ''} disabled={off} onChange={(event) => set('nextStep', event.target.value)} aria-label="Next step">
+                  <option value="">Choose…</option>
+                  {NEXT_STEPS.map((step) => <option key={step.value} value={step.value}>{step.label}</option>)}
+                </select>
               </Field>
+              {fields.nextStep === 'other' && (
+                <Field label="What is next" required className="sm:col-span-2 xl:col-span-1 2xl:col-span-2">
+                  <input
+                    required
+                    className="input"
+                    placeholder="Call back after the buyer checks with the owner"
+                    value={fields.nextAction || ''}
+                    disabled={off}
+                    onChange={(event) => set('nextAction', event.target.value)}
+                  />
+                </Field>
+              )}
+              {fields.nextStep === 'sample' && (
+                <Field label="Model" required>
+                  <input required className="input" placeholder="NH-400" value={fields.stepModel || ''} disabled={off} onChange={(event) => set('stepModel', event.target.value)} aria-label="Model" />
+                </Field>
+              )}
+              {['quote', 'photos'].includes(fields.nextStep) && (
+                <Field label="Model" hint={fields.nextStep === 'photos' ? 'If you know it' : undefined}>
+                  <input className="input" placeholder="NH-400" value={fields.stepModel || ''} disabled={off} onChange={(event) => set('stepModel', event.target.value)} aria-label="Model" />
+                </Field>
+              )}
+              {['sample', 'quote'].includes(fields.nextStep) && (
+                <Field label={fields.nextStep === 'sample' ? 'Colour' : 'Material / colour'}>
+                  <input className="input" placeholder={fields.nextStep === 'sample' ? 'Black' : 'PP black'} value={fields.stepColour || ''} disabled={off} onChange={(event) => set('stepColour', event.target.value)} aria-label={fields.nextStep === 'sample' ? 'Colour' : 'Material / colour'} />
+                </Field>
+              )}
+              {fields.nextStep === 'sample' && (
+                <>
+                  <Field label="Colour is">
+                    <select className="input" value={fields.stepColourType || ''} disabled={off} onChange={(event) => set('stepColourType', event.target.value)} aria-label="Colour is">
+                      <option value="">Not said</option>
+                      {COLOUR_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
+                    </select>
+                  </Field>
+                  <Field label="Sample pieces">
+                    <input className="input" inputMode="numeric" value={fields.stepPieces || ''} disabled={off} onChange={(event) => set('stepPieces', event.target.value.replace(/\D/g, ''))} aria-label="Sample pieces" />
+                  </Field>
+                </>
+              )}
+              {fields.nextStep === 'quote' && (
+                <>
+                  <Field label="Quantity (pieces)">
+                    <input className="input" inputMode="numeric" value={fields.stepQuantity || ''} disabled={off} onChange={(event) => set('stepQuantity', event.target.value.replace(/[^\d,]/g, ''))} aria-label="Quotation quantity" />
+                  </Field>
+                  <Field label="Buyer’s target price (₹ / pc)">
+                    <input className="input" inputMode="decimal" value={fields.stepTargetPrice || ''} disabled={off} onChange={(event) => set('stepTargetPrice', event.target.value.replace(/[^\d.]/g, ''))} aria-label="Target price" />
+                  </Field>
+                </>
+              )}
+              {['sample', 'quote'].includes(fields.nextStep) && (
+                <Field
+                  label={`Instruction to ${fields.nextStep === 'sample' ? 'Sampling' : 'Quotation'}`}
+                  hint={fields.nextStep === 'sample' ? 'Needed when more than 3 pcs' : 'Packing, target, anything the costing should know'}
+                  className="sm:col-span-2 xl:col-span-1 2xl:col-span-2"
+                >
+                  <input className="input" value={fields.stepNote || ''} disabled={off} onChange={(event) => set('stepNote', event.target.value)} aria-label="Instruction" />
+                </Field>
+              )}
               <Field label="Follow up on" required>
                 <input
                   required
@@ -276,7 +344,7 @@ function CardEditor({ card, onDone }) {
             <div className="flex flex-wrap justify-end gap-2 pt-1">
               <button type="button" className="btn-ghost" disabled={busy} onClick={discard}>Drop the draft</button>
               <button type="submit" className="btn-primary" disabled={busy || Boolean(why)}>
-                {busy ? 'Saving…' : 'Save as enquiry'}
+                {busy ? 'Saving…' : fields.nextStep === 'sample' ? 'Save & raise sample request' : fields.nextStep === 'quote' ? 'Save & raise quotation' : 'Save as enquiry'}
               </button>
             </div>
           </>
