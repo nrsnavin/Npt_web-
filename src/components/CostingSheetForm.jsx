@@ -32,6 +32,15 @@ const rupees = (value) =>
 /** A bought-in piece comes as it is; only what is made here has a hook, a clip and packing to confirm. */
 const procurementNeedsDetails = (procurement) => procurement !== 'trade';
 
+/** The cost lines counted only when ticked, as the sheet names them. */
+const OPTIONAL_COSTS = [
+  ['hookCost', 'Hook'],
+  ['metalClipsCost', 'Metal clips'],
+  ['packingCost', 'Packing'],
+  ['otherCost', 'Misc'],
+];
+const OPTIONAL_KEYS = OPTIONAL_COSTS.map(([key]) => key);
+
 const partOption = (row) => ({
   value: row._id,
   label: `${row.name}${row.colour ? ` · ${row.colour}` : ''} — ₹${row.ratePerPiece}/pc`,
@@ -95,6 +104,13 @@ export default function CostingSheetForm({ quotation: pricing, line, onClose, on
       .catch(() => {});
     return () => { live = false; };
   }, [row.mould, row.category, row.packing]);
+  /*
+   * Hook, clips, packing and anything else are in the price only when ticked — a tick says this
+   * piece has it. Opened on a saved sheet, a line already carrying a cost is ticked.
+   */
+  const [included, setIncluded] = useState(() => Object.fromEntries(
+    OPTIONAL_COSTS.map(([key]) => [key, Number(row.cost?.[key]) > 0])
+  ));
   const [markupPercent, setMarkup] = useState(row.markupPercent ?? 10);
   const [printing, setPrinting] = useState(row.printing ?? '');
   const [procurement, setProcurement] = useState(row.procurement ?? 'manufacture');
@@ -244,11 +260,14 @@ export default function CostingSheetForm({ quotation: pricing, line, onClose, on
 
   // The same arithmetic the server does, so the sheet adds up as it is typed rather than after
   // it is saved. The server's answer is still the one that is stored.
-  const material = (Number(cost.gramWeight) * Number(cost.rawMaterialRate)) / 1000 || 0;
+  /* A trade hanger is its inward price: the resin is in it, so no material cost is added [server: Quotation.js]. */
+  const trade = procurement === 'trade';
+  const material = trade ? 0 : (Number(cost.gramWeight) * Number(cost.rawMaterialRate)) / 1000 || 0;
+  const counts = (key) => !OPTIONAL_KEYS.includes(key) || included[key];
   const total =
     material +
     ['jobWorkCost', 'hookCost', 'metalClipsCost', 'printingCost', 'packingCost', 'otherCost', 'inwardPrice'].reduce(
-      (sum, key) => sum + (Number(cost[key]) || 0),
+      (sum, key) => sum + (counts(key) ? Number(cost[key]) || 0 : 0),
       0
     );
 
@@ -300,8 +319,9 @@ export default function CostingSheetForm({ quotation: pricing, line, onClose, on
       onSaved(
         await quotationsApi.cost({
           id: pricing._id, lineId: row._id, expectedUpdatedAt: pricing.updatedAt,
+          /* An unticked part goes as nothing, so the saved sheet prices exactly what was ticked. */
           cost: Object.fromEntries(
-            Object.entries(cost).map(([key, value]) => [key, number(value)])
+            Object.entries(cost).map(([key, value]) => [key, counts(key) ? number(value) : 0])
           ),
           markupPercent: number(markupPercent),
           minimumOverride: number(minimumOverride),
@@ -337,6 +357,33 @@ export default function CostingSheetForm({ quotation: pricing, line, onClose, on
         onChange={(event) => setCost({ ...cost, [key]: event.target.value })}
       />
     </Field>
+  );
+
+  /* A cost line counted only when ticked; unticked, its box is greyed and it is left out. */
+  const tickField = (key, label) => (
+    <div key={key} className={`rounded-lg border px-3 py-2 ${included[key] ? 'border-accent/40 bg-accent/[0.04]' : 'border-line/[0.1]'}`}>
+      <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-steel-200">
+        <input
+          type="checkbox"
+          checked={Boolean(included[key])}
+          onChange={(event) => setIncluded({ ...included, [key]: event.target.checked })}
+          aria-label={`Include ${label.toLowerCase()} in the price`}
+        />
+        {label}
+        <span className="ml-auto text-xs font-normal text-steel-400">{included[key] ? 'In the price' : 'Not in the price'}</span>
+      </label>
+      <input
+        type="number"
+        step="0.01"
+        min="0"
+        className="input mt-1.5"
+        disabled={!included[key]}
+        value={cost[key]}
+        onChange={(event) => setCost({ ...cost, [key]: event.target.value })}
+        placeholder="₹ per piece"
+        aria-label={`${label} per piece`}
+      />
+    </div>
   );
 
   return (
@@ -443,6 +490,10 @@ export default function CostingSheetForm({ quotation: pricing, line, onClose, on
         and picking a resin converts that onto its own basis and brings its rate. Everything
         they fill stays editable underneath.
       */}
+      {trade && (
+        <Notice tone="info">A bought-in piece: costed at the inward price, so no material cost is added.</Notice>
+      )}
+      {!trade && (<>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Mould" hint="Fills the grammage and this tool's cost lines">
           <Combobox
@@ -494,6 +545,7 @@ export default function CostingSheetForm({ quotation: pricing, line, onClose, on
           {cost.gramWeight || 0}g × ₹{cost.rawMaterialRate || 0}/kg ÷ 1000
         </p>
       </div>
+      </>)}
 
       {/*
         The three parts registers, each above the line it fills. Left blank the line is typed by
@@ -542,11 +594,13 @@ export default function CostingSheetForm({ quotation: pricing, line, onClose, on
       {/* Named as the sheet names them, and in the sheet's order. */}
       <div className="grid gap-4 sm:grid-cols-2">
         {costField('jobWorkCost', 'Job work', 'Per piece')}
-        {costField('hookCost', 'Hook', 'Per piece')}
-        {costField('metalClipsCost', 'Metal clips', 'Per piece')}
         {costField('printingCost', 'Print price', 'Per piece')}
-        {costField('packingCost', 'Packing', 'Per piece')}
-        {costField('otherCost', 'Anything else', 'Per piece')}
+      </div>
+      <div>
+        <p className="eyebrow mb-2">In the price only when ticked</p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {OPTIONAL_COSTS.map(([key, label]) => tickField(key, label))}
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">

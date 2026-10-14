@@ -8,7 +8,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  AS_MOULD, MAX_ITEMS, NONE, blankItem, costOf, isBlank, isNamed, itemsFromEnquiry, lineFor, nudge,
+  AS_MOULD, MAX_ITEMS, NONE, TRADE, blankItem, costOf, isBlank, isNamed, itemsFromEnquiry, lineFor, nudge,
   problemWith, samePrice, suggestedPrice,
 } from '../src/utils/quoteBuilder.js';
 
@@ -19,7 +19,7 @@ const hips = { ratePerKg: 118, grammageFactorPercent: 18 };
 const hook = { ratePerPiece: 1.4 };
 
 test('the grammage is the tool’s weight in the chosen resin, and the base adds every cost', () => {
-  const cost = costOf({ ...blankItem(), hookRef: AS_MOULD, clipRef: AS_MOULD, printRef: NONE }, { tool, resin: hips });
+  const cost = costOf({ ...blankItem(), withHook: true, withPacking: true, hookRef: AS_MOULD, clipRef: AS_MOULD, printRef: NONE }, { tool, resin: hips });
   assert.equal(cost.gramWeight, 23.6);
   assert.equal(cost.materialCost, 2.78, '23.6 g × ₹118/kg');
   assert.equal(cost.hookCost, 0.6, 'the mould’s own hook');
@@ -35,11 +35,31 @@ test('the suggestion is worked from the exact cost, not the rounded tile', () =>
   assert.equal(suggestedPrice(cost.exactBase, 10), 1);
 });
 
-test('a hook from the register replaces the mould’s; "not required" costs nothing', () => {
-  const picked = costOf({ ...blankItem(), hookRef: 'h1' }, { tool, resin: hips, hook });
+test('a ticked hook from the register replaces the mould’s; unticked, it costs nothing', () => {
+  const picked = costOf({ ...blankItem(), withHook: true, hookRef: 'h1' }, { tool, resin: hips, hook });
   assert.equal(picked.hookCost, 1.4);
-  const none = costOf({ ...blankItem(), hookRef: NONE }, { tool, resin: hips, hook });
-  assert.equal(none.hookCost, 0);
+  const unticked = costOf({ ...blankItem(), withHook: false, hookRef: 'h1' }, { tool, resin: hips, hook });
+  assert.equal(unticked.hookCost, 0, 'not ticked, not in the price');
+});
+
+test('hook, clips, packing and misc count only when ticked', () => {
+  const none = costOf(blankItem(), { tool, resin: hips });
+  assert.deepEqual([none.hookCost, none.clipCost, none.packingCost, none.miscCost], [0, 0, 0, 0]);
+  assert.equal(none.base, 3.88, 'material 2.78 + job 1.10 only');
+  const all = costOf({ ...blankItem(), withHook: true, withClip: true, clipRef: 'c1', withPacking: true, packing: '0.55', withMisc: true, misc: '0.25' }, { tool, resin: hips, clip: { ratePerPiece: 0.9 } });
+  assert.deepEqual([all.hookCost, all.clipCost, all.packingCost, all.miscCost], [0.6, 0.9, 0.55, 0.25]);
+  const mouldPacking = costOf({ ...blankItem(), withPacking: true }, { tool, resin: hips });
+  assert.equal(mouldPacking.packingCost, 0.4, 'ticked with no amount takes the mould’s packing');
+});
+
+test('a trade hanger is its inward price — no material cost, no job work', () => {
+  const cost = costOf({ ...blankItem(), procurement: TRADE, tradedItem: 't1', materialRef: 'mat1', withPacking: true, packing: '0.3' }, { resin: hips, traded: { inwardPrice: 6.5 } });
+  assert.equal(cost.trade, true);
+  assert.equal(cost.materialCost, 0);
+  assert.equal(cost.gramWeight, 0);
+  assert.equal(cost.jobCost, 0);
+  assert.equal(cost.inwardPrice, 6.5);
+  assert.equal(cost.base, 6.8);
 });
 
 test('nothing picked costs nothing, rather than NaN', () => {
@@ -79,15 +99,26 @@ test('an enquiry’s models arrive as items, ten at most', () => {
   assert.equal(itemsFromEnquiry({ items: Array.from({ length: 14 }, (_, n) => ({ modelNumber: `M${n}` })) }).length, MAX_ITEMS);
 });
 
-test('a line sends the registers, the rate and the mark-up; "not required" sends a zero cost only for costing users', () => {
-  const item = { ...blankItem(), mould: 'm1', materialRef: 'mat1', colour: ' White ', hookRef: NONE, printRef: 'p1', unitPrice: '5.40', moq: '' };
+test('a line sends the registers, the rate and the mark-up; unticked parts send a zero cost only for costing users', () => {
+  const item = { ...blankItem(), mould: 'm1', materialRef: 'mat1', colour: ' White ', withHook: false, hookRef: 'h1', withClip: true, clipRef: 'c1', withPacking: true, packing: '', withMisc: true, misc: '0.2', printRef: 'p1', unitPrice: '5.40', moq: '' };
   const costed = lineFor(item, { markup: 15, seesCost: true, printName: '1 colour' });
   assert.deepEqual(costed, {
-    mould: 'm1', modelNumber: undefined, materialRef: 'mat1', hookRef: undefined, clipRef: undefined, printRef: 'p1',
-    printing: '1 colour', colour: 'White', moq: undefined, unitPrice: 5.4, markupPercent: 15, cost: { hookCost: 0 },
+    mould: 'm1', modelNumber: undefined, materialRef: 'mat1', hookRef: undefined, clipRef: 'c1', printRef: 'p1',
+    printing: '1 colour', colour: 'White', moq: undefined, unitPrice: 5.4, markupPercent: 15,
+    cost: { hookCost: 0, otherCost: 0.2 },
   });
   const marketing = lineFor(item, { markup: 15, seesCost: false });
   assert.equal(marketing.cost, undefined, 'marketing never sends a cost');
+  assert.equal(marketing.hookRef, undefined, 'an unticked hook is not part of the piece');
+
+  const bare = lineFor({ ...blankItem(), mould: 'm1' }, { markup: 10, seesCost: true });
+  assert.deepEqual(bare.cost, { hookCost: 0, metalClipsCost: 0, packingCost: 0, otherCost: 0, printingCost: 0 }, 'nothing ticked, nothing added');
+
+  const trade = lineFor({ ...blankItem(), procurement: TRADE, tradedItem: 't1' }, { markup: 10, seesCost: true });
+  assert.equal(trade.procurement, 'trade');
+  assert.equal(trade.tradedItem, 't1');
+  assert.equal(trade.mould, undefined);
+  assert.ok(isNamed({ ...blankItem(), procurement: TRADE, tradedItem: 't1' }), 'a trade item names the row');
 });
 
 test('the form names what is missing before it is sent', () => {

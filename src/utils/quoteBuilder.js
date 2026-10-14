@@ -35,16 +35,34 @@ export const DELIVERY_TERMS = ['Ex-factory', 'Door delivery', '2 weeks from PO',
 export const AS_MOULD = '';
 export const NONE = 'none';
 
+/** Made here off a mould, or bought in and resold (a trade hanger, off the trading master). */
+export const MANUFACTURE = 'manufacture';
+export const TRADE = 'trade';
+
 let keys = 0;
-/** A blank item. `key` keeps React's rows stable when one in the middle is removed. */
+/**
+ * A blank item. `key` keeps React's rows stable when one in the middle is removed.
+ *
+ * Hook, clips, packing and misc are counted only when ticked [`withHook` …]: a tick says "this
+ * piece has it, and it is in the price". Unticked, the cost is left out whatever the mould says.
+ * `packing` and `misc` are the typed amounts; a blank packing takes the mould's figure.
+ */
 export const blankItem = () => ({
   key: `item-${(keys += 1)}`,
+  procurement: MANUFACTURE,
   mould: '',
+  tradedItem: '',
   modelNumber: '',
   materialRef: '',
   colour: '',
+  withHook: false,
   hookRef: AS_MOULD,
+  withClip: false,
   clipRef: AS_MOULD,
+  withPacking: false,
+  packing: '',
+  withMisc: false,
+  misc: '',
   printRef: NONE,
   moq: '',
   unitPrice: '',
@@ -52,10 +70,10 @@ export const blankItem = () => ({
 
 /** True when nothing has been chosen on the item yet. */
 export const isBlank = (item) =>
-  !item.mould && !item.modelNumber.trim() && !item.materialRef && !item.colour && item.unitPrice === '';
+  !item.mould && !item.tradedItem && !item.modelNumber.trim() && !item.materialRef && !item.colour && item.unitPrice === '';
 
-/** Rows named by a mould or a model number; the rest are left out. */
-export const isNamed = (item) => Boolean(item.mould || item.modelNumber.trim());
+/** Rows named by a mould, a trading master item or a model number; the rest are left out. */
+export const isNamed = (item) => Boolean(item.mould || item.tradedItem || item.modelNumber.trim());
 
 const id = (value) => (value && typeof value === 'object' ? value._id : value) || '';
 
@@ -69,7 +87,10 @@ export function itemsFromEnquiry(enquiry) {
     modelNumber: item.mould ? '' : item.modelNumber || '',
     materialRef: id(item.materialRef),
     colour: item.colour || '',
+    /* A hook or clip the buyer named is part of the piece, so it starts ticked. */
+    withHook: Boolean(id(item.hookRef)),
     hookRef: id(item.hookRef) || AS_MOULD,
+    withClip: Boolean(id(item.clipRef)),
     clipRef: id(item.clipRef) || AS_MOULD,
     printRef: id(item.printRef) || NONE,
   }));
@@ -83,31 +104,42 @@ const part = (choice, register, fromMould) => {
 
 const paise = (value) => Math.round(value * 100) / 100;
 
+const amount = (value) => (value === '' || value == null ? null : Number(value) || 0);
+
 /**
  * The cost build-up for one item, from what its pickers resolved to:
- * `{ tool, resin, hook, clip, print }` are the register records, any of them missing.
+ * `{ tool, resin, hook, clip, print, traded }` are the register records, any of them missing.
  *
- * The grammage is the tool's consumption in the chosen resin — a denser resin throws a heavier
- * part from the same cavity — exactly as the server's `grammageFrom` works it.
+ * Made here: the grammage is the tool's consumption in the chosen resin — a denser resin throws
+ * a heavier part from the same cavity — exactly as the server's `grammageFrom` works it.
+ * A trade hanger is the supplier's inward price instead, and no material cost is added: the resin
+ * is in what the supplier charges [server: models/Quotation.js `materialCost`].
+ * Hook, clips, packing and misc count only when ticked.
  */
-export function costOf(item, { tool, resin, hook, clip, print } = {}) {
-  const gramWeight = tool ? cutGrams((Number(tool.consumptionPerPieceGrams) || 0) * (1 + (Number(resin?.grammageFactorPercent) || 0) / 100)) : 0;
-  const ratePerKg = Number(resin?.ratePerKg) || 0;
-  const materialCost = (gramWeight * ratePerKg) / 1000;
-  const jobCost = Number(tool?.jobWorkCost) || 0;
-  const packingCost = Number(tool?.packingCost) || 0;
-  const hookCost = part(item.hookRef, hook, tool?.hookCost);
-  const clipCost = part(item.clipRef, clip, tool?.clipsCost);
+export function costOf(item, { tool, resin, hook, clip, print, traded } = {}) {
+  const trade = item.procurement === TRADE;
+  const gramWeight = !trade && tool ? cutGrams((Number(tool.consumptionPerPieceGrams) || 0) * (1 + (Number(resin?.grammageFactorPercent) || 0) / 100)) : 0;
+  const ratePerKg = trade ? 0 : Number(resin?.ratePerKg) || 0;
+  const materialCost = trade ? 0 : (gramWeight * ratePerKg) / 1000;
+  const inwardPrice = trade ? Number(traded?.inwardPrice) || 0 : 0;
+  const jobCost = trade ? 0 : Number(tool?.jobWorkCost) || 0;
+  const packingCost = item.withPacking ? amount(item.packing) ?? (Number(tool?.packingCost) || 0) : 0;
+  const hookCost = item.withHook ? part(item.hookRef, hook, tool?.hookCost) : 0;
+  const clipCost = item.withClip ? part(item.clipRef, clip, tool?.clipsCost) : 0;
+  const miscCost = item.withMisc ? amount(item.misc) ?? 0 : 0;
   const printingCost = part(item.printRef, print, tool?.printingCost);
-  const base = materialCost + jobCost + packingCost + hookCost + clipCost + printingCost;
+  const base = materialCost + inwardPrice + jobCost + packingCost + hookCost + clipCost + miscCost + printingCost;
   return {
+    trade,
     gramWeight,
     ratePerKg,
     materialCost: paise(materialCost),
+    inwardPrice,
     jobCost,
     packingCost,
     hookCost,
     clipCost,
+    miscCost,
     printingCost,
     base: paise(base),
     /* Unrounded, as the server's `totalCost` is — the suggested price is worked from this. */
@@ -131,24 +163,31 @@ export const samePrice = (a, b) => a !== '' && a != null && b != null && Math.ab
 /**
  * The line as the server takes it.
  *
- * A part left "as the mould" sends nothing and the server fills it from the tool; "not required"
- * sends a cost of nothing for that part, which the server keeps only from the Quotation
- * department and Admin. A chosen print job also names what is printed, for the document.
+ * A ticked part left "as the mould" sends nothing and the server fills it from the tool; an
+ * unticked one sends a cost of nothing, which the server keeps only from the Quotation department
+ * and Admin. A trade hanger names its trading master item, whose inward price is its cost. A
+ * chosen print job also names what is printed, for the document.
  */
 export function lineFor(item, { markup, seesCost, printName } = {}) {
+  const trade = item.procurement === TRADE;
   const cost = {};
   if (seesCost) {
-    if (item.hookRef === NONE) cost.hookCost = 0;
-    if (item.clipRef === NONE) cost.metalClipsCost = 0;
+    if (!item.withHook) cost.hookCost = 0;
+    if (!item.withClip) cost.metalClipsCost = 0;
+    if (!item.withPacking) cost.packingCost = 0;
+    else if (amount(item.packing) != null) cost.packingCost = amount(item.packing);
+    cost.otherCost = item.withMisc ? amount(item.misc) ?? 0 : 0;
     if (item.printRef === NONE) cost.printingCost = 0;
   }
   const ref = (value) => (value && value !== NONE ? value : undefined);
   return {
-    ...(item.mould ? { mould: item.mould } : {}),
+    ...(!trade && item.mould ? { mould: item.mould } : {}),
+    /* Made here sends nothing: a typed model that is on the trading master is still recognised. */
+    ...(trade ? { procurement: TRADE, ...(item.tradedItem ? { tradedItem: item.tradedItem } : {}) } : {}),
     modelNumber: item.modelNumber.trim() || undefined,
     materialRef: item.materialRef || undefined,
-    hookRef: ref(item.hookRef),
-    clipRef: ref(item.clipRef),
+    hookRef: item.withHook ? ref(item.hookRef) : undefined,
+    clipRef: item.withClip ? ref(item.clipRef) : undefined,
     printRef: ref(item.printRef),
     printing: ref(item.printRef) ? printName || undefined : undefined,
     colour: item.colour.trim() || undefined,

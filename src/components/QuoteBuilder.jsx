@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   components as componentsApi, enquiries as enquiriesApi, materials as materialsApi,
-  moulds as mouldsApi, quotations as quotationsApi,
+  moulds as mouldsApi, quotations as quotationsApi, tradedItems as tradedItemsApi,
 } from '../api/endpoints.js';
+import Combobox from './Combobox.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { Notice } from './ui.jsx';
 import { CustomerSelect, EnquirySelect, MaterialSelect, MouldSelect } from './pickers.jsx';
@@ -11,7 +12,7 @@ import { formatDate } from '../utils/format.js';
 import { formatGrams } from '../utils/grams.js';
 import { rupees } from '../utils/pricing.js';
 import {
-  AS_MOULD, DELIVERY_TERMS, MARKUPS, MAX_ITEMS, NONE, PAYMENT_TERMS, blankItem, costOf, isBlank,
+  AS_MOULD, DELIVERY_TERMS, MANUFACTURE, MARKUPS, MAX_ITEMS, NONE, PAYMENT_TERMS, TRADE, blankItem, costOf, isBlank,
   isNamed, itemsFromEnquiry, lineFor, nudge, problemWith, samePrice, suggestedPrice,
 } from '../utils/quoteBuilder.js';
 
@@ -21,6 +22,9 @@ const FREIGHT = [
   { value: 'cif', label: 'CIF' },
   { value: 'door_delivery', label: 'Door delivery' },
 ];
+
+/** The trading master, for a trade hanger's picker. */
+const loadTradedItems = (term) => tradedItemsApi.list({ search: term || undefined, isActive: true, limit: 20 });
 
 /** A small label over a control — the form's own, tighter than `Field`, so it fits one window. */
 function Box({ label, className = '', children }) {
@@ -115,87 +119,99 @@ function PreviousPrice({ mould, material, hook, clip }) {
 /** A register rate in an option, for those who may see costs [§8]; nothing for anybody else. */
 const rateOf = (seesCost, value) => (seesCost && value != null ? ` — ${rupees(value)}` : '');
 
-function PartPicker({ label, value, onChange, rows, none, fromMould, seesCost }) {
+/**
+ * A part that is in the price only when ticked: hook, clips, packing, misc. The tick says the piece
+ * has it; unticked, its cost is left out of the price whatever the mould is set up with.
+ */
+function Tick({ label, checked, onChange, children }) {
   return (
-    <Box label={label}>
-      <select className="input" value={value} onChange={(event) => onChange(event.target.value)} aria-label={label}>
-        <option value={AS_MOULD}>{`As the mould${seesCost && fromMould != null ? ` (${rupees(fromMould)})` : ''}`}</option>
-        <option value={NONE}>{none}</option>
-        {rows.map((row) => (
-          <option key={row._id} value={row._id}>{`${row.name}${row.colour ? ` · ${row.colour}` : ''}${rateOf(seesCost, row.ratePerPiece)}`}</option>
-        ))}
-      </select>
-    </Box>
+    <div className={`min-w-0 rounded-lg border px-2 py-1.5 ${checked ? 'border-accent/40 bg-accent/[0.04]' : 'border-line/[0.1]'}`}>
+      <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-steel-200">
+        <input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />
+        {label}
+        {!checked && <span className="font-normal text-steel-500">· not in price</span>}
+      </label>
+      {checked && <div className="mt-1">{children}</div>}
+    </div>
+  );
+}
+
+function PartSelectPlain({ label, value, onChange, rows, fromMould, seesCost }) {
+  return (
+    <select className="input h-9" value={value} onChange={(event) => onChange(event.target.value)} aria-label={label}>
+      <option value={AS_MOULD}>{`As the mould${seesCost && fromMould != null ? ` (${rupees(fromMould)})` : ''}`}</option>
+      {rows.map((row) => (
+        <option key={row._id} value={row._id}>{`${row.name}${row.colour ? ` · ${row.colour}` : ''}${rateOf(seesCost, row.ratePerPiece)}`}</option>
+      ))}
+    </select>
   );
 }
 
 /** One model on the quotation: what it is, what it costs, and the rate it goes out at. */
 function ItemCard({ index, item, onChange, onRemove, removable, markup, seesCost, registers, parts }) {
-  const tool = registers.mould(item.mould);
+  const trade = item.procurement === TRADE;
+  const tool = trade ? undefined : registers.mould(item.mould);
+  const traded = trade ? registers.traded(item.tradedItem) : undefined;
   const resin = registers.material(item.materialRef);
   const hook = registers.part(item.hookRef);
   const clip = registers.part(item.clipRef);
   const print = registers.part(item.printRef);
-  const cost = costOf(item, { tool, resin, hook, clip, print });
+  const cost = costOf(item, { tool, resin, hook, clip, print, traded });
   const suggested = suggestedPrice(cost.exactBase, markup);
   const set = (key) => (value) => onChange({ ...item, [key]: value });
   const setFrom = (key) => (event) => set(key)(event.target.value);
+  const n = index + 1;
 
-  const hookName = item.hookRef === NONE ? 'No hook' : hook?.name || (tool?.hookCost ? 'Mould hook' : 'No hook');
-  const name = tool?.mouldCode || item.modelNumber || `Item ${index + 1}`;
+  const hookName = !item.withHook ? 'No hook' : hook?.name || 'Mould hook';
+  const name = (trade ? traded?.modelNumber : tool?.mouldCode) || item.modelNumber || `Item ${n}`;
 
   return (
     <div className="rounded-xl border border-line/[0.1] bg-line/[0.015] p-3">
       <div className="flex items-start gap-2">
-        <span className="mt-6 w-5 shrink-0 text-xs font-bold text-steel-400">{index + 1}</span>
+        <span className="mt-6 w-5 shrink-0 text-xs font-bold text-steel-400">{n}</span>
         <div className="grid min-w-0 flex-1 grid-cols-2 gap-2 md:grid-cols-12">
-          <Box label="Model" className="col-span-2 md:col-span-3">
-            <MouldSelect value={item.mould} onChange={(value) => onChange({ ...item, mould: value || '' })} includeBlank="Search model (e.g. AC-25)" aria-label={`Model on item ${index + 1}`} />
+          <Box label="Type" className="md:col-span-2">
+            <select
+              className="input"
+              value={item.procurement}
+              onChange={(event) => onChange({ ...item, procurement: event.target.value, mould: '', tradedItem: '' })}
+              aria-label={`Made here or trade on item ${n}`}
+            >
+              <option value={MANUFACTURE}>Made here</option>
+              <option value={TRADE}>Trade (bought in)</option>
+            </select>
           </Box>
+          {trade ? (
+            <Box label="Trade hanger" className="col-span-2 md:col-span-3">
+              <Combobox
+                value={item.tradedItem}
+                onChange={(value) => set('tradedItem')(value || '')}
+                loadOptions={loadTradedItems}
+                loadOne={tradedItemsApi.get}
+                toOption={(row) => ({
+                  value: row._id,
+                  label: `${row.modelNumber}${seesCost && row.inwardPrice != null ? ` — ₹${row.inwardPrice}` : ''}`,
+                  hint: [row.colour, row.supplier].filter(Boolean).join(' · '),
+                })}
+                placeholder="Search the trading master…"
+                emptyLabel="Pick the bought-in model"
+                noMatchLabel="Not on the trading master"
+                aria-label={`Trade hanger on item ${n}`}
+              />
+            </Box>
+          ) : (
+            <Box label="Model" className="col-span-2 md:col-span-3">
+              <MouldSelect value={item.mould} onChange={(value) => onChange({ ...item, mould: value || '' })} includeBlank="Search model (e.g. AC-25)" aria-label={`Model on item ${n}`} />
+            </Box>
+          )}
           <Box label="Material" className="col-span-2 md:col-span-3">
-            <MaterialSelect value={item.materialRef} onChange={(value) => set('materialRef')(value || '')} emptyLabel="Material" aria-label={`Material on item ${index + 1}`} />
+            <MaterialSelect value={item.materialRef} onChange={(value) => set('materialRef')(value || '')} emptyLabel="Material" aria-label={`Material on item ${n}`} />
           </Box>
           <Box label="Colour" className="md:col-span-2">
-            <input className="input" value={item.colour} onChange={setFrom('colour')} placeholder="White" aria-label={`Colour on item ${index + 1}`} />
+            <input className="input" value={item.colour} onChange={setFrom('colour')} placeholder="White" aria-label={`Colour on item ${n}`} />
           </Box>
-          <div className="md:col-span-2">
-            <PartPicker label="Hook" value={item.hookRef} onChange={set('hookRef')} rows={parts.hook} none="No hook / Not required" fromMould={tool ? tool.hookCost || 0 : null} seesCost={seesCost} />
-          </div>
-          <div className="md:col-span-2">
-            <PartPicker label="Clips" value={item.clipRef} onChange={set('clipRef')} rows={parts.clip} none="No clips" fromMould={tool ? tool.clipsCost || 0 : null} seesCost={seesCost} />
-          </div>
-        </div>
-        <button
-          type="button"
-          className="mt-5 grid h-9 w-9 shrink-0 place-items-center rounded-lg text-steel-400 hover:bg-line/[0.06] hover:text-steel-100 disabled:opacity-30"
-          onClick={onRemove}
-          disabled={!removable}
-          aria-label={`Remove item ${index + 1}`}
-          title={removable ? 'Remove this item' : 'A quotation needs at least one item'}
-        >
-          ×
-        </button>
-      </div>
-
-      {seesCost && (
-        <div className="mt-2 grid grid-cols-2 gap-1.5 pl-7 sm:grid-cols-5 xl:grid-cols-10">
-          <Tile label="Grammage" value={formatGrams(cost.gramWeight)} />
-          <Tile label="Material/kg" value={rupees(cost.ratePerKg)} />
-          <Tile label="Material cost" value={rupees(cost.materialCost)} />
-          <Tile label="Job cost" value={rupees(cost.jobCost)} />
-          <Tile label="Packing cost" value={rupees(cost.packingCost)} />
-          <Tile label="Hook cost" value={rupees(cost.hookCost)} />
-          <Tile label="Clip cost" value={rupees(cost.clipCost)} />
-          <Tile label="Printing cost" value={rupees(cost.printingCost)} />
-          <Tile label="Base price" value={rupees(cost.base)} strong />
-          <Tile label="Suggested" value={rupees(suggested)} strong />
-        </div>
-      )}
-
-      <div className="mt-2 grid grid-cols-2 items-end gap-2 pl-7 md:grid-cols-12">
-        <div className="col-span-2 md:col-span-2">
-          <Box label="Printing">
-            <select className="input" value={item.printRef} onChange={setFrom('printRef')} aria-label={`Printing on item ${index + 1}`}>
+          <Box label="Printing" className="md:col-span-2">
+            <select className="input" value={item.printRef} onChange={setFrom('printRef')} aria-label={`Printing on item ${n}`}>
               <option value={NONE}>No printing</option>
               <option value={AS_MOULD}>{`As the mould${seesCost && tool ? ` (${rupees(tool.printingCost || 0)})` : ''}`}</option>
               {parts.print.map((row) => (
@@ -204,13 +220,64 @@ function ItemCard({ index, item, onChange, onRemove, removable, markup, seesCost
             </select>
           </Box>
         </div>
+        <button
+          type="button"
+          className="mt-5 grid h-9 w-9 shrink-0 place-items-center rounded-lg text-steel-400 hover:bg-line/[0.06] hover:text-steel-100 disabled:opacity-30"
+          onClick={onRemove}
+          disabled={!removable}
+          aria-label={`Remove item ${n}`}
+          title={removable ? 'Remove this item' : 'A quotation needs at least one item'}
+        >
+          ×
+        </button>
+      </div>
+
+      {/* In the price only when ticked. */}
+      <div className="mt-2 grid grid-cols-2 gap-2 pl-7 md:grid-cols-4">
+        <Tick label="Hook" checked={item.withHook} onChange={set('withHook')}>
+          <PartSelectPlain label={`Hook on item ${n}`} value={item.hookRef} onChange={set('hookRef')} rows={parts.hook} fromMould={tool ? tool.hookCost || 0 : null} seesCost={seesCost} />
+        </Tick>
+        <Tick label="Clips" checked={item.withClip} onChange={set('withClip')}>
+          <PartSelectPlain label={`Clips on item ${n}`} value={item.clipRef} onChange={set('clipRef')} rows={parts.clip} fromMould={tool ? tool.clipsCost || 0 : null} seesCost={seesCost} />
+        </Tick>
+        <Tick label="Packing" checked={item.withPacking} onChange={set('withPacking')}>
+          {seesCost ? (
+            <input type="number" min="0" step="0.01" className="input h-9 tabular-nums" value={item.packing} onChange={setFrom('packing')} placeholder={tool?.packingCost != null ? `₹${Number(tool.packingCost).toFixed(2)} (mould)` : '₹ per piece'} aria-label={`Packing cost on item ${n}`} />
+          ) : <p className="text-xs text-steel-400">Included</p>}
+        </Tick>
+        <Tick label="Misc" checked={item.withMisc} onChange={set('withMisc')}>
+          {seesCost ? (
+            <input type="number" min="0" step="0.01" className="input h-9 tabular-nums" value={item.misc} onChange={setFrom('misc')} placeholder="₹ per piece" aria-label={`Misc cost on item ${n}`} />
+          ) : <p className="text-xs text-steel-400">Included</p>}
+        </Tick>
+      </div>
+
+      {seesCost && (
+        <div className="mt-2 grid grid-cols-2 gap-1.5 pl-7 sm:grid-cols-4 xl:grid-cols-11">
+          <Tile label="Grammage" value={trade ? '—' : formatGrams(cost.gramWeight)} />
+          <Tile label="Material/kg" value={trade ? '—' : rupees(cost.ratePerKg)} />
+          {trade
+            ? <Tile label="Inward price" value={rupees(cost.inwardPrice)} />
+            : <Tile label="Material cost" value={rupees(cost.materialCost)} />}
+          <Tile label="Job cost" value={rupees(cost.jobCost)} />
+          <Tile label="Packing cost" value={rupees(cost.packingCost)} />
+          <Tile label="Hook cost" value={rupees(cost.hookCost)} />
+          <Tile label="Clip cost" value={rupees(cost.clipCost)} />
+          <Tile label="Printing cost" value={rupees(cost.printingCost)} />
+          <Tile label="Misc cost" value={rupees(cost.miscCost)} />
+          <Tile label="Base price" value={rupees(cost.base)} strong />
+          <Tile label="Suggested" value={rupees(suggested)} strong />
+        </div>
+      )}
+
+      <div className="mt-2 grid grid-cols-2 items-end gap-2 pl-7 md:grid-cols-12">
         <Box label="Buyer's model no." className="md:col-span-2">
-          <input className="input" value={item.modelNumber} onChange={setFrom('modelNumber')} placeholder={tool?.mouldCode || 'NPT-400S'} aria-label={`Model number on item ${index + 1}`} />
+          <input className="input" value={item.modelNumber} onChange={setFrom('modelNumber')} placeholder={(trade ? traded?.modelNumber : tool?.mouldCode) || 'NPT-400S'} aria-label={`Model number on item ${n}`} />
         </Box>
-        <Box label="Min. pcs" className="md:col-span-1">
-          <input type="number" min="0" className="input" value={item.moq} onChange={setFrom('moq')} placeholder={tool?.moq ? String(tool.moq) : ''} aria-label={`Minimum on item ${index + 1}`} />
+        <Box label="Min. pcs" className="md:col-span-2">
+          <input type="number" min="0" className="input" value={item.moq} onChange={setFrom('moq')} placeholder={(trade ? traded?.moq : tool?.moq) ? String(trade ? traded.moq : tool.moq) : ''} aria-label={`Minimum on item ${n}`} />
         </Box>
-        <div className="col-span-2 md:col-span-3">
+        <div className="col-span-2 md:col-span-4">
           <Box label="Final quoted rate / piece (₹)">
             <div className="flex items-center gap-1">
               <input
@@ -221,7 +288,7 @@ function ItemCard({ index, item, onChange, onRemove, removable, markup, seesCost
                 value={item.unitPrice}
                 onChange={setFrom('unitPrice')}
                 placeholder={seesCost && suggested ? suggested.toFixed(2) : '—'}
-                aria-label={`Final rate on item ${index + 1}`}
+                aria-label={`Final rate on item ${n}`}
               />
               {[-10, -5, 5, 10].map((step) => (
                 <button
@@ -229,7 +296,7 @@ function ItemCard({ index, item, onChange, onRemove, removable, markup, seesCost
                   type="button"
                   className="h-9 shrink-0 rounded-md border border-line/[0.15] px-1.5 text-xs font-semibold text-steel-200 hover:border-accent/50 hover:text-steel-50"
                   onClick={() => set('unitPrice')(nudge(item.unitPrice === '' ? suggested || 0 : item.unitPrice, step))}
-                  aria-label={`${step > 0 ? 'Add' : 'Take off'} ${Math.abs(step)} paise on item ${index + 1}`}
+                  aria-label={`${step > 0 ? 'Add' : 'Take off'} ${Math.abs(step)} paise on item ${n}`}
                 >
                   {step > 0 ? `+${step}p` : `${step}p`}
                 </button>
@@ -239,7 +306,9 @@ function ItemCard({ index, item, onChange, onRemove, removable, markup, seesCost
         </div>
         <div className="col-span-2 flex items-end gap-2 md:col-span-4">
           <div className="min-w-0 flex-1">
-            <PreviousPrice mould={item.mould} material={item.materialRef} hook={item.hookRef} clip={item.clipRef} />
+            {trade
+              ? <p className="rounded-lg border border-line/[0.1] px-3 py-1.5 text-xs text-steel-400">Trade hanger — costed at the supplier’s inward price, no material added.</p>
+              : <PreviousPrice mould={item.mould} material={item.materialRef} hook={item.withHook ? item.hookRef : NONE} clip={item.withClip ? item.clipRef : NONE} />}
           </div>
           {seesCost && suggested != null && (
             <button
@@ -256,7 +325,7 @@ function ItemCard({ index, item, onChange, onRemove, removable, markup, seesCost
 
       {seesCost && (
         <p className="mt-1.5 pl-7 text-xs text-steel-400">
-          {name} · {hookName} · Base {rupees(cost.base)} + {markup}% = <span className="font-semibold text-steel-200">{rupees(suggested)}</span>
+          {name} · {trade ? 'Trade' : hookName} · Base {rupees(cost.base)} + {markup}% = <span className="font-semibold text-steel-200">{rupees(suggested)}</span>
         </p>
       )}
     </div>
@@ -300,6 +369,7 @@ export default function QuoteBuilder({ onClose, onSaved, enquiry: givenEnquiry, 
     mould: useRegister(mouldsApi.get),
     material: useRegister(materialsApi.get),
     part: useRegister(componentsApi.get),
+    traded: useRegister(tradedItemsApi.get),
   };
   const parts = { hook: usePartList('hook'), clip: usePartList('clip'), print: usePartList('print') };
   const printNames = useMemo(() => new Map(parts.print.map((row) => [row._id, row.name])), [parts.print]);
