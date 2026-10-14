@@ -196,6 +196,8 @@ export const moulds = {
 export const materials = {
   list: (params) => api.get('/materials', { params }).then(listed),
   get: (id) => api.get(`/materials/${id}`).then(unwrap),
+  /** New prices for several materials in one save — the supplier's revised list. */
+  bulkRates: (payload) => api.post('/materials/bulk-rates', payload, { feedback: false }).then(unwrap),
   create: (payload) => api.post('/materials', payload).then(unwrap),
   update: ({ id, ...payload }) => api.patch(`/materials/${id}`, payload).then(unwrap),
   /**
