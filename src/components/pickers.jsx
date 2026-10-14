@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
+  buyerCards as buyerCardsApi,
   components as componentsApi,
   customers as customersApi,
   enquiries as enquiriesApi,
@@ -100,6 +101,40 @@ export function MouldSelect({
         onCreated={(mould) => onChange(mould._id)}
       />
     </>
+  );
+}
+
+/**
+ * Picks a model from both masters at once — the moulds made here and the trading items bought
+ * in — the way a buyer names it, by its code [server: buyerCard.controller `draftModels`]. The
+ * value is the master's own reference (`m<id>` a mould, `t<id>` a trading item); `onChange` gets
+ * the option too, whose `code` is the model's code.
+ */
+export function MasterModelSelect({ value, onChange, emptyLabel = 'Pick from the master…', ...rest }) {
+  const loadOptions = useCallback((search) => buyerCardsApi.models(search), []);
+  const loadOne = useCallback((ref) => buyerCardsApi.model(ref), []);
+  const toOption = useCallback(
+    (row) => ({
+      value: row.ref,
+      code: row.code,
+      kind: row.kind,
+      label: row.name ? `${row.code} — ${row.name}` : row.code,
+      hint: row.kind === 'traded' ? 'Trading' : 'Mould',
+    }),
+    []
+  );
+  return (
+    <Combobox
+      value={value}
+      onChange={onChange}
+      loadOptions={loadOptions}
+      loadOne={loadOne}
+      toOption={toOption}
+      placeholder="Search a code or name…"
+      emptyLabel={emptyLabel}
+      noMatchLabel="No model on the master matches"
+      {...rest}
+    />
   );
 }
 

@@ -50,7 +50,7 @@ test('when and how we met them are always the salesperson\'s to give; the next s
 test('the next step may wait; a sample needs a model listed, and more than 3 pcs needs a reason', async () => {
   const { nextStepProblem, blankModel } = await import('../src/utils/buyerCards.js');
   const base = { company: 'Velan Textiles', mobile: '9789012345', nextFollowUpDate: todayIso(), source: 'trade_show' };
-  const ncp = { ...blankModel(), code: 'NCP-25' };
+  const ncp = { ...blankModel(), ref: 'm1', code: 'NCP-25' };
   assert.equal(cardProblem({ ...base, nextStep: '' }), null, 'the next step may wait');
   assert.equal(cardProblem(base), null);
   assert.match(cardProblem({ ...base, nextStep: 'other', nextAction: ' ' }), /Say what the next step is/);
@@ -72,18 +72,18 @@ test('the models read become rows; the rows become the enquiry’s models and th
       { asked: 'the round one' },
     ],
   });
-  assert.deepEqual(rows.map((row) => [row.mould, row.code, row.quantity, row.colour, row.asked]), [
-    ['m1', 'NCP-25', '5000', 'Black', 'NCP 25'],
-    ['', 'MAU-35 WB', '', '', 'mau 35 wb'],
-    ['', 'the round one', '', '', 'the round one'],
+  assert.deepEqual(rows.map((row) => [row.ref, row.code, row.description, row.quantity, row.colour, row.asked]), [
+    ['mm1', 'NCP-25', '', '5000', 'Black', 'NCP 25'],
+    ['tt1', 'MAU-35 WB', '', '', '', 'mau 35 wb'],
+    ['', '', 'the round one', '', '', 'the round one'],
   ]);
   assert.ok(new Set(rows.map((row) => row.key)).size === 3, 'every row its own key');
-  rows.push({ ...rows[0], key: 'empty', mould: '', code: ' ' });
   assert.deepEqual(itemsOf(rows), [
     { mould: 'm1', quantity: 5000, colour: 'Black' },
     { modelNumber: 'MAU-35 WB' },
-    { modelNumber: 'the round one' },
-  ], 'a row naming nothing is left out');
+  ], 'a row not on the master and not ticked new names nothing yet');
+  rows[2].isNewDevelopment = true;
+  assert.deepEqual(itemsOf(rows)[2], { isNewDevelopment: true, modelNumber: 'the round one' }, 'ticked: a new development');
 
   const sample = nextStepOf({ nextStep: 'sample', stepColourType: 'Compulsory colour', stepPieces: '2', stepNote: '' }, rows);
   assert.equal(sample.nextAction, 'Send sample — NCP-25, MAU-35 WB, the round one');
@@ -97,4 +97,29 @@ test('the models read become rows; the rows become the enquiry’s models and th
   assert.deepEqual(nextStepOf({ nextStep: 'photos' }, []), { nextAction: 'Send photos', nextActionType: 'whatsapp' });
   assert.deepEqual(nextStepOf({ nextStep: 'other', nextAction: ' Call the owner ' }), { nextAction: 'Call the owner', nextActionType: 'other' });
   assert.deepEqual(withoutStepFields({ company: 'X', nextStep: 'sample', stepPieces: '2', stepNote: 'n' }), { company: 'X' });
+});
+
+test('every model row is on the master or ticked as a new development, described', async () => {
+  const { blankModel } = await import('../src/utils/buyerCards.js');
+  const base = { company: 'Velan Textiles', mobile: '9789012345', nextFollowUpDate: todayIso(), source: 'trade_show' };
+  assert.match(cardProblem(base, [{ ...blankModel(), asked: 'the round one' }]), /Model 1: pick it from the master, tick New development/);
+  assert.match(cardProblem(base, [{ ...blankModel(), isNewDevelopment: true, description: ' ' }]), /Describe the new development for model 1/);
+  assert.equal(cardProblem(base, [{ ...blankModel(), isNewDevelopment: true, description: 'Round velvet, 380mm' }]), null);
+  assert.equal(cardProblem(base, [{ ...blankModel(), ref: 'tabc', code: 'MAU-35 WB' }]), null);
+});
+
+test('the follow-up starts at tomorrow', async () => {
+  const { tomorrowIso } = await import('../src/utils/buyerCards.js');
+  const tomorrow = new Date(`${todayIso()}T12:00:00`);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  assert.equal(tomorrowIso(), `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`);
+  assert.ok(tomorrowIso() > todayIso());
+});
+
+test('a draft on a customer already on the register is not asked for their company or number', () => {
+  const rest2 = { nextFollowUpDate: todayIso(), source: 'trade_show' };
+  assert.match(cardProblem({ ...rest2 }), /company name/);
+  assert.equal(cardProblem({ ...rest2, customer: 'c1' }), null);
+  assert.equal(cardProblem({ ...rest2, customer: 'c1', mobile: '12' }), null, 'the draft’s numbers are not used');
+  assert.match(cardProblem({ customer: 'c1', source: 'trade_show' }), /when to follow up/, 'the rest is still asked');
 });

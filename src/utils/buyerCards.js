@@ -51,40 +51,70 @@ export const SAMPLE_PIECES_WITHOUT_REASON = 3;
 const trimmed = (value) => String(value ?? '').trim();
 
 let rowKeys = 0;
-/** A blank model row; `key` keeps React's rows stable when one in the middle is removed. */
-export const blankModel = () => ({ key: `model-${(rowKeys += 1)}`, mould: '', code: '', quantity: '', colour: '', asked: '', matchedBy: '' });
+/**
+ * A blank model row; `key` keeps React's rows stable when one in the middle is removed. A row is
+ * a model on the master — `ref` is `m<id>` (a mould) or `t<id>` (a trading item), `code` its code —
+ * or, ticked as a new development, a model not made yet, described in `description`.
+ */
+export const blankModel = () => ({
+  key: `model-${(rowKeys += 1)}`, ref: '', code: '', isNewDevelopment: false, description: '',
+  quantity: '', colour: '', asked: '', matchedBy: '',
+});
 
 /**
- * The models the picture named, as rows to correct: the matched tool, or the code (a bought-in
- * item's, or the buyer's own words when nothing matched), with their pieces and colour.
+ * The models the picture named, as rows to correct: the master's model where one matched, else
+ * the buyer's own words, kept ready as the description should it be a new development.
  */
 export function modelsFrom(reading) {
-  return (reading?.models || []).map((model) => ({
-    ...blankModel(),
-    mould: model.mould ? String(model.mould) : '',
-    code: model.mould ? model.code || '' : model.code || model.asked || '',
-    quantity: model.quantity ? String(model.quantity) : '',
-    colour: model.colour || '',
-    asked: model.asked || '',
-    matchedBy: model.matchedBy || '',
-  }));
+  return (reading?.models || []).map((model) => {
+    const ref = model.mould ? `m${model.mould}` : model.tradedItem ? `t${model.tradedItem}` : '';
+    return {
+      ...blankModel(),
+      ref,
+      code: ref ? model.code || '' : '',
+      description: ref ? '' : model.asked || model.code || '',
+      quantity: model.quantity ? String(model.quantity) : '',
+      colour: model.colour || '',
+      asked: model.asked || '',
+      matchedBy: ref ? model.matchedBy || '' : '',
+    };
+  });
 }
 
-/** A row names a model: a tool from the register, or a code typed in. */
-export const namesModel = (row) => Boolean(row.mould || trimmed(row.code));
-/** What a row is called: its code. */
-export const modelName = (row) => trimmed(row.code) || 'the chosen model';
+/** Tomorrow, as the date input writes it — the follow-up a draft starts with. */
+export const tomorrowIso = () => {
+  const next = new Date();
+  next.setDate(next.getDate() + 1);
+  return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`;
+};
+
+/** A row names a model: one picked from the master, or a new development described. */
+export const namesModel = (row) => Boolean(row.ref || (row.isNewDevelopment && trimmed(row.description)));
+/** What a row is called: its code, or the new development's description. */
+export const modelName = (row) => (row.ref ? trimmed(row.code) || 'the chosen model' : trimmed(row.description) || 'the new model');
 
 /** The rows as the enquiry's models [server: buyerCard.service `enquiryItemsFrom`]. */
 export function itemsOf(rows = []) {
   return rows.filter(namesModel).map((row) => {
     const pieces = trimmed(row.quantity).replace(/,/g, '');
+    let model;
+    if (row.ref.startsWith('m')) model = { mould: row.ref.slice(1) };
+    /* A trading item goes by its model number — what the quotation and the trading master know it by. */
+    else if (row.ref.startsWith('t')) model = { modelNumber: trimmed(row.code) };
+    else model = { isNewDevelopment: true, modelNumber: trimmed(row.description) };
     return {
-      ...(row.mould ? { mould: row.mould } : { modelNumber: trimmed(row.code) }),
+      ...model,
       ...(/^\d+$/.test(pieces) && Number(pieces) > 0 ? { quantity: Number(pieces) } : {}),
       ...(trimmed(row.colour) ? { colour: trimmed(row.colour) } : {}),
     };
   });
+}
+
+/** Why a row does not name a model yet, or null. */
+export function modelRowProblem(row, index) {
+  if (namesModel(row)) return null;
+  if (row.isNewDevelopment) return `Describe the new development for model ${index + 1}.`;
+  return `Model ${index + 1}: pick it from the master, tick New development, or remove the row.`;
 }
 
 /**
@@ -139,6 +169,8 @@ export const withoutStepFields = (fields) =>
 
 /** What the models and the next step still need, or null. Not picking a step is fine. */
 export function nextStepProblem(fields, models = []) {
+  const unnamed = models.map(modelRowProblem).find(Boolean);
+  if (unnamed) return unnamed;
   const bad = models.find((row) => trimmed(row.quantity) && !/^\d+$/.test(trimmed(row.quantity).replace(/,/g, '')));
   if (bad) return `The quantity for ${modelName(bad)} is a whole number of pieces.`;
   if (!fields.nextStep) return null;
@@ -158,14 +190,19 @@ export function nextStepProblem(fields, models = []) {
 const digits = (value) => String(value || '').replace(/\D/g, '');
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-/** Why these fields cannot be saved yet, or null. */
+/**
+ * Why these fields cannot be saved yet, or null. On a customer picked from the master the
+ * company and how to reach them are that customer's already, so they are not asked again.
+ */
 export function cardProblem(fields, models = []) {
-  if (String(fields.company || '').trim().length < 2) return 'A customer needs a company name.';
-  const phones = ['mobile', 'whatsapp'].map((key) => fields[key]).filter((value) => String(value || '').trim());
-  if (!phones.length && !String(fields.email || '').trim()) return 'A customer needs a phone number or an email to reach them on.';
-  const bad = phones.find((value) => digits(value).length < 8 || digits(value).length > 15);
-  if (bad) return `${bad} is not a phone number.`;
-  if (String(fields.email || '').trim() && !EMAIL.test(String(fields.email).trim())) return 'That email address is not valid.';
+  if (!fields.customer) {
+    if (String(fields.company || '').trim().length < 2) return 'A customer needs a company name.';
+    const phones = ['mobile', 'whatsapp'].map((key) => fields[key]).filter((value) => String(value || '').trim());
+    if (!phones.length && !String(fields.email || '').trim()) return 'A customer needs a phone number or an email to reach them on.';
+    const bad = phones.find((value) => digits(value).length < 8 || digits(value).length > 15);
+    if (bad) return `${bad} is not a phone number.`;
+    if (String(fields.email || '').trim() && !EMAIL.test(String(fields.email).trim())) return 'That email address is not valid.';
+  }
   if (Number.isNaN(quantityOf(fields.estimatedQuantity))) return 'A quantity is a whole number of pieces.';
   const step = nextStepProblem(fields, models);
   if (step) return step;

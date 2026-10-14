@@ -2,15 +2,15 @@ import { useEffect, useRef, useState } from 'react';
 import { usePhotoDrafts } from '../hooks/usePhotoDrafts.js';
 import { takeSharedPhotos } from '../utils/sharedPhotos.js';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { buyerCards as cardsApi, customers as customersApi, moulds as mouldsApi } from '../api/endpoints.js';
-import { MouldSelect } from '../components/pickers.jsx';
+import { buyerCards as cardsApi, customers as customersApi } from '../api/endpoints.js';
+import { CustomerSelect, MasterModelSelect } from '../components/pickers.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { Badge, EmptyState, ErrorState, Field, Notice, PageHeader } from '../components/ui.jsx';
 import { formatDate } from '../utils/format.js';
 import { SOURCES } from '../utils/pipeline.js';
 import {
-  CARD_STATUS, COLOUR_TYPES, KIND_LABEL, NEXT_STEPS, blankModel, cardProblem, itemsOf, modelsFrom, nextStepOf, quantityOf,
-  todayIso, withoutStepFields,
+  CARD_STATUS, COLOUR_TYPES, KIND_LABEL, NEXT_STEPS, blankModel, cardProblem, itemsOf, modelName, modelsFrom, namesModel,
+  nextStepOf, quantityOf, todayIso, tomorrowIso, withoutStepFields,
 } from '../utils/buyerCards.js';
 
 /**
@@ -85,19 +85,13 @@ const MOST_MODELS = 20;
 /**
  * "Models asked for": each model the picture named, matched to the plant's code where it could be
  * [server: buyerCard.llm `matchModels`], to correct, add to or remove before saving. A row is a
- * tool picked from the mould register, or a code typed — a bought-in item's, or the buyer's own
- * name for it when it is not ours yet. The buyer's words stay beside a row the reading changed.
+ * model picked from the master — a mould made here or a trading item bought in — or, when the
+ * buyer wants one not made yet, ticked as a new development and described. The buyer's words
+ * stay beside each row.
  */
 function DraftModels({ models, onChange, disabled }) {
   const update = (key, patch) => onChange(models.map((row) => (row.key === key ? { ...row, ...patch } : row)));
   const remove = (key) => onChange(models.filter((row) => row.key !== key));
-  const pickMould = async (key, mould) => {
-    update(key, { mould: mould || '', ...(mould ? {} : { code: '' }) });
-    if (!mould) return;
-    const found = await mouldsApi.get(mould).catch(() => null);
-    const record = found?.mould || found;
-    if (record?.mouldCode) update(key, { mould, code: record.mouldCode });
-  };
   return (
     <section className="space-y-2" aria-label="Models asked for">
       <div className="flex items-center justify-between gap-2">
@@ -116,36 +110,49 @@ function DraftModels({ models, onChange, disabled }) {
         <div key={row.key} className="rounded-xl border border-line/[0.1] bg-line/[0.02] p-2.5">
           <div className="flex items-center gap-2">
             <div className="min-w-0 flex-1">
-              <MouldSelect
-                value={row.mould || undefined}
-                onChange={(mould) => pickMould(row.key, mould)}
-                includeBlank="From the mould register…"
-                allowCreate={false}
-                disabled={disabled}
-                aria-label={`Model ${index + 1} from the register`}
-              />
+              {row.isNewDevelopment ? (
+                <input
+                  className="input"
+                  placeholder="Describe the new model — shape, size, the buyer’s sample"
+                  value={row.description}
+                  disabled={disabled}
+                  onChange={(event) => update(row.key, { description: event.target.value })}
+                  aria-label={`Model ${index + 1} new development`}
+                />
+              ) : (
+                <MasterModelSelect
+                  value={row.ref || undefined}
+                  onChange={(ref, option) => update(row.key, { ref: ref || '', code: option?.code || '', matchedBy: '' })}
+                  disabled={disabled}
+                  aria-label={`Model ${index + 1} from the master`}
+                />
+              )}
             </div>
             <button type="button" className="btn-ghost h-9 shrink-0 px-2 text-steel-400 hover:text-danger-400" disabled={disabled} onClick={() => remove(row.key)} aria-label={`Remove model ${index + 1}`}>×</button>
           </div>
-          <div className="mt-2 grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)] gap-2">
-            <input
-              className="input"
-              placeholder="or the model code"
-              title={row.mould ? 'The code of the mould picked above' : 'A bought-in model, or the buyer’s own name for it'}
-              value={row.code}
-              disabled={disabled || Boolean(row.mould)}
-              onChange={(event) => update(row.key, { code: event.target.value })}
-              aria-label={`Model ${index + 1} code`}
-            />
+          <div className="mt-2 grid grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)] items-center gap-2">
+            <label className="flex cursor-pointer items-center gap-1.5 whitespace-nowrap text-sm text-steel-300">
+              <input
+                type="checkbox"
+                className="h-4 w-4 accent-flame-500"
+                checked={row.isNewDevelopment}
+                disabled={disabled}
+                onChange={(event) => update(row.key, event.target.checked
+                  ? { isNewDevelopment: true, ref: '', code: '', matchedBy: '', description: row.description || row.asked }
+                  : { isNewDevelopment: false })}
+                aria-label={`Model ${index + 1} is a new development`}
+              />
+              New development
+            </label>
             <input className="input" inputMode="numeric" placeholder="Qty (pcs)" value={row.quantity} disabled={disabled} onChange={(event) => update(row.key, { quantity: event.target.value.replace(/[^\d,]/g, '') })} aria-label={`Model ${index + 1} quantity`} />
             <input className="input" placeholder="Colour" value={row.colour} disabled={disabled} onChange={(event) => update(row.key, { colour: event.target.value })} aria-label={`Model ${index + 1} colour`} />
           </div>
           {row.asked && (
             <p className="mt-1 text-xs text-steel-400">
               Buyer wrote “{row.asked}”
-              {row.matchedBy === 'code' && row.code ? ` · matched to ${row.code} by its code` : ''}
-              {row.matchedBy === 'model' && row.code ? ` · matched to ${row.code} by AI — check it` : ''}
-              {!row.matchedBy ? ' · no code matched — pick one or keep the buyer’s words' : ''}
+              {row.matchedBy === 'code' && row.ref ? ` · matched to ${row.code} by its code` : ''}
+              {row.matchedBy === 'model' && row.ref ? ` · matched to ${row.code} by AI — check it` : ''}
+              {!row.ref && !row.isNewDevelopment ? ' · not on the master — pick one, or tick New development' : ''}
             </p>
           )}
         </div>
@@ -175,11 +182,13 @@ function CardEditor({ card, onDone }) {
     };
   }, [isManagement]);
 
-  /* Only what was recognised. The next step, the date and how we met them start empty: they are
-     the salesperson's to give, not the app's to guess. */
+  /* Only what was recognised. The next step and how we met them start empty: they are the
+     salesperson's to give, not the app's to guess. The follow-up starts at tomorrow. */
   useEffect(() => {
     setFields({
-      ...(card.reading || {}), nextAction: '', nextFollowUpDate: '', source: '', estimatedValue: '', assignedTo: '',
+      ...(card.reading || {}), nextAction: '', nextFollowUpDate: tomorrowIso(), source: '', estimatedValue: '', assignedTo: '',
+      /* A buyer the plant already has — the one found by their number, to begin with. */
+      customer: card.matchedCustomer?._id || '',
       /* The next step, picked; a sample or a quotation also raises that department's task. */
       nextStep: '', stepColourType: '', stepPieces: '2', stepTargetPrice: '', stepNote: '',
     });
@@ -208,6 +217,7 @@ function CardEditor({ card, onDone }) {
       const done = await cardsApi.confirm({
         id: card._id,
         ...withoutStepFields({ ...fields, models: undefined }),
+        customer: fields.customer || undefined,
         ...nextStepOf(fields, models),
         items: itemsOf(models),
         estimatedQuantity: quantityOf(fields.estimatedQuantity),
@@ -255,9 +265,9 @@ function CardEditor({ card, onDone }) {
         {card.companyFromName && open && (
           <Notice tone="warn">No business was named, so the company is the person’s name. Change it if you know the business.</Notice>
         )}
-        {holder && (
+        {holder && fields.customer !== card.matchedCustomer._id && (
           <Notice tone="warn">
-            This buyer is already <Link className="font-semibold underline" to={holder.to}>{holder.text}</Link> — raise the enquiry there.
+            This buyer is already <Link className="font-semibold underline" to={holder.to}>{holder.text}</Link> — pick them as the existing customer below.
           </Notice>
         )}
         {card.status === 'confirmed' && card.enquiry && (
@@ -269,25 +279,48 @@ function CardEditor({ card, onDone }) {
         )}
         {card.status === 'discarded' && <Notice tone="info">Dropped{card.decidedBy ? ` by ${card.decidedBy.name}` : ''}.</Notice>}
 
+        {open && (
+          <Field
+            label="Existing customer"
+            hint={fields.customer
+              ? 'The enquiry goes on this customer — the details below are not added to them'
+              : 'Leave empty to make a new customer from this draft'}
+          >
+            <CustomerSelect
+              value={fields.customer || undefined}
+              onChange={(id) => set('customer', id || '')}
+              allowCreate={false}
+              emptyLabel="New customer — from this draft"
+              disabled={off}
+              aria-label="Existing customer"
+            />
+          </Field>
+        )}
+
         <section className="space-y-3">
           <h3 className="text-xs font-bold uppercase tracking-[0.08em] text-steel-500">
             Recognised in the picture{card.readBy === 'model' ? ' — by AI, check it' : ''}
           </h3>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
-            <Field
-              label="Company"
-              required
-              hint={card.reading?.company && fields.company === card.reading.company ? 'From the picture' : !fields.company ? 'Not in the picture' : undefined}
-              className="sm:col-span-2 xl:col-span-1 2xl:col-span-2"
-            >
-              <input
+            {fields.customer ? (
+              /* On a customer already on the register, the company is theirs: shown, not asked. */
+              <ReadField {...common} label="Company" name="company" wide />
+            ) : (
+              <Field
+                label="Company"
                 required
-                className={`input ${card.reading?.company && fields.company === card.reading.company ? 'ring-1 ring-inset ring-aqua-500/30' : ''}`}
-                value={fields.company || ''}
-                disabled={off}
-                onChange={(event) => set('company', event.target.value)}
-              />
-            </Field>
+                hint={card.reading?.company && fields.company === card.reading.company ? 'From the picture' : !fields.company ? 'Not in the picture' : undefined}
+                className="sm:col-span-2 xl:col-span-1 2xl:col-span-2"
+              >
+                <input
+                  required
+                  className={`input ${card.reading?.company && fields.company === card.reading.company ? 'ring-1 ring-inset ring-aqua-500/30' : ''}`}
+                  value={fields.company || ''}
+                  disabled={off}
+                  onChange={(event) => set('company', event.target.value)}
+                />
+              </Field>
+            )}
             <ReadField {...common} label="Contact name" name="contactName" />
             <ReadField {...common} label="Designation" name="designation" />
             <ReadField {...common} label="Mobile" name="mobile" inputMode="tel" />
@@ -331,8 +364,8 @@ function CardEditor({ card, onDone }) {
               )}
               {['sample', 'quote'].includes(fields.nextStep) && (
                 <p className="text-xs text-steel-400 sm:col-span-2 xl:col-span-1 2xl:col-span-2">
-                  {models.some((row) => row.mould || row.code.trim())
-                    ? `For ${models.filter((row) => row.mould || row.code.trim()).map((row) => row.code.trim() || 'the chosen model').join(', ')} — the models listed above.`
+                  {models.some(namesModel)
+                    ? `For ${models.filter(namesModel).map(modelName).join(', ')} — the models listed above.`
                     : 'Add the models above — the task is raised for each of them.'}
                 </p>
               )}
