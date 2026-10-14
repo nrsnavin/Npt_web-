@@ -122,6 +122,19 @@ export function AuthProvider({ children }) {
        * stays the role alone, for what the server keeps to the role (users, integrations).
        */
       isManagement: user?.role === 'admin' || (user?.departments || [user?.department]).includes('management'),
+      /**
+       * Whether this person may open a customer record: a salesperson (marketing as their main
+       * department) only the customers allocated to them; everybody else, and Admin, any
+       * [server: ownership.service `ownsCustomer`]. A delegated enquiry's buyer can be someone
+       * else's — its name is shown, not linked. Unknown owner: assume it opens.
+       */
+      opensCustomer(customer) {
+        const salesperson = user?.department === 'marketing'
+          && !(user?.role === 'admin' || (user?.departments || [user?.department]).includes('management'));
+        const owner = customer?.assignedTo?._id || customer?.assignedTo;
+        if (!salesperson || !owner) return true;
+        return String(owner) === String(user?._id || user?.id);
+      },
       /** Every department this person works in, their main one first [server: utils/departments.js]. */
       departments: user?.departments || (user?.department ? [user.department] : []),
       /** True when they work in that department, as their main one or an extra one. */
