@@ -38,9 +38,9 @@ test('a quantity is a whole number of pieces, or left empty', async () => {
   assert.equal(cardProblem({ ...rest, company: 'Velan Textiles', mobile: '9789012345', estimatedQuantity: 5000 }), null);
 });
 
-test('the next step, when, and how we met them are always the salesperson\'s to give', () => {
+test('when and how we met them are always the salesperson\'s to give; the next step may wait', () => {
   const read = { company: 'Velan Textiles', mobile: '9789012345' };
-  assert.match(cardProblem(read), /next step/);
+  assert.match(cardProblem(read), /when to follow up/);
   assert.match(cardProblem({ ...read, nextAction: 'Call' }), /when to follow up/);
   assert.match(cardProblem({ ...read, nextAction: 'Call', nextFollowUpDate: '2020-01-01' }), /cannot be in the past/);
   assert.match(cardProblem({ ...read, nextAction: 'Call', nextFollowUpDate: todayIso() }), /how we met them/);
@@ -50,7 +50,8 @@ test('the next step, when, and how we met them are always the salesperson\'s to 
 test('the next step is picked; a sample needs its model, and more than 3 pcs needs a reason', async () => {
   const { nextStepProblem } = await import('../src/utils/buyerCards.js');
   const base = { company: 'Velan Textiles', mobile: '9789012345', nextFollowUpDate: todayIso(), source: 'trade_show' };
-  assert.match(cardProblem({ ...base, nextStep: '' }), /Pick the next step/);
+  assert.equal(cardProblem({ ...base, nextStep: '' }), null, 'the next step may wait');
+  assert.equal(cardProblem(base), null);
   assert.match(cardProblem({ ...base, nextStep: 'other', nextAction: ' ' }), /Say what the next step is/);
   assert.equal(cardProblem({ ...base, nextStep: 'other', nextAction: 'Call the owner' }), null);
   assert.match(cardProblem({ ...base, nextStep: 'sample', stepModel: '' }), /model for the sample/);

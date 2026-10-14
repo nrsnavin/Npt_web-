@@ -228,12 +228,11 @@ function CardEditor({ card, onDone }) {
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
               <Field
                 label="Next step"
-                required
-                hint={NEXT_STEPS.find((step) => step.value === fields.nextStep)?.hint}
+                hint={NEXT_STEPS.find((step) => step.value === fields.nextStep)?.hint || 'Optional — can be set on the enquiry later'}
                 className="sm:col-span-2 xl:col-span-1 2xl:col-span-2"
               >
-                <select required className="input" value={fields.nextStep || ''} disabled={off} onChange={(event) => set('nextStep', event.target.value)} aria-label="Next step">
-                  <option value="">Choose…</option>
+                <select className="input" value={fields.nextStep || ''} disabled={off} onChange={(event) => set('nextStep', event.target.value)} aria-label="Next step">
+                  <option value="">Not decided yet</option>
                   {NEXT_STEPS.map((step) => <option key={step.value} value={step.value}>{step.label}</option>)}
                 </select>
               </Field>

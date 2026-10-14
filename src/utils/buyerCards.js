@@ -1,8 +1,8 @@
 /**
  * The rule for saving a draft, said before it is sent — the server holds the same one
  * (buyerCard.service `confirmProblem` and the phone check in `confirmCard`). What was recognised in
- * the picture is only a start: the next step, when to follow up and how we met them are always
- * the salesperson's to give.
+ * the picture is only a start: when to follow up and how we met them are always the
+ * salesperson's to give; the next step is theirs too, but may wait.
  */
 export const CARD_FIELDS = [
   ['company', 'Company'],
@@ -95,9 +95,9 @@ const STEP_FIELDS = ['nextStep', 'stepModel', 'stepColour', 'stepColourType', 's
 export const withoutStepFields = (fields) =>
   Object.fromEntries(Object.entries(fields).filter(([key]) => !STEP_FIELDS.includes(key)));
 
-/** What the next step still needs, or null. */
+/** What the next step still needs, or null. Not picking one is fine: it is set on the enquiry later. */
 export function nextStepProblem(fields) {
-  if (!fields.nextStep) return 'Pick the next step.';
+  if (!fields.nextStep) return null;
   if (fields.nextStep === 'other' && !trimmed(fields.nextAction)) return 'Say what the next step is.';
   if (fields.nextStep === 'sample') {
     if (!trimmed(fields.stepModel)) return 'Name the model for the sample.';
@@ -124,7 +124,7 @@ export function cardProblem(fields) {
   if (bad) return `${bad} is not a phone number.`;
   if (String(fields.email || '').trim() && !EMAIL.test(String(fields.email).trim())) return 'That email address is not valid.';
   if (Number.isNaN(quantityOf(fields.estimatedQuantity))) return 'A quantity is a whole number of pieces.';
-  const step = 'nextStep' in fields ? nextStepProblem(fields) : (!String(fields.nextAction || '').trim() ? 'Say what the next step is.' : null);
+  const step = nextStepProblem(fields);
   if (step) return step;
   if (!fields.nextFollowUpDate) return 'Say when to follow up.';
   if (String(fields.nextFollowUpDate) < todayIso()) return 'The follow-up date cannot be in the past.';
