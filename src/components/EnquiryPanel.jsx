@@ -79,7 +79,7 @@ function Delegate({ enquiry, onDone }) {
           {busy ? 'Moving…' : 'Delegate'}
         </button>
       </div>
-      <p className="mt-1.5 text-xs text-steel-400">Enquiry and customer ownership move to the selected person.</p>
+      <p className="mt-1.5 text-xs text-steel-400">The enquiry, with its open tasks, samples and orders, moves to the selected person. The customer stays with whoever holds it — hand the customer over from the party master.</p>
       {problem && <div className="mt-2"><Notice tone="danger">{problem}</Notice></div>}
     </Card>
   );
