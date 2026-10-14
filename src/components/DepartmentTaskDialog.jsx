@@ -117,7 +117,7 @@ function Rows({ field, rows, prefill, onChange }) {
   );
 }
 
-export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKind, fromTask, title, onClose, onSent }) {
+export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKind, fromTask, title, customer: startCustomer, onClose, onSent }) {
   const [kind, setKind] = useState(startKind);
   const [prefill, setPrefill] = useState(null);
   const [answers, setAnswers] = useState({});
@@ -130,7 +130,8 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
   const { toast, warn } = useToast();
   /* No enquiry: a team task, with an optional customer instead of the enquiry's answers. */
   const team = !enquiry;
-  const [customer, setCustomer] = useState('');
+  /* A team task opened from a customer [components/CustomerPanel.jsx] starts on that buyer. */
+  const [customer, setCustomer] = useState(startCustomer || '');
   /* An enquiry with more than one SO: which one this task is for (else the server takes the newest). */
   const [orders, setOrders] = useState([]);
   const [order, setOrder] = useState('');

@@ -10,6 +10,7 @@ import {
 import ExportButton from '../components/ExportButton.jsx';
 import { SortHeader, useSort } from '../components/SortHeader.jsx';
 import MaterialForm from '../components/MaterialForm.jsx';
+import BulkRateForm from '../components/BulkRateForm.jsx';
 import { formatDate } from '../utils/format.js';
 import { MATERIAL_TYPES, optionLabel } from '../utils/pipeline.js';
 
@@ -62,6 +63,7 @@ export default function Materials() {
   });
 
   const mayWrite = canWrite('materials');
+  const [bulk, setBulk] = useState(false);
 
   const onFilterChange = (setter) => (event) => {
     setter(event.target.value);
@@ -76,6 +78,11 @@ export default function Materials() {
         actions={
           <div className="flex items-center gap-2">
             <ExportButton download={downloads.materials} params={filters} />
+            {mayWrite && (
+              <button type="button" className="btn-secondary" onClick={() => setBulk(true)}>
+                Bulk price update
+              </button>
+            )}
             {mayWrite && (
               <button type="button" className="btn-primary" onClick={() => setEditing({})}>
                 + New material
@@ -206,6 +213,16 @@ export default function Materials() {
       ))}
 
       {stocking && <StockDialog material={stocking} mayWrite={mayWrite} onClose={() => setStocking(null)} onChanged={reload} />}
+
+      <Modal
+        open={bulk}
+        title="Bulk price update"
+        description="Type the new price beside each material that changed"
+        size="lg"
+        onClose={() => setBulk(false)}
+      >
+        {bulk && <BulkRateForm onClose={() => setBulk(false)} onSaved={reload} />}
+      </Modal>
 
       <Modal
         open={Boolean(editing)}

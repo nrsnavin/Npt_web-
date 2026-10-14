@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import CustomerPanel from '../components/CustomerPanel.jsx';
 import { Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { customers as customersApi, deliveryRoutesApi, downloads, transportersApi } from '../api/endpoints.js';
@@ -421,6 +422,8 @@ export default function Customers() {
   const [status, setStatus] = useState('');
   const [page, setPage] = useState(1);
   const [creating, setCreating] = useState(false);
+  /* The buyer's side panel [components/CustomerPanel.jsx], as on the dashboard's party master. */
+  const [panel, setPanel] = useState(null);
   /* The command bar's "New …" arrives as `?new=1` with the form to open. */
   useOpenFromLink(() => setCreating(true));
   const { sort, toggle } = useSort();
@@ -529,11 +532,17 @@ export default function Customers() {
                     <th className="px-4 py-3 text-right">Business</th>
                     <th className="px-4 py-3 text-right">Last order</th>
                     <SortHeader field="status" label="Status" sort={sort} onToggle={sortBy} className="px-4" />
+                    <th className="px-4 py-3"><span className="sr-only">Actions</span></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line/[0.04]">
                   {data.map((customer) => (
-                    <tr key={customer._id} className="row-hover">
+                    <tr
+                      key={customer._id}
+                      className={`row-hover cursor-pointer ${panel === customer._id ? 'bg-accent/[0.06]' : ''}`}
+                      /* The row opens the buyer's side panel; the name still goes to their page. */
+                      onClick={(event) => { if (!event.target.closest('a, button, input, label')) setPanel(customer._id); }}
+                    >
                       {isAdmin && (
                         <td className="px-4 py-3.5">
                           <RowCheckbox
@@ -568,6 +577,11 @@ export default function Customers() {
                       <td className="px-4 py-3.5">
                         <Badge status={customer.status} />
                       </td>
+                      <td className="px-4 py-3.5 text-right">
+                        <button type="button" className="btn-secondary whitespace-nowrap px-3 py-1.5 text-xs" onClick={() => setPanel(customer._id)} aria-label={`Actions for ${customer.name}`}>
+                          Actions ›
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -580,6 +594,8 @@ export default function Customers() {
           )}
         </>
       ))}
+
+      {panel && <CustomerPanel customerId={panel} onClose={() => setPanel(null)} onChanged={reload} />}
 
       <Modal
         open={creating}
