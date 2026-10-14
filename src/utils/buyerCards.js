@@ -110,6 +110,20 @@ export function itemsOf(rows = []) {
   });
 }
 
+/**
+ * The words to suggest master models from, for one row: what the buyer wrote, or — ticked as a
+ * new development — its description, so a model the plant already has is not developed twice.
+ * A row picked by its code, or by hand, needs none.
+ */
+export function suggestWordsOf(row) {
+  if (row.isNewDevelopment) return trimmed(row.description);
+  if (row.ref && row.matchedBy !== 'model') return '';
+  return trimmed(row.asked);
+}
+
+/** Suggestions worth showing: not the one already chosen. */
+export const otherSuggestions = (options = [], chosen = '') => options.filter((option) => (option.ref || option._id) !== chosen);
+
 /** Why a row does not name a model yet, or null. */
 export function modelRowProblem(row, index) {
   if (namesModel(row)) return null;

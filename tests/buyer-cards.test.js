@@ -123,3 +123,15 @@ test('a draft on a customer already on the register is not asked for their compa
   assert.equal(cardProblem({ ...rest2, customer: 'c1', mobile: '12' }), null, 'the draft’s numbers are not used');
   assert.match(cardProblem({ customer: 'c1', source: 'trade_show' }), /when to follow up/, 'the rest is still asked');
 });
+
+test('suggestions come from the buyer’s words, or a new development’s description, and leave out what is chosen', async () => {
+  const { blankModel, suggestWordsOf, otherSuggestions } = await import('../src/utils/buyerCards.js');
+  assert.equal(suggestWordsOf({ ...blankModel(), asked: ' round velvet one ' }), 'round velvet one', 'not on the master yet');
+  assert.equal(suggestWordsOf({ ...blankModel(), ref: 'm1', matchedBy: 'model', asked: '400mm suit' }), '400mm suit', 'a guess by AI: offer others');
+  assert.equal(suggestWordsOf({ ...blankModel(), ref: 'm1', matchedBy: 'code', asked: 'M 101' }), '', 'matched by its code: nothing to ask');
+  assert.equal(suggestWordsOf({ ...blankModel(), ref: 'm1', asked: 'M 101' }), '', 'picked by hand: nothing to ask');
+  assert.equal(suggestWordsOf({ ...blankModel(), isNewDevelopment: true, asked: 'x', description: 'Velvet 380mm' }), 'Velvet 380mm', 'a new development is checked against the master');
+  assert.deepEqual(otherSuggestions([{ ref: 'm1' }, { ref: 't2' }], 'm1'), [{ ref: 't2' }]);
+  assert.deepEqual(otherSuggestions([{ _id: 'c1' }, { _id: 'c2' }], 'c2'), [{ _id: 'c1' }]);
+  assert.deepEqual(otherSuggestions(undefined, ''), []);
+});

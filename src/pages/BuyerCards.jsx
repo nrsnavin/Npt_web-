@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { usePhotoDrafts } from '../hooks/usePhotoDrafts.js';
+import { useDebounced } from '../hooks/useRecords.js';
 import { takeSharedPhotos } from '../utils/sharedPhotos.js';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { buyerCards as cardsApi, customers as customersApi } from '../api/endpoints.js';
@@ -10,7 +11,7 @@ import { formatDate } from '../utils/format.js';
 import { SOURCES } from '../utils/pipeline.js';
 import {
   CARD_STATUS, COLOUR_TYPES, KIND_LABEL, NEXT_STEPS, blankModel, cardProblem, itemsOf, modelName, modelsFrom, namesModel,
-  nextStepOf, quantityOf, todayIso, tomorrowIso, withoutStepFields,
+  nextStepOf, otherSuggestions, quantityOf, suggestWordsOf, todayIso, tomorrowIso, withoutStepFields,
 } from '../utils/buyerCards.js';
 
 /**
@@ -89,7 +90,36 @@ const MOST_MODELS = 20;
  * buyer wants one not made yet, ticked as a new development and described. The buyer's words
  * stay beside each row.
  */
-function DraftModels({ models, onChange, disabled }) {
+/**
+ * Suggestions from the master, one tap to take — the models a row could mean, the customers a
+ * buyer could be. An option without `pick` is shown but cannot be taken, with its `note` saying why.
+ */
+function Suggested({ label, name, options, hidden }) {
+  if (hidden || !options.length) return null;
+  return (
+    <div className="mt-1.5 flex flex-wrap items-center gap-1.5" role="group" aria-label={name}>
+      <span className="text-xs text-steel-400">{label}</span>
+      {options.map((option) => (option.pick ? (
+        <button
+          key={option.key}
+          type="button"
+          className="max-w-full rounded-2xl border border-aqua-500/30 bg-aqua-500/[0.06] px-2.5 py-1 text-left text-xs font-medium text-steel-200 hover:bg-aqua-500/[0.14]"
+          onClick={option.pick}
+          title={option.note ? `${option.text} · ${option.note}` : option.text}
+        >
+          {option.text}
+          {option.note && <span className="ml-1 font-normal text-steel-400">· {option.note}</span>}
+        </button>
+      ) : (
+        <span key={option.key} className="max-w-full rounded-2xl border border-line/[0.12] px-2.5 py-1 text-xs text-steel-400">
+          {option.text}{option.note && <> · {option.note}</>}
+        </span>
+      )))}
+    </div>
+  );
+}
+
+function DraftModels({ models, onChange, disabled, suggestions = {} }) {
   const update = (key, patch) => onChange(models.map((row) => (row.key === key ? { ...row, ...patch } : row)));
   const remove = (key) => onChange(models.filter((row) => row.key !== key));
   return (
@@ -155,6 +185,17 @@ function DraftModels({ models, onChange, disabled }) {
               {!row.ref && !row.isNewDevelopment ? ' · not on the master — pick one, or tick New development' : ''}
             </p>
           )}
+          <Suggested
+            label={row.isNewDevelopment ? 'Already on the master?' : row.ref ? 'Or maybe:' : 'Suggested:'}
+            name={`Suggestions for model ${index + 1}`}
+            hidden={disabled}
+            options={otherSuggestions(suggestions[row.key], row.ref).map((option) => ({
+              key: option.ref,
+              text: option.name ? `${option.code} — ${option.name}` : option.code,
+              note: option.kind === 'traded' ? 'Trading' : 'Mould',
+              pick: () => update(row.key, { ref: option.ref, code: option.code, isNewDevelopment: false, matchedBy: '' }),
+            }))}
+          />
         </div>
       ))}
     </section>
@@ -203,6 +244,30 @@ function CardEditor({ card, onDone }) {
 
   const open = ['ready', 'unreadable'].includes(card.status);
   const why = cardProblem(fields, models);
+
+  /*
+   * What the draft may already be on the master as — asked again as it is edited, so a company
+   * typed in or a new development described brings its own suggestions [server: draftSuggestions].
+   */
+  const [suggested, setSuggested] = useState({ customers: [], models: {} });
+  const asking = useDebounced(JSON.stringify({
+    company: fields.company || '', mobile: fields.mobile || '', whatsapp: fields.whatsapp || '', email: fields.email || '',
+    city: fields.city || '', keys: models.map((row) => row.key), words: models.map(suggestWordsOf),
+  }), 450);
+  useEffect(() => {
+    if (!open) return undefined;
+    const { keys, words, ...contact } = JSON.parse(asking);
+    let live = true;
+    cardsApi.suggestions({ ...contact, asked: words })
+      .then((data) => live && setSuggested({
+        customers: data?.customers || [],
+        models: Object.fromEntries(keys.map((key, at) => [key, data?.models?.[at] || []])),
+      }))
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [asking, open]);
   const holder = card.matchedCustomer
     ? { to: `/customers/${card.matchedCustomer._id}`, text: `customer ${card.matchedCustomer.code} (${card.matchedCustomer.name})` }
     : null;
@@ -294,6 +359,16 @@ function CardEditor({ card, onDone }) {
               disabled={off}
               aria-label="Existing customer"
             />
+            <Suggested
+              label={fields.customer ? 'Or one of these?' : 'Already a customer?'}
+              name="Customers it may be"
+              options={otherSuggestions(suggested.customers, fields.customer).map((customer) => ({
+                key: customer._id,
+                text: `${customer.name} · ${customer.code}${customer.city ? ` · ${customer.city}` : ''}`,
+                note: customer.mayUse ? customer.why : `${customer.why} — ${customer.holder}’s customer, ask them or Admin`,
+                pick: customer.mayUse ? () => set('customer', customer._id) : undefined,
+              }))}
+            />
           </Field>
         )}
 
@@ -334,7 +409,7 @@ function CardEditor({ card, onDone }) {
           </div>
         </section>
 
-        <DraftModels models={models} onChange={(next) => { setModels(next); setProblem(null); }} disabled={off} />
+        <DraftModels models={models} suggestions={suggested.models} onChange={(next) => { setModels(next); setProblem(null); }} disabled={off} />
 
         {open && (
           <section className="space-y-3 rounded-xl border border-flame-500/20 bg-flame-500/[0.04] p-4">
