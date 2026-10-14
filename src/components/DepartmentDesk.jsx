@@ -37,7 +37,7 @@ const BANDS = [
 ];
 
 /** The buttons that record rather than raise a task: Photos Sent, Task Closed. */
-function SendDialog({ button, enquiry, onClose, onSent }) {
+export function SendDialog({ button, enquiry, onClose, onSent }) {
   /* A button may arrive with its note written for it — Close after the LR says why already. */
   const [note, setNote] = useState(button?.note || '');
   const [busy, setBusy] = useState(false);

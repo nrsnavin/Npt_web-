@@ -4,6 +4,7 @@ import { buyerCards as buyerCardsApi, customers as customersApi, departments as 
 import { useAuth } from '../context/AuthContext.jsx';
 import { useRecord } from '../hooks/useRecords.js';
 import AttentionPanel from '../components/AttentionPanel.jsx';
+import CustomerPanel from '../components/CustomerPanel.jsx';
 import DepartmentTasksBoard from '../components/DepartmentTasksBoard.jsx';
 import TodaysActions, { FollowUpDialog } from '../components/TodaysActions.jsx';
 import EnquiryForm from '../components/EnquiryForm.jsx';
@@ -69,6 +70,8 @@ function PartyMaster({ isAdmin, onAdd, onFollowUpChanged, refreshKey = 0 }) {
   const [editing, setEditing] = useState(null);
   const [problem, setProblem] = useState(null);
   const [following, setFollowing] = useState(null);
+  /* The buyer's side panel — a row clicked opens it [components/CustomerPanel.jsx]. */
+  const [panel, setPanel] = useState(null);
   const fetch = useCallback(() => overview.parties({ filter, page, search: search.trim() || undefined }), [filter, page, search]);
   const { data, loading, error, reload } = useRecord(fetch, `parties-${filter}-${page}-${search}-${refreshKey}`);
 
@@ -128,8 +131,18 @@ function PartyMaster({ isAdmin, onAdd, onFollowUpChanged, refreshKey = 0 }) {
       ) : data?.rows?.length ? (
         <ul className="divide-y divide-line/10 rounded-xl border border-line/10">
           {data.rows.map((row) => (
-            <li key={row._id} className="flex items-center gap-3 px-3 py-3 sm:px-4">
-              <div className="min-w-0 flex-1">
+            <li
+              key={row._id}
+              className={`flex cursor-pointer items-center gap-3 px-3 py-3 transition-colors hover:bg-line/[0.03] sm:px-4 ${panel === row._id ? 'bg-accent/[0.06]' : ''}`}
+              onClick={(event) => { if (!event.target.closest('button, a, input, select')) setPanel(row._id); }}
+            >
+              <div
+                role="button"
+                tabIndex={0}
+                className="min-w-0 flex-1 rounded-md text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent"
+                onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setPanel(row._id); } }}
+                aria-label={`Actions for ${row.name}`}
+              >
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="truncate font-semibold text-steel-50">{row.name}</p>
                   {row.isNew && <span className="rounded-full bg-aqua-500/15 px-2 py-0.5 text-[0.75rem] font-semibold text-aqua-400">New Enquiry</span>}
@@ -179,6 +192,7 @@ function PartyMaster({ isAdmin, onAdd, onFollowUpChanged, refreshKey = 0 }) {
       <Modal open={Boolean(editing)} title="Edit customer" size="lg" onClose={() => setEditing(null)}>
         {editing && <CustomerForm customer={editing} onClose={() => setEditing(null)} onSaved={reload} />}
       </Modal>
+      {panel && <CustomerPanel customerId={panel} onClose={() => setPanel(null)} onChanged={reload} />}
       {following && (
         <FollowUpDialog
           customer={following.customer}

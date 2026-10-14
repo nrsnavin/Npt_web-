@@ -354,6 +354,10 @@ export const customers = {
   setCredit: ({ id, ...payload }) => api.post(`/customers/${id}/credit`, payload).then(unwrap),
   /** The customer's own follow-up: its history, and set / log / close [components/TodaysActions.jsx]. */
   followUp: (id) => api.get(`/customers/${id}/follow-up`).then(unwrap),
+  /** The side panel off a party master row: contact, open enquiries and tasks, who to hand on to. */
+  panel: (id) => api.get(`/customers/${id}/panel`).then(unwrap),
+  /** Admin hands the buyer and every enquiry of theirs still being worked to someone else. */
+  delegate: ({ id, ...payload }) => api.post(`/customers/${id}/delegate`, payload).then(unwrap),
   followUpAction: ({ id, ...payload }) => api.post(`/customers/${id}/follow-up`, payload).then(unwrap),
   /** Warns before submitting, on the same GST-then-number rule the server enforces. */
   checkDuplicate: (params) => api.get('/customers/check-duplicate', { params }).then(unwrap),
