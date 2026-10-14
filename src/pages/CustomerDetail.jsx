@@ -4,7 +4,7 @@ import { Link, useParams } from 'react-router-dom';
 import { customers as customersApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useRecord } from '../hooks/useRecords.js';
-import { Badge, ErrorState, Facts, Field, FormError, Modal, PageHeader, Section, Spinner } from '../components/ui.jsx';
+import { Badge, ErrorState, Facts, Field, FormError, Modal, Notice, PageHeader, Section, Spinner } from '../components/ui.jsx';
 import Documents from '../components/Documents.jsx';
 import CustomerQueries from '../components/CustomerQueries.jsx';
 import CustomerMap from '../components/CustomerMap.jsx';
@@ -116,6 +116,8 @@ export default function CustomerDetail() {
    * colleague's buyer, could press Edit and Save and be told the buyer did not exist.
    */
   const mayWrite = canWrite('customers') && ownsRecord(user, customer);
+  /* A salesperson on another salesperson's buyer: here only because a query about them is theirs. */
+  const fromQuery = !ownsRecord(user, customer);
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -159,6 +161,13 @@ export default function CustomerDetail() {
           </div>
         }
       />
+
+      {fromQuery && (
+        <Notice tone="info">
+          Opened from a query about this buyer — read only. {customer.assignedTo?.name ? `${customer.assignedTo.name} holds this customer; ` : ''}
+          its enquiries and samples are not shown, and it is not in your customer list.
+        </Notice>
+      )}
 
       {/* The map replaces the columns rather than sitting above them: a picture of the whole
           relationship and then the same records again as tables is one screen saying everything

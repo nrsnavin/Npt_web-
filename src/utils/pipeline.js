@@ -645,7 +645,9 @@ export function followUpState(date) {
 const OWNED_BY_DEPARTMENT = ['marketing'];
 
 export const isOwnershipScoped = (user) =>
-  user?.role !== 'admin' && OWNED_BY_DEPARTMENT.includes(user?.department);
+  user?.role !== 'admin'
+  && !(user?.departments || [user?.department]).includes('management')
+  && OWNED_BY_DEPARTMENT.includes(user?.department);
 
 /** An owner is an id on a lean record and an object once populated, so compare on the id. */
 const ownerId = (value) => String(value?._id ?? value ?? '');
