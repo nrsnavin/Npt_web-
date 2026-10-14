@@ -1,10 +1,11 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { buyerCards as buyerCardsApi, customers as customersApi, departments as departmentsApi, overview } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useRecord } from '../hooks/useRecords.js';
 import AttentionPanel from '../components/AttentionPanel.jsx';
 import CustomerPanel from '../components/CustomerPanel.jsx';
+import EnquiryPanel from '../components/EnquiryPanel.jsx';
 import DepartmentTasksBoard from '../components/DepartmentTasksBoard.jsx';
 import TodaysActions, { FollowUpDialog } from '../components/TodaysActions.jsx';
 import EnquiryForm from '../components/EnquiryForm.jsx';
@@ -206,7 +207,8 @@ function PartyMaster({ isAdmin, onAdd, onFollowUpChanged, refreshKey = 0 }) {
 }
 
 export default function OverviewDashboard() {
-  const { user, isManagement: isAdmin, departments = [], canRead } = useAuth();
+  const { user, isManagement: isAdmin, departments = [], canRead, canWrite } = useAuth();
+  const navigate = useNavigate();
   const fetch = useCallback(() => overview.summary(), []);
   const { data, loading, error, reload } = useRecord(fetch, 'overview');
   /* "Needs your action" — the questions and the departments' moves on my enquiries. */
@@ -225,6 +227,30 @@ export default function OverviewDashboard() {
   const [actionsKey, setActionsKey] = useState(0);
   /* A follow-up worked from the card shows on its row without the list losing its filter or page. */
   const [partiesRefresh, setPartiesRefresh] = useState(0);
+  /* The enquiry open in the side panel — a New Enquiries card clicked. */
+  const [openEnquiry, setOpenEnquiry] = useState(null);
+  /*
+   * An enquiry from a photo — a visiting card, an enquiry slip or a chat screenshot. It is read
+   * and saved as a draft, which opens to be finished [pages/BuyerCards.jsx], as one sent on
+   * WhatsApp would be.
+   */
+  const photoPicker = useRef(null);
+  const [reading, setReading] = useState(false);
+  const [photoProblem, setPhotoProblem] = useState(null);
+  const fromPhoto = async (file) => {
+    if (!file) return;
+    setReading(true);
+    setPhotoProblem(null);
+    try {
+      const card = await buyerCardsApi.upload({ file });
+      navigate(`/enquiries/drafts?card=${card._id}`);
+    } catch (failure) {
+      setPhotoProblem(failure.message);
+      setReading(false);
+    } finally {
+      if (photoPicker.current) photoPicker.current.value = '';
+    }
+  };
 
   if (loading && !data) return <DashboardSkeleton label="Loading the overview" tiles={4} />;
   if (error) return <ErrorState error={error} onRetry={reload} />;
@@ -257,9 +283,32 @@ export default function OverviewDashboard() {
             <Link key={entry} to={`/departments/${entry}`} className="btn-secondary">{departmentLabel(entry)} desk</Link>
           ))}
           {canRead('customers') && <button type="button" className="btn-secondary" onClick={() => setAdding('party')}>+ Add Party</button>}
+          {canWrite('customers') && (
+            <>
+              <input
+                ref={photoPicker}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                aria-label="Photo or screenshot of the enquiry"
+                onChange={(event) => fromPhoto(event.target.files?.[0])}
+              />
+              <button
+                type="button"
+                className="btn-secondary"
+                disabled={reading}
+                onClick={() => photoPicker.current?.click()}
+                title="A visiting card, an enquiry slip or a WhatsApp chat screenshot — read and saved as a draft enquiry"
+              >
+                {reading ? 'Reading the photo…' : '📷 Enquiry via photo'}
+              </button>
+            </>
+          )}
           <button type="button" className="btn-primary" onClick={() => setAdding('enquiry')}>+ New Enquiry</button>
         </div>
       </div>
+      {photoProblem && <Notice tone="danger">{photoProblem}</Notice>}
 
       <section className="card flex flex-wrap items-center justify-between gap-3 p-4 sm:p-5" aria-label="Signed in">
         <div className="min-w-0">
@@ -299,7 +348,7 @@ export default function OverviewDashboard() {
           <Link to="/enquiries?marketingStatus=enquiry_received" className="text-sm font-semibold text-accent hover:underline">View all →</Link>
         </div>
         {newEnquiries.rows.length || draftRows.length ? (
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {/* Drafts first, and marked: a lead from the phone is not an enquiry until somebody finishes it. */}
             {draftRows.map((card) => (
               <div key={card._id} data-draft className="rounded-xl border-2 border-warn-500/50 bg-warn-500/[0.08] p-3">
@@ -316,17 +365,28 @@ export default function OverviewDashboard() {
                 </Link>
               </div>
             ))}
+            {/* A card clicked opens the enquiry from the right [components/EnquiryPanel.jsx]. */}
             {newEnquiries.rows.map((row) => (
-              <div key={row._id} className="rounded-xl border border-line/10 p-3">
-                <p className="truncate font-semibold text-steel-50">{row.customer?.name || row.prospect?.name || row.number}</p>
-                <p className="text-xs text-steel-400">
-                  Enquiry received · {row.assignedTo?.name || 'Unassigned'}
-                  {row.requirement?.modelNumber ? ` · ${row.requirement.modelNumber}` : ''}
+              <button
+                key={row._id}
+                type="button"
+                onClick={() => setOpenEnquiry(row._id)}
+                className="group rounded-xl border border-line/10 bg-line/[0.015] p-3 text-left transition hover:border-accent/50 hover:shadow-md focus-visible:border-accent"
+              >
+                <p className="truncate font-semibold text-steel-50" title={row.customer?.name || row.prospect?.name || row.number}>
+                  {row.customer?.name || row.prospect?.name || row.number}
                 </p>
-                <Link to={`/enquiries/${row._id}`} className="mt-2 inline-block text-sm font-semibold text-accent hover:underline">
-                  Edit / Verify enquiry →
-                </Link>
-              </div>
+                <p className="mt-0.5 truncate text-xs text-steel-400">Enquiry received · {row.assignedTo?.name || 'Unassigned'}</p>
+                <div className="mt-2 flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+                  <span className="whitespace-nowrap text-sm font-semibold text-accent group-hover:underline">Edit / Verify enquiry →</span>
+                  <span
+                    className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-bold ${row.checkPending ? 'bg-warn-500/15 text-warn-400' : 'bg-success-500/15 text-success-400'}`}
+                    title={row.checkPending ? 'Check pending — open it to correct and check the details' : 'Checked'}
+                  >
+                    {row.checkPending ? '● Pending' : '✓ Checked'}
+                  </span>
+                </div>
+              </button>
             ))}
           </div>
         ) : (
@@ -369,6 +429,7 @@ export default function OverviewDashboard() {
       <Modal open={adding === 'enquiry'} title="New enquiry" description="Every model the buyer asked about, each with its own tool and specification" size="lg" onClose={() => setAdding(null)}>
         {adding === 'enquiry' && <EnquiryForm onClose={() => setAdding(null)} onSaved={refresh} />}
       </Modal>
+      {openEnquiry && <EnquiryPanel enquiryId={openEnquiry} onClose={() => setOpenEnquiry(null)} onChanged={reload} />}
     </div>
   );
 }

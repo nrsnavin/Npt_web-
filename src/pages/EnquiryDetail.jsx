@@ -14,6 +14,7 @@ import {
 import Documents from '../components/Documents.jsx';
 import EnquiryActivities from '../components/EnquiryActivities.jsx';
 import EnquiryContactPanel from '../components/EnquiryContactPanel.jsx';
+import EnquiryCheckCard from '../components/EnquiryCheckCard.jsx';
 import BuyerContactCard from '../components/BuyerContactCard.jsx';
 import TradingBadge, { isTradingLine } from '../components/TradingBadge.jsx';
 import DelegateEnquiry from '../components/DelegateEnquiry.jsx';
@@ -647,6 +648,8 @@ export default function EnquiryDetail() {
             */}
           {/* The plant's own screen: the twelve stages, and the buttons that send work to a
               department. The sales actions below still move the quote along. */}
+          {/* Read off a photo and not yet checked: corrected and checked before any department is asked. */}
+          {enquiry.checkPending && <EnquiryCheckCard enquiry={enquiry} canWrite={mayWrite} onSaved={reload} />}
           <DepartmentDesk enquiry={enquiry} onChanged={reload} />
 
 

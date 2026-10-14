@@ -144,7 +144,9 @@ export default function DepartmentDesk({ enquiry, onChanged }) {
   const buttonOf = (task) => catalogue.buttons.find((item) => item.key === task.kind);
   const stages = catalogue.stages.filter((item) => item.number);
   const holder = history?.holder || null;
-  const mayMove = Boolean(history?.mayMove);
+  /* Nothing is raised on details nobody has checked [server: Enquiry `checkPending`]. */
+  const awaitingCheck = Boolean(enquiry.checkPending);
+  const mayMove = Boolean(history?.mayMove) && !awaitingCheck;
   const holderButton = holder && catalogue.buttons.find((item) => item.key === holder.kind);
   /* The enquiry's own owner by name — marketing or an Admin who took it on; a department by its name. */
   const holderName = !holder
@@ -345,7 +347,11 @@ export default function DepartmentDesk({ enquiry, onChanged }) {
               <Menu label="+ Raise a task" items={raise} align="right" buttonClassName="btn-primary px-3 py-1.5 text-xs" />
             )}
             {!mayMove && (
-              <p className="text-xs text-steel-500">{`${holderName || 'Its marketing person'} or Admin raise department tasks on it.`}</p>
+              <p className={`text-xs ${awaitingCheck ? 'font-semibold text-warn-400' : 'text-steel-500'}`}>
+                {awaitingCheck
+                  ? 'Check pending — correct the enquiry details and Save & Mark as Checked before raising a task.'
+                  : `${holderName || 'Its marketing person'} or Admin raise department tasks on it.`}
+              </p>
             )}
           </div>
         )}

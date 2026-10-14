@@ -475,6 +475,12 @@ export const enquiries = {
   /** Handing the enquiry to another marketing person: who it may go to, and doing it. */
   delegateTargets: (id) => api.get(`/enquiries/${id}/delegate`).then((response) => response.data),
   delegate: ({ id, ...payload }) => api.post(`/enquiries/${id}/delegate`, payload).then(unwrap),
+  /** "Save & Mark as Checked": the captured details corrected, and the enquiry marked as read through. */
+  check: ({ id, ...payload }) => api.post(`/enquiries/${id}/check`, payload).then(unwrap),
+  /** The picture the enquiry was read from, or null when it was typed in. */
+  source: (id) => api.get(`/enquiries/${id}/source`).then(unwrap),
+  /** That picture, as a blob — the route needs the session's token. */
+  sourceImage: (id, n = 0) => api.get(`/enquiries/${id}/source/image`, { params: n ? { n } : undefined, responseType: 'blob', feedback: false }).then((r) => r.data),
 };
 
 /**
