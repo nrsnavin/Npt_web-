@@ -1,8 +1,9 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { buyerCards as buyerCardsApi, customers as customersApi, departments as departmentsApi, overview } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useRecord } from '../hooks/useRecords.js';
+import { usePhotoDrafts } from '../hooks/usePhotoDrafts.js';
 import AttentionPanel from '../components/AttentionPanel.jsx';
 import CustomerPanel from '../components/CustomerPanel.jsx';
 import EnquiryPanel from '../components/EnquiryPanel.jsx';
@@ -230,27 +231,11 @@ export default function OverviewDashboard() {
   /* The enquiry open in the side panel — a New Enquiries card clicked. */
   const [openEnquiry, setOpenEnquiry] = useState(null);
   /*
-   * An enquiry from a photo — a visiting card, an enquiry slip or a chat screenshot. It is read
-   * and saved as a draft, which opens to be finished [pages/BuyerCards.jsx], as one sent on
-   * WhatsApp would be.
+   * Enquiries from photos — visiting cards, enquiry slips, chat screenshots — from the phone's
+   * gallery or camera. Each is read and saved as a draft, which opens to be finished
+   * [pages/BuyerCards.jsx], as one sent on WhatsApp would be.
    */
-  const photoPicker = useRef(null);
-  const [reading, setReading] = useState(false);
-  const [photoProblem, setPhotoProblem] = useState(null);
-  const fromPhoto = async (file) => {
-    if (!file) return;
-    setReading(true);
-    setPhotoProblem(null);
-    try {
-      const card = await buyerCardsApi.upload({ file });
-      navigate(`/enquiries/drafts?card=${card._id}`);
-    } catch (failure) {
-      setPhotoProblem(failure.message);
-      setReading(false);
-    } finally {
-      if (photoPicker.current) photoPicker.current.value = '';
-    }
-  };
+  const photos = usePhotoDrafts({ onDone: (cards) => navigate(`/enquiries/drafts?card=${cards[0]._id}`) });
 
   if (loading && !data) return <DashboardSkeleton label="Loading the overview" tiles={4} />;
   if (error) return <ErrorState error={error} onRetry={reload} />;
@@ -285,30 +270,22 @@ export default function OverviewDashboard() {
           {canRead('customers') && <button type="button" className="btn-secondary" onClick={() => setAdding('party')}>+ Add Party</button>}
           {canWrite('customers') && (
             <>
-              <input
-                ref={photoPicker}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                className="hidden"
-                aria-label="Photo or screenshot of the enquiry"
-                onChange={(event) => fromPhoto(event.target.files?.[0])}
-              />
+              <input {...photos.inputProps} aria-label="Photos or screenshots of the enquiry" />
               <button
                 type="button"
                 className="btn-secondary"
-                disabled={reading}
-                onClick={() => photoPicker.current?.click()}
-                title="A visiting card, an enquiry slip or a WhatsApp chat screenshot — read and saved as a draft enquiry"
+                disabled={Boolean(photos.busy)}
+                onClick={photos.open}
+                title="Visiting cards, enquiry slips or WhatsApp chat screenshots — from the gallery or the camera, read and saved as draft enquiries"
               >
-                {reading ? 'Reading the photo…' : '📷 Enquiry via photo'}
+                {photos.label || '📷 Enquiry via photo'}
               </button>
             </>
           )}
           <button type="button" className="btn-primary" onClick={() => setAdding('enquiry')}>+ New Enquiry</button>
         </div>
       </div>
-      {photoProblem && <Notice tone="danger">{photoProblem}</Notice>}
+      {photos.problem && <Notice tone="danger">{photos.problem}</Notice>}
 
       <section className="card flex flex-wrap items-center justify-between gap-3 p-4 sm:p-5" aria-label="Signed in">
         <div className="min-w-0">
