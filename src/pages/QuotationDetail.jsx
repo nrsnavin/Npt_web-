@@ -1,5 +1,5 @@
-import { useCallback, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useCallback, useEffect, useState } from 'react';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { quotations as quotationsApi } from '../api/endpoints.js';
 import { useRecord } from '../hooks/useRecords.js';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -7,10 +7,11 @@ import { Badge, ErrorState, Modal, Notice, PageHeader, Section, Spinner } from '
 import OrderFromQuotation from '../components/OrderFromQuotation.jsx';
 import QuotationPdf from '../components/QuotationPdf.jsx';
 import CostingSheetForm from '../components/CostingSheetForm.jsx';
+import QuoteBuilder from '../components/QuoteBuilder.jsx';
 import PricingDecision from '../components/PricingDecision.jsx';
 import { MouldThumb } from '../components/MouldPhoto.jsx';
 import TradingBadge, { isTradingLine } from '../components/TradingBadge.jsx';
-import { QuotationForm, ResponseForm, RevisionForm } from './Quotations.jsx';
+import { ResponseForm, RevisionForm } from './Quotations.jsx';
 import { formatDate, formatNumber, humanise } from '../utils/format.js';
 import { costedWith } from '../utils/pricing.js';
 
@@ -151,11 +152,22 @@ export default function QuotationDetail() {
   const [showingPdf, setShowingPdf] = useState(false);
   const [composing, setComposing] = useState(false);
   const [ordering, setOrdering] = useState(false);
+  /* The one-window sheet — every model costed or edited together; `costing` is one line's long sheet. */
+  const [building, setBuilding] = useState(false);
   const [costing, setCosting] = useState(null);
   const [deciding, setDeciding] = useState(null);
   const [editing, setEditing] = useState(false);
   const [revising, setRevising] = useState(false);
   const [answering, setAnswering] = useState(false);
+  /* "Detailed view" from the list's costing sheet lands here with the line to open. */
+  const [params, setParams] = useSearchParams();
+  const askedLine = params.get('line');
+  useEffect(() => {
+    if (!askedLine || !quotation) return;
+    const line = (quotation.lines || []).find((row) => row._id === askedLine);
+    if (line && !quotation.costingHidden) setCosting(line);
+    setParams((current) => { const next = new URLSearchParams(current); next.delete('line'); return next; }, { replace: true });
+  }, [askedLine, quotation, setParams]);
 
   if (loading) return <Spinner label="Loading the quotation" />;
   if (error) return <ErrorState error={error} onRetry={reload} />;
@@ -188,6 +200,7 @@ export default function QuotationDetail() {
   const sole = lines.length === 1 ? lines[0] : null;
   const done = () => {
     setEditing(false);
+    setBuilding(false);
     setRevising(false);
     setAnswering(false);
     reload();
@@ -330,7 +343,7 @@ export default function QuotationDetail() {
                           )}
                           <div className="mt-1.5 flex flex-wrap gap-1.5">
                             {seesCost && !closed && (
-                              <button type="button" className={`${line.status === 'requested' ? 'btn-primary' : 'btn-secondary'} px-2.5 py-1 text-xs`} onClick={() => setCosting(line)}>
+                              <button type="button" className={`${line.status === 'requested' ? 'btn-primary' : 'btn-secondary'} px-2.5 py-1 text-xs`} onClick={() => setBuilding(true)}>
                                 {line.status === 'requested' ? 'Cost it' : 'Cost'}
                               </button>
                             )}
@@ -466,16 +479,33 @@ export default function QuotationDetail() {
         </div>
       </div>
 
-      <Modal open={Boolean(costing)} title={`Cost ${costing?.modelNumber || 'this model'}`} description="The registers fill the costing; a typed figure wins" size="lg" onClose={() => setCosting(null)}>
+      <Modal
+        open={building || editing}
+        title={seesCost ? `Costing sheet · ${quotation.number}` : `Edit ${quotation.number}`}
+        description={seesCost ? 'Every model in one window; a typed figure wins over the registers' : 'Free until it goes out; after that, changes are revisions'}
+        size="xl"
+        onClose={() => { setBuilding(false); setEditing(false); }}
+      >
+        {(building || editing) && (
+          <QuoteBuilder
+            quotation={quotation}
+            onClose={() => { setBuilding(false); setEditing(false); }}
+            onSaved={done}
+            onDetailed={seesCost ? (lineId) => {
+              setBuilding(false);
+              setEditing(false);
+              setCosting(lines.find((line) => line._id === lineId) || null);
+            } : undefined}
+          />
+        )}
+      </Modal>
+
+      <Modal open={Boolean(costing)} title={`Detailed costing · ${costing?.modelNumber || 'this model'}`} description="The registers fill the costing; a typed figure wins" size="lg" onClose={() => setCosting(null)}>
         {costing && <CostingSheetForm quotation={quotation} line={costing} onClose={() => setCosting(null)} onSaved={() => { setCosting(null); reload(); }} />}
       </Modal>
 
       <Modal open={Boolean(deciding)} title={`Price on ${deciding?.modelNumber || 'this model'}`} description="Below its minimum — your signature lets it go out" onClose={() => setDeciding(null)}>
         {deciding && <PricingDecision quotation={quotation} line={deciding} onClose={() => setDeciding(null)} onSaved={() => { setDeciding(null); reload(); }} />}
-      </Modal>
-
-      <Modal open={editing} title={`Edit ${quotation.number}`} description="Free until it goes out; after that, changes are revisions" size="lg" onClose={() => setEditing(false)}>
-        {editing && <QuotationForm quotation={quotation} onClose={() => setEditing(false)} onSaved={done} />}
       </Modal>
 
       <Modal open={revising} title={`Revise ${quotation.number}`} description="The price it carried before stays in the history" onClose={() => setRevising(false)}>

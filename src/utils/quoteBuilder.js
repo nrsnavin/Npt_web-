@@ -1,5 +1,6 @@
 import { cutGrams } from './grams.js';
-import { PRICE_STEP, priceAt } from './pricing.js';
+import { PRICE_STEP, STANDARD_TIERS, changedParts, priceAt } from './pricing.js';
+import { missingDetails } from './productDetails.js';
 
 /**
  * The arithmetic and the payload behind the one-window quote form [components/QuoteBuilder.jsx].
@@ -47,8 +48,17 @@ let keys = 0;
  * piece has it, and it is in the price". Unticked, the cost is left out whatever the mould says.
  * `packing` and `misc` are the typed amounts; a blank packing takes the mould's figure.
  */
+/**
+ * The figures a person may type over the registers, one per cost tile. Blank takes the register's
+ * own figure; a value typed wins, and is what is saved.
+ */
+export const FIGURES = ['gramWeight', 'rawMaterialRate', 'jobWorkCost', 'packingCost', 'hookCost', 'metalClipsCost', 'printingCost', 'otherCost', 'inwardPrice'];
+const blankFigures = () => Object.fromEntries(FIGURES.map((key) => [key, '']));
+
 export const blankItem = () => ({
   key: `item-${(keys += 1)}`,
+  /* An existing line's id, when the form is costing or editing a saved quotation. */
+  lineId: null,
   procurement: MANUFACTURE,
   mould: '',
   tradedItem: '',
@@ -60,13 +70,47 @@ export const blankItem = () => ({
   withClip: false,
   clipRef: AS_MOULD,
   withPacking: false,
-  packing: '',
   withMisc: false,
-  misc: '',
   printRef: NONE,
+  figures: blankFigures(),
+  minimumOverride: '',
   moq: '',
   unitPrice: '',
+  /* The product details a saved line arrived without, and the answers [productDetails.js]. */
+  missingAtOpen: [],
+  detailPacking: '',
+  confirmed: false,
+  saved: {},
 });
+
+/**
+ * Picking a register entry hands that entry's figures back to the register: a new mould refills
+ * the grammage and its own cost lines, a new resin the grammage and the rate, a part its line.
+ * What was typed for the old choice no longer applies to the new one.
+ */
+const OWNS = {
+  mould: ['gramWeight', 'jobWorkCost', 'packingCost', 'hookCost', 'metalClipsCost', 'printingCost'],
+  materialRef: ['gramWeight', 'rawMaterialRate'],
+  hookRef: ['hookCost'],
+  clipRef: ['metalClipsCost'],
+  printRef: ['printingCost'],
+  tradedItem: ['inwardPrice'],
+};
+/**
+ * Ticking a part in or out. Ticked back in, a figure of nothing saved while it was out gives way
+ * to the register's, rather than pricing the part at nothing.
+ */
+const TICKS = { withHook: 'hookCost', withClip: 'metalClipsCost', withPacking: 'packingCost', withMisc: 'otherCost' };
+export function tick(item, flag, on) {
+  const field = TICKS[flag];
+  const stale = on && field && Number(item.figures?.[field]) === 0;
+  return { ...item, [flag]: on, ...(stale ? { figures: { ...item.figures, [field]: '' } } : {}) };
+}
+
+export function pick(item, key, value) {
+  const cleared = Object.fromEntries((OWNS[key] || []).map((field) => [field, '']));
+  return { ...item, [key]: value, figures: { ...item.figures, ...cleared } };
+}
 
 /** True when nothing has been chosen on the item yet. */
 export const isBlank = (item) =>
@@ -105,6 +149,8 @@ const part = (choice, register, fromMould) => {
 const paise = (value) => Math.round(value * 100) / 100;
 
 const amount = (value) => (value === '' || value == null ? null : Number(value) || 0);
+/** A typed figure, or the register's when the tile is blank. */
+const fig = (item, key, fallback) => amount(item.figures?.[key]) ?? (Number(fallback) || 0);
 
 /**
  * The cost build-up for one item, from what its pickers resolved to:
@@ -118,19 +164,32 @@ const amount = (value) => (value === '' || value == null ? null : Number(value) 
  */
 export function costOf(item, { tool, resin, hook, clip, print, traded } = {}) {
   const trade = item.procurement === TRADE;
-  const gramWeight = !trade && tool ? cutGrams((Number(tool.consumptionPerPieceGrams) || 0) * (1 + (Number(resin?.grammageFactorPercent) || 0) / 100)) : 0;
-  const ratePerKg = trade ? 0 : Number(resin?.ratePerKg) || 0;
+  const registerGrams = !trade && tool ? cutGrams((Number(tool.consumptionPerPieceGrams) || 0) * (1 + (Number(resin?.grammageFactorPercent) || 0) / 100)) : 0;
+  const gramWeight = trade ? 0 : cutGrams(fig(item, 'gramWeight', registerGrams));
+  const ratePerKg = trade ? 0 : fig(item, 'rawMaterialRate', resin?.ratePerKg);
   const materialCost = trade ? 0 : (gramWeight * ratePerKg) / 1000;
-  const inwardPrice = trade ? Number(traded?.inwardPrice) || 0 : 0;
-  const jobCost = trade ? 0 : Number(tool?.jobWorkCost) || 0;
-  const packingCost = item.withPacking ? amount(item.packing) ?? (Number(tool?.packingCost) || 0) : 0;
-  const hookCost = item.withHook ? part(item.hookRef, hook, tool?.hookCost) : 0;
-  const clipCost = item.withClip ? part(item.clipRef, clip, tool?.clipsCost) : 0;
-  const miscCost = item.withMisc ? amount(item.misc) ?? 0 : 0;
-  const printingCost = part(item.printRef, print, tool?.printingCost);
+  const inwardPrice = trade ? fig(item, 'inwardPrice', traded?.inwardPrice) : 0;
+  const jobCost = trade ? 0 : fig(item, 'jobWorkCost', tool?.jobWorkCost);
+  const packingCost = item.withPacking ? fig(item, 'packingCost', tool?.packingCost) : 0;
+  const hookCost = item.withHook ? fig(item, 'hookCost', part(item.hookRef, hook, tool?.hookCost)) : 0;
+  const clipCost = item.withClip ? fig(item, 'metalClipsCost', part(item.clipRef, clip, tool?.clipsCost)) : 0;
+  const miscCost = item.withMisc ? fig(item, 'otherCost', 0) : 0;
+  const printingCost = item.printRef === NONE ? 0 : fig(item, 'printingCost', part(item.printRef, print, tool?.printingCost));
   const base = materialCost + inwardPrice + jobCost + packingCost + hookCost + clipCost + miscCost + printingCost;
   return {
     trade,
+    /* What the registers alone give, shown in a blank tile so the typed figure can be judged. */
+    register: {
+      gramWeight: registerGrams,
+      rawMaterialRate: Number(resin?.ratePerKg) || 0,
+      jobWorkCost: Number(tool?.jobWorkCost) || 0,
+      packingCost: Number(tool?.packingCost) || 0,
+      hookCost: part(item.hookRef, hook, tool?.hookCost),
+      metalClipsCost: part(item.clipRef, clip, tool?.clipsCost),
+      printingCost: item.printRef === NONE ? 0 : part(item.printRef, print, tool?.printingCost),
+      otherCost: 0,
+      inwardPrice: Number(traded?.inwardPrice) || 0,
+    },
     gramWeight,
     ratePerKg,
     materialCost: paise(materialCost),
@@ -168,17 +227,9 @@ export const samePrice = (a, b) => a !== '' && a != null && b != null && Math.ab
  * and Admin. A trade hanger names its trading master item, whose inward price is its cost. A
  * chosen print job also names what is printed, for the document.
  */
-export function lineFor(item, { markup, seesCost, printName } = {}) {
+export function lineFor(item, { markup, seesCost, printName, costed } = {}) {
   const trade = item.procurement === TRADE;
-  const cost = {};
-  if (seesCost) {
-    if (!item.withHook) cost.hookCost = 0;
-    if (!item.withClip) cost.metalClipsCost = 0;
-    if (!item.withPacking) cost.packingCost = 0;
-    else if (amount(item.packing) != null) cost.packingCost = amount(item.packing);
-    cost.otherCost = item.withMisc ? amount(item.misc) ?? 0 : 0;
-    if (item.printRef === NONE) cost.printingCost = 0;
-  }
+  const cost = seesCost && costed ? costSent(costed) : {};
   const ref = (value) => (value && value !== NONE ? value : undefined);
   return {
     ...(!trade && item.mould ? { mould: item.mould } : {}),
@@ -198,9 +249,122 @@ export function lineFor(item, { markup, seesCost, printName } = {}) {
   };
 }
 
+/**
+ * The cost as the server stores it, from the figures on screen — every line, so what is saved
+ * is exactly what was shown, unticked parts at nothing.
+ */
+export function costSent(costed) {
+  return {
+    gramWeight: costed.gramWeight,
+    rawMaterialRate: costed.ratePerKg,
+    jobWorkCost: costed.jobCost,
+    packingCost: costed.packingCost,
+    hookCost: costed.hookCost,
+    metalClipsCost: costed.clipCost,
+    printingCost: costed.printingCost,
+    otherCost: costed.miscCost,
+    ...(costed.trade ? { inwardPrice: costed.inwardPrice } : {}),
+  };
+}
+
+const idOf = (value) => value?._id ?? value ?? '';
+const text = (value) => (value === undefined || value === null ? '' : String(value));
+
+/**
+ * A saved quotation line as an item, for costing or editing the whole quotation in one window.
+ * The figures saved on the line fill its tiles, so the sheet reopens as it was left; a part with
+ * a cost on it is ticked.
+ */
+export function itemFromLine(line) {
+  const cost = line.cost || {};
+  const has = (key) => Number(cost[key]) > 0;
+  const saved = {
+    mould: idOf(line.mould), materialRef: idOf(line.materialRef), hookRef: idOf(line.hookRef),
+    clipRef: idOf(line.clipRef), printRef: idOf(line.printRef), tradedItem: idOf(line.tradedItem),
+    category: line.category || '', packing: line.packing || '',
+  };
+  return {
+    ...blankItem(),
+    lineId: line._id,
+    procurement: line.procurement === TRADE ? TRADE : MANUFACTURE,
+    mould: saved.mould,
+    tradedItem: saved.tradedItem,
+    modelNumber: line.modelNumber || '',
+    materialRef: saved.materialRef,
+    colour: line.colour || '',
+    withHook: Boolean(saved.hookRef) || has('hookCost'),
+    hookRef: saved.hookRef || AS_MOULD,
+    withClip: Boolean(saved.clipRef) || has('metalClipsCost'),
+    clipRef: saved.clipRef || AS_MOULD,
+    withPacking: has('packingCost'),
+    withMisc: has('otherCost'),
+    printRef: saved.printRef || (has('printingCost') ? AS_MOULD : NONE),
+    figures: Object.fromEntries(FIGURES.map((key) => [key, text(cost[key])])),
+    minimumOverride: text(line.minimumOverride),
+    moq: text(line.moq || ''),
+    unitPrice: text(line.unitPrice),
+    missingAtOpen: line.procurement === TRADE ? [] : missingDetails(line),
+    detailPacking: line.packing || '',
+    saved,
+  };
+}
+
+/** Still missing a product detail the enquiry did not give, and not confirmed with the buyer. */
+export const needsConfirm = (item) =>
+  item.procurement !== TRADE && item.missingAtOpen.length > 0 && !item.confirmed &&
+  missingDetails({
+    hookRef: item.withHook ? item.hookRef || item.saved.hookRef || 'mould' : '',
+    clipRef: item.withClip ? item.clipRef || item.saved.clipRef || 'mould' : '',
+    packing: item.detailPacking,
+  }).length > 0;
+
+/**
+ * What the costing of one saved line sends [server: PATCH /quotations/:id/lines/:lineId/cost]:
+ * every figure, the mark-up, the floor, the price (until it has gone to the buyer), and only the
+ * register choices that changed — an unchanged one would refill the line from the registers.
+ */
+export function costPayload(item, { markup, costed, sent, printName }) {
+  const trade = item.procurement === TRADE;
+  const ref = (value) => (value && value !== NONE ? value : '');
+  const picked = {
+    mould: trade ? '' : item.mould,
+    materialRef: item.materialRef,
+    hookRef: item.withHook ? ref(item.hookRef) : '',
+    clipRef: item.withClip ? ref(item.clipRef) : '',
+    printRef: ref(item.printRef),
+  };
+  return {
+    lineId: item.lineId,
+    cost: costSent(costed),
+    markupPercent: Number(markup) || undefined,
+    ...(amount(item.minimumOverride) != null ? { minimumOverride: amount(item.minimumOverride) } : {}),
+    ...(sent ? {} : { unitPrice: amount(item.unitPrice) ?? undefined }),
+    procurement: trade ? TRADE : MANUFACTURE,
+    printing: ref(item.printRef) ? printName || undefined : undefined,
+    ...changedParts(picked, item.saved),
+    ...(trade && (item.tradedItem || '') !== (item.saved.tradedItem || '') ? { tradedItem: item.tradedItem || null } : {}),
+    ...(!trade && item.saved.tradedItem ? { tradedItem: null } : {}),
+    ...(item.detailPacking !== (item.saved.packing || '') ? { packing: item.detailPacking } : {}),
+  };
+}
+
+/** The standing prices for a cost, side by side: `[[10, 7.65], [15, 8], [20, 8.35]]`. */
+export const tiersOf = (base) => STANDARD_TIERS.map((percent) => [percent, priceAt(base, percent)]);
+
+/** Markup on cost and margin on price, for a rate against a cost; null where there is none. */
+export function returnsOf(price, base) {
+  const rate = Number(price);
+  if (!(rate > 0) || !(base > 0)) return null;
+  return {
+    markup: Math.round(((rate - base) / base) * 1000) / 10,
+    margin: Math.round(((rate - base) / rate) * 1000) / 10,
+    perPiece: Math.round((rate - base) * 100) / 100,
+  };
+}
+
 /** What is wrong with the form, in the words to show, or null. */
-export function problemWith({ enquiry, items }) {
-  if (!enquiry) return 'Pick the enquiry this quote is for. No enquiry yet? Raise it first.';
+export function problemWith({ enquiry, items, editing = false }) {
+  if (!editing && !enquiry) return 'Pick the enquiry this quote is for. No enquiry yet? Raise it first.';
   if (items.length > MAX_ITEMS) return `A quotation carries at most ${MAX_ITEMS} models.`;
   const named = items.filter(isNamed);
   if (named.length && named.length !== items.filter((item) => !isBlank(item)).length) {
@@ -208,5 +372,7 @@ export function problemWith({ enquiry, items }) {
   }
   const bad = items.find((item) => item.unitPrice !== '' && !(Number(item.unitPrice) >= 0));
   if (bad) return 'A rate must be a number.';
+  const unconfirmed = items.find(needsConfirm);
+  if (unconfirmed) return `Confirm the product details on ${unconfirmed.modelNumber || 'every model'} — fill them in or tick "Confirmed with the buyer".`;
   return null;
 }

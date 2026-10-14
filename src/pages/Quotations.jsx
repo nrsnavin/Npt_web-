@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { quotations as quotationsApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useDebounced, useRecordList } from '../hooks/useRecords.js';
@@ -613,7 +613,8 @@ export function ResponseForm({ quotation, onClose, onSaved }) {
 }
 
 export default function Quotations() {
-  const { canQuote } = useAuth();
+  const { canQuote, canWrite } = useAuth();
+  const navigate = useNavigate();
   const [params] = useSearchParams();
   const [search, setSearch] = useState('');
   /* From the address too, so a department's "To cost" link opens on its queue. */
@@ -867,7 +868,15 @@ export default function Quotations() {
                               </button>
                             )}
                             {/* Costing and Admin's sign-off happen on the quotation itself. */}
-                            {['costing', 'approval_pending'].includes(row.status) ? (
+                            {row.status === 'costing' && canWrite('pricing') ? (
+                              <button
+                                type="button"
+                                className="btn-primary px-2.5 py-1 text-xs"
+                                onClick={() => setEditing(row)}
+                              >
+                                Cost it
+                              </button>
+                            ) : ['costing', 'approval_pending'].includes(row.status) ? (
                               <Link to={`/quotations/${row._id}`} className="btn-primary px-2.5 py-1 text-xs">
                                 {row.status === 'costing' ? 'Cost it' : 'Review'}
                               </Link>
@@ -935,16 +944,17 @@ export default function Quotations() {
 
       <Modal
         open={Boolean(editing)}
-        title={`Edit ${editing?.number || ''}`}
-        description="While it is still a draft. Once it has gone out, changes are revisions"
-        size="lg"
+        title={canWrite('pricing') ? `Costing sheet · ${editing?.number || ''}` : `Edit ${editing?.number || ''}`}
+        description={canWrite('pricing') ? 'Every model in one window; a typed figure wins over the registers' : 'While it is still a draft. Once it has gone out, changes are revisions'}
+        size="xl"
         onClose={() => setEditing(null)}
       >
         {editing && (
-          <QuotationForm
+          <QuoteBuilder
             quotation={editing}
             onClose={() => setEditing(null)}
             onSaved={saved}
+            onDetailed={(lineId) => navigate(`/quotations/${editing._id}?line=${lineId}`)}
           />
         )}
       </Modal>

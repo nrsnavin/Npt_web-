@@ -9,12 +9,14 @@ import { Notice } from './ui.jsx';
 import { CustomerSelect, EnquirySelect, MaterialSelect, MouldSelect } from './pickers.jsx';
 import { inDays } from '../utils/pipeline.js';
 import { formatDate } from '../utils/format.js';
-import { formatGrams } from '../utils/grams.js';
 import { rupees } from '../utils/pricing.js';
 import {
-  AS_MOULD, DELIVERY_TERMS, MANUFACTURE, MARKUPS, MAX_ITEMS, NONE, PAYMENT_TERMS, TRADE, blankItem, costOf, isBlank,
-  isNamed, itemsFromEnquiry, lineFor, nudge, problemWith, samePrice, suggestedPrice,
+  AS_MOULD, DELIVERY_TERMS, MANUFACTURE, MARKUPS, MAX_ITEMS, NONE, PAYMENT_TERMS, TRADE, blankItem, costOf, costPayload,
+  isBlank, isNamed, itemFromLine, itemsFromEnquiry, lineFor, needsConfirm, nudge, pick, problemWith, returnsOf, samePrice,
+  suggestedPrice, tick, tiersOf,
 } from '../utils/quoteBuilder.js';
+import { GRAM_STEP } from '../utils/grams.js';
+import { sayList } from '../utils/productDetails.js';
 
 const FREIGHT = [
   { value: 'ex_factory', label: 'Ex-factory' },
@@ -131,7 +133,7 @@ function Tick({ label, checked, onChange, children }) {
         {label}
         {!checked && <span className="font-normal text-steel-500">· not in price</span>}
       </label>
-      {checked && <div className="mt-1">{children}</div>}
+      {checked && children && <div className="mt-1">{children}</div>}
     </div>
   );
 }
@@ -147,8 +149,34 @@ function PartSelectPlain({ label, value, onChange, rows, fromMould, seesCost }) 
   );
 }
 
+/**
+ * A cost tile a person may type over. Blank shows the register's figure in grey and uses it; a
+ * typed figure wins and is saved. A part not ticked into the price shows as such and takes nothing.
+ */
+function EditTile({ label, value, placeholder, onChange, off, step = '0.01', strong = false }) {
+  return (
+    <label className={`block min-w-0 rounded-lg border px-2 py-1 ${off ? 'border-line/[0.06] opacity-60' : strong ? 'border-accent/40 bg-accent/[0.06]' : 'border-line/[0.1] bg-line/[0.02]'}`}>
+      <span className="block truncate text-xs text-steel-400">{label}</span>
+      {off ? (
+        <span className="block py-0.5 text-xs text-steel-500">not in price</span>
+      ) : (
+        <input
+          type="number"
+          min="0"
+          step={step}
+          className="w-full bg-transparent py-0.5 text-sm font-semibold tabular-nums text-steel-100 outline-none placeholder:font-normal placeholder:text-steel-400"
+          value={value}
+          placeholder={placeholder}
+          onChange={(event) => onChange(event.target.value)}
+          aria-label={label}
+        />
+      )}
+    </label>
+  );
+}
+
 /** One model on the quotation: what it is, what it costs, and the rate it goes out at. */
-function ItemCard({ index, item, onChange, onRemove, removable, markup, seesCost, registers, parts }) {
+function ItemCard({ index, item, onChange, onRemove, removable, markup, seesCost, registers, parts, editing, sent, onDetailed }) {
   const trade = item.procurement === TRADE;
   const tool = trade ? undefined : registers.mould(item.mould);
   const traded = trade ? registers.traded(item.tradedItem) : undefined;
@@ -160,7 +188,14 @@ function ItemCard({ index, item, onChange, onRemove, removable, markup, seesCost
   const suggested = suggestedPrice(cost.exactBase, markup);
   const set = (key) => (value) => onChange({ ...item, [key]: value });
   const setFrom = (key) => (event) => set(key)(event.target.value);
+  const choose = (key) => (value) => onChange(pick(item, key, value || ''));
+  const toggle = (flag) => (on) => onChange(tick(item, flag, on));
+  const figure = (key) => (value) => onChange({ ...item, figures: { ...item.figures, [key]: value } });
+  const reg = (key, digits = 2) => (cost.register[key] ? Number(cost.register[key]).toFixed(digits) : '0.00');
   const n = index + 1;
+  const priceLocked = editing && sent;
+  const returns = returnsOf(item.unitPrice === '' ? suggested : item.unitPrice, cost.exactBase);
+  const unconfirmed = needsConfirm(item);
 
   const hookName = !item.withHook ? 'No hook' : hook?.name || 'Mould hook';
   const name = (trade ? traded?.modelNumber : tool?.mouldCode) || item.modelNumber || `Item ${n}`;
@@ -174,7 +209,8 @@ function ItemCard({ index, item, onChange, onRemove, removable, markup, seesCost
             <select
               className="input"
               value={item.procurement}
-              onChange={(event) => onChange({ ...item, procurement: event.target.value, mould: '', tradedItem: '' })}
+              disabled={priceLocked}
+              onChange={(event) => onChange(pick(pick({ ...item, procurement: event.target.value }, 'mould', ''), 'tradedItem', ''))}
               aria-label={`Made here or trade on item ${n}`}
             >
               <option value={MANUFACTURE}>Made here</option>
@@ -185,7 +221,7 @@ function ItemCard({ index, item, onChange, onRemove, removable, markup, seesCost
             <Box label="Trade hanger" className="col-span-2 md:col-span-3">
               <Combobox
                 value={item.tradedItem}
-                onChange={(value) => set('tradedItem')(value || '')}
+                onChange={choose('tradedItem')}
                 loadOptions={loadTradedItems}
                 loadOne={tradedItemsApi.get}
                 toOption={(row) => ({
@@ -201,17 +237,17 @@ function ItemCard({ index, item, onChange, onRemove, removable, markup, seesCost
             </Box>
           ) : (
             <Box label="Model" className="col-span-2 md:col-span-3">
-              <MouldSelect value={item.mould} onChange={(value) => onChange({ ...item, mould: value || '' })} includeBlank="Search model (e.g. AC-25)" aria-label={`Model on item ${n}`} />
+              <MouldSelect value={item.mould} onChange={choose('mould')} includeBlank="Search model (e.g. AC-25)" aria-label={`Model on item ${n}`} />
             </Box>
           )}
           <Box label="Material" className="col-span-2 md:col-span-3">
-            <MaterialSelect value={item.materialRef} onChange={(value) => set('materialRef')(value || '')} emptyLabel="Material" aria-label={`Material on item ${n}`} />
+            <MaterialSelect value={item.materialRef} onChange={choose('materialRef')} emptyLabel="Material" aria-label={`Material on item ${n}`} />
           </Box>
           <Box label="Colour" className="md:col-span-2">
             <input className="input" value={item.colour} onChange={setFrom('colour')} placeholder="White" aria-label={`Colour on item ${n}`} />
           </Box>
           <Box label="Printing" className="md:col-span-2">
-            <select className="input" value={item.printRef} onChange={setFrom('printRef')} aria-label={`Printing on item ${n}`}>
+            <select className="input" value={item.printRef} onChange={(event) => choose('printRef')(event.target.value)} aria-label={`Printing on item ${n}`}>
               <option value={NONE}>No printing</option>
               <option value={AS_MOULD}>{`As the mould${seesCost && tool ? ` (${rupees(tool.printingCost || 0)})` : ''}`}</option>
               {parts.print.map((row) => (
@@ -220,65 +256,81 @@ function ItemCard({ index, item, onChange, onRemove, removable, markup, seesCost
             </select>
           </Box>
         </div>
-        <button
-          type="button"
-          className="mt-5 grid h-9 w-9 shrink-0 place-items-center rounded-lg text-steel-400 hover:bg-line/[0.06] hover:text-steel-100 disabled:opacity-30"
-          onClick={onRemove}
-          disabled={!removable}
-          aria-label={`Remove item ${n}`}
-          title={removable ? 'Remove this item' : 'A quotation needs at least one item'}
-        >
-          ×
-        </button>
+        <div className="mt-5 flex shrink-0 flex-col items-center gap-1">
+          <button
+            type="button"
+            className="grid h-9 w-9 place-items-center rounded-lg text-steel-400 hover:bg-line/[0.06] hover:text-steel-100 disabled:opacity-30"
+            onClick={onRemove}
+            disabled={!removable}
+            aria-label={`Remove item ${n}`}
+            title={removable ? 'Remove this item' : sent ? 'A model comes off a sent quotation through a revision' : 'A quotation needs at least one item'}
+          >
+            ×
+          </button>
+        </div>
       </div>
 
       {/* In the price only when ticked. */}
-      <div className="mt-2 grid grid-cols-2 gap-2 pl-7 md:grid-cols-4">
-        <Tick label="Hook" checked={item.withHook} onChange={set('withHook')}>
-          <PartSelectPlain label={`Hook on item ${n}`} value={item.hookRef} onChange={set('hookRef')} rows={parts.hook} fromMould={tool ? tool.hookCost || 0 : null} seesCost={seesCost} />
+      <div className={`mt-2 grid grid-cols-2 gap-2 pl-7 ${seesCost ? 'md:grid-cols-4' : 'md:grid-cols-2'}`}>
+        <Tick label="Hook" checked={item.withHook} onChange={toggle('withHook')}>
+          <PartSelectPlain label={`Hook on item ${n}`} value={item.hookRef} onChange={choose('hookRef')} rows={parts.hook} fromMould={tool ? tool.hookCost || 0 : null} seesCost={seesCost} />
         </Tick>
-        <Tick label="Clips" checked={item.withClip} onChange={set('withClip')}>
-          <PartSelectPlain label={`Clips on item ${n}`} value={item.clipRef} onChange={set('clipRef')} rows={parts.clip} fromMould={tool ? tool.clipsCost || 0 : null} seesCost={seesCost} />
+        <Tick label="Clips" checked={item.withClip} onChange={toggle('withClip')}>
+          <PartSelectPlain label={`Clips on item ${n}`} value={item.clipRef} onChange={choose('clipRef')} rows={parts.clip} fromMould={tool ? tool.clipsCost || 0 : null} seesCost={seesCost} />
         </Tick>
-        <Tick label="Packing" checked={item.withPacking} onChange={set('withPacking')}>
-          {seesCost ? (
-            <input type="number" min="0" step="0.01" className="input h-9 tabular-nums" value={item.packing} onChange={setFrom('packing')} placeholder={tool?.packingCost != null ? `₹${Number(tool.packingCost).toFixed(2)} (mould)` : '₹ per piece'} aria-label={`Packing cost on item ${n}`} />
-          ) : <p className="text-xs text-steel-400">Included</p>}
-        </Tick>
-        <Tick label="Misc" checked={item.withMisc} onChange={set('withMisc')}>
-          {seesCost ? (
-            <input type="number" min="0" step="0.01" className="input h-9 tabular-nums" value={item.misc} onChange={setFrom('misc')} placeholder="₹ per piece" aria-label={`Misc cost on item ${n}`} />
-          ) : <p className="text-xs text-steel-400">Included</p>}
-        </Tick>
+        {seesCost && <Tick label="Packing" checked={item.withPacking} onChange={toggle('withPacking')} />}
+        {seesCost && <Tick label="Misc" checked={item.withMisc} onChange={toggle('withMisc')} />}
       </div>
 
       {seesCost && (
         <div className="mt-2 grid grid-cols-2 gap-1.5 pl-7 sm:grid-cols-4 xl:grid-cols-11">
-          <Tile label="Grammage" value={trade ? '—' : formatGrams(cost.gramWeight)} />
-          <Tile label="Material/kg" value={trade ? '—' : rupees(cost.ratePerKg)} />
+          {trade ? (
+            <>
+              <Tile label="Grammage" value="—" />
+              <Tile label="Material/kg" value="—" />
+              <EditTile label="Inward price" value={item.figures.inwardPrice} placeholder={reg('inwardPrice')} onChange={figure('inwardPrice')} />
+            </>
+          ) : (
+            <>
+              <EditTile label="Grammage (g)" value={item.figures.gramWeight} placeholder={cost.register.gramWeight ? String(cost.register.gramWeight) : '0'} onChange={figure('gramWeight')} step={GRAM_STEP} />
+              <EditTile label="Material/kg" value={item.figures.rawMaterialRate} placeholder={reg('rawMaterialRate')} onChange={figure('rawMaterialRate')} />
+              <Tile label="Material cost" value={rupees(cost.materialCost)} />
+            </>
+          )}
           {trade
-            ? <Tile label="Inward price" value={rupees(cost.inwardPrice)} />
-            : <Tile label="Material cost" value={rupees(cost.materialCost)} />}
-          <Tile label="Job cost" value={rupees(cost.jobCost)} />
-          <Tile label="Packing cost" value={rupees(cost.packingCost)} />
-          <Tile label="Hook cost" value={rupees(cost.hookCost)} />
-          <Tile label="Clip cost" value={rupees(cost.clipCost)} />
-          <Tile label="Printing cost" value={rupees(cost.printingCost)} />
-          <Tile label="Misc cost" value={rupees(cost.miscCost)} />
+            ? <Tile label="Job cost" value="—" />
+            : <EditTile label="Job cost" value={item.figures.jobWorkCost} placeholder={reg('jobWorkCost')} onChange={figure('jobWorkCost')} />}
+          <EditTile label="Packing cost" value={item.figures.packingCost} placeholder={reg('packingCost')} onChange={figure('packingCost')} off={!item.withPacking} />
+          <EditTile label="Hook cost" value={item.figures.hookCost} placeholder={reg('hookCost')} onChange={figure('hookCost')} off={!item.withHook} />
+          <EditTile label="Clip cost" value={item.figures.metalClipsCost} placeholder={reg('metalClipsCost')} onChange={figure('metalClipsCost')} off={!item.withClip} />
+          <EditTile label="Printing cost" value={item.figures.printingCost} placeholder={reg('printingCost')} onChange={figure('printingCost')} off={item.printRef === NONE} />
+          <EditTile label="Misc cost" value={item.figures.otherCost} placeholder="0.00" onChange={figure('otherCost')} off={!item.withMisc} />
           <Tile label="Base price" value={rupees(cost.base)} strong />
           <Tile label="Suggested" value={rupees(suggested)} strong />
         </div>
       )}
 
+      {/* The product details the enquiry did not give — filled in, or confirmed with the buyer. */}
+      {editing && item.missingAtOpen.length > 0 && (
+        <div className={`mt-2 ml-7 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-lg border px-3 py-2 text-xs ${unconfirmed ? 'border-warn-500/50 bg-warn-500/[0.06]' : 'border-line/[0.1]'}`}>
+          <span className="font-semibold text-steel-100">Not given on the enquiry: {sayList(item.missingAtOpen)}</span>
+          <input className="input h-8 w-56 text-xs" value={item.detailPacking} onChange={setFrom('detailPacking')} placeholder="Packing — 200 pcs per carton" aria-label={`Packing details on item ${n}`} />
+          <label className="flex items-center gap-1.5 text-steel-200">
+            <input type="checkbox" checked={item.confirmed} onChange={(event) => set('confirmed')(event.target.checked)} />
+            Confirmed with the buyer
+          </label>
+        </div>
+      )}
+
       <div className="mt-2 grid grid-cols-2 items-end gap-2 pl-7 md:grid-cols-12">
         <Box label="Buyer's model no." className="md:col-span-2">
-          <input className="input" value={item.modelNumber} onChange={setFrom('modelNumber')} placeholder={(trade ? traded?.modelNumber : tool?.mouldCode) || 'NPT-400S'} aria-label={`Model number on item ${n}`} />
+          <input className="input" value={item.modelNumber} onChange={setFrom('modelNumber')} disabled={priceLocked} placeholder={(trade ? traded?.modelNumber : tool?.mouldCode) || 'NPT-400S'} aria-label={`Model number on item ${n}`} />
         </Box>
         <Box label="Min. pcs" className="md:col-span-2">
           <input type="number" min="0" className="input" value={item.moq} onChange={setFrom('moq')} placeholder={(trade ? traded?.moq : tool?.moq) ? String(trade ? traded.moq : tool.moq) : ''} aria-label={`Minimum on item ${n}`} />
         </Box>
         <div className="col-span-2 md:col-span-4">
-          <Box label="Final quoted rate / piece (₹)">
+          <Box label={priceLocked ? 'Rate with the buyer — change it by a revision' : 'Final quoted rate / piece (₹)'}>
             <div className="flex items-center gap-1">
               <input
                 type="number"
@@ -287,10 +339,11 @@ function ItemCard({ index, item, onChange, onRemove, removable, markup, seesCost
                 className="input min-w-0 flex-1 font-semibold tabular-nums"
                 value={item.unitPrice}
                 onChange={setFrom('unitPrice')}
+                disabled={priceLocked}
                 placeholder={seesCost && suggested ? suggested.toFixed(2) : '—'}
                 aria-label={`Final rate on item ${n}`}
               />
-              {[-10, -5, 5, 10].map((step) => (
+              {!priceLocked && [-10, -5, 5, 10].map((step) => (
                 <button
                   key={step}
                   type="button"
@@ -310,7 +363,7 @@ function ItemCard({ index, item, onChange, onRemove, removable, markup, seesCost
               ? <p className="rounded-lg border border-line/[0.1] px-3 py-1.5 text-xs text-steel-400">Trade hanger — costed at the supplier’s inward price, no material added.</p>
               : <PreviousPrice mould={item.mould} material={item.materialRef} hook={item.withHook ? item.hookRef : NONE} clip={item.withClip ? item.clipRef : NONE} />}
           </div>
-          {seesCost && suggested != null && (
+          {seesCost && suggested != null && !priceLocked && (
             <button
               type="button"
               className="btn-secondary h-9 shrink-0 whitespace-nowrap px-3 text-xs"
@@ -324,9 +377,50 @@ function ItemCard({ index, item, onChange, onRemove, removable, markup, seesCost
       </div>
 
       {seesCost && (
-        <p className="mt-1.5 pl-7 text-xs text-steel-400">
-          {name} · {trade ? 'Trade' : hookName} · Base {rupees(cost.base)} + {markup}% = <span className="font-semibold text-steel-200">{rupees(suggested)}</span>
-        </p>
+        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 pl-7 text-xs">
+          <span className="text-steel-400">{name} · {trade ? 'Trade' : hookName} · Base {rupees(cost.base)} + {markup}% = <span className="font-semibold text-steel-200">{rupees(suggested)}</span></span>
+          {/* The standing tiers, side by side: choosing between them is the pricing decision. */}
+          <span className="flex items-center gap-1">
+            {tiersOf(cost.exactBase).map(([percent, price]) => (
+              <button
+                key={percent}
+                type="button"
+                disabled={!price || priceLocked}
+                onClick={() => set('unitPrice')(price.toFixed(2))}
+                className={`rounded-md border px-2 py-1 font-semibold tabular-nums disabled:opacity-40 ${samePrice(item.unitPrice, price) ? 'border-accent bg-accent/10 text-steel-50' : 'border-line/[0.15] text-steel-200 hover:border-accent/50'}`}
+                title={percent === 10 ? 'The floor' : `Cost plus ${percent}%`}
+              >
+                {percent}%{percent === 10 ? ' floor' : ''} {price ? rupees(price) : '—'}
+              </button>
+            ))}
+          </span>
+          {returns && (
+            <span className="text-steel-300">
+              Markup <b className="text-steel-100">{returns.markup}%</b> · Margin <b className="text-steel-100">{returns.margin}%</b> ({rupees(returns.perPiece)}/pc)
+            </span>
+          )}
+          {editing && (
+            <label className="flex items-center gap-1.5 text-steel-300">
+              Floor
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                className="input h-8 w-24 text-xs tabular-nums"
+                value={item.minimumOverride}
+                onChange={setFrom('minimumOverride')}
+                placeholder={tiersOf(cost.exactBase)[0][1] ? tiersOf(cost.exactBase)[0][1].toFixed(2) : ''}
+                aria-label={`Floor override on item ${n}`}
+                title="Blank means the standing floor, the 10% tier. Below the floor goes to Admin."
+              />
+            </label>
+          )}
+          {editing && item.lineId && onDetailed && (
+            <button type="button" className="ml-auto font-semibold text-accent hover:underline" onClick={() => onDetailed(item.lineId)}>
+              Detailed view ↗
+            </button>
+          )}
+        </div>
       )}
     </div>
   );
@@ -341,15 +435,19 @@ function ItemCard({ index, item, onChange, onRemove, removable, markup, seesCost
  * are the Quotation department's and Admin's [§8]. A rate left blank goes to the Quotation
  * department to price, as before.
  */
-export default function QuoteBuilder({ onClose, onSaved, enquiry: givenEnquiry, customer: givenCustomer }) {
+export default function QuoteBuilder({ onClose, onSaved, onDetailed, enquiry: givenEnquiry, customer: givenCustomer, quotation: given }) {
   const { canWrite } = useAuth();
   const seesCost = canWrite('pricing');
+  /* Costing or editing a saved quotation: every line in the one window, saved together. */
+  const editing = Boolean(given);
+  const [loaded, setLoaded] = useState(null);
+  const sent = Boolean(loaded?.sentAt);
 
   const [customer, setCustomer] = useState(givenCustomer || '');
   /* The enquiry's buyer by name, for somebody who may quote on the enquiry but not open the customer. */
   const [customerName, setCustomerName] = useState('');
   const [enquiry, setEnquiry] = useState(givenEnquiry || '');
-  const [items, setItems] = useState([blankItem()]);
+  const [items, setItems] = useState(() => (editing ? [] : [blankItem()]));
   const [markup, setMarkup] = useState(10);
   const [terms, setTerms] = useState({
     paymentTerms: '100% Advance',
@@ -375,16 +473,44 @@ export default function QuoteBuilder({ onClose, onSaved, enquiry: givenEnquiry, 
   const printNames = useMemo(() => new Map(parts.print.map((row) => [row._id, row.name])), [parts.print]);
 
   useEffect(() => {
+    if (editing) return undefined;
     let live = true;
     quotationsApi.numbering()
       .then((data) => live && setNextNumber(data?.current?.next || null))
       .catch(() => {});
     return () => { live = false; };
-  }, []);
+  }, [editing]);
+
+  /* A saved quotation, read whole — its lines with their registers and costing. */
+  const givenId = given?._id || given;
+  useEffect(() => {
+    if (!givenId) return undefined;
+    let live = true;
+    quotationsApi.get(givenId)
+      .then((record) => {
+        if (!live) return;
+        setLoaded(record);
+        setItems((record.lines || []).map(itemFromLine));
+        setMarkup(record.lines?.[0]?.markupPercent ?? 10);
+        setCustomerName(record.customer?.name || '');
+        setTerms({
+          paymentTerms: record.paymentTerms || '',
+          deliveryTerms: record.deliveryTerms || '',
+          validUntil: record.validUntil ? String(record.validUntil).slice(0, 10) : '',
+          freightTerms: record.freightTerms || 'ex_factory',
+          gstPercent: record.gstPercent ?? 18,
+          isExport: Boolean(record.isExport),
+          packing: record.packing || '',
+          remarks: record.remarks || '',
+        });
+      })
+      .catch((failure) => live && setError(failure.message));
+    return () => { live = false; };
+  }, [givenId]);
 
   /* Picking the enquiry brings its models in, unless some have been entered already. */
   useEffect(() => {
-    if (!enquiry) return undefined;
+    if (!enquiry || editing) return undefined;
     let live = true;
     enquiriesApi.get(enquiry)
       .then((found) => {
@@ -412,29 +538,84 @@ export default function QuoteBuilder({ onClose, onSaved, enquiry: givenEnquiry, 
     requestAnimationFrame(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' }));
   };
 
+  /* The cost build-up of an item from the registers already read, for saving it. */
+  const costedOf = (item) => costOf(item, {
+    tool: item.procurement === TRADE ? undefined : registers.mould(item.mould),
+    traded: item.procurement === TRADE ? registers.traded(item.tradedItem) : undefined,
+    resin: registers.material(item.materialRef),
+    hook: registers.part(item.hookRef),
+    clip: registers.part(item.clipRef),
+    print: registers.part(item.printRef),
+  });
+  const savedValidity = loaded?.validUntil ? String(loaded.validUntil).slice(0, 10) : '';
+  const termsPayload = () => ({
+    paymentTerms: terms.paymentTerms || undefined,
+    deliveryTerms: terms.deliveryTerms || undefined,
+    freightTerms: terms.freightTerms,
+    packing: terms.packing || undefined,
+    remarks: terms.remarks || undefined,
+    /* A saved quotation's validity goes only when changed: one already past would be refused. */
+    validUntil: (editing && terms.validUntil === savedValidity) ? undefined : terms.validUntil || undefined,
+    isExport: terms.isExport,
+    gstPercent: terms.isExport ? undefined : Number(terms.gstPercent),
+  });
+
+  /*
+   * Saving a saved quotation: the terms and the list of models first (before it has gone to the
+   * buyer), then each model's costing in turn — each answer carries the version the next one
+   * needs, so two people costing the same quotation cannot overwrite each other unseen.
+   */
+  const saveExisting = async (named) => {
+    let latest = loaded;
+    if (!sent) {
+      latest = await quotationsApi.update({
+        id: latest._id,
+        expectedUpdatedAt: latest.updatedAt,
+        ...termsPayload(),
+        lines: named.map((item) => (item.lineId
+          ? {
+            _id: item.lineId,
+            modelNumber: item.modelNumber.trim() || undefined,
+            colour: item.colour.trim() || undefined,
+            moq: item.moq === '' ? undefined : Number(item.moq),
+            ...(!seesCost && item.unitPrice !== '' ? { unitPrice: Number(item.unitPrice) } : {}),
+          }
+          : lineFor(item, { seesCost: false, printName: printNames.get(item.printRef) }))),
+      });
+    }
+    if (seesCost) {
+      const ids = (latest.lines || []).map((line) => line._id);
+      for (const [at, item] of named.entries()) {
+        const lineId = item.lineId || ids[at];
+        if (!lineId) continue;
+        latest = await quotationsApi.cost({
+          id: latest._id,
+          expectedUpdatedAt: latest.updatedAt,
+          ...costPayload({ ...item, lineId }, { markup, costed: costedOf(item), sent, printName: printNames.get(item.printRef) }),
+        });
+      }
+    }
+    return latest;
+  };
+
   const submit = async (event) => {
     event.preventDefault();
-    const problem = problemWith({ enquiry, items });
+    const problem = problemWith({ enquiry, items, editing });
     if (problem) { setError(problem); return; }
     const named = items.filter(isNamed);
     setBusy(true);
     setError(null);
     try {
-      const saved = await quotationsApi.create({
-        enquiry,
-        paymentTerms: terms.paymentTerms || undefined,
-        deliveryTerms: terms.deliveryTerms || undefined,
-        freightTerms: terms.freightTerms,
-        packing: terms.packing || undefined,
-        remarks: terms.remarks || undefined,
-        validUntil: terms.validUntil || undefined,
-        isExport: terms.isExport,
-        gstPercent: terms.isExport ? undefined : Number(terms.gstPercent),
-        /* No named rows: the server takes the enquiry's models. */
-        lines: named.length
-          ? named.map((item) => lineFor(item, { markup: seesCost ? markup : undefined, seesCost, printName: printNames.get(item.printRef) }))
-          : undefined,
-      });
+      const saved = editing
+        ? await saveExisting(named)
+        : await quotationsApi.create({
+          enquiry,
+          ...termsPayload(),
+          /* No named rows: the server takes the enquiry's models. */
+          lines: named.length
+            ? named.map((item) => lineFor(item, { markup: seesCost ? markup : undefined, seesCost, printName: printNames.get(item.printRef), costed: seesCost ? costedOf(item) : undefined }))
+            : undefined,
+        });
       onSaved(saved);
       onClose();
     } catch (saveError) {
@@ -444,28 +625,45 @@ export default function QuoteBuilder({ onClose, onSaved, enquiry: givenEnquiry, 
     }
   };
 
+  if (editing && !loaded) {
+    return <div className="flex flex-1 items-center justify-center text-sm text-steel-400">{error ? <Notice tone="danger">{error}</Notice> : 'Loading the quotation…'}</div>;
+  }
+
   return (
     <form onSubmit={submit} className="-mr-2 flex min-h-0 flex-1 flex-col overflow-y-auto pr-2 lg:mr-0 lg:overflow-hidden lg:pr-0">
       {/* The document — fixed at the top. */}
       <div className="grid shrink-0 grid-cols-2 gap-x-3 gap-y-2 lg:grid-cols-4">
-        <Box label="Customer">
-          <CustomerSelect value={customer} onChange={(next) => { setCustomer(next || ''); setEnquiry(''); setCustomerName(''); }} fallbackLabel={customerName || undefined} aria-label="Customer" />
-        </Box>
-        <Box label="Enquiry *">
-          <EnquirySelect value={enquiry || undefined} onChange={(next) => setEnquiry(next || '')} customer={customer || undefined} aria-label="Enquiry" />
-        </Box>
+        {editing ? (
+          <>
+            <Box label="Customer">
+              <input className="input text-steel-300" value={customerName} readOnly aria-label="Customer" />
+            </Box>
+            <Box label="Enquiry">
+              <input className="input text-steel-300" value={loaded.enquiry?.number || '—'} readOnly aria-label="Enquiry" />
+            </Box>
+          </>
+        ) : (
+          <>
+            <Box label="Customer">
+              <CustomerSelect value={customer} onChange={(next) => { setCustomer(next || ''); setEnquiry(''); setCustomerName(''); }} fallbackLabel={customerName || undefined} aria-label="Customer" />
+            </Box>
+            <Box label="Enquiry *">
+              <EnquirySelect value={enquiry || undefined} onChange={(next) => setEnquiry(next || '')} customer={customer || undefined} aria-label="Enquiry" />
+            </Box>
+          </>
+        )}
         <Box label="Quotation number">
-          <input className="input text-steel-300" value={nextNumber ? `${nextNumber} (next)` : 'Given on save'} readOnly aria-label="Quotation number" title="Given when saved — the next number in the year's sequence" />
+          <input className="input text-steel-300" value={editing ? `${loaded.number}${sent ? ' · sent' : ''}` : nextNumber ? `${nextNumber} (next)` : 'Given on save'} readOnly aria-label="Quotation number" title={editing ? undefined : "Given when saved — the next number in the year's sequence"} />
         </Box>
         <Box label="Date">
-          <input className="input text-steel-300" value={formatDate(new Date())} readOnly aria-label="Date" />
+          <input className="input text-steel-300" value={formatDate(editing ? loaded.createdAt : new Date())} readOnly aria-label="Date" />
         </Box>
         <Box label="Payment terms">
-          <input className="input" list="quote-payment-terms" value={terms.paymentTerms} onChange={setTerm('paymentTerms')} aria-label="Payment terms" />
+          <input className="input" list="quote-payment-terms" value={terms.paymentTerms} onChange={setTerm('paymentTerms')} disabled={sent} aria-label="Payment terms" />
           <datalist id="quote-payment-terms">{PAYMENT_TERMS.map((value) => <option key={value} value={value} />)}</datalist>
         </Box>
         <Box label="Delivery terms">
-          <input className="input" list="quote-delivery-terms" value={terms.deliveryTerms} onChange={setTerm('deliveryTerms')} aria-label="Delivery terms" />
+          <input className="input" list="quote-delivery-terms" value={terms.deliveryTerms} onChange={setTerm('deliveryTerms')} disabled={sent} aria-label="Delivery terms" />
           <datalist id="quote-delivery-terms">{DELIVERY_TERMS.map((value) => <option key={value} value={value} />)}</datalist>
         </Box>
         {seesCost && (
@@ -476,7 +674,7 @@ export default function QuoteBuilder({ onClose, onSaved, enquiry: givenEnquiry, 
           </Box>
         )}
         <Box label="Valid until" className={seesCost ? '' : 'lg:col-span-2'}>
-          <input type="date" className="input" min={inDays(0)} value={terms.validUntil} onChange={setTerm('validUntil')} aria-label="Valid until" />
+          <input type="date" className="input" min={editing && terms.validUntil === savedValidity ? undefined : inDays(0)} value={terms.validUntil} onChange={setTerm('validUntil')} disabled={sent} aria-label="Valid until" />
         </Box>
       </div>
 
@@ -488,7 +686,7 @@ export default function QuoteBuilder({ onClose, onSaved, enquiry: givenEnquiry, 
             {seesCost ? 'Costing is internal — the customer PDF shows model, material, photo and rate only.' : 'A blank rate goes to the Quotation department to price.'}
           </span>
         </p>
-        <button type="button" className="btn-secondary h-9 px-3 text-sm" onClick={addItem} disabled={items.length >= MAX_ITEMS}>+ Add item</button>
+        <button type="button" className="btn-secondary h-9 px-3 text-sm" onClick={addItem} disabled={items.length >= MAX_ITEMS || sent} title={sent ? 'A model is added to a sent quotation through a revision' : undefined}>+ Add item</button>
       </div>
       <div ref={listRef} className="mt-2 space-y-2 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-1">
         {items.map((item, index) => (
@@ -498,11 +696,14 @@ export default function QuoteBuilder({ onClose, onSaved, enquiry: givenEnquiry, 
             item={item}
             onChange={updateItem(index)}
             onRemove={() => removeItem(index)}
-            removable={items.length > 1}
+            removable={items.length > 1 && !sent}
             markup={markup}
             seesCost={seesCost}
             registers={registers}
             parts={parts}
+            editing={editing}
+            sent={sent}
+            onDetailed={onDetailed}
           />
         ))}
       </div>
@@ -511,29 +712,29 @@ export default function QuoteBuilder({ onClose, onSaved, enquiry: givenEnquiry, 
       <div className="mt-3 shrink-0 border-t border-line/[0.08] pt-3">
         <div className="grid grid-cols-2 gap-x-3 gap-y-2 md:grid-cols-12">
           <Box label="Freight" className="md:col-span-2">
-            <select className="input" value={terms.freightTerms} onChange={setTerm('freightTerms')} aria-label="Freight">
+            <select className="input" value={terms.freightTerms} onChange={setTerm('freightTerms')} disabled={sent} aria-label="Freight">
               {FREIGHT.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
             </select>
           </Box>
           <Box label="GST %" className="md:col-span-2">
             <div className="flex items-center gap-2">
-              <input type="number" min="0" max="100" className="input min-w-0 flex-1" value={terms.isExport ? '' : terms.gstPercent} onChange={setTerm('gstPercent')} disabled={terms.isExport} aria-label="GST %" />
+              <input type="number" min="0" max="100" className="input min-w-0 flex-1" value={terms.isExport ? '' : terms.gstPercent} onChange={setTerm('gstPercent')} disabled={terms.isExport || sent} aria-label="GST %" />
               <label className="flex shrink-0 items-center gap-1 text-xs text-steel-300">
-                <input type="checkbox" checked={terms.isExport} onChange={setTerm('isExport')} /> Export
+                <input type="checkbox" checked={terms.isExport} onChange={setTerm('isExport')} disabled={sent} /> Export
               </label>
             </div>
           </Box>
           <Box label="Packing" className="md:col-span-3">
-            <input className="input" value={terms.packing} onChange={setTerm('packing')} placeholder="200 pcs per carton" aria-label="Packing" />
+            <input className="input" value={terms.packing} onChange={setTerm('packing')} disabled={sent} placeholder="200 pcs per carton" aria-label="Packing" />
           </Box>
           <Box label="Remarks" className="col-span-2 md:col-span-5">
-            <input className="input" value={terms.remarks} onChange={setTerm('remarks')} placeholder="Quotation remarks (optional)" aria-label="Remarks" />
+            <input className="input" value={terms.remarks} onChange={setTerm('remarks')} disabled={sent} placeholder="Quotation remarks (optional)" aria-label="Remarks" />
           </Box>
         </div>
         {error && <div className="mt-2"><Notice tone="danger">{error}</Notice></div>}
         <div className="mt-3 flex items-center justify-end gap-2">
           <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
-          <button type="submit" className="btn-primary" disabled={busy}>{busy ? 'Saving…' : 'Create quotation'}</button>
+          <button type="submit" className="btn-primary" disabled={busy}>{busy ? 'Saving…' : editing ? (seesCost ? 'Save costing' : 'Save quotation') : 'Create quotation'}</button>
         </div>
       </div>
     </form>
