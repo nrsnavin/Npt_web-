@@ -37,7 +37,7 @@ const idle = async () => ({ data: [], pagination: null });
  * and buttons, without a page title of its own.
  */
 export default function Enquiries({ embedded = false }) {
-  const { canWrite } = useAuth();
+  const { canWrite, opensCustomer } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
@@ -358,7 +358,10 @@ export default function Enquiries({ embedded = false }) {
                           <p className="text-xs text-steel-400">{formatDate(enquiry.enquiryDate)}</p>
                         </td>
                         <td className="px-1.5 py-3.5">
-                          {enquiry.customer ? (
+                          {enquiry.customer && !opensCustomer(enquiry.customer) ? (
+                            /* Delegated to them; the buyer is another salesperson's — named, not linked. */
+                            <span className="text-steel-200">{enquiry.customer.name || '—'}</span>
+                          ) : enquiry.customer ? (
                             <Link to={`/customers/${enquiry.customer._id}`} className="text-steel-200 hover:text-accent">
                               {enquiry.customer.name || '—'}
                             </Link>

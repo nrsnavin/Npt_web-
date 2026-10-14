@@ -528,7 +528,7 @@ function EnquiryCommercials({ enquiryId, canSeeQuotes }) {
 
 export default function EnquiryDetail() {
   const { id } = useParams();
-  const { canRead, canWrite, user, isAdmin } = useAuth();
+  const { canRead, canWrite, user, isAdmin, opensCustomer } = useAuth();
   const navigate = useNavigate();
   const [movingStage, setMovingStage] = useState(false);
   const [promoting, setPromoting] = useState(false);
@@ -572,7 +572,10 @@ export default function EnquiryDetail() {
         title={enquiry.number}
         subtitle={
           <>
-            {enquiry.customer ? (
+            {enquiry.customer && !opensCustomer(enquiry.customer) ? (
+              /* Delegated to them; the buyer is another salesperson's — named, not linked. */
+              <>{enquiry.customer.name}</>
+            ) : enquiry.customer ? (
               <Link to={`/customers/${enquiry.customer._id}`} className="hover:text-accent">
                 {enquiry.customer.name}
               </Link>
