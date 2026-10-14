@@ -223,11 +223,11 @@ function CardEditor({ card, onDone }) {
     };
   }, [isManagement]);
 
-  /* Only what was recognised. The next step and how we met them start empty: they are the
-     salesperson's to give, not the app's to guess. The follow-up starts at tomorrow. */
+  /* Only what was recognised. The next step starts empty — the salesperson's to give, not the
+     app's to guess. How we met them starts at Phone, the usual answer; the follow-up at tomorrow. */
   useEffect(() => {
     setFields({
-      ...(card.reading || {}), nextAction: '', nextFollowUpDate: tomorrowIso(), source: '', estimatedValue: '', assignedTo: '',
+      ...(card.reading || {}), nextAction: '', nextFollowUpDate: tomorrowIso(), source: 'phone', estimatedValue: '', assignedTo: '',
       /* A buyer the plant already has — the one found by their number, to begin with. */
       customer: card.matchedCustomer?._id || '',
       /* The next step, picked; a sample or a quotation also raises that department's task. */
