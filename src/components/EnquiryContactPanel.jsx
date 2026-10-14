@@ -137,7 +137,7 @@ export function AttachPicker({ documents, picked, onChange, channel }) {
   );
 }
 
-export default function EnquiryContactPanel({ enquiry, isOwner, canWrite, onSent, refreshKey }) {
+export default function EnquiryContactPanel({ enquiry, isOwner, canWrite, onSent, refreshKey, timelineOpen = false }) {
   const [whatsapp, setWhatsapp] = useState('');
   const [email, setEmail] = useState({ subject: '', body: '' });
   const [busy, setBusy] = useState(null);
@@ -145,7 +145,7 @@ export default function EnquiryContactPanel({ enquiry, isOwner, canWrite, onSent
   const [sentNote, setSentNote] = useState(null);
   const [timeline, setTimeline] = useState(null);
   const [conversation, setConversation] = useState(null);
-  const [showTimeline, setShowTimeline] = useState(false);
+  const [showTimeline, setShowTimeline] = useState(timelineOpen);
   const [showConversation, setShowConversation] = useState(false);
   const [documents, setDocuments] = useState([]);
   const [picked, setPicked] = useState({ whatsapp: [], email: [] });
