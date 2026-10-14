@@ -179,7 +179,8 @@ export default function Combobox({
 
   const choose = useCallback(
     (option) => {
-      onChange(option.value || undefined);
+      /* The option rides along, for a caller that needs more of the record than its id. */
+      onChange(option.value || undefined, option.value ? option : undefined);
       setChosen(option.value ? option : null);
       setOpen(false);
       setTerm('');

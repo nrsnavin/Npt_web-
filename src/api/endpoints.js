@@ -380,6 +380,19 @@ export const customers = {
 export const buyerCards = {
   list: (params) => api.get('/buyer-cards', { params }).then(listed),
   get: (id) => api.get(`/buyer-cards/${id}`).then(unwrap),
+  /** The model dropdown on a draft: moulds and trading items in one list; `ref` reads back one picked. */
+  models: (search) => api.get('/buyer-cards/models', { params: { search: search || undefined } }).then(listed),
+  model: (ref) => api.get('/buyer-cards/models', { params: { ref } }).then(unwrap),
+  /**
+   * What a draft may already be on the master as: the customers it could be, and per model row the
+   * master models it could mean. `asked` is one entry per row, sent as repeated keys.
+   */
+  suggestions: ({ asked = [], ...fields }) => {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(fields)) if (String(value ?? '').trim()) params.append(key, String(value).trim());
+    for (const words of asked) params.append('asked', words || '');
+    return api.get('/buyer-cards/suggestions', { params }).then(unwrap);
+  },
   /** The photo, as a blob: the route needs the session's token, which an <img src> cannot send. */
   /** `n` is 0 for the first picture, 1 and on for the later screenshots of a long chat. */
   image: (id, n = 0) => api.get(`/buyer-cards/${id}/image`, { params: n ? { n } : undefined, responseType: 'blob', feedback: false }).then((r) => r.data),
