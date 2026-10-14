@@ -2,13 +2,15 @@ import { useEffect, useRef, useState } from 'react';
 import { usePhotoDrafts } from '../hooks/usePhotoDrafts.js';
 import { takeSharedPhotos } from '../utils/sharedPhotos.js';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { buyerCards as cardsApi, customers as customersApi } from '../api/endpoints.js';
+import { buyerCards as cardsApi, customers as customersApi, moulds as mouldsApi } from '../api/endpoints.js';
+import { MouldSelect } from '../components/pickers.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { Badge, EmptyState, ErrorState, Field, Notice, PageHeader } from '../components/ui.jsx';
 import { formatDate } from '../utils/format.js';
 import { SOURCES } from '../utils/pipeline.js';
 import {
-  CARD_STATUS, COLOUR_TYPES, KIND_LABEL, NEXT_STEPS, cardProblem, nextStepOf, quantityOf, todayIso, withoutStepFields,
+  CARD_STATUS, COLOUR_TYPES, KIND_LABEL, NEXT_STEPS, blankModel, cardProblem, itemsOf, modelsFrom, nextStepOf, quantityOf,
+  todayIso, withoutStepFields,
 } from '../utils/buyerCards.js';
 
 /**
@@ -77,8 +79,84 @@ function ReadField({ label, name, fields, reading, set, disabled, wide = false, 
   );
 }
 
+/** Most models a draft carries — as the server keeps on an enquiry. */
+const MOST_MODELS = 20;
+
+/**
+ * "Models asked for": each model the picture named, matched to the plant's code where it could be
+ * [server: buyerCard.llm `matchModels`], to correct, add to or remove before saving. A row is a
+ * tool picked from the mould register, or a code typed — a bought-in item's, or the buyer's own
+ * name for it when it is not ours yet. The buyer's words stay beside a row the reading changed.
+ */
+function DraftModels({ models, onChange, disabled }) {
+  const update = (key, patch) => onChange(models.map((row) => (row.key === key ? { ...row, ...patch } : row)));
+  const remove = (key) => onChange(models.filter((row) => row.key !== key));
+  const pickMould = async (key, mould) => {
+    update(key, { mould: mould || '', ...(mould ? {} : { code: '' }) });
+    if (!mould) return;
+    const found = await mouldsApi.get(mould).catch(() => null);
+    const record = found?.mould || found;
+    if (record?.mouldCode) update(key, { mould, code: record.mouldCode });
+  };
+  return (
+    <section className="space-y-2" aria-label="Models asked for">
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="text-xs font-bold uppercase tracking-[0.08em] text-steel-500">Models asked for · {models.length}</h3>
+        <button
+          type="button"
+          className="btn-secondary px-3 py-1.5 text-xs"
+          disabled={disabled || models.length >= MOST_MODELS}
+          onClick={() => onChange([...models, blankModel()])}
+        >
+          + Add model
+        </button>
+      </div>
+      {models.length === 0 && <p className="text-sm text-steel-400">No model named in the picture. Add the ones the buyer asked for, if you know them.</p>}
+      {models.map((row, index) => (
+        <div key={row.key} className="rounded-xl border border-line/[0.1] bg-line/[0.02] p-2.5">
+          <div className="flex items-center gap-2">
+            <div className="min-w-0 flex-1">
+              <MouldSelect
+                value={row.mould || undefined}
+                onChange={(mould) => pickMould(row.key, mould)}
+                includeBlank="From the mould register…"
+                allowCreate={false}
+                disabled={disabled}
+                aria-label={`Model ${index + 1} from the register`}
+              />
+            </div>
+            <button type="button" className="btn-ghost h-9 shrink-0 px-2 text-steel-400 hover:text-danger-400" disabled={disabled} onClick={() => remove(row.key)} aria-label={`Remove model ${index + 1}`}>×</button>
+          </div>
+          <div className="mt-2 grid grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1fr)] gap-2">
+            <input
+              className="input"
+              placeholder="or the model code"
+              title={row.mould ? 'The code of the mould picked above' : 'A bought-in model, or the buyer’s own name for it'}
+              value={row.code}
+              disabled={disabled || Boolean(row.mould)}
+              onChange={(event) => update(row.key, { code: event.target.value })}
+              aria-label={`Model ${index + 1} code`}
+            />
+            <input className="input" inputMode="numeric" placeholder="Qty (pcs)" value={row.quantity} disabled={disabled} onChange={(event) => update(row.key, { quantity: event.target.value.replace(/[^\d,]/g, '') })} aria-label={`Model ${index + 1} quantity`} />
+            <input className="input" placeholder="Colour" value={row.colour} disabled={disabled} onChange={(event) => update(row.key, { colour: event.target.value })} aria-label={`Model ${index + 1} colour`} />
+          </div>
+          {row.asked && (
+            <p className="mt-1 text-xs text-steel-400">
+              Buyer wrote “{row.asked}”
+              {row.matchedBy === 'code' && row.code ? ` · matched to ${row.code} by its code` : ''}
+              {row.matchedBy === 'model' && row.code ? ` · matched to ${row.code} by AI — check it` : ''}
+              {!row.matchedBy ? ' · no code matched — pick one or keep the buyer’s words' : ''}
+            </p>
+          )}
+        </div>
+      ))}
+    </section>
+  );
+}
+
 function CardEditor({ card, onDone }) {
   const [fields, setFields] = useState({});
+  const [models, setModels] = useState([]);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState(null);
   /*
@@ -103,9 +181,9 @@ function CardEditor({ card, onDone }) {
     setFields({
       ...(card.reading || {}), nextAction: '', nextFollowUpDate: '', source: '', estimatedValue: '', assignedTo: '',
       /* The next step, picked; a sample or a quotation also raises that department's task. */
-      nextStep: '', stepModel: '', stepColour: '', stepColourType: '', stepPieces: '2',
-      stepQuantity: card.reading?.estimatedQuantity ? String(card.reading.estimatedQuantity) : '', stepTargetPrice: '', stepNote: '',
+      nextStep: '', stepColourType: '', stepPieces: '2', stepTargetPrice: '', stepNote: '',
     });
+    setModels(modelsFrom(card.reading));
     setProblem(null);
   }, [card._id]);
 
@@ -115,7 +193,7 @@ function CardEditor({ card, onDone }) {
   };
 
   const open = ['ready', 'unreadable'].includes(card.status);
-  const why = cardProblem(fields);
+  const why = cardProblem(fields, models);
   const holder = card.matchedCustomer
     ? { to: `/customers/${card.matchedCustomer._id}`, text: `customer ${card.matchedCustomer.code} (${card.matchedCustomer.name})` }
     : null;
@@ -129,8 +207,9 @@ function CardEditor({ card, onDone }) {
       const value = String(fields.estimatedValue ?? '').replace(/,/g, '').trim();
       const done = await cardsApi.confirm({
         id: card._id,
-        ...withoutStepFields(fields),
-        ...nextStepOf(fields),
+        ...withoutStepFields({ ...fields, models: undefined }),
+        ...nextStepOf(fields, models),
+        items: itemsOf(models),
         estimatedQuantity: quantityOf(fields.estimatedQuantity),
         estimatedValue: value ? Number(value) : null,
         assignedTo: fields.assignedTo || undefined,
@@ -222,6 +301,8 @@ function CardEditor({ card, onDone }) {
           </div>
         </section>
 
+        <DraftModels models={models} onChange={(next) => { setModels(next); setProblem(null); }} disabled={off} />
+
         {open && (
           <section className="space-y-3 rounded-xl border border-flame-500/20 bg-flame-500/[0.04] p-4">
             <h3 className="text-xs font-bold uppercase tracking-[0.08em] text-flame-400">For you to fill in</h3>
@@ -248,20 +329,12 @@ function CardEditor({ card, onDone }) {
                   />
                 </Field>
               )}
-              {fields.nextStep === 'sample' && (
-                <Field label="Model" required>
-                  <input required className="input" placeholder="NH-400" value={fields.stepModel || ''} disabled={off} onChange={(event) => set('stepModel', event.target.value)} aria-label="Model" />
-                </Field>
-              )}
-              {['quote', 'photos'].includes(fields.nextStep) && (
-                <Field label="Model" hint={fields.nextStep === 'photos' ? 'If you know it' : undefined}>
-                  <input className="input" placeholder="NH-400" value={fields.stepModel || ''} disabled={off} onChange={(event) => set('stepModel', event.target.value)} aria-label="Model" />
-                </Field>
-              )}
               {['sample', 'quote'].includes(fields.nextStep) && (
-                <Field label={fields.nextStep === 'sample' ? 'Colour' : 'Material / colour'}>
-                  <input className="input" placeholder={fields.nextStep === 'sample' ? 'Black' : 'PP black'} value={fields.stepColour || ''} disabled={off} onChange={(event) => set('stepColour', event.target.value)} aria-label={fields.nextStep === 'sample' ? 'Colour' : 'Material / colour'} />
-                </Field>
+                <p className="text-xs text-steel-400 sm:col-span-2 xl:col-span-1 2xl:col-span-2">
+                  {models.some((row) => row.mould || row.code.trim())
+                    ? `For ${models.filter((row) => row.mould || row.code.trim()).map((row) => row.code.trim() || 'the chosen model').join(', ')} — the models listed above.`
+                    : 'Add the models above — the task is raised for each of them.'}
+                </p>
               )}
               {fields.nextStep === 'sample' && (
                 <>
@@ -271,16 +344,13 @@ function CardEditor({ card, onDone }) {
                       {COLOUR_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
                     </select>
                   </Field>
-                  <Field label="Sample pieces">
+                  <Field label="Sample pieces (each model)">
                     <input className="input" inputMode="numeric" value={fields.stepPieces || ''} disabled={off} onChange={(event) => set('stepPieces', event.target.value.replace(/\D/g, ''))} aria-label="Sample pieces" />
                   </Field>
                 </>
               )}
               {fields.nextStep === 'quote' && (
                 <>
-                  <Field label="Quantity (pieces)">
-                    <input className="input" inputMode="numeric" value={fields.stepQuantity || ''} disabled={off} onChange={(event) => set('stepQuantity', event.target.value.replace(/[^\d,]/g, ''))} aria-label="Quotation quantity" />
-                  </Field>
                   <Field label="Buyer’s target price (₹ / pc)">
                     <input className="input" inputMode="decimal" value={fields.stepTargetPrice || ''} disabled={off} onChange={(event) => set('stepTargetPrice', event.target.value.replace(/[^\d.]/g, ''))} aria-label="Target price" />
                   </Field>
