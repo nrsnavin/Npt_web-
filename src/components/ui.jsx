@@ -224,7 +224,10 @@ export function Modal({ open, title, description, onClose, children, size = 'md'
 
   if (!open) return null;
 
-  const width = { sm: 'max-w-md', md: 'max-w-2xl', lg: 'max-w-4xl' }[size];
+  const width = { sm: 'max-w-md', md: 'max-w-2xl', lg: 'max-w-4xl', xl: 'max-w-[1400px]' }[size];
+  /* `xl` is a working window: the full height of the screen, with the body laying out its own
+     fixed and scrolling parts rather than the page scrolling behind it. */
+  const fill = size === 'xl';
 
   /**
    * Rendered into <body> rather than in place. The page's <main> is animated, and a
@@ -242,7 +245,7 @@ export function Modal({ open, title, description, onClose, children, size = 'md'
         className="fixed inset-0 animate-fade-in cursor-default bg-scrim/80 backdrop-blur-sm"
       />
 
-      <div className="relative flex min-h-full items-start justify-center p-4 sm:p-8">
+      <div className={`relative flex min-h-full items-start justify-center ${fill ? 'p-2 sm:p-3' : 'p-4 sm:p-8'}`}>
         <div
           ref={dialogRef}
           tabIndex={-1}
@@ -250,9 +253,9 @@ export function Modal({ open, title, description, onClose, children, size = 'md'
           aria-labelledby={titleId}
           aria-describedby={description ? descriptionId : undefined}
           aria-modal="true"
-          className={`card animate-scale-in my-auto w-full ${width} !bg-ink-850 shadow-modal`}
+          className={`card animate-scale-in my-auto w-full ${width} !bg-ink-850 shadow-modal ${fill ? 'flex h-[calc(100dvh-1rem)] flex-col sm:h-[calc(100dvh-1.5rem)]' : ''}`}
         >
-          <div className="flex items-start justify-between gap-4 border-b border-line/[0.06] px-6 py-4">
+          <div className={`flex shrink-0 items-start justify-between gap-4 border-b border-line/[0.06] ${fill ? 'px-5 py-2.5' : 'px-6 py-4'}`}>
             <div>
               <h2 id={titleId} className="text-lg font-bold tracking-tight text-steel-50">{title}</h2>
               {description && <p id={descriptionId} className="mt-0.5 text-sm text-steel-400">{description}</p>}
@@ -270,7 +273,7 @@ export function Modal({ open, title, description, onClose, children, size = 'md'
             </button>
           </div>
 
-          <div className="px-6 py-5">{children}</div>
+          <div className={fill ? 'flex min-h-0 flex-1 flex-col px-5 py-3' : 'px-6 py-5'}>{children}</div>
         </div>
       </div>
     </div>,

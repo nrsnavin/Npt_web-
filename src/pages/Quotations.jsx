@@ -10,6 +10,7 @@ import StagePipeline from '../components/StagePipeline.jsx';
 import QuotationPdf from '../components/QuotationPdf.jsx';
 import { SortHeader, useSort } from '../components/SortHeader.jsx';
 import QuoteNumbering from '../components/QuoteNumbering.jsx';
+import QuoteBuilder from '../components/QuoteBuilder.jsx';
 import { CustomerSelect, EnquirySelect, MouldSelect } from '../components/pickers.jsx';
 import { formatCompactCurrency, formatCurrency, formatDate, formatNumber, humanise } from '../utils/format.js';
 /* The shared one, not a second copy of it: this date now decides whether the server takes the
@@ -903,12 +904,11 @@ export default function Quotations() {
 
       <Modal
         open={creating}
-        title="New quotation"
-        description="Leave a price blank and the Quotation department costs it"
-        size="lg"
+        title="Create quotation"
+        size="xl"
         onClose={() => setCreating(false)}
       >
-        <QuotationForm onClose={() => setCreating(false)} onSaved={saved} />
+        <QuoteBuilder onClose={() => setCreating(false)} onSaved={saved} />
       </Modal>
 
       <Modal
