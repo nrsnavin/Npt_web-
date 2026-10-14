@@ -8,9 +8,32 @@
  *
  * It also shows the pushes the server sends — a tag, an urgent thread — and opens the thread
  * when the notification is pressed.
+ *
+ * And it takes pictures shared to the app from the phone's gallery ("Share → Navin Hangers",
+ * manifest `share_target`): the share arrives as a POST no page can read, so the files are kept
+ * here a moment and the app opens on Draft enquiries, which uploads them with the person's own
+ * session [src/utils/sharedPhotos.js].
  */
 const SHELL = 'npt-shell-v1';
 const ASSETS = 'npt-assets-v1';
+const SHARED = 'npt-shared-photos';
+const MOST_SHARED = 10;
+
+async function keepShared(request) {
+  try {
+    const form = await request.formData();
+    const files = form.getAll('photos').filter((file) => file && /^image\//i.test(file.type || '')).slice(0, MOST_SHARED);
+    const cache = await caches.open(SHARED);
+    const stamp = Date.now();
+    await Promise.all(files.map((file, index) => cache.put(
+      `/shared-photo/${stamp}-${String(index).padStart(2, '0')}`,
+      new Response(file, { headers: { 'Content-Type': file.type || 'image/jpeg', 'X-File-Name': encodeURIComponent(file.name || 'shared-photo') } })
+    )));
+  } catch {
+    /* Nothing kept: the drafts screen opens all the same, and the photo can be picked there. */
+  }
+  return Response.redirect('/enquiries/drafts?shared=1', 303);
+}
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -22,7 +45,7 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((keys) => Promise.all(keys.filter((key) => ![SHELL, ASSETS].includes(key)).map((key) => caches.delete(key))))
+      .then((keys) => Promise.all(keys.filter((key) => ![SHELL, ASSETS, SHARED].includes(key)).map((key) => caches.delete(key))))
       .then(() => self.clients.claim())
   );
 });
@@ -30,6 +53,11 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
+  /* Pictures shared from the gallery. */
+  if (request.method === 'POST' && url.origin === self.location.origin && url.pathname === '/share-photo') {
+    event.respondWith(keepShared(request));
+    return;
+  }
   /* Only this app's own files. The API is another origin, and is never kept. */
   if (request.method !== 'GET' || url.origin !== self.location.origin || url.pathname.startsWith('/api')) return;
 

@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import { usePhotoDrafts } from '../hooks/usePhotoDrafts.js';
+import { takeSharedPhotos } from '../utils/sharedPhotos.js';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { buyerCards as cardsApi, customers as customersApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -291,9 +293,6 @@ export default function BuyerCards() {
   const [state, setState] = useState(null);
   const [error, setError] = useState(null);
   const [selected, setSelected] = useState(null);
-  const [uploading, setUploading] = useState(false);
-  const [uploadProblem, setUploadProblem] = useState(null);
-  const picker = useRef(null);
   const wanted = params.get('card');
 
   const load = () => {
@@ -329,22 +328,28 @@ export default function BuyerCards() {
     setParams(card ? { card: card._id } : {}, { replace: true });
   };
 
-  const upload = async (file) => {
-    if (!file) return;
-    setUploading(true);
-    setUploadProblem(null);
-    try {
-      const card = await cardsApi.upload({ file });
-      setView('waiting');
-      setState((current) => (current ? { ...current, data: [card, ...current.data], waiting: (current.waiting || 0) + 1 } : current));
-      choose(card);
-    } catch (failure) {
-      setUploadProblem(failure.message);
-    } finally {
-      setUploading(false);
-      if (picker.current) picker.current.value = '';
-    }
-  };
+  /*
+   * From the gallery or the camera, several at once. The list is read again afterwards: the later
+   * screenshots of one chat fold into the draft its first one made, so the server says what is
+   * left to show.
+   */
+  const photos = usePhotoDrafts({
+    onDone: (cards) => {
+      setParams({ card: cards[0]._id }, { replace: true });
+      setSelected(cards[0]);
+      if (view === 'waiting') load(); else setView('waiting');
+    },
+  });
+
+  /* Pictures shared to the app from the gallery [public/sw.js] — taken once and uploaded. */
+  const sharedTaken = useRef(false);
+  useEffect(() => {
+    if (!params.get('shared') || sharedTaken.current) return;
+    sharedTaken.current = true;
+    takeSharedPhotos()
+      .then((files) => (files.length ? photos.upload(files) : setParams({}, { replace: true })))
+      .catch(() => setParams({}, { replace: true }));
+  }, [params]);
 
   const done = (card, enquiry) => {
     if (enquiry) {
@@ -364,16 +369,9 @@ export default function BuyerCards() {
         actions={
           <div className="flex items-center gap-2">
             <Link to="/enquiries" className="btn-secondary">All enquiries</Link>
-            <input
-              ref={picker}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              className="hidden"
-              onChange={(event) => upload(event.target.files?.[0])}
-            />
-            <button type="button" className="btn-primary" disabled={uploading} onClick={() => picker.current?.click()}>
-              {uploading ? 'Reading it…' : '+ Photo or screenshot'}
+            <input {...photos.inputProps} aria-label="Photos or screenshots" />
+            <button type="button" className="btn-primary" disabled={Boolean(photos.busy)} onClick={photos.open}>
+              {photos.label || '+ Photos or screenshots'}
             </button>
           </div>
         }
@@ -382,11 +380,14 @@ export default function BuyerCards() {
       <p className="text-sm text-steel-400">
         On the road? Send a photo of the card, or screenshots of your chat with the buyer, to the plant’s WhatsApp number from your
         own phone. What it shows is saved here as a draft — finish it with the next step, when to follow up, and how you met them.
+        {' '}On the phone, <span className="font-semibold text-steel-200">+ Photos or screenshots</span> picks from the gallery or the
+        camera, several at once; with the app installed on Android, a screenshot can also be sent straight from the gallery with
+        {' '}<span className="font-semibold text-steel-200">Share → Navin Hangers</span>.
       </p>
       {state && state.reading === false && (
         <Notice tone="warn">Reading pictures automatically is not switched on, so each one is typed in from its picture.</Notice>
       )}
-      {uploadProblem && <Notice>{uploadProblem}</Notice>}
+      {photos.problem && <Notice>{photos.problem}</Notice>}
 
       <div role="tablist" aria-label="Which cards" className="inline-flex rounded-lg bg-line/[0.05] p-1">
         {[['waiting', `Drafts${state?.waiting ? ` (${state.waiting})` : ''}`], ['decided', 'Finished or dropped']].map(([key, label]) => (
