@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { users as usersApi } from '../api/endpoints.js';
+import { users as usersApi, auth as authApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import {
   Badge, ConfirmDialog, EmptyState, Field, FormError, Modal, Notice, PageHeader, Pagination, Spinner, TableSkeleton,
@@ -354,7 +354,7 @@ function AccessForm({ user, catalogue, onClose, onSaved }) {
 }
 
 export default function Users() {
-  const { canWrite } = useAuth();
+  const { canWrite, user: me, applyUser } = useAuth();
   const [catalogue, setCatalogue] = useState(null);
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -443,8 +443,12 @@ export default function Users() {
     load(search, sort, { department, role, active }, next);
   };
 
-  const replaceRow = (updated) =>
+  const replaceRow = (updated) => {
     setRows((current) => current.map((row) => (row.id === updated.id ? updated : row)));
+    /* An admin editing their own account — another department, say — sees it on the dashboard
+       at once (the desk buttons), not after the next sign-in. */
+    if (me && String(updated.id) === String(me.id)) authApi.me().then(applyUser).catch(() => null);
+  };
 
   const departmentLabel = (key) =>
     catalogue?.departments.find((entry) => entry.key === key)?.label || humanise(key);
