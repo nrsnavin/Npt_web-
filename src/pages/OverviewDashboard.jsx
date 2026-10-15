@@ -95,7 +95,7 @@ function PartyMaster({ isAdmin, onAdd, onFollowUpChanged, refreshKey = 0 }) {
         <div>
           <h2 className="text-lg font-bold text-steel-50">Customer / Party Master</h2>
           <p className="text-sm text-steel-400">
-            Showing {data?.total ?? '…'} customers · {isAdmin ? 'Admin can add, edit and delegate any party' : 'Your assigned parties'}
+            Showing {data?.total ?? '…'} customers · Your assigned parties{isAdmin && <> · <Link to="/customers" className="underline-offset-2 hover:underline">every party is under Masters</Link></>}
           </p>
         </div>
         <button type="button" className="btn-primary" onClick={onAdd}>+ Add Party</button>
