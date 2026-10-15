@@ -145,6 +145,9 @@ export const users = {
   resetAccess: (id) => api.post(`/users/${id}/access/reset`).then(unwrap),
   workload: (id) => api.get(`/users/${id}/workload`).then(unwrap),
   remove: (id, transferTo) => api.delete(`/users/${id}`, { data: { transferTo } }).then(unwrap),
+  /** Deleting for good: an administrator's account needs the code this sends to the acting admin's email. */
+  deleteCode: (id) => api.post(`/users/${id}/delete/code`, {}, { feedback: false }).then(unwrap),
+  destroy: ({ id, transferTo, code }) => api.post(`/users/${id}/delete`, { transferTo, code }, { feedback: false }).then(unwrap),
 };
 
 /**

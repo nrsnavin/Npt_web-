@@ -610,7 +610,7 @@ export default function BuyerCards() {
     <div className="mx-auto max-w-6xl space-y-5">
       <PageHeader
         title="Draft enquiries"
-        subtitle="Started from WhatsApp chat screenshots and visiting cards. Check what was recognised, fill in the rest, and save it — that makes the customer and the enquiry."
+        subtitle="Started from WhatsApp chat screenshots and visiting cards. For a chat, type the buyer’s number into the message box before taking the screenshot — it is read as their number. Check what was recognised, fill in the rest, and save it — that makes the customer and the enquiry."
         actions={
           <div className="flex items-center gap-2">
             <Link to="/enquiries" className="btn-secondary">All enquiries</Link>
