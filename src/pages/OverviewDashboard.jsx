@@ -89,7 +89,9 @@ function PartyMaster({ isAdmin, onAdd, onFollowUpChanged, refreshKey = 0 }) {
    */
   const fetchOwners = useCallback(() => (isAdmin ? customersApi.owners() : Promise.resolve([])), [isAdmin]);
   const { data: owners } = useRecord(fetchOwners, `party-owners-${isAdmin}-${refreshKey}`);
-  const holders = (owners || []).filter((person) => String(person._id) !== String(user?.id || user?._id));
+  const me = String(user?.id || user?._id || '');
+  const holders = (owners || []).filter((person) => String(person._id) !== me);
+  const mine = (owners || []).find((person) => String(person._id) === me);
   const whose = owner ? holders.find((person) => String(person._id) === owner) : null;
 
   const edit = async (row) => {
@@ -122,7 +124,8 @@ function PartyMaster({ isAdmin, onAdd, onFollowUpChanged, refreshKey = 0 }) {
               value={owner}
               onChange={(event) => { setOwner(event.target.value); setPage(1); }}
             >
-              <option value="">My parties</option>
+              {/* The signed-in admin, by name, is the default — the list opens on their own buyers. */}
+              <option value="">{user?.name || 'Me'} (me{mine ? `, ${mine.count}` : ''})</option>
               {holders.map((person) => (
                 <option key={person._id} value={person._id}>{person.name} ({person.count})</option>
               ))}
