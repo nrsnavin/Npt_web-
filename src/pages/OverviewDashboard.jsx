@@ -66,16 +66,31 @@ function FigureTile({ label, value, hint, to }) {
 
 function PartyMaster({ isAdmin, onAdd, onFollowUpChanged, refreshKey = 0 }) {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
+  /* Whose list: the reader's own, or — Admin only — one colleague's, to see their day as they see it. */
+  const [owner, setOwner] = useState('');
   const [editing, setEditing] = useState(null);
   const [problem, setProblem] = useState(null);
   const [following, setFollowing] = useState(null);
   /* The buyer's side panel — a row clicked opens it [components/CustomerPanel.jsx]. */
   const [panel, setPanel] = useState(null);
-  const fetch = useCallback(() => overview.parties({ filter, page, search: search.trim() || undefined }), [filter, page, search]);
-  const { data, loading, error, reload } = useRecord(fetch, `parties-${filter}-${page}-${search}-${refreshKey}`);
+  const fetch = useCallback(
+    () => overview.parties({ filter, page, search: search.trim() || undefined, owner: owner || undefined }),
+    [filter, page, search, owner]
+  );
+  const { data, loading, error, reload } = useRecord(fetch, `parties-${filter}-${page}-${search}-${owner}-${refreshKey}`);
+  /*
+   * The people holding buyers, scoped as the list is: a marketing person is answered with one
+   * name, their own, so the picker is simply not drawn for them. Admin's own name is offered
+   * whether or not any buyer is on it yet — "Me" is the default and must stay choosable.
+   */
+  const fetchOwners = useCallback(() => (isAdmin ? customersApi.owners() : Promise.resolve([])), [isAdmin]);
+  const { data: owners } = useRecord(fetchOwners, `party-owners-${isAdmin}-${refreshKey}`);
+  const holders = (owners || []).filter((person) => String(person._id) !== String(user?.id || user?._id));
+  const whose = owner ? holders.find((person) => String(person._id) === owner) : null;
 
   const edit = async (row) => {
     setProblem(null);
@@ -95,10 +110,26 @@ function PartyMaster({ isAdmin, onAdd, onFollowUpChanged, refreshKey = 0 }) {
         <div>
           <h2 className="text-lg font-bold text-steel-50">Customer / Party Master</h2>
           <p className="text-sm text-steel-400">
-            Showing {data?.total ?? '…'} customers · Your assigned parties{isAdmin && <> · <Link to="/customers" className="underline-offset-2 hover:underline">every party is under Masters</Link></>}
+            Showing {data?.total ?? '…'} customers · {whose ? `${whose.name}’s assigned parties` : 'Your assigned parties'}
+            {isAdmin && <> · <Link to="/customers" className="underline-offset-2 hover:underline">every party is under Masters</Link></>}
           </p>
         </div>
-        <button type="button" className="btn-primary" onClick={onAdd}>+ Add Party</button>
+        <div className="flex flex-wrap items-center gap-2">
+          {isAdmin && holders.length > 0 && (
+            <select
+              className="input max-w-[14rem]"
+              aria-label="Whose parties"
+              value={owner}
+              onChange={(event) => { setOwner(event.target.value); setPage(1); }}
+            >
+              <option value="">My parties</option>
+              {holders.map((person) => (
+                <option key={person._id} value={person._id}>{person.name} ({person.count})</option>
+              ))}
+            </select>
+          )}
+          <button type="button" className="btn-primary" onClick={onAdd}>+ Add Party</button>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
