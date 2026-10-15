@@ -354,7 +354,7 @@ function AccessForm({ user, catalogue, onClose, onSaved }) {
 }
 
 export default function Users() {
-  const { canWrite, user: me, applyUser } = useAuth();
+  const { canWrite, user: me, applyUser, mayDelete } = useAuth();
   const [catalogue, setCatalogue] = useState(null);
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -370,6 +370,7 @@ export default function Users() {
   const [creating, setCreating] = useState(false);
   const [editingAccess, setEditingAccess] = useState(null);
   const [deleting, setDeleting] = useState(null);
+  const [destroying, setDestroying] = useState(null);
   const [busy, setBusy] = useState(false);
   /* What happened to a welcome email: `{ user, invitation }`, shown once after it is sent. */
   const [invited, setInvited] = useState(null);
@@ -631,6 +632,11 @@ export default function Users() {
                             >
                               Offboard
                             </button>
+                            {mayDelete && String(row.id) !== String(me?.id) && (
+                              <button type="button" className="row-action-danger" onClick={() => setDestroying(row)}>
+                                Delete
+                              </button>
+                            )}
                           </div>
                         )}
                       </td>
@@ -692,6 +698,7 @@ export default function Users() {
       </Modal>
 
       {deleting && <OffboardUser user={deleting} onClose={() => setDeleting(null)} onSaved={(updated) => { replaceRow(updated); setDeleting(null); }} />}
+      {destroying && <DeleteUser user={destroying} admin={isAdminRow(destroying)} onClose={() => setDestroying(null)} onDeleted={(gone) => { setRows((current) => current.filter((row) => row.id !== gone.id)); setDestroying(null); }} />}
 
     </div>
   );
@@ -776,6 +783,82 @@ function OffboardUser({ user, onClose, onSaved }) {
       {error && <Notice>{error.message}</Notice>}
       {!workload && error && <button type="button" className="btn-secondary" onClick={load}>Try again</button>}
       <div className="flex justify-end gap-2"><button type="button" className="btn-secondary" onClick={onClose} disabled={busy}>Cancel</button><button className="btn-danger" disabled={busy || !workload || (workload.open > 0 && !transferTo)}>{busy ? 'Transferring…' : 'Offboard user'}</button></div>
+    </form>
+  </Modal>;
+}
+
+/** An administrator's account: the admin role, or the Admin department as main or extra one. */
+const isAdminRow = (row) => row.role === 'admin' || (row.departments || [row.department]).includes('management');
+
+/**
+ * Deleting an account for good. Open work goes to a colleague first, as offboarding does; an
+ * administrator's account also needs the code the server emails to the acting admin — the
+ * account a stolen session would go for. What the person did stays on the records as history.
+ */
+function DeleteUser({ user, admin, onClose, onDeleted }) {
+  const [workload, setWorkload] = useState(null);
+  const [colleagues, setColleagues] = useState([]);
+  const [transferTo, setTransferTo] = useState('');
+  const [sent, setSent] = useState(null);
+  const [code, setCode] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const load = async () => {
+    setError(null);
+    try {
+      const [held, list] = await Promise.all([usersApi.workload(user.id), usersApi.list({ isActive: true, limit: 100 })]);
+      const buyers = ['customers', 'enquiries', 'quotations', 'orders'].some((key) => held[key] > 0);
+      setWorkload(held);
+      setColleagues(list.data.filter((row) => row.id !== user.id && row.isActive && (!buyers || mayHoldBuyers(row))));
+    } catch (err) { setError(err); }
+  };
+  useEffect(() => { load(); }, [user.id]);
+  const sendCode = async () => {
+    setBusy(true); setError(null);
+    try { setSent(await usersApi.deleteCode(user.id)); setCode(''); }
+    catch (err) { setError(err); }
+    finally { setBusy(false); }
+  };
+  const submit = async (event) => {
+    event.preventDefault(); setBusy(true); setError(null);
+    try { onDeleted(await usersApi.destroy({ id: user.id, transferTo: transferTo || undefined, code: code.trim() || undefined })); }
+    catch (err) { setError(err); }
+    finally { setBusy(false); }
+  };
+  const needsWork = workload && workload.open > 0 && !transferTo;
+  const needsCode = admin && (!sent || code.trim().length < 4);
+  return <Modal open title={`Delete ${user.name}`} onClose={busy ? undefined : onClose} size="sm">
+    <form onSubmit={submit} className="space-y-4">
+      <p className="text-sm text-steel-300">
+        Removes the account for good: they cannot sign in and they leave the team list. What they did stays on the records as history.
+        {' '}To keep the account and only stop sign-in, use Offboard instead.
+      </p>
+      {!workload && !error && <Spinner label="Checking assigned work" />}
+      {workload && <><p className="text-sm">{workload.open === 0 ? 'Nothing open to hand over.' : `${workload.open} open ${workload.open === 1 ? 'record needs' : 'records need'} a new owner.`}</p>
+        {workload.open > 0 && <Field label="Transfer work to" required><select className="input" required value={transferTo} onChange={(event) => setTransferTo(event.target.value)}><option value="">Choose an active colleague</option>{colleagues.map((row) => <option key={row.id} value={row.id}>{row.name} · {row.email}</option>)}</select></Field>}</>}
+      {admin && (
+        <div className="space-y-2 rounded-xl border border-amber-500/30 bg-amber-500/5 p-3">
+          <p className="text-sm font-semibold text-steel-100">This is an administrator account</p>
+          <p className="text-xs text-steel-400">A code goes to your own email first. Enter it below to confirm the deletion.</p>
+          {sent ? (
+            <>
+              <p className="text-xs text-steel-300">Code sent to {sent.sentTo}. It expires in {sent.expiresInMinutes} minutes.{sent.devCode ? ` (dev: ${sent.devCode})` : ''}</p>
+              <Field label="Code from the email" required>
+                <input className="input" inputMode="numeric" autoComplete="one-time-code" maxLength={8} value={code} onChange={(event) => setCode(event.target.value)} placeholder="6-digit code" />
+              </Field>
+              <button type="button" className="row-action" onClick={sendCode} disabled={busy}>Send a new code</button>
+            </>
+          ) : (
+            <button type="button" className="btn-secondary" onClick={sendCode} disabled={busy}>{busy ? 'Sending…' : 'Send the code to my email'}</button>
+          )}
+        </div>
+      )}
+      {error && <Notice>{error.message}</Notice>}
+      {!workload && error && <button type="button" className="btn-secondary" onClick={load}>Try again</button>}
+      <div className="flex justify-end gap-2">
+        <button type="button" className="btn-secondary" onClick={onClose} disabled={busy}>Cancel</button>
+        <button className="btn-danger" disabled={busy || !workload || needsWork || needsCode}>{busy ? 'Deleting…' : 'Delete for good'}</button>
+      </div>
     </form>
   </Modal>;
 }
