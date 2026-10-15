@@ -310,7 +310,7 @@ export default function OverviewDashboard() {
                 className="btn-secondary"
                 disabled={Boolean(photos.busy)}
                 onClick={photos.open}
-                title="Visiting cards, enquiry slips or WhatsApp chat screenshots — from the gallery or the camera, read and saved as draft enquiries"
+                title="Visiting cards, enquiry slips or WhatsApp chat screenshots — from the gallery or the camera, read and saved as draft enquiries. For a chat, type the buyer’s number into the message box before the screenshot."
               >
                 {photos.label || '📷 Enquiry via photo'}
               </button>
