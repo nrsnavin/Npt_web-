@@ -5,12 +5,14 @@
  * browser — and reading it can fail (a private window, blocked storage), in which case the
  * default stands.
  */
+import { scopedKey } from '../auth/accounts.js';
+
 const KEY = 'npt.startPage';
 const PAGES = ['home', 'queries', 'today'];
 
 export function startPage() {
   try {
-    const stored = window.localStorage.getItem(KEY);
+    const stored = window.localStorage.getItem(scopedKey(KEY));
     return PAGES.includes(stored) ? stored : 'home';
   } catch {
     return 'home';
@@ -19,7 +21,7 @@ export function startPage() {
 
 export function setStartPage(page) {
   try {
-    window.localStorage.setItem(KEY, PAGES.includes(page) ? page : 'home');
+    window.localStorage.setItem(scopedKey(KEY), PAGES.includes(page) ? page : 'home');
   } catch {
     /* Nothing to do: the default still works. */
   }

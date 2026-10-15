@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import SavedViewsNav from './SavedViewsNav.jsx';
+import { scopedKey } from '../auth/accounts.js';
 
 /**
  * The sidebar's groups, as things that open and shut.
@@ -37,7 +38,7 @@ const STORE_KEY = 'npt.sidebar';
 
 const readStored = () => {
   try {
-    const raw = localStorage.getItem(STORE_KEY);
+    const raw = localStorage.getItem(scopedKey(STORE_KEY));
     const parsed = raw ? JSON.parse(raw) : null;
     return Array.isArray(parsed) ? new Set(parsed) : new Set();
   } catch {
@@ -48,7 +49,7 @@ const readStored = () => {
 
 const store = (shut) => {
   try {
-    localStorage.setItem(STORE_KEY, JSON.stringify([...shut]));
+    localStorage.setItem(scopedKey(STORE_KEY), JSON.stringify([...shut]));
   } catch {
     /* Not being able to remember a preference is not worth failing a render over. */
   }

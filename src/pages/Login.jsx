@@ -42,13 +42,13 @@ function PasswordForm({ onError }) {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm();
+  } = useForm({ defaultValues: { email: location.state?.email || '' } });
 
   const submit = async (values) => {
     onError(null);
     try {
       await login(values);
-      navigate(location.state?.from || '/', { replace: true });
+      navigate(location.state?.from && !location.state.from.startsWith('/login') ? location.state.from : '/', { replace: true });
     } catch (error) {
       onError(error.message);
     }
@@ -232,13 +232,18 @@ function OtpForm({ onError }) {
 }
 
 export default function Login() {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, user, accounts } = useAuth();
   const location = useLocation();
   const [mode, setMode] = useState('password');
   const [error, setError] = useState(null);
+  /*
+   * "Add another account": the login page while somebody is signed in. Their session stays on
+   * the device [auth/accounts.js]; the sign-in that follows becomes the active account.
+   */
+  const adding = new URLSearchParams(location.search).get('add') === '1';
 
   if (loading) return null;
-  if (isAuthenticated) return <Navigate to={location.state?.from || '/'} replace />;
+  if (isAuthenticated && !adding) return <Navigate to={location.state?.from || '/'} replace />;
 
   return (
     <div className="grid min-h-screen lg:grid-cols-[1.1fr_minmax(0,32rem)]">
@@ -299,10 +304,15 @@ export default function Login() {
             <Wordmark />
           </div>
 
-          <h2 className="text-[1.75rem] font-extrabold tracking-tighter text-steel-50">Sign in</h2>
+          <h2 className="text-[1.75rem] font-extrabold tracking-tighter text-steel-50">{adding ? 'Add another account' : 'Sign in'}</h2>
           <p className="mb-7 mt-1.5 text-sm leading-relaxed text-steel-400">
-            Use your password, or have a code sent to your email or phone.
+            {adding && user
+              ? `You stay signed in as ${user.name}. Sign in to the account to add; you can switch between them from the account menu.`
+              : 'Use your password, or have a code sent to your email or phone.'}
           </p>
+          {adding && accounts.length >= 5 && (
+            <div className="mb-4"><Notice tone="danger">Five accounts is the most this device keeps. Sign one out first.</Notice></div>
+          )}
 
           <Tabs
             mode={mode}

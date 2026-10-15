@@ -6,6 +6,8 @@ import { Badge, Field, Modal, Notice, PageHeader } from '../components/ui.jsx';
 import { formatDate, humanise } from '../utils/format.js';
 import { setStartPage, startPage } from '../utils/startPage.js';
 import { disablePush, enablePush, pushState } from '../utils/push.js';
+import { settings as settingsApi } from '../api/endpoints.js';
+import { SetPinDialog, PinInput } from '../components/PinGate.jsx';
 
 const SIGN_IN_METHODS = {
   password: 'Email and password',
@@ -290,6 +292,106 @@ function StartPageChoice() {
   );
 }
 
+/** The device PIN: set, change or remove. The lock after a while away opens with it. */
+function DevicePin() {
+  const { hasPin, canSetPin, clearPin, policy } = useAuth();
+  const [setting, setSetting] = useState(false);
+  const [removing, setRemoving] = useState(false);
+  const [current, setCurrent] = useState('');
+  const [problem, setProblem] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const remove = async (event) => {
+    event.preventDefault(); setBusy(true); setProblem(null);
+    try { await clearPin(current); setRemoving(false); setCurrent(''); }
+    catch (error) { setProblem(error.message); }
+    finally { setBusy(false); }
+  };
+  if (!canSetPin) return null;
+  return (
+    <section className="card mt-5 flex flex-wrap items-center justify-between gap-4 p-6">
+      <div>
+        <h2 className="text-base font-bold tracking-tight text-steel-50">Device PIN</h2>
+        <p className="mt-1 text-sm text-steel-400">
+          {hasPin
+            ? `Set. The app locks after ${policy.lockAfterMinutes} minutes away and opens again with your PIN. On this device only.`
+            : `Not set. With one, the app locks after ${policy.lockAfterMinutes} minutes away and opens again with the PIN instead of a full sign-in.`}
+          {policy.pinRequired ? ' Required for everyone here.' : ''}
+        </p>
+        {removing && (
+          <form onSubmit={remove} className="mt-3 flex flex-wrap items-end gap-2">
+            <label className="block space-y-1 text-sm"><span className="font-semibold text-steel-100">Current PIN</span><PinInput value={current} onChange={setCurrent} label="Current PIN" autoFocus /></label>
+            <button className="btn-danger" disabled={busy || current.length < 4}>{busy ? 'Removing…' : 'Remove PIN'}</button>
+            <button type="button" className="btn-secondary" onClick={() => { setRemoving(false); setProblem(null); }}>Cancel</button>
+          </form>
+        )}
+        {problem && <p role="alert" className="mt-1 text-sm text-danger-400">{problem}</p>}
+      </div>
+      <div className="flex gap-2">
+        <button type="button" className={hasPin ? 'btn-secondary' : 'btn-primary'} onClick={() => setSetting(true)}>{hasPin ? 'Change PIN' : 'Set a PIN'}</button>
+        {hasPin && !policy.pinRequired && !removing && <button type="button" className="btn-secondary" onClick={() => setRemoving(true)}>Remove</button>}
+      </div>
+      <SetPinDialog open={setting} onClose={() => setSetting(false)} />
+    </section>
+  );
+}
+
+/** The accounts signed in on this device, and the way to add or drop one. */
+function DeviceAccounts() {
+  const { accounts, switchTo, signOutAll } = useAuth();
+  if (accounts.length < 2) return null;
+  return (
+    <section className="card mt-5 p-6">
+      <h2 className="text-base font-bold tracking-tight text-steel-50">Accounts on this device</h2>
+      <p className="mt-1 text-sm text-steel-400">Switch from the account menu at the top. An account unused for a week is forgotten; five is the most kept.</p>
+      <ul className="mt-3 divide-y divide-line/10 rounded-xl border border-line/10">
+        {accounts.map((row) => (
+          <li key={row.id} className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
+            <span><span className="font-semibold text-steel-100">{row.name}</span> <span className="text-steel-400">· {row.roleLabel || row.department || ''}{row.active ? ' · this one' : row.locked ? ' · locked' : !row.signedIn ? ' · signed out' : ''}{row.hasPin ? ' · PIN' : ''}</span></span>
+            {!row.active && <button type="button" className="row-action" onClick={() => switchTo(row.id)}>Switch</button>}
+          </li>
+        ))}
+      </ul>
+      <button type="button" className="row-action-danger mt-3" onClick={signOutAll}>Sign out of all accounts on this device</button>
+    </section>
+  );
+}
+
+/** Admin's policy for everyone: a PIN required, and the idle minutes before the lock. */
+function SecurityPolicy() {
+  const { isManagement, policy, applyUser, user } = useAuth();
+  const [form, setForm] = useState({ pinRequired: policy.pinRequired, lockAfterMinutes: policy.lockAfterMinutes });
+  const [busy, setBusy] = useState(false);
+  const [said, setSaid] = useState(null);
+  if (!isManagement) return null;
+  const save = async (event) => {
+    event.preventDefault(); setBusy(true); setSaid(null);
+    try {
+      const saved = await settingsApi.setSecurity({ pinRequired: Boolean(form.pinRequired), lockAfterMinutes: Number(form.lockAfterMinutes) });
+      applyUser({ ...user, policy: saved });
+      setSaid('Saved. Everyone picks it up on their next screen.');
+    } catch (error) { setSaid(error.message); }
+    finally { setBusy(false); }
+  };
+  return (
+    <section className="card mt-5 p-6">
+      <h2 className="text-base font-bold tracking-tight text-steel-50">Security for everyone</h2>
+      <p className="mt-1 text-sm text-steel-400">Admin only. A device PIN keeps a session from being used by whoever finds the computer unlocked.</p>
+      <form onSubmit={save} className="mt-4 flex flex-wrap items-end gap-4">
+        <label className="flex items-center gap-2 text-sm text-steel-100">
+          <input type="checkbox" checked={Boolean(form.pinRequired)} onChange={(event) => setForm({ ...form, pinRequired: event.target.checked })} />
+          Everyone must set a device PIN
+        </label>
+        <label className="block space-y-1 text-sm">
+          <span className="font-semibold text-steel-100">Lock after (minutes away)</span>
+          <input className="input w-28" type="number" min={1} max={240} value={form.lockAfterMinutes} onChange={(event) => setForm({ ...form, lockAfterMinutes: event.target.value })} />
+        </label>
+        <button className="btn-primary" disabled={busy}>{busy ? 'Saving…' : 'Save policy'}</button>
+      </form>
+      {said && <p className="mt-2 text-sm text-steel-300">{said}</p>}
+    </section>
+  );
+}
+
 export default function Profile() {
   const { user, applyUser, logout } = useAuth();
   const [editing, setEditing] = useState(false);
@@ -401,6 +503,9 @@ export default function Profile() {
 
       <StartPageChoice />
       <DeviceNotifications />
+      <DevicePin />
+      <DeviceAccounts />
+      <SecurityPolicy />
 
       <section className="card mt-5 flex flex-wrap items-center justify-between gap-4 p-6">
         <div>

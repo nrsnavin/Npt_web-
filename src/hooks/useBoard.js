@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { scopedKey } from '../auth/accounts.js';
 
 /**
  * Loads a board and owns what happens when a card is dragged across it.
@@ -38,7 +39,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
  * blank screen.
  */
 export function useViewMode(key, initial = 'list') {
-  const storageKey = `npt.view.${key}`;
+  const storageKey = scopedKey(`npt.view.${key}`);
 
   const [mode, setMode] = useState(() => {
     try {

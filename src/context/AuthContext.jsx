@@ -1,14 +1,33 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { auth } from '../api/endpoints.js';
-import { clearToken, getToken, setToken } from '../api/client.js';
+import { clearToken, getToken, onUnauthorized, setToken } from '../api/client.js';
+import {
+  activate, activeAccount, activeId, adoptAccount, clearAccounts, dropToken, legacyToken, listAccounts, pruneAccounts,
+  removeAccount, updateAccount,
+} from '../auth/accounts.js';
+import { canSeal, openToken, sealToken } from '../auth/pinCrypto.js';
+import { idlePast, touch, watchActivity } from '../auth/idle.js';
+import { resubscribePush } from '../utils/push.js';
 
 const AuthContext = createContext(null);
 
+/** Wrong PINs before the account is signed out of this device. */
+export const PIN_TRIES = 5;
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(Boolean(getToken()));
+  const [loading, setLoading] = useState(Boolean(getToken()) || Boolean(activeAccount()?.sealed));
   /* Set when the server could not be asked who this is — as opposed to answering "nobody". */
   const [unreachable, setUnreachable] = useState(null);
+  /*
+   * Several accounts on this browser [auth/accounts.js]: the list for the menu, and whether the
+   * active one is locked behind its device PIN — the plain token gone, only the seal left.
+   */
+  const [accounts, setAccounts] = useState(() => listAccounts());
+  const [locked, setLocked] = useState(() => Boolean(activeAccount()?.sealed) && !getToken());
+  const [pinTries, setPinTries] = useState(0);
+  const refreshAccounts = useCallback(() => setAccounts(listAccounts()), []);
+  const roleLabelOf = (person) => (person?.role === 'admin' ? 'Admin' : person?.department || null);
 
   /*
    * Restoring the session on load.
@@ -32,17 +51,129 @@ export function AuthProvider({ children }) {
     setUnreachable(null);
     auth
       .me()
-      .then(setUser)
+      .then((me) => {
+        setUser(me);
+        /* A browser from before accounts existed: its one session becomes an account row. */
+        if (legacyToken()) adoptAccount(me, getToken(), { roleLabel: roleLabelOf(me) });
+        else updateAccount(me.id, { name: me.name, email: me.email, phone: me.phone, department: me.department, roleLabel: roleLabelOf(me) });
+        refreshAccounts();
+      })
       .catch((failure) => {
         if (failure?.response?.status === 401) return;
         setUnreachable(failure);
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [refreshAccounts]);
 
   useEffect(() => {
+    pruneAccounts();
+    refreshAccounts();
     restore();
-  }, [restore]);
+  }, [restore, refreshAccounts]);
+
+  /** A sign-in of any kind: the account joins the device and becomes the active one. */
+  const adopt = useCallback((data) => {
+    adoptAccount(data.user, data.token, { roleLabel: roleLabelOf(data.user) });
+    setToken(data.token);
+    setLocked(false);
+    setPinTries(0);
+    setUser(data.user);
+    refreshAccounts();
+    touch();
+    return data.user;
+  }, [refreshAccounts]);
+
+  /**
+   * Moving to another account on this device. With its token open, the app simply becomes that
+   * person; with only a seal, the lock screen asks for their PIN first. Either way the previous
+   * person's screens are gone — the app remounts on the user id [App.jsx `RequireAuth`].
+   */
+  const switchTo = useCallback(async (id) => {
+    const row = activate(id);
+    if (!row) return null;
+    setUser(null);
+    setUnreachable(null);
+    setPinTries(0);
+    refreshAccounts();
+    if (row.token) {
+      setLocked(false);
+      setLoading(true);
+      try {
+        const me = await auth.me();
+        setUser(me);
+        updateAccount(me.id, { name: me.name, roleLabel: roleLabelOf(me) });
+        auth.switched().catch(() => null);
+        resubscribePush().catch(() => null);
+        touch();
+      } catch (failure) {
+        if (failure?.response?.status !== 401) setUnreachable(failure);
+      } finally {
+        setLoading(false);
+      }
+      refreshAccounts();
+      return row;
+    }
+    /* Sealed, or signed out: the lock screen (or the login page, prefilled) takes it from here. */
+    setLocked(Boolean(row.sealed));
+    setLoading(false);
+    return row;
+  }, [refreshAccounts]);
+
+  /** Signs the active account out of this device and moves to the next one, if any. */
+  const logout = useCallback(async () => {
+    const next = removeAccount(activeId());
+    clearToken();
+    setUser(null);
+    setLocked(false);
+    setPinTries(0);
+    refreshAccounts();
+    if (next) await switchTo(next.id);
+  }, [refreshAccounts, switchTo]);
+
+  /*
+   * A token the server refuses — lapsed, the account deleted or offboarded, the password
+   * changed elsewhere. Only that account goes; another one on the device takes over, or the
+   * login page does [api/client.js]. The 401 that comes mid-request is handled once, here.
+   */
+  useEffect(() => onUnauthorized(() => {
+    const id = activeId();
+    if (!id) return false;
+    const next = removeAccount(id);
+    clearToken();
+    setUser(null);
+    setLocked(false);
+    refreshAccounts();
+    if (next) {
+      switchTo(next.id);
+      return true;
+    }
+    return false;
+  }), [refreshAccounts, switchTo]);
+
+  /* The idle lock: the policy's minutes with nothing from the person, and the account has a PIN. */
+  const minutes = user?.policy?.lockAfterMinutes || 15;
+  const lock = useCallback(() => {
+    const row = activeAccount();
+    if (!row?.sealed || !row.token) return false;
+    dropToken(row.id);
+    clearToken();
+    setLocked(true);
+    setPinTries(0);
+    refreshAccounts();
+    return true;
+  }, [refreshAccounts]);
+  const lockRef = useRef(lock);
+  lockRef.current = lock;
+  useEffect(() => {
+    if (!user || !activeAccount()?.sealed) return undefined;
+    touch();
+    const stop = watchActivity();
+    const check = () => { if (idlePast(minutes)) lockRef.current(); };
+    const timer = setInterval(check, 15000);
+    const onVisible = () => { if (document.visibilityState === 'visible') check(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { stop(); clearInterval(timer); document.removeEventListener('visibilitychange', onVisible); };
+  }, [user, minutes, accounts]);
 
   const value = useMemo(
     () => ({
@@ -52,17 +183,11 @@ export function AuthProvider({ children }) {
       unreachable,
       retrySession: restore,
       async login(credentials) {
-        const data = await auth.login(credentials);
-        setToken(data.token);
-        setUser(data.user);
-        return data.user;
+        return adopt(await auth.login(credentials));
       },
       /** Sets a password from an emailed link and signs in with the session that comes back. */
       async resetPassword(token, password) {
-        const data = await auth.resetPassword({ token, password });
-        setToken(data.token);
-        setUser(data.user);
-        return data.user;
+        return adopt(await auth.resetPassword({ token, password }));
       },
       /** Step one of OTP sign-in — returns the masked identifier and channel. */
       requestOtp(identifier) {
@@ -70,27 +195,100 @@ export function AuthProvider({ children }) {
       },
       /** Step two of OTP sign-in — redeems the code for a session. */
       async verifyOtp(identifier, code) {
-        const data = await auth.verifyOtp({ identifier, code });
-        setToken(data.token);
-        setUser(data.user);
-        return data.user;
+        return adopt(await auth.verifyOtp({ identifier, code }));
       },
       /**
        * Changing the password ends every session issued before it, this one included — so the
        * fresh token that comes back has to replace the stored one, or the next call signs the
-       * person out of the device they just changed it on.
+       * person out of the device they just changed it on. A PIN seals the old token, so it is
+       * dropped: the person sets it again from the profile.
        */
       async changePassword(payload) {
         const data = await auth.changePassword(payload);
         setToken(data.token);
+        updateAccount(data.user.id, { token: data.token, sealed: null });
         setUser(data.user);
+        refreshAccounts();
         return data.user;
       },
-      logout() {
-        clearToken();
+      logout,
+      /** Every account off this device. */
+      signOutAll() {
+        clearAccounts();
         setUser(null);
+        setLocked(false);
+        refreshAccounts();
       },
       setUser,
+
+      /* ------------------------- Several accounts, and the PIN ------------------------- */
+
+      /** The accounts on this device, most recently used first, the active one marked. */
+      accounts: accounts.map((row) => ({ ...row, active: row.id === activeId() })),
+      switchTo,
+      locked,
+      /** The account the lock screen is for: the active one, by name, without a session yet. */
+      lockedAccount: locked ? activeAccount() && { id: activeAccount().id, name: activeAccount().name, email: activeAccount().email, roleLabel: activeAccount().roleLabel } : null,
+      pinTriesLeft: PIN_TRIES - pinTries,
+      /** The plant's policy, from the profile: a PIN for everyone, and the idle minutes. */
+      policy: user?.policy || { pinRequired: false, lockAfterMinutes: 15 },
+      hasPin: Boolean(accounts.find((row) => row.id === activeId())?.hasPin),
+      canSetPin: canSeal(),
+      /** Locks now — the account menu's "Lock". */
+      lock,
+      /**
+       * The PIN opens the seal into the token; the app carries on where it was. Five wrong tries
+       * sign the account out of this device, and the full sign-in is needed again.
+       */
+      async unlock(pin) {
+        const row = activeAccount();
+        if (!row?.sealed) return { ok: true };
+        try {
+          const token = await openToken(row.sealed, pin);
+          updateAccount(row.id, { token });
+          setToken(token);
+          setLocked(false);
+          setPinTries(0);
+          touch();
+          refreshAccounts();
+          if (!user) restore();
+          return { ok: true };
+        } catch {
+          const tries = pinTries + 1;
+          setPinTries(tries);
+          if (tries >= PIN_TRIES) {
+            const next = removeAccount(row.id);
+            clearToken();
+            setLocked(false);
+            setPinTries(0);
+            refreshAccounts();
+            if (next) switchTo(next.id);
+            return { ok: false, signedOut: true, next };
+          }
+          return { ok: false, triesLeft: PIN_TRIES - tries };
+        }
+      },
+      /** Seals the active account's token behind a PIN. Changing one needs the current PIN. */
+      async setPin(pin, { current } = {}) {
+        const row = activeAccount();
+        if (!row?.token) throw new Error('Sign in first.');
+        if (row.sealed && !(await openToken(row.sealed, current || '').catch(() => null))) throw new Error('The current PIN is wrong.');
+        updateAccount(row.id, { sealed: await sealToken(row.token, pin) });
+        touch();
+        refreshAccounts();
+      },
+      /** Removes the PIN; the current one is needed. Refused when the plant requires a PIN. */
+      async clearPin(current) {
+        const row = activeAccount();
+        if (!row?.sealed) return;
+        if (user?.policy?.pinRequired) throw new Error('A PIN is required for everyone here. You can change it, not remove it.');
+        await openToken(row.sealed, current || '');
+        updateAccount(row.id, { sealed: null });
+        refreshAccounts();
+      },
+      /** True when the policy wants a PIN and this account has none yet: the app asks before anything else. */
+      mustSetPin: Boolean(user?.policy?.pinRequired) && !accounts.find((row) => row.id === activeId())?.hasPin && canSeal(),
+
       /** Admin passes every check, mirroring the server's authorize middleware. */
       can(...roles) {
         if (!user) return false;
@@ -146,7 +344,7 @@ export function AuthProvider({ children }) {
       /** Replaces the cached user after a profile update. */
       applyUser: setUser,
     }),
-    [user, loading, unreachable, restore]
+    [user, loading, unreachable, restore, adopt, accounts, switchTo, logout, locked, pinTries, lock, refreshAccounts]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

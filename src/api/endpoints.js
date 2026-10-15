@@ -1009,6 +1009,8 @@ export const auth = {
   checkResetLink: (token) => api.get(`/auth/password/reset/${encodeURIComponent(token)}`, { feedback: false }).then(unwrap),
   resetPassword: (payload) => api.post('/auth/password/reset', payload, { feedback: false }).then(unwrap),
   me: () => api.get('/auth/me').then(unwrap),
+  /** The device switched to this account: a sign-in for the record, quietly. */
+  switched: () => api.post('/auth/switched', {}, { feedback: false }).then(unwrap),
   updateProfile: (payload) => api.patch('/auth/me', payload).then(unwrap),
   changePassword: (payload) => api.post('/auth/change-password', payload).then(unwrap),
 
@@ -1135,4 +1137,10 @@ export const orderDispatchDetails = (orderId) => api.get(`/orders/${orderId}/dis
 export const dispatchRegisterApi = {
   list: (params) => api.get('/dispatch-register', { params }).then((r) => r.data),
   csv: (params) => save('/dispatch-register', { ...params, format: 'csv' }, 'dispatch-register.csv'),
+};
+
+/** The plant's security policy: a device PIN for everyone, and the idle minutes before the lock. Admin sets it. */
+export const settings = {
+  security: () => api.get('/settings/security').then(unwrap),
+  setSecurity: (payload) => api.put('/settings/security', payload).then(unwrap),
 };
