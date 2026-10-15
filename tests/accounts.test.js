@@ -131,3 +131,16 @@ test('the idle clock: shared through storage, and past the policy only after the
   localStorage.setItem('npt.lastActivity', String(now + 20 * 60000));
   assert.equal(idle.idlePast(15, now + 30 * 60000), false);
 });
+
+test('a PIN-protected account locks whenever it is not the one in use', async () => {
+  accounts.adoptAccount(navin, 'tok-navin');
+  accounts.updateAccount('u1', { sealed: await sealToken('tok-navin', '2468') });
+  accounts.adoptAccount(nandhini, 'tok-nandhini');
+  assert.equal(accounts.accountById('u1').token, null, 'another sign-in: Navin is locked at rest');
+  assert.equal(accounts.listAccounts().find((row) => row.id === 'u1').locked, true);
+  accounts.updateAccount('u1', { token: 'tok-navin' });
+  accounts.activate('u1');
+  assert.equal(accounts.accountById('u2').token, 'tok-nandhini', 'an account without a PIN stays open');
+  accounts.activate('u2');
+  assert.equal(accounts.accountById('u1').token, null, 'switching away locks it again');
+});

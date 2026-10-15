@@ -1,8 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { auth } from '../api/endpoints.js';
-import { clearToken, getToken, onUnauthorized, setToken } from '../api/client.js';
+import { clearToken, getToken, hideToken, onUnauthorized, setToken } from '../api/client.js';
 import {
-  activate, activeAccount, activeId, adoptAccount, clearAccounts, dropToken, legacyToken, listAccounts, pruneAccounts,
+  accountById, activate, activeAccount, activeId, adoptAccount, clearAccounts, dropToken, legacyToken, listAccounts, pruneAccounts,
   removeAccount, updateAccount,
 } from '../auth/accounts.js';
 import { canSeal, openToken, sealToken } from '../auth/pinCrypto.js';
@@ -27,7 +27,9 @@ export function AuthProvider({ children }) {
   const [locked, setLocked] = useState(() => Boolean(activeAccount()?.sealed) && !getToken());
   const [pinTries, setPinTries] = useState(0);
   const refreshAccounts = useCallback(() => setAccounts(listAccounts()), []);
-  const roleLabelOf = (person) => (person?.role === 'admin' ? 'Admin' : person?.department || null);
+  const roleLabelOf = (person) => (person?.role === 'admin' ? 'Admin' : null);
+  /* A note for the person — a switched-to session that had lapsed — shown by the layout or the login page. */
+  const [notice, setNotice] = useState(null);
 
   /*
    * Restoring the session on load.
@@ -55,7 +57,7 @@ export function AuthProvider({ children }) {
         setUser(me);
         /* A browser from before accounts existed: its one session becomes an account row. */
         if (legacyToken()) adoptAccount(me, getToken(), { roleLabel: roleLabelOf(me) });
-        else updateAccount(me.id, { name: me.name, email: me.email, phone: me.phone, department: me.department, roleLabel: roleLabelOf(me) });
+        else updateAccount(me.id, { name: me.name, email: me.email, phone: me.phone, department: me.department, roleLabel: roleLabelOf(me), expiresAt: me.sessionExpiresAt || null });
         refreshAccounts();
       })
       .catch((failure) => {
@@ -101,7 +103,7 @@ export function AuthProvider({ children }) {
       try {
         const me = await auth.me();
         setUser(me);
-        updateAccount(me.id, { name: me.name, roleLabel: roleLabelOf(me) });
+        updateAccount(me.id, { name: me.name, department: me.department, roleLabel: roleLabelOf(me), expiresAt: me.sessionExpiresAt || null });
         auth.switched().catch(() => null);
         resubscribePush().catch(() => null);
         touch();
@@ -138,7 +140,9 @@ export function AuthProvider({ children }) {
   useEffect(() => onUnauthorized(() => {
     const id = activeId();
     if (!id) return false;
+    const gone = accountById(id);
     const next = removeAccount(id);
+    if (gone) setNotice(`${gone.name}’s sign-in has ended on this device. Sign in again to add it back.`);
     clearToken();
     setUser(null);
     setLocked(false);
@@ -156,7 +160,7 @@ export function AuthProvider({ children }) {
     const row = activeAccount();
     if (!row?.sealed || !row.token) return false;
     dropToken(row.id);
-    clearToken();
+    hideToken();
     setLocked(true);
     setPinTries(0);
     refreshAccounts();
@@ -174,6 +178,44 @@ export function AuthProvider({ children }) {
     document.addEventListener('visibilitychange', onVisible);
     return () => { stop(); clearInterval(timer); document.removeEventListener('visibilitychange', onVisible); };
   }, [user, minutes, accounts]);
+
+  /*
+   * The other tabs. A lock or an unlock in one tab is the whole browser's: storage carries the
+   * token away and back. A switch in another tab is its own choice of person, and this tab
+   * reloads into it rather than quietly showing one person's screens with another's session.
+   */
+  useEffect(() => {
+    const onStorage = (event) => {
+      if (event.key === 'npt.token') {
+        if (event.newValue === null && activeAccount()?.sealed) { hideToken(); setLocked(true); }
+        else if (event.newValue && locked) {
+          setToken(event.newValue);
+          setLocked(false);
+          setPinTries(0);
+          /* This tab opened straight onto the lock screen and has nobody loaded yet. */
+          if (!user) restore();
+        }
+      }
+      if (event.key === 'npt.activeAccount' && event.newValue !== event.oldValue && event.newValue !== (user?.id || null)) {
+        window.location.reload();
+      }
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, [locked, user, restore]);
+
+  /* Ctrl+L (⌘L) locks — and Ctrl+Shift+L, for the browsers that keep Ctrl+L for the address bar. */
+  useEffect(() => {
+    if (!user || locked || !activeAccount()?.sealed) return undefined;
+    const onKey = (event) => {
+      if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === 'l') {
+        event.preventDefault();
+        lockRef.current();
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [user, locked, accounts]);
 
   const value = useMemo(
     () => ({
@@ -228,7 +270,9 @@ export function AuthProvider({ children }) {
       switchTo,
       locked,
       /** The account the lock screen is for: the active one, by name, without a session yet. */
-      lockedAccount: locked ? activeAccount() && { id: activeAccount().id, name: activeAccount().name, email: activeAccount().email, roleLabel: activeAccount().roleLabel } : null,
+      lockedAccount: locked ? activeAccount() && { id: activeAccount().id, name: activeAccount().name, email: activeAccount().email, roleLabel: activeAccount().roleLabel, department: activeAccount().department, expiresAt: activeAccount().expiresAt } : null,
+      notice,
+      clearNotice: () => setNotice(null),
       pinTriesLeft: PIN_TRIES - pinTries,
       /** The plant's policy, from the profile: a PIN for everyone, and the idle minutes. */
       policy: user?.policy || { pinRequired: false, lockAfterMinutes: 15 },
@@ -344,7 +388,7 @@ export function AuthProvider({ children }) {
       /** Replaces the cached user after a profile update. */
       applyUser: setUser,
     }),
-    [user, loading, unreachable, restore, adopt, accounts, switchTo, logout, locked, pinTries, lock, refreshAccounts]
+    [user, loading, unreachable, restore, adopt, accounts, switchTo, logout, locked, pinTries, lock, refreshAccounts, notice]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

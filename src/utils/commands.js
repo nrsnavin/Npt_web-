@@ -28,6 +28,7 @@ export const PAGES = [
   { key: 'trading', label: 'Trading master', path: '/trading', module: 'materials', words: ['trading', 'traded', 'bought in', 'inward price', 'supplier'] },
   { key: 'users', label: 'Users', path: '/users', module: 'users', words: ['users', 'people', 'staff'] },
   { key: 'profile', label: 'My profile', path: '/profile', words: ['profile', 'password', 'me'] },
+  { key: 'lock', label: 'Lock the app (Ctrl+L)', path: '/?lock=1', words: ['lock', 'pin', 'lock the app'] },
 ];
 
 /** The forms "new …" opens, each on its own page with `?new=1`. Writing is what they need. */

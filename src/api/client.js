@@ -5,9 +5,18 @@ import { shrinkForm } from '../utils/shrinkImage.js';
 
 const TOKEN_KEY = 'npt.token';
 
-export const getToken = () => localStorage.getItem(TOKEN_KEY);
-export const setToken = (token) => localStorage.setItem(TOKEN_KEY, token);
-export const clearToken = () => localStorage.removeItem(TOKEN_KEY);
+/*
+ * The session token: in storage while the app is open, and in memory alone while it is locked
+ * behind the device PIN [context/AuthContext.jsx]. A locked browser then holds nothing at rest
+ * a request could use, while the tab itself keeps working underneath the lock screen — an
+ * upload finishing, the inbox polling — and a reload asks for the PIN.
+ */
+let memoryToken = null;
+export const getToken = () => memoryToken || localStorage.getItem(TOKEN_KEY);
+export const setToken = (token) => { memoryToken = token; localStorage.setItem(TOKEN_KEY, token); };
+export const clearToken = () => { memoryToken = null; localStorage.removeItem(TOKEN_KEY); };
+/** Locking: out of storage, kept in memory for this tab. */
+export const hideToken = () => { memoryToken = memoryToken || localStorage.getItem(TOKEN_KEY); localStorage.removeItem(TOKEN_KEY); };
 
 /*
  * What a 401 does. The auth context registers a handler that drops only the refused account

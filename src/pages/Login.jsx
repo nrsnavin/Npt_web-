@@ -4,6 +4,7 @@ import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { Field, Notice } from '../components/ui.jsx';
 import { ThemeToggle, Wordmark } from '../components/Layout.jsx';
+import { LockScreen } from '../components/PinGate.jsx';
 
 const RESEND_SECONDS = 60;
 
@@ -232,8 +233,12 @@ function OtpForm({ onError }) {
 }
 
 export default function Login() {
-  const { isAuthenticated, loading, user, accounts } = useAuth();
+  const { isAuthenticated, loading, user, accounts, switchTo, notice, clearNotice, locked } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
+  /* Accounts still on this device — signed out of one, the others are a tap away. */
+  const onDevice = accounts.filter((row) => !row.active && (row.signedIn || row.locked));
+  const continueAs = async (id) => { await switchTo(id); navigate('/', { replace: true }); };
   const [mode, setMode] = useState('password');
   const [error, setError] = useState(null);
   /*
@@ -243,6 +248,8 @@ export default function Login() {
   const adding = new URLSearchParams(location.search).get('add') === '1';
 
   if (loading) return null;
+  /* The active account is locked behind its PIN: that is the lock screen's business, not a fresh sign-in. */
+  if (locked && !adding) return <LockScreen />;
   if (isAuthenticated && !adding) return <Navigate to={location.state?.from || '/'} replace />;
 
   return (
@@ -311,7 +318,20 @@ export default function Login() {
               : 'Use your password, or have a code sent to your email or phone.'}
           </p>
           {adding && accounts.length >= 5 && (
-            <div className="mb-4"><Notice tone="danger">Five accounts is the most this device keeps. Sign one out first.</Notice></div>
+            <div className="mb-4"><Notice tone="warn">Five accounts is the most this device keeps: the one used longest ago will be forgotten.</Notice></div>
+          )}
+          {notice && (
+            <div className="mb-4 flex items-start justify-between gap-2"><Notice tone="warn">{notice}</Notice><button type="button" className="row-action shrink-0" onClick={clearNotice}>Dismiss</button></div>
+          )}
+          {onDevice.length > 0 && (
+            <div className="mb-6 space-y-1.5" aria-label="Accounts on this device">
+              <p className="text-xs font-semibold text-steel-400">Continue as</p>
+              {onDevice.map((row) => (
+                <button key={row.id} type="button" className="btn-secondary w-full justify-start" onClick={() => continueAs(row.id)}>
+                  {row.name}{row.locked ? ' · locked' : ''}
+                </button>
+              ))}
+            </div>
           )}
 
           <Tabs

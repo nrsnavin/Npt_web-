@@ -338,6 +338,7 @@ function DevicePin() {
 /** The accounts signed in on this device, and the way to add or drop one. */
 function DeviceAccounts() {
   const { accounts, switchTo, signOutAll } = useAuth();
+  const go = async (id) => { await switchTo(id); window.location.assign('/'); };
   if (accounts.length < 2) return null;
   return (
     <section className="card mt-5 p-6">
@@ -346,8 +347,8 @@ function DeviceAccounts() {
       <ul className="mt-3 divide-y divide-line/10 rounded-xl border border-line/10">
         {accounts.map((row) => (
           <li key={row.id} className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
-            <span><span className="font-semibold text-steel-100">{row.name}</span> <span className="text-steel-400">· {row.roleLabel || row.department || ''}{row.active ? ' · this one' : row.locked ? ' · locked' : !row.signedIn ? ' · signed out' : ''}{row.hasPin ? ' · PIN' : ''}</span></span>
-            {!row.active && <button type="button" className="row-action" onClick={() => switchTo(row.id)}>Switch</button>}
+            <span><span className="font-semibold text-steel-100">{row.name}</span> <span className="text-steel-400">· {row.roleLabel || (row.department ? humanise(row.department) : '')}{row.active ? ' · this one' : row.locked ? ' · locked' : !row.signedIn ? ' · signed out' : ''}{row.hasPin ? ' · PIN' : ''}</span></span>
+            {!row.active && <button type="button" className="row-action" onClick={() => go(row.id)}>Switch</button>}
           </li>
         ))}
       </ul>

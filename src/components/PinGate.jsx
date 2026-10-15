@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { validPin } from '../auth/pinCrypto.js';
 import { Modal, Notice } from './ui.jsx';
+import { departmentLabel } from '../utils/pipeline.js';
 
 const initialsOf = (name = '', email = '') => {
   const words = String(name).split(/\s+/).filter(Boolean);
@@ -37,13 +38,17 @@ export function PinInput({ value, onChange, onSubmit, label = 'PIN', autoFocus =
  * not drawn — the session token is gone from the browser until the PIN opens it, so there is
  * nothing to show. "Switch account" and "Sign in again" are the ways out without the PIN.
  */
-export function LockScreen() {
+export function LockScreen({ overlay = false }) {
   const { lockedAccount, unlock, pinTriesLeft, accounts, switchTo, logout } = useAuth();
   const navigate = useNavigate();
   const [pin, setPin] = useState('');
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState(null);
   const others = accounts.filter((row) => row.id !== lockedAccount?.id);
+  /* A seal still opens after the token behind it has lapsed; say so rather than fail on the next call. */
+  const lapsed = lockedAccount?.expiresAt && new Date(lockedAccount.expiresAt).getTime() < Date.now();
+  const roleOf = (row) => row?.roleLabel || (row?.department ? departmentLabel(row.department) : '');
+  const switchAnd = async (id) => { await switchTo(id); navigate('/', { replace: true }); };
 
   const submit = async () => {
     if (!validPin(pin) || busy) return;
@@ -67,31 +72,40 @@ export function LockScreen() {
   };
 
   return (
-    <div className="grid min-h-screen place-items-center bg-ink-900 px-4" role="dialog" aria-modal="true" aria-label="Locked">
+    <div className={`grid min-h-screen place-items-center px-4 ${overlay ? 'fixed inset-0 z-[100] bg-ink-900/95 backdrop-blur-md' : 'bg-ink-900'}`} role="dialog" aria-modal="true" aria-label="Locked">
       <div className="card w-full max-w-sm p-6 text-center">
         <span aria-hidden className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-flame-50 text-xl font-bold text-accent ring-1 ring-inset ring-flame-500/20">
           {initialsOf(lockedAccount?.name, lockedAccount?.email || '')}
         </span>
         <h1 className="mt-4 text-xl font-extrabold tracking-tight text-steel-50">{lockedAccount?.name || 'Locked'}</h1>
-        <p className="mt-1 text-sm text-steel-400">Locked after a while away. Enter your PIN to carry on where you were.</p>
-        <form className="mt-5 space-y-3" onSubmit={(event) => { event.preventDefault(); submit(); }}>
-          <PinInput value={pin} onChange={setPin} onSubmit={submit} autoFocus disabled={busy} label="Your PIN" />
-          {problem && <Notice tone="danger">{problem}</Notice>}
-          <button type="submit" className="btn-primary w-full" disabled={busy || !validPin(pin)}>{busy ? 'Opening…' : 'Unlock'}</button>
-        </form>
-        <p className="mt-3 text-xs text-steel-400">{pinTriesLeft} {pinTriesLeft === 1 ? 'try' : 'tries'} left</p>
+        {lapsed ? (
+          <>
+            <p className="mt-1 text-sm text-steel-400">This sign-in is older than a week and has lapsed. Sign in again to carry on.</p>
+            <button type="button" className="btn-primary mt-5 w-full" onClick={signInAgain}>Sign in again</button>
+          </>
+        ) : (
+          <>
+            <p className="mt-1 text-sm text-steel-400">Locked after a while away. Enter your PIN to carry on where you were.</p>
+            <form className="mt-5 space-y-3" onSubmit={(event) => { event.preventDefault(); submit(); }}>
+              <PinInput value={pin} onChange={setPin} onSubmit={submit} autoFocus disabled={busy} label="Your PIN" />
+              {problem && <Notice tone="danger">{problem}</Notice>}
+              <button type="submit" className="btn-primary w-full" disabled={busy || !validPin(pin)}>{busy ? 'Opening…' : 'Unlock'}</button>
+            </form>
+            <p className="mt-3 text-xs text-steel-400">{pinTriesLeft} {pinTriesLeft === 1 ? 'try' : 'tries'} left · Ctrl+L locks</p>
+          </>
+        )}
         <div className="mt-5 space-y-2 border-t border-line/10 pt-4">
           {others.length > 0 && (
             <div className="space-y-1">
               <p className="text-xs font-semibold text-steel-400">Switch account</p>
               {others.map((row) => (
-                <button key={row.id} type="button" className="btn-secondary w-full justify-start" onClick={() => switchTo(row.id)}>
-                  {row.name}{row.roleLabel ? ` · ${row.roleLabel}` : ''}{row.locked ? ' · locked' : !row.signedIn ? ' · signed out' : ''}
+                <button key={row.id} type="button" className="btn-secondary w-full justify-start" onClick={() => switchAnd(row.id)}>
+                  {row.name}{roleOf(row) ? ` · ${roleOf(row)}` : ''}{row.locked ? ' · locked' : !row.signedIn ? ' · signed out' : ''}
                 </button>
               ))}
             </div>
           )}
-          <button type="button" className="row-action w-full" onClick={signInAgain}>Forgot the PIN? Sign in again</button>
+          {!lapsed && <button type="button" className="row-action w-full" onClick={signInAgain}>Forgot the PIN? Sign in again</button>}
         </div>
       </div>
     </div>
@@ -167,11 +181,16 @@ export function SetPinDialog({ open, onClose, required = false }) {
  */
 export default function PinGate({ children }) {
   const { locked, mustSetPin } = useAuth();
-  if (locked) return <LockScreen />;
+  /*
+   * Locked: the lock screen over the page, which stays mounted but inert and unseen — a form
+   * half filled is still there after the PIN, and an upload under way finishes. The token is
+   * out of storage meanwhile [api/client.js `hideToken`].
+   */
   return (
     <>
-      {children}
-      {mustSetPin && <SetPinDialog open required />}
+      <div inert={locked ? '' : undefined} aria-hidden={locked || undefined} className={locked ? 'invisible' : undefined}>{children}</div>
+      {locked && <LockScreen overlay />}
+      {!locked && mustSetPin && <SetPinDialog open required />}
     </>
   );
 }

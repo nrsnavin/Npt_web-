@@ -44,6 +44,16 @@ const safe = (fn) => { try { return fn(); } catch { return null; } };
 let lastTick = 0;
 const tick = () => { lastTick = Math.max(Date.now(), lastTick + 1); return lastTick; };
 
+/**
+ * A PIN-protected account is locked whenever it is not the one in use: leaving it — a switch, a
+ * sign-out, another account signing in — drops its plain token and keeps the seal, so nobody
+ * handed the tab can switch back into it without the PIN.
+ */
+function lockOthers(list, keepId) {
+  for (const row of list) if (row.id !== keepId && row.sealed) row.token = null;
+  return list;
+}
+
 /** Mirrors the active account's plain token onto the key the API client reads. */
 function mirror(list = read()) {
   const active = list.find((row) => row.id === activeId());
@@ -92,7 +102,7 @@ export function pruneAccounts(now = Date.now()) {
 export function adoptAccount(user, token, { roleLabel } = {}) {
   const id = String(user.id || user._id);
   const now = tick();
-  const list = read().filter((row) => row.id !== id);
+  const list = lockOthers(read().filter((row) => row.id !== id), id);
   list.push({
     id,
     name: user.name,
@@ -116,7 +126,7 @@ export function activate(id) {
   const row = accountById(id);
   if (!row) return null;
   row.lastUsedAt = tick();
-  write(read().map((entry) => (entry.id === row.id ? row : entry)));
+  write(lockOthers(read().map((entry) => (entry.id === row.id ? row : entry)), row.id));
   safe(() => storage().setItem(ACTIVE_KEY, row.id));
   mirror();
   return row;

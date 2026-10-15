@@ -130,8 +130,8 @@ function RequireAuth({ children }) {
   const { isAuthenticated, loading, unreachable, retrySession, locked, user } = useAuth();
   const location = useLocation();
 
-  /* The active account is locked behind its PIN: the lock screen, not the login page. */
-  if (locked) return <LockScreen />;
+  /* The active account is locked behind its PIN and not loaded yet (a reload): the lock screen, not the login page. */
+  if (locked && !isAuthenticated) return <LockScreen />;
   if (loading) return <Spinner label="Restoring your session" />;
   /*
    * The server could not be asked, which is not the same as being told no. The session is kept
