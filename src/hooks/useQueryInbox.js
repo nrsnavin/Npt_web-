@@ -4,6 +4,7 @@ import { INBOX_CHANGED } from '../components/InboxBell.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { selfId } from '../utils/pipeline.js';
+import { scopedKey } from '../auth/accounts.js';
 
 /**
  * The Queries panel's live count, and the alert when something new arrives [server:
@@ -24,12 +25,12 @@ const POLL_MS = 30000;
    announcing a backlog the badge already shows. */
 const readSeen = () => {
   try {
-    const raw = localStorage.getItem(SEEN_KEY);
+    const raw = localStorage.getItem(scopedKey(SEEN_KEY));
     return raw === null ? null : Number(raw) || 0;
   } catch { return null; }
 };
 const writeSeen = (value) => {
-  try { localStorage.setItem(SEEN_KEY, String(value)); } catch { /* a private window — fine */ }
+  try { localStorage.setItem(scopedKey(SEEN_KEY), String(value)); } catch { /* a private window — fine */ }
 };
 const canNotify = () => typeof window !== 'undefined' && 'Notification' in window;
 

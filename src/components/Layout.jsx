@@ -280,7 +280,7 @@ const initialsOf = (name = '', email = '') => {
 };
 
 /** Who is signed in, as the plant's own screen shows it: "email · Role", and the initials. */
-function AccountBar({ user, roleLabel, onSignOut }) {
+function AccountBar({ user, roleLabel, onSignOut, accounts = [], onSwitch, onAddAccount, onLock, hasPin, onSignOutAll }) {
   const [open, setOpen] = useState(false);
   const box = useRef(null);
   const location = useLocation();
@@ -313,7 +313,29 @@ function AccountBar({ user, roleLabel, onSignOut }) {
           <div role="menu" className="absolute left-0 top-full z-40 mt-1 w-full rounded-xl border border-line/10 bg-ink-850 p-1.5 shadow-modal">
             <p className="px-3 py-2 text-xs text-steel-400">Signed in as <span className="font-semibold text-steel-100">{user?.name}</span>{roleLabel ? ` · ${roleLabel}` : ''}</p>
             <NavLink to="/profile" role="menuitem" className="block rounded-lg px-3 py-2 text-sm font-semibold text-steel-100 hover:bg-line/[0.05]">Profile and access</NavLink>
-            <button type="button" role="menuitem" onClick={onSignOut} className="block w-full rounded-lg px-3 py-2 text-left text-sm font-semibold text-danger-400 hover:bg-line/[0.05]">Sign out</button>
+            {/* The other accounts on this device [auth/accounts.js]: one tap to become them. */}
+            {accounts.filter((row) => !row.active).length > 0 && (
+              <div className="mt-1 border-t border-line/10 pt-1">
+                <p className="px-3 py-1.5 text-xs font-semibold text-steel-400">Switch account</p>
+                {accounts.filter((row) => !row.active).map((row) => (
+                  <button key={row.id} type="button" role="menuitem" onClick={() => onSwitch?.(row.id)} className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-steel-100 hover:bg-line/[0.05]">
+                    <span aria-hidden className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-flame-50 text-xs font-bold text-accent ring-1 ring-inset ring-flame-500/20">{initialsOf(row.name, row.email || '')}</span>
+                    <span className="min-w-0">
+                      <span className="block truncate font-semibold">{row.name}</span>
+                      <span className="block truncate text-xs text-steel-400">{row.roleLabel || (row.department ? departmentLabel(row.department) : '')}{row.locked ? ' · locked' : !row.signedIn ? ' · signed out' : ''}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="mt-1 border-t border-line/10 pt-1">
+              <button type="button" role="menuitem" onClick={onAddAccount} className="block w-full rounded-lg px-3 py-2 text-left text-sm font-semibold text-steel-100 hover:bg-line/[0.05]">+ Add another account</button>
+              {hasPin
+                ? <button type="button" role="menuitem" onClick={onLock} className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm font-semibold text-steel-100 hover:bg-line/[0.05]">Lock now <kbd className="rounded border border-line/15 px-1.5 text-xs font-normal text-steel-400">Ctrl+L</kbd></button>
+                : <NavLink to="/profile" role="menuitem" className="block rounded-lg px-3 py-2 text-sm text-steel-400 hover:bg-line/[0.05]">Set a PIN to lock the app</NavLink>}
+              <button type="button" role="menuitem" onClick={onSignOut} className="block w-full rounded-lg px-3 py-2 text-left text-sm font-semibold text-danger-400 hover:bg-line/[0.05]">Sign out</button>
+              {accounts.length > 1 && <button type="button" role="menuitem" onClick={onSignOutAll} className="block w-full rounded-lg px-3 py-2 text-left text-xs font-semibold text-danger-400 hover:bg-line/[0.05]">Sign out of all accounts</button>}
+            </div>
           </div>
         )}
       </div>
@@ -330,7 +352,7 @@ function AccountBar({ user, roleLabel, onSignOut }) {
 }
 
 export default function Layout() {
-  const { user, logout, canRead, isAdmin, departments } = useAuth();
+  const { user, logout, canRead, isAdmin, departments, accounts, switchTo, lock, hasPin, signOutAll, notice, clearNotice } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -339,8 +361,20 @@ export default function Layout() {
     setMenuOpen(false);
   }, [location.pathname]);
 
-  const handleLogout = () => {
-    logout();
+  /* "Lock the app" from the command palette lands on `?lock=1` [utils/commands.js]. */
+  useEffect(() => {
+    if (new URLSearchParams(location.search).get('lock') !== '1') return;
+    lock();
+    navigate(location.pathname, { replace: true });
+  }, [location.search, location.pathname, lock, navigate]);
+
+  const handleLogout = async () => {
+    await logout();
+    /* Another account on the device takes over; without one, the login page. */
+    if (!accounts.some((row) => !row.active && (row.signedIn || row.locked))) navigate('/login');
+  };
+  const handleSignOutAll = () => {
+    signOutAll();
     navigate('/login');
   };
 
@@ -408,7 +442,19 @@ export default function Layout() {
         user={user}
         roleLabel={isAdmin ? 'Admin' : (user?.department && departmentLabel(user.department)) || humanise(user?.role)}
         onSignOut={handleLogout}
+        accounts={accounts}
+        onSwitch={(id) => { switchTo(id).then((row) => { if (row && !row.token && !row.sealed) navigate('/login?add=1', { state: { email: row.email } }); else navigate('/'); }); }}
+        onAddAccount={() => navigate('/login?add=1')}
+        onLock={lock}
+        hasPin={hasPin}
+        onSignOutAll={handleSignOutAll}
       />
+      {notice && (
+        <div className="flex items-center justify-between gap-3 border-b border-warn-500/20 bg-warn-500/10 px-4 py-2 text-sm text-warn-400">
+          <span>{notice}</span>
+          <button type="button" className="row-action" onClick={clearNotice}>Dismiss</button>
+        </div>
+      )}
 
       <div className="flex min-h-0 flex-1">
         <div className="flex min-w-0 flex-1 flex-col">

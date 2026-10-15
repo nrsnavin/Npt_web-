@@ -8,6 +8,7 @@ import AnnouncementsPanel from './AnnouncementsPanel.jsx';
 import JarvisPanel from './JarvisPanel.jsx';
 import QueriesPanel from './QueriesPanel.jsx';
 import useQueryInbox from '../../hooks/useQueryInbox.js';
+import { scopedKey } from '../../auth/accounts.js';
 
 /**
  * The right-hand workspace: to-dos, notes, announcements and Jarvis, on every screen.
@@ -32,7 +33,7 @@ const STORE_KEY = 'npt.workspace';
 
 const readStored = () => {
   try {
-    const raw = localStorage.getItem(STORE_KEY);
+    const raw = localStorage.getItem(scopedKey(STORE_KEY));
     return raw ? JSON.parse(raw) : null;
   } catch {
     /* A private window, cleared site data, storage blocked entirely — all fine. Defaults win. */
@@ -42,7 +43,7 @@ const readStored = () => {
 
 const store = (value) => {
   try {
-    localStorage.setItem(STORE_KEY, JSON.stringify(value));
+    localStorage.setItem(scopedKey(STORE_KEY), JSON.stringify(value));
   } catch {
     /* Not being able to remember the preference is not worth failing a render over. */
   }

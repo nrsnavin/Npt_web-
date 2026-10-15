@@ -4,6 +4,7 @@ import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { Field, Notice } from '../components/ui.jsx';
 import { ThemeToggle, Wordmark } from '../components/Layout.jsx';
+import { LockScreen } from '../components/PinGate.jsx';
 
 const RESEND_SECONDS = 60;
 
@@ -42,13 +43,13 @@ function PasswordForm({ onError }) {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm();
+  } = useForm({ defaultValues: { email: location.state?.email || '' } });
 
   const submit = async (values) => {
     onError(null);
     try {
       await login(values);
-      navigate(location.state?.from || '/', { replace: true });
+      navigate(location.state?.from && !location.state.from.startsWith('/login') ? location.state.from : '/', { replace: true });
     } catch (error) {
       onError(error.message);
     }
@@ -232,13 +233,24 @@ function OtpForm({ onError }) {
 }
 
 export default function Login() {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, user, accounts, switchTo, notice, clearNotice, locked } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
+  /* Accounts still on this device — signed out of one, the others are a tap away. */
+  const onDevice = accounts.filter((row) => !row.active && (row.signedIn || row.locked));
+  const continueAs = async (id) => { await switchTo(id); navigate('/', { replace: true }); };
   const [mode, setMode] = useState('password');
   const [error, setError] = useState(null);
+  /*
+   * "Add another account": the login page while somebody is signed in. Their session stays on
+   * the device [auth/accounts.js]; the sign-in that follows becomes the active account.
+   */
+  const adding = new URLSearchParams(location.search).get('add') === '1';
 
   if (loading) return null;
-  if (isAuthenticated) return <Navigate to={location.state?.from || '/'} replace />;
+  /* The active account is locked behind its PIN: that is the lock screen's business, not a fresh sign-in. */
+  if (locked && !adding) return <LockScreen />;
+  if (isAuthenticated && !adding) return <Navigate to={location.state?.from || '/'} replace />;
 
   return (
     <div className="grid min-h-screen lg:grid-cols-[1.1fr_minmax(0,32rem)]">
@@ -299,10 +311,28 @@ export default function Login() {
             <Wordmark />
           </div>
 
-          <h2 className="text-[1.75rem] font-extrabold tracking-tighter text-steel-50">Sign in</h2>
+          <h2 className="text-[1.75rem] font-extrabold tracking-tighter text-steel-50">{adding ? 'Add another account' : 'Sign in'}</h2>
           <p className="mb-7 mt-1.5 text-sm leading-relaxed text-steel-400">
-            Use your password, or have a code sent to your email or phone.
+            {adding && user
+              ? `You stay signed in as ${user.name}. Sign in to the account to add; you can switch between them from the account menu.`
+              : 'Use your password, or have a code sent to your email or phone.'}
           </p>
+          {adding && accounts.length >= 5 && (
+            <div className="mb-4"><Notice tone="warn">Five accounts is the most this device keeps: the one used longest ago will be forgotten.</Notice></div>
+          )}
+          {notice && (
+            <div className="mb-4 flex items-start justify-between gap-2"><Notice tone="warn">{notice}</Notice><button type="button" className="row-action shrink-0" onClick={clearNotice}>Dismiss</button></div>
+          )}
+          {onDevice.length > 0 && (
+            <div className="mb-6 space-y-1.5" aria-label="Accounts on this device">
+              <p className="text-xs font-semibold text-steel-400">Continue as</p>
+              {onDevice.map((row) => (
+                <button key={row.id} type="button" className="btn-secondary w-full justify-start" onClick={() => continueAs(row.id)}>
+                  {row.name}{row.locked ? ' · locked' : ''}
+                </button>
+              ))}
+            </div>
+          )}
 
           <Tabs
             mode={mode}

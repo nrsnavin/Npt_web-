@@ -5,9 +5,33 @@ import { shrinkForm } from '../utils/shrinkImage.js';
 
 const TOKEN_KEY = 'npt.token';
 
-export const getToken = () => localStorage.getItem(TOKEN_KEY);
-export const setToken = (token) => localStorage.setItem(TOKEN_KEY, token);
-export const clearToken = () => localStorage.removeItem(TOKEN_KEY);
+/*
+ * The session token: in storage while the app is open, and in memory alone while it is locked
+ * behind the device PIN [context/AuthContext.jsx]. A locked browser then holds nothing at rest
+ * a request could use, while the tab itself keeps working underneath the lock screen — an
+ * upload finishing, the inbox polling — and a reload asks for the PIN.
+ */
+let memoryToken = null;
+export const getToken = () => memoryToken || localStorage.getItem(TOKEN_KEY);
+export const setToken = (token) => { memoryToken = token; localStorage.setItem(TOKEN_KEY, token); };
+export const clearToken = () => { memoryToken = null; localStorage.removeItem(TOKEN_KEY); };
+/** Locking: out of storage, kept in memory for this tab. */
+export const hideToken = () => { memoryToken = memoryToken || localStorage.getItem(TOKEN_KEY); localStorage.removeItem(TOKEN_KEY); };
+
+/*
+ * What a 401 does. The auth context registers a handler that drops only the refused account
+ * and moves to the next one on the device [context/AuthContext.jsx]; without one (the login
+ * page, a public page), the token goes and the login page is opened, as it always was.
+ */
+let unauthorizedHandler = null;
+export const onUnauthorized = (handler) => {
+  unauthorizedHandler = handler;
+  return () => { if (unauthorizedHandler === handler) unauthorizedHandler = null; };
+};
+/* A request going out counts as activity for the idle lock [auth/idle.js]. */
+const noteActivity = () => {
+  try { localStorage.setItem('npt.lastActivity', String(Date.now())); } catch { /* storage blocked */ }
+};
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '/api',
@@ -17,6 +41,7 @@ const api = axios.create({
 api.interceptors.request.use(async (config) => {
   const token = getToken();
   if (token) config.headers.Authorization = `Bearer ${token}`;
+  if (token && config.method && config.method.toLowerCase() !== 'get') noteActivity();
 
   /* Every upload passes here, so every photo is made smaller here — see shrinkImage.js. */
   if (config.data instanceof FormData) config.data = await shrinkForm(config.data);
@@ -40,9 +65,12 @@ api.interceptors.response.use(
   async (error) => {
     // An expired or revoked token should drop the user back to the login screen.
     if (error.response?.status === 401 && getToken()) {
-      clearToken();
-      if (!window.location.pathname.startsWith('/login')) {
-        window.location.assign('/login');
+      const handled = unauthorizedHandler ? unauthorizedHandler(error) : false;
+      if (!handled) {
+        clearToken();
+        if (!window.location.pathname.startsWith('/login')) {
+          window.location.assign('/login');
+        }
       }
     }
 

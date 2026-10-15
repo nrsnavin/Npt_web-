@@ -4,6 +4,7 @@ import Layout from './components/Layout.jsx';
 import { WorkspaceProvider } from './components/dock/WorkspaceContext.jsx';
 import { Spinner } from './components/ui.jsx';
 import { useAuth } from './context/AuthContext.jsx';
+import PinGate, { LockScreen } from './components/PinGate.jsx';
 import lazyPage from './utils/lazyPage.js';
 
 /**
@@ -126,9 +127,11 @@ function RequireModule({ moduleKey, children }) {
 
 /** Sends anyone without a session to the login screen, remembering where they were headed. */
 function RequireAuth({ children }) {
-  const { isAuthenticated, loading, unreachable, retrySession } = useAuth();
+  const { isAuthenticated, loading, unreachable, retrySession, locked, user } = useAuth();
   const location = useLocation();
 
+  /* The active account is locked behind its PIN and not loaded yet (a reload): the lock screen, not the login page. */
+  if (locked && !isAuthenticated) return <LockScreen />;
   if (loading) return <Spinner label="Restoring your session" />;
   /*
    * The server could not be asked, which is not the same as being told no. The session is kept
@@ -150,7 +153,12 @@ function RequireAuth({ children }) {
   }
   if (!isAuthenticated) return <Navigate to="/login" state={{ from: location.pathname }} replace />;
 
-  return children;
+  /*
+   * Keyed on the person: switching accounts remounts everything below, so no screen, hook or
+   * cache of the previous person survives into the next one's session. The PIN gate in front
+   * asks for a PIN when the plant requires one [components/PinGate.jsx].
+   */
+  return <PinGate key={user.id}>{children}</PinGate>;
 }
 
 export default function App() {

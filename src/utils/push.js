@@ -49,3 +49,15 @@ export async function disablePush() {
   await pushApi.unsubscribe({ endpoint: subscription.endpoint }).catch(() => {});
   await subscription.unsubscribe();
 }
+
+/**
+ * After switching accounts: the device's one subscription now belongs to the active account,
+ * so its alerts are the ones that arrive here. Nothing to do when push is off or unsupported.
+ */
+export async function resubscribePush() {
+  const subscription = await (await registration())?.pushManager.getSubscription();
+  if (!subscription) return false;
+  const { endpoint, keys } = subscription.toJSON();
+  await pushApi.subscribe({ endpoint, keys });
+  return true;
+}

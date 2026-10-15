@@ -79,7 +79,7 @@ export default function GlobalSearch() {
 
   const input = useRef(null);
   const requestId = useRef(0);
-  const { user, canRead, canWrite } = useAuth();
+  const { user, canRead, canWrite, locked } = useAuth();
   const { toast, warn } = useToast();
   const [running, setRunning] = useState(false);
 
@@ -96,6 +96,7 @@ export default function GlobalSearch() {
   useEffect(() => {
     const onKeyDown = (event) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        if (locked) return;
         event.preventDefault();
         setOpen(true);
         return;
@@ -109,7 +110,7 @@ export default function GlobalSearch() {
 
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [open, close]);
+  }, [open, close, locked]);
 
   /* Navigating away closes it — the palette is how you left, not somewhere you return to. */
   useEffect(() => {
