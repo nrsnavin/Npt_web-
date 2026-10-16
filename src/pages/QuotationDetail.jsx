@@ -11,7 +11,7 @@ import QuoteBuilder from '../components/QuoteBuilder.jsx';
 import PricingDecision from '../components/PricingDecision.jsx';
 import { MouldThumb } from '../components/MouldPhoto.jsx';
 import TradingBadge, { isTradingLine } from '../components/TradingBadge.jsx';
-import { ResponseForm, RevisionForm } from './Quotations.jsx';
+import { CLOSED_QUOTATION_STATUSES, ResponseForm, RevisionForm } from './Quotations.jsx';
 import { formatDate, formatNumber, humanise } from '../utils/format.js';
 import { costedWith } from '../utils/pricing.js';
 
@@ -108,7 +108,7 @@ const STEPS = [
 ];
 
 const stepOf = (quotation) => {
-  if (['accepted', 'rejected'].includes(quotation.status)) return 'answered';
+  if (CLOSED_QUOTATION_STATUSES.includes(quotation.status)) return 'answered';
   if (quotation.status === 'revised') return 'draft';
   if (quotation.status === 'approved') return 'draft';
   return quotation.status;
@@ -174,7 +174,7 @@ export default function QuotationDetail() {
   if (!quotation) return null;
 
   const lines = quotation.lines || [];
-  const closed = ['accepted', 'rejected'].includes(quotation.status);
+  const closed = CLOSED_QUOTATION_STATUSES.includes(quotation.status);
   const mayQuote = canQuote('pricing');
   /* The server sends the cost only to whoever may see it [§8]; its absence is the answer. */
   const seesCost = !quotation.costingHidden;
@@ -268,8 +268,19 @@ export default function QuotationDetail() {
         )}
         {quotation.isExpired && (
           <Notice tone="warn">
-            The validity passed on {formatDate(quotation.validUntil)}. Revise it before the buyer can act on it.
+            The validity passed on {formatDate(quotation.validUntil)}.{' '}
+            {quotation.sentAt
+              ? 'An answer recorded now is marked as after the validity; revise it to give the buyer a fresh date.'
+              : 'Give it a new validity date before it can be sent.'}
           </Notice>
+        )}
+        {quotation.status === 'withdrawn' && (
+          <Notice tone="neutral">
+            Withdrawn — the enquiry behind it was closed before the buyer answered. Nothing more happens on this record.
+          </Notice>
+        )}
+        {quotation.answeredAfterValidity && (
+          <Notice tone="warn">The buyer answered after the validity on the document had passed.</Notice>
         )}
         {quotation.status === 'rejected' && quotation.rejectionNote && (
           <Notice tone="danger">The customer turned it down: {quotation.rejectionNote}</Notice>

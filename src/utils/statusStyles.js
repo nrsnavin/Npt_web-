@@ -7,6 +7,7 @@ const STATUS_TONES = {
   // Neutral — nothing is happening yet, or the document is finished and filed.
   draft: 'neutral',
   closed: 'neutral',
+  withdrawn: 'neutral',
   inactive: 'neutral',
 
   // Informational — moving, but no action needed from us.

@@ -8,6 +8,7 @@ import {
 } from '../components/ui.jsx';
 import StagePipeline from '../components/StagePipeline.jsx';
 import QuotationPdf from '../components/QuotationPdf.jsx';
+import { CLOSED_QUOTATION_STATUSES } from './Quotations.jsx';
 import { SortHeader, useSort } from '../components/SortHeader.jsx';
 import { formatDate, formatNumber, humanise } from '../utils/format.js';
 
@@ -161,7 +162,7 @@ export default function SentQuotations() {
      is not a mistake — it is the thing to ring the buyer about. */
   const lapsed = data.filter((row) => {
     const left = daysLeft(row.validUntil);
-    return left !== null && left < 0 && !['accepted', 'rejected'].includes(row.status);
+    return left !== null && left < 0 && !CLOSED_QUOTATION_STATUSES.includes(row.status);
   }).length;
 
   return (
@@ -363,7 +364,7 @@ export default function SentQuotations() {
                             {/* The two things anybody does on this screen. Both live on the
                                 quotation itself, which carries the revision history the forms
                                 are built from — this is a board, not a second place to edit. */}
-                            {mayQuote && !['accepted', 'rejected'].includes(row.status) && (
+                            {mayQuote && !CLOSED_QUOTATION_STATUSES.includes(row.status) && (
                               <Link
                                 to={`/quotations/${row._id}`}
                                 className="btn-primary px-2.5 py-1 text-xs"
