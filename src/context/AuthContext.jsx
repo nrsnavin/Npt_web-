@@ -93,6 +93,8 @@ export function AuthProvider({ children }) {
   const switchTo = useCallback(async (id) => {
     const row = activate(id);
     if (!row) return null;
+    /* The token in memory is the previous person's [api/client.js]: replaced, or gone until the PIN opens the seal. */
+    if (row.token) setToken(row.token); else clearToken();
     setUser(null);
     setUnreachable(null);
     setPinTries(0);
