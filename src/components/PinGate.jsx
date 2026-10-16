@@ -26,7 +26,7 @@ export function PinInput({ value, onChange, onSubmit, label = 'PIN', autoFocus =
       maxLength={8}
       disabled={disabled}
       value={value}
-      placeholder="••••"
+      placeholder="••••••"
       onChange={(event) => onChange(event.target.value.replace(/\D/g, '').slice(0, 8))}
       onKeyDown={(event) => { if (event.key === 'Enter' && onSubmit) { event.preventDefault(); onSubmit(); } }}
     />
@@ -136,7 +136,7 @@ export function SetPinDialog({ open, onClose, required = false }) {
   const submit = async (event) => {
     event?.preventDefault();
     setProblem(null);
-    if (!validPin(first)) return setProblem('A PIN is four to eight digits.');
+    if (!validPin(first)) return setProblem('A PIN is six to eight digits.');
     if (first !== again) return setProblem('The two PINs do not match.');
     setBusy(true);
     try {
@@ -156,8 +156,8 @@ export function SetPinDialog({ open, onClose, required = false }) {
       <form onSubmit={submit} className="space-y-4">
         <p className="text-sm text-steel-300">
           {required
-            ? `${user?.name?.split(' ')[0] || 'You'}, this plant asks everyone for a PIN. The app locks after a while away and opens again with it. Four to eight digits — six or more is safer — on this device only.`
-            : 'The app locks after a while away and opens again with this PIN. Four to eight digits — six or more is safer — on this device only. Nobody can recover it — a forgotten PIN means signing in again.'}
+            ? `${user?.name?.split(' ')[0] || 'You'}, this plant asks everyone for a PIN. The app locks after a while away and opens again with it. Six to eight digits, on this device only.`
+            : 'The app locks after a while away and opens again with this PIN. Six to eight digits, on this device only. Nobody can recover it — a forgotten PIN means signing in again.'}
         </p>
         {changing && (
           <label className="block space-y-1 text-sm">

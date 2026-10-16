@@ -320,7 +320,7 @@ function DevicePin() {
         {removing && (
           <form onSubmit={remove} className="mt-3 flex flex-wrap items-end gap-2">
             <label className="block space-y-1 text-sm"><span className="font-semibold text-steel-100">Current PIN</span><PinInput value={current} onChange={setCurrent} label="Current PIN" autoFocus /></label>
-            <button className="btn-danger" disabled={busy || current.length < 4}>{busy ? 'Removing…' : 'Remove PIN'}</button>
+            <button className="btn-danger" disabled={busy || current.length < 6}>{busy ? 'Removing…' : 'Remove PIN'}</button>
             <button type="button" className="btn-secondary" onClick={() => { setRemoving(false); setProblem(null); }}>Cancel</button>
           </form>
         )}
