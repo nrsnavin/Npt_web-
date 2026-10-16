@@ -9,7 +9,7 @@
  *
  * Browser and Node (tests) share the WebCrypto API, so this file runs in both.
  */
-const ROUNDS = 150000;
+const ROUNDS = 300000;
 const subtle = () => globalThis.crypto?.subtle;
 const random = (length) => globalThis.crypto.getRandomValues(new Uint8Array(length));
 

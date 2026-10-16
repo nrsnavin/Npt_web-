@@ -144,3 +144,10 @@ test('a PIN-protected account locks whenever it is not the one in use', async ()
   accounts.activate('u2');
   assert.equal(accounts.accountById('u1').token, null, 'switching away locks it again');
 });
+
+test('wrong-PIN tries are kept on the account row, so a reload cannot reset them', () => {
+  accounts.adoptAccount(navin, 'tok');
+  accounts.updateAccount('u1', { tries: 4 });
+  assert.equal(accounts.accountById('u1').tries, 4);
+  assert.equal(JSON.parse(localStorage.getItem('npt.accounts'))[0].tries, 4, 'in storage, not memory');
+});

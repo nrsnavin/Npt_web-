@@ -275,7 +275,8 @@ export function AuthProvider({ children }) {
       lockedAccount: locked ? activeAccount() && { id: activeAccount().id, name: activeAccount().name, email: activeAccount().email, roleLabel: activeAccount().roleLabel, department: activeAccount().department, expiresAt: activeAccount().expiresAt } : null,
       notice,
       clearNotice: () => setNotice(null),
-      pinTriesLeft: PIN_TRIES - pinTries,
+      /* Counted on the account row, not in memory: a reload does not hand out fresh tries. */
+      pinTriesLeft: PIN_TRIES - (activeAccount()?.tries || 0),
       /** The plant's policy, from the profile: a PIN for everyone, and the idle minutes. */
       policy: user?.policy || { pinRequired: false, lockAfterMinutes: 15 },
       hasPin: Boolean(accounts.find((row) => row.id === activeId())?.hasPin),
@@ -291,7 +292,7 @@ export function AuthProvider({ children }) {
         if (!row?.sealed) return { ok: true };
         try {
           const token = await openToken(row.sealed, pin);
-          updateAccount(row.id, { token });
+          updateAccount(row.id, { token, tries: 0 });
           setToken(token);
           setLocked(false);
           setPinTries(0);
@@ -300,7 +301,8 @@ export function AuthProvider({ children }) {
           if (!user) restore();
           return { ok: true };
         } catch {
-          const tries = pinTries + 1;
+          const tries = (row.tries || 0) + 1;
+          updateAccount(row.id, { tries });
           setPinTries(tries);
           if (tries >= PIN_TRIES) {
             const next = removeAccount(row.id);

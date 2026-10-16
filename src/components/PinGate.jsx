@@ -41,6 +41,14 @@ export function PinInput({ value, onChange, onSubmit, label = 'PIN', autoFocus =
 export function LockScreen({ overlay = false }) {
   const { lockedAccount, unlock, pinTriesLeft, accounts, switchTo, logout } = useAuth();
   const navigate = useNavigate();
+  const screen = useRef(null);
+  /* Keys pressed on the lock screen stay on it: nothing reaches the page's own shortcuts underneath. */
+  useEffect(() => {
+    const guard = (event) => { if (!screen.current?.contains(event.target)) event.stopPropagation(); };
+    window.addEventListener('keydown', guard, true);
+    window.addEventListener('keyup', guard, true);
+    return () => { window.removeEventListener('keydown', guard, true); window.removeEventListener('keyup', guard, true); };
+  }, []);
   const [pin, setPin] = useState('');
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState(null);
@@ -72,7 +80,7 @@ export function LockScreen({ overlay = false }) {
   };
 
   return (
-    <div className={`grid min-h-screen place-items-center px-4 ${overlay ? 'fixed inset-0 z-[100] bg-ink-900/95 backdrop-blur-md' : 'bg-ink-900'}`} role="dialog" aria-modal="true" aria-label="Locked">
+    <div ref={screen} className={`grid min-h-screen place-items-center px-4 ${overlay ? 'fixed inset-0 z-[100] bg-ink-900/95 backdrop-blur-md' : 'bg-ink-900'}`} role="dialog" aria-modal="true" aria-label="Locked">
       <div className="card w-full max-w-sm p-6 text-center">
         <span aria-hidden className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-flame-50 text-xl font-bold text-accent ring-1 ring-inset ring-flame-500/20">
           {initialsOf(lockedAccount?.name, lockedAccount?.email || '')}
@@ -148,8 +156,8 @@ export function SetPinDialog({ open, onClose, required = false }) {
       <form onSubmit={submit} className="space-y-4">
         <p className="text-sm text-steel-300">
           {required
-            ? `${user?.name?.split(' ')[0] || 'You'}, this plant asks everyone for a PIN. The app locks after a while away and opens again with it. Four to eight digits, on this device only.`
-            : 'The app locks after a while away and opens again with this PIN. Four to eight digits, on this device only. Nobody can recover it — a forgotten PIN means signing in again.'}
+            ? `${user?.name?.split(' ')[0] || 'You'}, this plant asks everyone for a PIN. The app locks after a while away and opens again with it. Four to eight digits — six or more is safer — on this device only.`
+            : 'The app locks after a while away and opens again with this PIN. Four to eight digits — six or more is safer — on this device only. Nobody can recover it — a forgotten PIN means signing in again.'}
         </p>
         {changing && (
           <label className="block space-y-1 text-sm">
