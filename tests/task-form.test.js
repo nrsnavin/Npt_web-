@@ -82,10 +82,12 @@ test('a member question picks a person of its department — the PRT member to v
   assert.match(dialog, /<option key=\{person\._id\} value=\{person\._id\}>\{person\.name\}<\/option>/);
 });
 
-test('with no enquiry to fill from, register questions are dropdowns of the register — sample rows too', () => {
+test('with no enquiry to fill from, register questions are typed against the register — sample rows too', () => {
   const dialog = readFileSync(new URL('../src/components/DepartmentTaskDialog.jsx', import.meta.url), 'utf8');
   assert.match(dialog, /const register = field\.register && prefill\?\.registers\?\.\[field\.register\];/);
-  assert.match(dialog, /field\.register === 'moulds' \? 'mould register'/);
+  /* Typed, narrowing as you go, and a model or material the register does not know is kept as typed. */
+  assert.match(dialog, /Type to search the \$\{field\.register === 'moulds' \? 'mould' : field\.register\} register, or enter a new one/);
+  assert.match(dialog, /<datalist id=\{listId\}>/);
   assert.match(dialog, /<Answer field=\{column\} value=\{row\[column\.key\]\} prefill=\{prefill\}/);
   assert.match(dialog, /<Rows field=\{field\} rows=\{answers\[field\.key\] \|\| \[\]\} prefill=\{prefill\}/);
 });

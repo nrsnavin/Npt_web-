@@ -107,7 +107,7 @@ test('a task’s own asks (Dispatch’s Ask Production) open that department’s
   const dialog = read('components/DepartmentTaskDialog.jsx');
   assert.match(dialog, /fromTask\s*\? await workspace\.todos\.ask\(\{ id: fromTask\._id, \.\.\.payload \}\)/);
   assert.match(dialog, /disabled=\{Boolean\(fromTask\)\}/);
-  assert.match(dialog, /\(noteNeeded\(button, answers\) \|\| Boolean\(fromTask\) \|\| team\) && note\.trim\(\)\.length < 3/);
+  assert.match(dialog, /\(noteNeeded\(button, answers\) \|\| Boolean\(fromTask\)\) && note\.trim\(\)\.length < 3/);
   assert.match(read('api/endpoints.js'), /ask: \(\{ id, \.\.\.payload \}\) => api\.post\(`\/workspace\/todos\/\$\{id\}\/ask`/);
 });
 

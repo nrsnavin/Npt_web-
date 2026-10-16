@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { handoffs as handoffsApi, orders as ordersApi, workspace } from '../api/endpoints.js';
+import { useAuth } from '../context/AuthContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import { Field, Modal, Notice } from './ui.jsx';
 import { CustomerSelect } from './pickers.jsx';
@@ -31,12 +33,26 @@ function Answer({ field, value, prefill, onChange }) {
   /* No enquiry to fill it from (a team task): the register's list — moulds, materials, parts. */
   const register = field.register && prefill?.registers?.[field.register];
   if (register) {
-    const choices = value && !register.includes(value) ? [value, ...register] : register;
+    /*
+     * Typed, not picked from a list: the register narrows as you type, and a model or a
+     * material the register does not know yet is kept as the words typed — a team task is
+     * often about exactly the thing that is not on a register yet.
+     */
+    const listId = `register-${field.register}-${field.key}`;
     return (
-      <select className="input" value={value || ''} onChange={(event) => onChange(event.target.value)}>
-        <option value="">{choices.length ? `Choose from the ${field.register === 'moulds' ? 'mould register' : `${field.register} register`}…` : 'Nothing in the register yet'}</option>
-        {choices.map((option) => <option key={option} value={option}>{option}</option>)}
-      </select>
+      <>
+        <input
+          className="input"
+          list={listId}
+          value={value || ''}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={register.length ? `Type to search the ${field.register === 'moulds' ? 'mould' : field.register} register, or enter a new one…` : 'Type it in'}
+          autoComplete="off"
+        />
+        <datalist id={listId}>
+          {register.map((option) => <option key={option} value={option} />)}
+        </datalist>
+      </>
     );
   }
   /* A person of a department — the PRT member who visits; the task becomes theirs by name. */
@@ -128,6 +144,8 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState(null);
   const { toast, warn } = useToast();
+  const { canWrite } = useAuth();
+  const navigate = useNavigate();
   /* No enquiry: a team task, with an optional customer instead of the enquiry's answers. */
   const team = !enquiry;
   /* A team task opened from a customer [components/CustomerPanel.jsx] starts on that buyer. */
@@ -180,7 +198,8 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
   const pickDepartment = (value) => setKind(value);
   const answer = (key) => (value) => setAnswers((current) => ({ ...current, [key]: value }));
   const missing = missingAnswer(button, answers);
-  const mustExplain = (noteNeeded(button, answers) || Boolean(fromTask) || team) && note.trim().length < 3;
+  /* A team task's answers say what to do; the instruction is for what they do not. */
+  const mustExplain = (noteNeeded(button, answers) || Boolean(fromTask)) && note.trim().length < 3;
   const tooBig = file && file.size > PDF_LIMIT;
   const notPdf = file && file.type !== 'application/pdf';
   const blocked = !prefill || Boolean(missing) || mustExplain || tooBig || notPdf || (orders.length > 1 && !order && !fromTask && !team);
@@ -223,6 +242,12 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
       }
       onSent();
       onClose();
+      /*
+       * Create Quotation raises the costing sheet on the enquiry. Somebody who costs quotations
+       * themselves is usually about to open it, so they land on it rather than finding it on the
+       * list [server: handoff.controller `send` carries the quotation].
+       */
+      if (sent.quotation?._id && canWrite('pricing')) navigate(`/quotations/${sent.quotation._id}`);
     } catch (failure) {
       setProblem(failure.message);
     } finally {
@@ -306,13 +331,13 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
               <input type="date" className="input" min={todayInIndia()} value={requiredDate} onChange={(event) => setRequiredDate(event.target.value)} />
             </Field>
           )}
-          <Field label={form.note?.label || 'Additional instruction / Question'} required={noteNeeded(button, answers) || Boolean(fromTask) || team} className="sm:col-span-2">
+          <Field label={form.note?.label || 'Additional instruction / Question'} required={noteNeeded(button, answers) || Boolean(fromTask)} className="sm:col-span-2">
             <textarea rows={3} className="input" placeholder={form.note?.placeholder || ''} value={note} onChange={(event) => setNote(event.target.value)} />
           </Field>
         </div>
 
         {missing && prefill && <p className="text-xs text-warn-400">Still needed: {missing}</p>}
-        {mustExplain && <p className="text-xs text-warn-400">{fromTask || team ? 'Say what you need from them' : button.form.noteRequired.message}</p>}
+        {mustExplain && <p className="text-xs text-warn-400">{fromTask ? 'Say what you need from them' : button.form.noteRequired.message}</p>}
         {problem && <Notice tone="danger">{problem}</Notice>}
         <div className="flex justify-end gap-2">
           <button type="button" className="btn-ghost" onClick={onClose} disabled={busy}>Cancel</button>

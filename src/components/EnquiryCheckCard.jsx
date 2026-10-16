@@ -3,7 +3,7 @@ import { enquiries as enquiriesApi } from '../api/endpoints.js';
 import { useToast } from '../context/ToastContext.jsx';
 import { Modal, Notice } from './ui.jsx';
 import { formatDate } from '../utils/format.js';
-import { checkFieldsOf, checkPayloadOf, checkProblem } from '../utils/enquiryCheck.js';
+import { checkFieldsOf, checkFormOf, checkPayloadOf, checkProblem, suggestedOwnerOf } from '../utils/enquiryCheck.js';
 
 /**
  * "Enquiry details · Edit and verify" — what was captured, to be read through, corrected and
@@ -73,18 +73,20 @@ function SourcePicture({ enquiryId, count, onClose }) {
 export default function EnquiryCheckCard({ enquiry, canWrite, onSaved }) {
   const { toast } = useToast();
   const [opened, setOpened] = useState(() => checkFieldsOf(enquiry));
-  const [form, setForm] = useState(opened);
+  const [form, setForm] = useState(() => checkFormOf(enquiry));
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState(null);
   const [source, setSource] = useState(null);
   const [viewing, setViewing] = useState(false);
+  /* Who the draft may be handed to: marketing and Admin, for Admin and for the draft's owner. */
+  const [people, setPeople] = useState(null);
   const pending = Boolean(enquiry.checkPending);
+  const suggested = suggestedOwnerOf(enquiry);
 
   /* A fresh read of the enquiry — after a save, or another change — starts the form again. */
   useEffect(() => {
-    const fields = checkFieldsOf(enquiry);
-    setOpened(fields);
-    setForm(fields);
+    setOpened(checkFieldsOf(enquiry));
+    setForm(checkFormOf(enquiry));
   }, [enquiry._id, enquiry.updatedAt]);
 
   useEffect(() => {
@@ -92,6 +94,24 @@ export default function EnquiryCheckCard({ enquiry, canWrite, onSaved }) {
     enquiriesApi.source(enquiry._id).then((found) => live && setSource(found)).catch(() => live && setSource(null));
     return () => { live = false; };
   }, [enquiry._id]);
+
+  useEffect(() => {
+    let live = true;
+    enquiriesApi.delegateTargets(enquiry._id)
+      .then((reply) => live && setPeople(reply.mayDelegate ? reply.data || [] : null))
+      .catch(() => live && setPeople(null));
+    return () => { live = false; };
+  }, [enquiry._id, enquiry.assignedTo?._id]);
+
+  /* The current owner leads the list; the server leaves them out, as the one it is already with. */
+  const owner = enquiry.assignedTo && typeof enquiry.assignedTo === 'object' ? enquiry.assignedTo : null;
+  const choices = people
+    ? [
+      ...(owner?._id && !people.some((person) => String(person._id) === String(owner._id)) ? [{ _id: owner._id, name: owner.name, group: 'current' }] : []),
+      ...people,
+    ]
+    : [];
+  const named = (person) => `${person.name}${person.group === 'admin' ? ' (Admin)' : ''}${person.self ? ' — me' : ''}`;
 
   const set = (key) => (event) => setForm({ ...form, [key]: event.target.value });
 
@@ -149,6 +169,21 @@ export default function EnquiryCheckCard({ enquiry, canWrite, onSaved }) {
         </Box>
         <Box label="Customer requirement" className="col-span-2">
           <textarea rows={2} className={`${fieldClass} resize-y`} value={form.remarks} onChange={set('remarks')} readOnly={readOnly} placeholder="What the buyer asked for" aria-label="Customer requirement" />
+        </Box>
+        <Box label="Assigned to (marketing)" className="col-span-2">
+          {people && !readOnly ? (
+            <select className={fieldClass} value={form.assignedTo} onChange={set('assignedTo')} aria-label="Assigned to">
+              {choices.map((person) => <option key={person._id} value={person._id}>{named(person)}</option>)}
+            </select>
+          ) : (
+            <p className="mt-0.5 text-sm font-semibold text-steel-50" aria-label="Assigned to">{owner?.name || '—'}</p>
+          )}
+          {suggested.reason && String(form.assignedTo) === suggested.id && (
+            <span className="mt-1 block text-xs text-accent">{suggested.reason} — the enquiry goes to them when you save.</span>
+          )}
+          {!suggested.reason && pending && people && (
+            <span className="mt-1 block text-xs text-steel-500">Hand the draft to a colleague or an Admin here; it moves when you save.</span>
+          )}
         </Box>
       </div>
 

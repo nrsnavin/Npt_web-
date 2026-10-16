@@ -5,7 +5,7 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { checkFieldsOf, checkPayloadOf, checkProblem, materialColourOf } from '../src/utils/enquiryCheck.js';
+import { checkFieldsOf, checkFormOf, checkPayloadOf, checkProblem, materialColourOf, suggestedOwnerOf } from '../src/utils/enquiryCheck.js';
 
 const enquiry = {
   _id: 'e1',
@@ -28,6 +28,7 @@ test('the form opens with what was captured — the buyer’s own details from t
     quantity: '1677',
     materialColour: 'PP black',
     remarks: 'Model: PTR - 322 · Qty: 1677',
+    assignedTo: '',
   });
 });
 
@@ -59,4 +60,36 @@ test('the form names what is wrong before it is sent', () => {
   assert.match(checkProblem({ company: '  ' }), /company/);
   assert.match(checkProblem({ company: 'X', quantity: 'many' }), /number/);
   assert.equal(checkProblem({ company: 'X', quantity: '1677' }), null);
+});
+
+test('the draft opens on the buyer’s own marketing person, and says so', () => {
+  const enquiry = {
+    _id: 'e1', checkPending: true, updatedAt: 'T',
+    assignedTo: { _id: 'u-admin', name: 'Navin R' },
+    customer: { _id: 'c1', name: 'Premier Sundari', assignedTo: { _id: 'u-nandhini', name: 'Nandhini S' } },
+  };
+  const suggested = suggestedOwnerOf(enquiry);
+  assert.equal(suggested.id, 'u-nandhini');
+  assert.match(suggested.reason, /Premier Sundari is Nandhini S’s customer/);
+  assert.equal(checkFieldsOf(enquiry).assignedTo, 'u-admin', 'what the record says');
+  assert.equal(checkFormOf(enquiry).assignedTo, 'u-nandhini', 'what the form opens on');
+  /* Saving without touching anything else still hands it over. */
+  const payload = checkPayloadOf(checkFormOf(enquiry), checkFieldsOf(enquiry), enquiry);
+  assert.deepEqual(payload, { id: 'e1', expectedUpdatedAt: 'T', assignedTo: 'u-nandhini' });
+
+  /* A checked enquiry, or one whose owner already holds the buyer, opens on its owner. */
+  assert.equal(suggestedOwnerOf({ ...enquiry, checkPending: false }).id, 'u-admin');
+  assert.equal(suggestedOwnerOf({ ...enquiry, assignedTo: { _id: 'u-nandhini', name: 'Nandhini S' } }).reason, null);
+  /* A prospect has no buyer to defer to. */
+  assert.equal(suggestedOwnerOf({ ...enquiry, customer: null, prospect: { name: 'Nobody' } }).id, 'u-admin');
+  assert.equal(checkProblem({ company: 'X', assignedTo: '' }), 'Say whose enquiry this is.');
+});
+
+test('the draft card offers the owner box and sends a chosen owner', async () => {
+  const { readFileSync } = await import('node:fs');
+  const card = readFileSync(new URL('../src/components/EnquiryCheckCard.jsx', import.meta.url), 'utf8');
+  assert.match(card, /label="Assigned to \(marketing\)"/);
+  assert.match(card, /enquiriesApi\.delegateTargets\(enquiry\._id\)/, 'the people it may go to come from the server');
+  assert.match(card, /aria-label="Assigned to"/);
+  assert.match(card, /checkFormOf\(enquiry\)/, 'the form opens on the suggested owner');
 });

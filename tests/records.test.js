@@ -267,3 +267,16 @@ test('audit: one form for Quality, a run from the Production task, and Admin\'s 
   assert.doesNotMatch(read('pages/OverviewDashboard.jsx'), /SetupChecklist|Finish setting up/);
   assert.match(read('pages/QcRecordDetail.jsx'), /label: 'SO inspection'/);
 });
+
+test('a team task types its model and material, needs no instruction, and a coster lands on the quotation raised', () => {
+  const dialog = read('components/DepartmentTaskDialog.jsx');
+  /* The register narrows as you type, and a model or material it does not know is kept as typed. */
+  assert.match(dialog, /<input\s+className="input"\s+list=\{listId\}/);
+  assert.match(dialog, /<datalist id=\{listId\}>/);
+  assert.doesNotMatch(dialog, /Choose from the \$\{field\.register/, 'the fixed dropdown is gone');
+  /* The instruction is optional on a team task; the answers say what to do. */
+  assert.match(dialog, /const mustExplain = \(noteNeeded\(button, answers\) \|\| Boolean\(fromTask\)\) && note\.trim\(\)\.length < 3;/);
+  assert.match(dialog, /required=\{noteNeeded\(button, answers\) \|\| Boolean\(fromTask\)\}/);
+  /* Create Quotation raised the costing sheet: whoever may cost it is taken there. */
+  assert.match(dialog, /if \(sent\.quotation\?\._id && canWrite\('pricing'\)\) navigate\(`\/quotations\/\$\{sent\.quotation\._id\}`\);/);
+});
