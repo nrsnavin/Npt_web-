@@ -9,7 +9,7 @@
  *
  * Browser and Node (tests) share the WebCrypto API, so this file runs in both.
  */
-const ROUNDS = 150000;
+const ROUNDS = 300000;
 const subtle = () => globalThis.crypto?.subtle;
 const random = (length) => globalThis.crypto.getRandomValues(new Uint8Array(length));
 
@@ -34,12 +34,12 @@ async function keyFor(pin, salt) {
 /** True when this browser can seal: WebCrypto is present (every modern browser; not file://). */
 export const canSeal = () => Boolean(subtle());
 
-/** A PIN as the app accepts it: four to eight digits. */
-export const validPin = (pin) => /^\d{4,8}$/.test(String(pin || ''));
+/** A PIN as the app accepts it: six to eight digits — four is guessed offline in minutes. */
+export const validPin = (pin) => /^\d{6,8}$/.test(String(pin || ''));
 
 /** `{ v, salt, iv, data }`, all base64 — storable as JSON, useless without the PIN. */
 export async function sealToken(token, pin) {
-  if (!validPin(pin)) throw new Error('A PIN is four to eight digits.');
+  if (!validPin(pin)) throw new Error('A PIN is six to eight digits.');
   const salt = random(16);
   const iv = random(12);
   const key = await keyFor(pin, salt);

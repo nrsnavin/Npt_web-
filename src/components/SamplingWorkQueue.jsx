@@ -5,7 +5,7 @@ import { useRecord } from '../hooks/useRecords.js';
 import { DashboardSkeleton, ErrorState, Field, FormError, Modal } from './ui.jsx';
 import { formatDate } from '../utils/format.js';
 import {
-  CHIPS, SAMPLE_COURIERS, SETS, UNSENT, needsReason, optionsFor,
+  CHIPS, SAMPLE_COURIERS, SETS, TILE_FILTERS, UNSENT, filterFor, needsReason, optionsFor,
 } from '../utils/samplingQueue.js';
 
 /**
@@ -314,7 +314,7 @@ export default function SamplingWorkQueue() {
   const statuses = data?.statuses || [];
 
   const shown = useMemo(() => {
-    const test = CHIPS.find((entry) => entry.key === chip)?.test || (() => true);
+    const test = filterFor(chip);
     const term = search.trim().toLowerCase();
     return rows.filter((row) => test(row) && (!term || [row.customer?.name, row.number, row.requestedBy, row.request, row.enquiry?.number]
       .filter(Boolean).some((text) => text.toLowerCase().includes(term))));
@@ -360,10 +360,11 @@ export default function SamplingWorkQueue() {
         </span>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         <Tile label="Open tasks" hint="In the sampling queue" value={tiles.open} active={chip === 'all'} onClick={() => setChip('all')} />
-        <Tile label="Due today" hint="Priority queue" value={tiles.dueToday} tone={tiles.dueToday ? 'text-warn-400' : 'text-steel-50'} active={chip === 'highlighted'} onClick={() => setChip('highlighted')} />
-        <Tile label="Urgent dispatch" hint="Must not be missed" value={tiles.urgentDispatch} tone={tiles.urgentDispatch ? 'text-danger-400' : 'text-steel-50'} active={chip === 'dispatch'} onClick={() => setChip('dispatch')} />
+        <Tile label={TILE_FILTERS.late.label} hint={TILE_FILTERS.late.hint} value={tiles.late} tone={tiles.late ? 'text-danger-400' : 'text-steel-50'} active={chip === 'late'} onClick={() => setChip('late')} />
+        <Tile label={TILE_FILTERS.today.label} hint={TILE_FILTERS.today.hint} value={tiles.dueToday} tone={tiles.dueToday ? 'text-warn-400' : 'text-steel-50'} active={chip === 'today'} onClick={() => setChip('today')} />
+        <Tile label={TILE_FILTERS.ready.label} hint={TILE_FILTERS.ready.hint} value={tiles.readyToSend} tone={tiles.readyToSend ? 'text-flame-400' : 'text-steel-50'} active={chip === 'ready'} onClick={() => setChip('ready')} />
         <Tile label="Internal tags" hint="Department questions" value={tiles.internalTags} to="/queries" />
       </div>
 

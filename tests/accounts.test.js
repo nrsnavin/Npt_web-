@@ -19,6 +19,7 @@ globalThis.window = globalThis;
 
 const accounts = await import('../src/auth/accounts.js');
 const { sealToken, openToken, validPin, canSeal } = await import('../src/auth/pinCrypto.js');
+const { wrapToken, unwrapToken, isWrapped } = await import('../src/auth/deviceKey.js');
 const idle = await import('../src/auth/idle.js');
 
 const navin = { id: 'u1', name: 'Navin R', email: 'navin@np.com', department: 'management' };
@@ -83,7 +84,7 @@ test('at most five accounts, and one unused for a week is forgotten', () => {
 test('locking drops the plain token and keeps the seal; the list says locked', async () => {
   assert.ok(canSeal(), 'WebCrypto is here');
   accounts.adoptAccount(navin, 'tok-navin');
-  const sealed = await sealToken('tok-navin', '2468');
+  const sealed = await sealToken('tok-navin', '246813');
   accounts.updateAccount('u1', { sealed });
   assert.equal(accounts.listAccounts()[0].hasPin, true);
   assert.equal(accounts.listAccounts()[0].locked, false);
@@ -93,18 +94,18 @@ test('locking drops the plain token and keeps the seal; the list says locked', a
   assert.equal(accounts.listAccounts()[0].locked, true);
   assert.ok(!JSON.stringify(localStorage.getItem('npt.accounts')).includes('tok-navin'), 'the token is not in storage in the clear');
 
-  assert.equal(await openToken(accounts.activeAccount().sealed, '2468'), 'tok-navin');
-  await assert.rejects(() => openToken(accounts.activeAccount().sealed, '0000'), /Wrong PIN/);
+  assert.equal(await openToken(accounts.activeAccount().sealed, '246813'), 'tok-navin');
+  await assert.rejects(() => openToken(accounts.activeAccount().sealed, '000000'), /Wrong PIN/);
 });
 
-test('a PIN is four to eight digits, and every seal is different', async () => {
-  assert.equal(validPin('1234'), true);
+test('a PIN is six to eight digits, and every seal is different', async () => {
+  assert.equal(validPin('123456'), true);
   assert.equal(validPin('12345678'), true);
-  assert.equal(validPin('123'), false);
-  assert.equal(validPin('12a4'), false);
-  await assert.rejects(() => sealToken('tok', '12'), /four to eight digits/);
-  const a = await sealToken('tok', '1234');
-  const b = await sealToken('tok', '1234');
+  assert.equal(validPin('1234'), false, 'four digits are guessed offline in minutes');
+  assert.equal(validPin('12a456'), false);
+  await assert.rejects(() => sealToken('tok', '1234'), /six to eight digits/);
+  const a = await sealToken('tok', '123456');
+  const b = await sealToken('tok', '123456');
   assert.notEqual(a.data, b.data, 'a fresh salt and nonce each time');
 });
 
@@ -134,7 +135,7 @@ test('the idle clock: shared through storage, and past the policy only after the
 
 test('a PIN-protected account locks whenever it is not the one in use', async () => {
   accounts.adoptAccount(navin, 'tok-navin');
-  accounts.updateAccount('u1', { sealed: await sealToken('tok-navin', '2468') });
+  accounts.updateAccount('u1', { sealed: await sealToken('tok-navin', '246813') });
   accounts.adoptAccount(nandhini, 'tok-nandhini');
   assert.equal(accounts.accountById('u1').token, null, 'another sign-in: Navin is locked at rest');
   assert.equal(accounts.listAccounts().find((row) => row.id === 'u1').locked, true);
@@ -143,4 +144,20 @@ test('a PIN-protected account locks whenever it is not the one in use', async ()
   assert.equal(accounts.accountById('u2').token, 'tok-nandhini', 'an account without a PIN stays open');
   accounts.activate('u2');
   assert.equal(accounts.accountById('u1').token, null, 'switching away locks it again');
+});
+
+test('wrong-PIN tries are kept on the account row, so a reload cannot reset them', () => {
+  accounts.adoptAccount(navin, 'tok');
+  accounts.updateAccount('u1', { tries: 4 });
+  assert.equal(accounts.accountById('u1').tries, 4);
+  assert.equal(JSON.parse(localStorage.getItem('npt.accounts'))[0].tries, 4, 'in storage, not memory');
+});
+
+test('the device key: a token is stored wrapped where the browser can, and as it is where it cannot (Node)', async () => {
+  assert.equal(isWrapped('dk1:abc:def'), true);
+  assert.equal(isWrapped('eyJ.plain.token'), false);
+  /* No IndexedDB here: the token is kept as it is, and the app still works. */
+  assert.equal(await wrapToken('tok'), 'tok');
+  assert.equal(await unwrapToken('tok'), 'tok');
+  assert.equal(await unwrapToken('dk1:AAAA:BBBB'), null, 'another device’s wrap cannot be opened');
 });

@@ -7,7 +7,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { CHIPS, QUEUE_ORDER, needsReason, optionsFor } from '../src/utils/samplingQueue.js';
+import { CHIPS, QUEUE_ORDER, TILE_FILTERS, filterFor, needsReason, optionsFor } from '../src/utils/samplingQueue.js';
 
 const read = (path) => readFileSync(new URL(`../src/${path}`, import.meta.url), 'utf8');
 const row = (queueStatus, extra = {}) => ({ queueStatus, closed: queueStatus === 'closed', ...extra });
@@ -43,6 +43,29 @@ test('the chips split the rows as designed', () => {
   assert.equal(count('sampling'), 2);
   assert.equal(count('dispatch'), 2);
   assert.equal(count('closed'), 1);
+});
+
+test('the tiles filter to exactly what they count, and a row is in at most one of them', () => {
+  const rows = [
+    row('received', { late: true }),
+    row('under_process', { dueToday: true }),
+    row('ready'),
+    row('ready', { late: true }),
+    row('not_available', { highlighted: true }),
+    row('sent'),
+    row('closed', { late: true }),
+  ];
+  const count = (key) => rows.filter(filterFor(key)).length;
+  assert.deepEqual(Object.values(TILE_FILTERS).map((tile) => tile.label), ['Late', 'Due today', 'Ready to send']);
+  assert.equal(count('late'), 2, 'late rows, closed ones excluded');
+  assert.equal(count('today'), 1);
+  assert.equal(count('ready'), 2, 'ready to send, late or not');
+  assert.equal(count('all'), 6, 'chips still work through the same lookup');
+  assert.equal(count('nonsense'), 7, 'an unknown key keeps everything');
+  const page = read('components/SamplingWorkQueue.jsx');
+  assert.match(page, /value=\{tiles\.late\}/);
+  assert.match(page, /value=\{tiles\.readyToSend\}/);
+  assert.doesNotMatch(page, /urgentDispatch/, 'the tile that counted three things is gone');
 });
 
 test('the handover form: direct or courier, either a contact or a phone, and it says who hears', () => {

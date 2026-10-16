@@ -12,11 +12,14 @@ const TOKEN_KEY = 'npt.token';
  * upload finishing, the inbox polling — and a reload asks for the PIN.
  */
 let memoryToken = null;
-export const getToken = () => memoryToken || localStorage.getItem(TOKEN_KEY);
-export const setToken = (token) => { memoryToken = token; localStorage.setItem(TOKEN_KEY, token); };
+/* Storage holds the active account's token wrapped with the device key [auth/deviceKey.js] — of
+   no use as a bearer; only a plain one from before that existed is read here. */
+const plainOnly = (value) => (value && !String(value).startsWith('dk1:') ? value : null);
+export const getToken = () => memoryToken || plainOnly(localStorage.getItem(TOKEN_KEY));
+export const setToken = (token) => { memoryToken = token; };
 export const clearToken = () => { memoryToken = null; localStorage.removeItem(TOKEN_KEY); };
 /** Locking: out of storage, kept in memory for this tab. */
-export const hideToken = () => { memoryToken = memoryToken || localStorage.getItem(TOKEN_KEY); localStorage.removeItem(TOKEN_KEY); };
+export const hideToken = () => { memoryToken = memoryToken || plainOnly(localStorage.getItem(TOKEN_KEY)); localStorage.removeItem(TOKEN_KEY); };
 
 /*
  * What a 401 does. The auth context registers a handler that drops only the refused account

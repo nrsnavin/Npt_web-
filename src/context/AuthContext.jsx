@@ -6,6 +6,7 @@ import {
   removeAccount, updateAccount,
 } from '../auth/accounts.js';
 import { canSeal, openToken, sealToken } from '../auth/pinCrypto.js';
+import { unwrapToken, wrapToken } from '../auth/deviceKey.js';
 import { idlePast, touch, watchActivity } from '../auth/idle.js';
 import { resubscribePush } from '../utils/push.js';
 
@@ -16,7 +17,7 @@ export const PIN_TRIES = 5;
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(Boolean(getToken()) || Boolean(activeAccount()?.sealed));
+  const [loading, setLoading] = useState(Boolean(activeAccount()?.token) || Boolean(legacyToken()) || Boolean(activeAccount()?.sealed));
   /* Set when the server could not be asked who this is — as opposed to answering "nobody". */
   const [unreachable, setUnreachable] = useState(null);
   /*
@@ -24,7 +25,7 @@ export function AuthProvider({ children }) {
    * active one is locked behind its device PIN — the plain token gone, only the seal left.
    */
   const [accounts, setAccounts] = useState(() => listAccounts());
-  const [locked, setLocked] = useState(() => Boolean(activeAccount()?.sealed) && !getToken());
+  const [locked, setLocked] = useState(() => Boolean(activeAccount()?.sealed) && !activeAccount()?.token);
   const [pinTries, setPinTries] = useState(0);
   const refreshAccounts = useCallback(() => setAccounts(listAccounts()), []);
   const roleLabelOf = (person) => (person?.role === 'admin' ? 'Admin' : null);
@@ -44,7 +45,14 @@ export function AuthProvider({ children }) {
    * it. Anything else means the question went unanswered, so the token is kept and the screen
    * offers to try again rather than sending the person to a login they do not need.
    */
-  const restore = useCallback(() => {
+  const restore = useCallback(async () => {
+    if (!getToken()) {
+      /* The active account's token, wrapped in storage, opened into memory for this tab. */
+      const row = activeAccount();
+      const plain = row?.token ? await unwrapToken(row.token) : null;
+      if (plain) setToken(plain);
+      else if (row?.token) updateAccount(row.id, { token: null });
+    }
     if (!getToken()) {
       setLoading(false);
       return;
@@ -53,10 +61,10 @@ export function AuthProvider({ children }) {
     setUnreachable(null);
     auth
       .me()
-      .then((me) => {
+      .then(async (me) => {
         setUser(me);
         /* A browser from before accounts existed: its one session becomes an account row. */
-        if (legacyToken()) adoptAccount(me, getToken(), { roleLabel: roleLabelOf(me) });
+        if (legacyToken()) adoptAccount(me, await wrapToken(getToken()), { roleLabel: roleLabelOf(me) });
         else updateAccount(me.id, { name: me.name, email: me.email, phone: me.phone, department: me.department, roleLabel: roleLabelOf(me), expiresAt: me.sessionExpiresAt || null });
         refreshAccounts();
       })
@@ -74,8 +82,8 @@ export function AuthProvider({ children }) {
   }, [restore, refreshAccounts]);
 
   /** A sign-in of any kind: the account joins the device and becomes the active one. */
-  const adopt = useCallback((data) => {
-    adoptAccount(data.user, data.token, { roleLabel: roleLabelOf(data.user) });
+  const adopt = useCallback(async (data) => {
+    adoptAccount(data.user, await wrapToken(data.token), { roleLabel: roleLabelOf(data.user) });
     setToken(data.token);
     setLocked(false);
     setPinTries(0);
@@ -93,11 +101,15 @@ export function AuthProvider({ children }) {
   const switchTo = useCallback(async (id) => {
     const row = activate(id);
     if (!row) return null;
+    /* The token in memory is the previous person's [api/client.js]: replaced, or gone until the PIN opens the seal. */
+    const plain = row.token ? await unwrapToken(row.token) : null;
+    if (plain) setToken(plain); else clearToken();
+    if (!plain && row.token) updateAccount(row.id, { token: null });
     setUser(null);
     setUnreachable(null);
     setPinTries(0);
     refreshAccounts();
-    if (row.token) {
+    if (plain) {
       setLocked(false);
       setLoading(true);
       try {
@@ -185,11 +197,13 @@ export function AuthProvider({ children }) {
    * reloads into it rather than quietly showing one person's screens with another's session.
    */
   useEffect(() => {
-    const onStorage = (event) => {
+    const onStorage = async (event) => {
       if (event.key === 'npt.token') {
         if (event.newValue === null && activeAccount()?.sealed) { hideToken(); setLocked(true); }
         else if (event.newValue && locked) {
-          setToken(event.newValue);
+          const plain = await unwrapToken(event.newValue);
+          if (!plain) return;
+          setToken(plain);
           setLocked(false);
           setPinTries(0);
           /* This tab opened straight onto the lock screen and has nobody loaded yet. */
@@ -248,7 +262,7 @@ export function AuthProvider({ children }) {
       async changePassword(payload) {
         const data = await auth.changePassword(payload);
         setToken(data.token);
-        updateAccount(data.user.id, { token: data.token, sealed: null });
+        updateAccount(data.user.id, { token: await wrapToken(data.token), sealed: null });
         setUser(data.user);
         refreshAccounts();
         return data.user;
@@ -273,7 +287,8 @@ export function AuthProvider({ children }) {
       lockedAccount: locked ? activeAccount() && { id: activeAccount().id, name: activeAccount().name, email: activeAccount().email, roleLabel: activeAccount().roleLabel, department: activeAccount().department, expiresAt: activeAccount().expiresAt } : null,
       notice,
       clearNotice: () => setNotice(null),
-      pinTriesLeft: PIN_TRIES - pinTries,
+      /* Counted on the account row, not in memory: a reload does not hand out fresh tries. */
+      pinTriesLeft: PIN_TRIES - (activeAccount()?.tries || 0),
       /** The plant's policy, from the profile: a PIN for everyone, and the idle minutes. */
       policy: user?.policy || { pinRequired: false, lockAfterMinutes: 15 },
       hasPin: Boolean(accounts.find((row) => row.id === activeId())?.hasPin),
@@ -289,7 +304,7 @@ export function AuthProvider({ children }) {
         if (!row?.sealed) return { ok: true };
         try {
           const token = await openToken(row.sealed, pin);
-          updateAccount(row.id, { token });
+          updateAccount(row.id, { token: await wrapToken(token), tries: 0 });
           setToken(token);
           setLocked(false);
           setPinTries(0);
@@ -298,7 +313,8 @@ export function AuthProvider({ children }) {
           if (!user) restore();
           return { ok: true };
         } catch {
-          const tries = pinTries + 1;
+          const tries = (row.tries || 0) + 1;
+          updateAccount(row.id, { tries });
           setPinTries(tries);
           if (tries >= PIN_TRIES) {
             const next = removeAccount(row.id);
@@ -315,9 +331,10 @@ export function AuthProvider({ children }) {
       /** Seals the active account's token behind a PIN. Changing one needs the current PIN. */
       async setPin(pin, { current } = {}) {
         const row = activeAccount();
-        if (!row?.token) throw new Error('Sign in first.');
+        const plain = getToken();
+        if (!row?.token || !plain) throw new Error('Sign in first.');
         if (row.sealed && !(await openToken(row.sealed, current || '').catch(() => null))) throw new Error('The current PIN is wrong.');
-        updateAccount(row.id, { sealed: await sealToken(row.token, pin) });
+        updateAccount(row.id, { sealed: await sealToken(plain, pin) });
         touch();
         refreshAccounts();
       },

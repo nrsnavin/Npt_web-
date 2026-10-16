@@ -39,7 +39,11 @@ const QUOTATION_STAGES = [
   { value: 'revised', label: 'Revised' },
   { value: 'accepted', label: 'Accepted' },
   { value: 'rejected', label: 'Refused' },
+  { value: 'withdrawn', label: 'Withdrawn' },
 ];
+
+/** The buyer answered, or the plant withdrew it: nothing more happens on the record. */
+export const CLOSED_QUOTATION_STATUSES = ['accepted', 'rejected', 'withdrawn'];
 
 const FREIGHT = [
   { value: 'ex_factory', label: 'Ex-factory' },
@@ -841,7 +845,7 @@ export default function Quotations() {
                           >
                             PDF
                           </button>
-                          {mayWrite && !['accepted', 'rejected'].includes(row.status) && (
+                          {mayWrite && !CLOSED_QUOTATION_STATUSES.includes(row.status) && (
                             <>
                             {/*
                               Only while it is still a draft. Once the quote has gone out, what

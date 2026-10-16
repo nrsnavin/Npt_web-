@@ -39,3 +39,19 @@ test('a price may be left for the Quotation department, and the list opens on it
 test('the enquiry page has no "What happens next" panel', () => {
   assert.doesNotMatch(read('pages/EnquiryDetail.jsx'), /EnquiryActions/);
 });
+
+test('a withdrawn quotation is closed everywhere the web decides what is closed', () => {
+  /* The plant pulled it — the enquiry closed or lost before the buyer answered [docs/QUOTATION-AUDIT.md #4]. */
+  const register = read('pages/Quotations.jsx');
+  assert.match(register, /export const CLOSED_QUOTATION_STATUSES = \['accepted', 'rejected', 'withdrawn'\]/);
+  assert.match(register, /value: 'withdrawn', label: 'Withdrawn'/, 'the register can filter to them');
+  for (const page of ['pages/QuotationDetail.jsx', 'pages/SentQuotations.jsx']) {
+    const source = read(page);
+    assert.match(source, /CLOSED_QUOTATION_STATUSES\.includes/, `${page} reads the one list`);
+    assert.doesNotMatch(source, /\['accepted', 'rejected'\]\.includes/, `${page} keeps no list of its own`);
+  }
+  assert.match(read('utils/statusStyles.js'), /withdrawn: 'neutral'/);
+  const detail = read('pages/QuotationDetail.jsx');
+  assert.match(detail, /Withdrawn — the enquiry behind it was closed/);
+  assert.match(detail, /answered after the validity/, 'and a late answer is said on the screen');
+});
