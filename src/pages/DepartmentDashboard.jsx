@@ -23,6 +23,7 @@ import { deskActionsFor } from '../config/deskActions.js';
 import { formatDate } from '../utils/format.js';
 import { departmentLabel } from '../utils/pipeline.js';
 import { EDD_CHIP, eddChipOf } from '../utils/edd.js';
+import { EDD_BANDS, PRODUCTION_FILTERS, eddBandOf, eddBands } from '../utils/productionQueue.js';
 
 /**
  * A department's dashboard [server: handoff.service `enquiriesHeldBy`, `departmentDashboard`].
@@ -210,18 +211,27 @@ function DepartmentDesk() {
   const me = String(user?.id || user?._id || '');
 
   const enquiries = data?.enquiries || [];
+  /*
+   * Production's desk is its queue in EDD order — the goods due soonest first, the undated last —
+   * rather than every enquiry in the plant [utils/productionQueue.js]. Its filters are the bands.
+   */
+  const isProduction = data?.figures?.department === 'production';
   const shown = useMemo(() => {
     const term = search.trim().toLowerCase();
     return enquiries.filter((row) => {
-      if (filter === 'late' && !row.late) return false;
-      if (filter === 'today' && !row.dueToday) return false;
+      if (isProduction) {
+        if (EDD_BANDS.some((band) => band.key === filter) && eddBandOf(row) !== filter) return false;
+      } else {
+        if (filter === 'late' && !row.late) return false;
+        if (filter === 'today' && !row.dueToday) return false;
+      }
       if (filter === 'unclaimed' && row.task.user) return false;
       if (filter === 'mine' && String(row.task.user?._id || '') !== me) return false;
       if (!term) return true;
       return [row.enquiry?.number, row.enquiry?.customer?.name || row.task.customer?.name, row.enquiry?.requirement?.modelNumber, row.task.title]
         .filter(Boolean).some((text) => text.toLowerCase().includes(term));
     });
-  }, [enquiries, filter, search, me]);
+  }, [enquiries, filter, search, me, isProduction]);
 
   if (loading && !data) return <DashboardSkeleton label="Loading the department" tiles={4} />;
   if (error) return <ErrorState error={error} onRetry={reload} />;
@@ -229,8 +239,9 @@ function DepartmentDesk() {
   const { figures, requests = [], recentlyDone, waitingOnOthers, cameBack, atStages } = data;
   /* Sampling works from its own queue — the sample requests, as the team designed it. */
   const isSampling = figures.department === 'sampling';
-  /* Every enquiry this person may see — all of them for Admin, their own for marketing. */
-  const seesEnquiries = canRead('enquiries');
+  /* Every enquiry this person may see — all of them for Admin, their own for marketing. Not on
+     the Production desk: that is the queue, in EDD order, and nothing else. */
+  const seesEnquiries = canRead('enquiries') && !isProduction;
   const everyone = isAdmin || figures.department === 'management';
   const tab = chosenTab || firstDashboardTab(figures.department, { isAdmin: everyone, seesEnquiries });
   const seesAll = mayDelete;
@@ -241,16 +252,18 @@ function DepartmentDesk() {
     : [{ key: 'all', label: null, rows }]);
   /* The person's other desks, when they work in more than one department. */
   const otherDesks = departments.filter((entry) => !deskMembers.includes(entry));
-  const late = enquiries.filter((row) => row.late).length;
-  const today = enquiries.filter((row) => row.dueToday).length;
+  const late = enquiries.filter((row) => (isProduction ? eddBandOf(row) === 'late' : row.late)).length;
+  const today = enquiries.filter((row) => (isProduction ? eddBandOf(row) === 'today' : row.dueToday)).length;
   const unclaimed = enquiries.filter((row) => !row.task.user).length;
+  const undated = enquiries.filter((row) => eddBandOf(row) === 'none').length;
+  const filters = isProduction ? PRODUCTION_FILTERS : FILTERS;
 
   const TABS = [
     ...(isSampling ? [{ key: 'queue', label: 'Work queue', count: null }] : []),
     ...(seesEnquiries
       ? [{ key: 'all', label: everyone ? 'All enquiries' : figures.department === 'marketing' ? 'My enquiries' : 'All enquiries', count: null }]
       : []),
-    { key: 'enquiries', label: 'Department tasks', count: enquiries.length },
+    { key: 'enquiries', label: isProduction ? 'Production queue' : 'Department tasks', count: enquiries.length },
     /* Dispatch plans its trips here: ready requests grouped by transporter, route and place [TripPlanner]. */
     ...(data.baskets ? [{ key: 'baskets', label: 'Plan trips', count: null }] : []),
     { key: 'requests', label: 'Requests', count: requests.length },
@@ -268,7 +281,7 @@ function DepartmentDesk() {
     <div className="mx-auto max-w-7xl space-y-5">
       <PageHeader
         title={`${figures.label} dashboard`}
-        subtitle={seesEnquiries ? 'Your department’s tasks, and every enquiry you can see' : 'The tasks raised for your department'}
+        subtitle={isProduction ? 'The queue in EDD order — the goods due soonest first; hand on to Assembly, Printing, Quality and Dispatch from each task' : seesEnquiries ? 'Your department’s tasks, and every enquiry you can see' : 'The tasks raised for your department'}
         actions={
           <div className="flex flex-wrap gap-2">
             {otherDesks.map((entry) => (
@@ -294,16 +307,20 @@ function DepartmentDesk() {
 
       {tab === 'enquiries' && <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Tile label="Open tasks" value={enquiries.length} hint={`${figures.open} on the department in all`} active={tab === 'enquiries' && filter === 'all'} onClick={() => pick('all')} />
-        <Tile label="Late" value={late} tone={late ? 'text-danger-400' : 'text-success-400'} hint="Past the day they were due" active={filter === 'late'} onClick={() => pick('late')} />
-        <Tile label="Due today" value={today} tone={today ? 'text-warn-400' : 'text-steel-50'} hint="By the end of today" active={filter === 'today'} onClick={() => pick('today')} />
-        <Tile
-          label="Not picked up"
-          value={unclaimed}
-          tone={unclaimed ? 'text-warn-400' : 'text-steel-50'}
-          hint={figures.onTimePercent !== null ? `${figures.doneThisWeek} done this week · ${figures.onTimePercent}% on time` : `${figures.doneThisWeek} done this week`}
-          active={filter === 'unclaimed'}
-          onClick={() => pick('unclaimed')}
-        />
+        <Tile label="Late" value={late} tone={late ? 'text-danger-400' : 'text-success-400'} hint={isProduction ? 'Past the EDD' : 'Past the day they were due'} active={filter === 'late'} onClick={() => pick('late')} />
+        <Tile label="Due today" value={today} tone={today ? 'text-warn-400' : 'text-steel-50'} hint={isProduction ? 'EDD is today' : 'By the end of today'} active={filter === 'today'} onClick={() => pick('today')} />
+        {isProduction ? (
+          <Tile label="No EDD yet" value={undated} tone={undated ? 'text-warn-400' : 'text-success-400'} hint="Give the date on the task" active={filter === 'none'} onClick={() => pick('none')} />
+        ) : (
+          <Tile
+            label="Not picked up"
+            value={unclaimed}
+            tone={unclaimed ? 'text-warn-400' : 'text-steel-50'}
+            hint={figures.onTimePercent !== null ? `${figures.doneThisWeek} done this week · ${figures.onTimePercent}% on time` : `${figures.doneThisWeek} done this week`}
+            active={filter === 'unclaimed'}
+            onClick={() => pick('unclaimed')}
+          />
+        )}
       </div>}
 
       <div className="flex flex-wrap gap-1 rounded-xl border border-line/[0.06] bg-line/[0.02] p-1" role="tablist">
@@ -333,7 +350,7 @@ function DepartmentDesk() {
       {tab === 'enquiries' && (
         <section className="space-y-4">
           <div className="flex flex-wrap items-center gap-2">
-            {FILTERS.map((entry) => (
+            {filters.map((entry) => (
               <button
                 key={entry.key}
                 type="button"
@@ -355,9 +372,12 @@ function DepartmentDesk() {
           </div>
 
           {shown.length ? (
-            bySection(shown, (row) => row.task.department).map((section) => (
+            (isProduction
+              ? eddBands(shown).map((band) => ({ key: band.key, label: band.label, tone: band.tone, rows: band.rows }))
+              : bySection(shown, (row) => row.task.department)
+            ).map((section) => (
               <div key={section.key} className="space-y-3">
-                {section.label && <h2 className="text-sm font-bold uppercase tracking-wide text-steel-300">{section.label} <span className="font-normal normal-case tabular-nums text-steel-500">{section.rows.length}</span></h2>}
+                {section.label && <h2 className={`text-sm font-bold uppercase tracking-wide ${section.tone || 'text-steel-300'}`}>{section.label} <span className="font-normal normal-case tabular-nums text-steel-500">{section.rows.length}</span></h2>}
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                   {section.rows.map((row) => (
                     <EnquiryCard key={row.task._id} row={row} department={row.task.department || figures.department} me={me} onChanged={reload} />
