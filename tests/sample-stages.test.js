@@ -10,6 +10,7 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
 import {
   CLOSED_SAMPLE_STAGES,
@@ -21,6 +22,7 @@ import {
 } from '../src/utils/pipeline.js';
 
 const offered = (from) => nextSampleStagesFrom(from).map((stage) => stage.value);
+const read = (path) => readFileSync(new URL(`../src/${path}`, import.meta.url), 'utf8');
 
 /** The three sets have to partition the stage list, or a stage is governed by no rule at all. */
 test('every sample stage is on the bench, with the customer, or closed', () => {
@@ -137,4 +139,10 @@ test('steps back along the run are told apart from steps on and sideways moves',
   const card = { status: 'sample_ready' };
   assert.deepEqual(requirementsFor(SAMPLE_BOARD, 'production_required', card), ['note']);
   assert.deepEqual(requirementsFor(SAMPLE_BOARD, 'printing_required', { status: 'checking_stock' }), []);
+});
+
+test('the sample page carries the buyer’s contact card, the same one the enquiry shows', () => {
+  const page = read('pages/SampleDetail.jsx');
+  assert.match(page, /import BuyerContactCard from '\.\.\/components\/BuyerContactCard\.jsx';/);
+  assert.match(page, /\{sample\.customer && \(\s*<BuyerContactCard enquiry=\{\{ \.\.\.\(sample\.enquiry \|\| \{\}\), customer: sample\.customer \}\} canConvert=\{false\} \/>/);
 });
