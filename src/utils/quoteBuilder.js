@@ -79,7 +79,6 @@ export const blankItem = () => ({
   /* The product details a saved line arrived without, and the answers [productDetails.js]. */
   missingAtOpen: [],
   detailPacking: '',
-  confirmed: false,
   saved: {},
 });
 
@@ -309,15 +308,6 @@ export function itemFromLine(line) {
   };
 }
 
-/** Still missing a product detail the enquiry did not give, and not confirmed with the buyer. */
-export const needsConfirm = (item) =>
-  item.procurement !== TRADE && item.missingAtOpen.length > 0 && !item.confirmed &&
-  missingDetails({
-    hookRef: item.withHook ? item.hookRef || item.saved.hookRef || 'mould' : '',
-    clipRef: item.withClip ? item.clipRef || item.saved.clipRef || 'mould' : '',
-    packing: item.detailPacking,
-  }).length > 0;
-
 /**
  * What the costing of one saved line sends [server: PATCH /quotations/:id/lines/:lineId/cost]:
  * every figure, the mark-up, the floor, the price (until it has gone to the buyer), and only the
@@ -372,7 +362,6 @@ export function problemWith({ enquiry, items, editing = false }) {
   }
   const bad = items.find((item) => item.unitPrice !== '' && !(Number(item.unitPrice) >= 0));
   if (bad) return 'A rate must be a number.';
-  const unconfirmed = items.find(needsConfirm);
-  if (unconfirmed) return `Confirm the product details on ${unconfirmed.modelNumber || 'every model'} — fill them in or tick "Confirmed with the buyer".`;
+  /* A product detail the enquiry did not give is no bar to the quote: the order form asks for it. */
   return null;
 }

@@ -12,7 +12,7 @@ import { formatDate } from '../utils/format.js';
 import { rupees } from '../utils/pricing.js';
 import {
   AS_MOULD, DELIVERY_TERMS, MANUFACTURE, MARKUPS, MAX_ITEMS, NONE, PAYMENT_TERMS, TRADE, blankItem, costOf, costPayload,
-  isBlank, isNamed, itemFromLine, itemsFromEnquiry, lineFor, needsConfirm, nudge, pick, problemWith, returnsOf, samePrice,
+  isBlank, isNamed, itemFromLine, itemsFromEnquiry, lineFor, nudge, pick, problemWith, returnsOf, samePrice,
   suggestedPrice, tick, tiersOf,
 } from '../utils/quoteBuilder.js';
 import { GRAM_STEP } from '../utils/grams.js';
@@ -195,7 +195,6 @@ function ItemCard({ index, item, onChange, onRemove, removable, markup, seesCost
   const n = index + 1;
   const priceLocked = editing && sent;
   const returns = returnsOf(item.unitPrice === '' ? suggested : item.unitPrice, cost.exactBase);
-  const unconfirmed = needsConfirm(item);
 
   const hookName = !item.withHook ? 'No hook' : hook?.name || 'Mould hook';
   const name = (trade ? traded?.modelNumber : tool?.mouldCode) || item.modelNumber || `Item ${n}`;
@@ -310,15 +309,11 @@ function ItemCard({ index, item, onChange, onRemove, removable, markup, seesCost
         </div>
       )}
 
-      {/* The product details the enquiry did not give — filled in, or confirmed with the buyer. */}
+      {/* The product details the enquiry did not give — filled in where known; never a gate on the quote. */}
       {editing && item.missingAtOpen.length > 0 && (
-        <div className={`mt-2 ml-7 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-lg border px-3 py-2 text-xs ${unconfirmed ? 'border-warn-500/50 bg-warn-500/[0.06]' : 'border-line/[0.1]'}`}>
+        <div className="mt-2 ml-7 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-lg border border-line/[0.1] px-3 py-2 text-xs">
           <span className="font-semibold text-steel-100">Not given on the enquiry: {sayList(item.missingAtOpen)}</span>
           <input className="input h-8 w-56 text-xs" value={item.detailPacking} onChange={setFrom('detailPacking')} placeholder="Packing — 200 pcs per carton" aria-label={`Packing details on item ${n}`} />
-          <label className="flex items-center gap-1.5 text-steel-200">
-            <input type="checkbox" checked={item.confirmed} onChange={(event) => set('confirmed')(event.target.checked)} />
-            Confirmed with the buyer
-          </label>
         </div>
       )}
 

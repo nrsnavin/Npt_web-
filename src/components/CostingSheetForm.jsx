@@ -7,7 +7,7 @@ import { Field, Notice } from './ui.jsx';
 import Combobox from './Combobox.jsx';
 import PreviousQuotes from './PreviousQuotes.jsx';
 import TradingBadge from './TradingBadge.jsx';
-import ProductDetailsConfirm, { missingDetails } from './ProductDetailsConfirm.jsx';
+import { missingDetails, sayList } from '../utils/productDetails.js';
 import { MINIMUM_TIER, STANDARD_TIERS, priceAt as priceFor } from '../utils/pricing.js';
 import { changedParts } from '../utils/pricing.js';
 import { GRAM_STEP, cutGrams } from '../utils/grams.js';
@@ -87,9 +87,8 @@ export default function CostingSheetForm({ quotation: pricing, line, onClose, on
    */
   const [category, setCategory] = useState(row.category ?? '');
   const [packing, setPacking] = useState(row.packing ?? '');
-  const [confirmed, setConfirmed] = useState(false);
+  /* What the line arrived without — said on the sheet, never a gate: a quote goes out with blanks. */
   const missingAtOpen = useRef(missingDetails(row)).current;
-  const missingNow = missingDetails({ category, hookRef, clipRef, packing });
   /* The register's own answer for a mould it knows, offered where the enquiry gave none. */
   useEffect(() => {
     const tool = row.mould?._id ?? row.mould;
@@ -114,7 +113,6 @@ export default function CostingSheetForm({ quotation: pricing, line, onClose, on
   const [markupPercent, setMarkup] = useState(row.markupPercent ?? 10);
   const [printing, setPrinting] = useState(row.printing ?? '');
   const [procurement, setProcurement] = useState(row.procurement ?? 'manufacture');
-  const needsConfirm = procurementNeedsDetails(procurement) && missingAtOpen.length > 0 && missingNow.length > 0 && !confirmed;
   /* Blank means "the standing floor" — the 10% tier. Only a job with its own floor fills it. */
   const [minimumOverride, setMinimumOverride] = useState(row.minimumOverride ?? '');
   const [approved, setApproved] = useState(row.unitPrice ?? '');
@@ -419,23 +417,27 @@ export default function CostingSheetForm({ quotation: pricing, line, onClose, on
         </div>
       )}
 
-      {/* What the enquiry did not ask for, confirmed here before the quote goes out. */}
+      {/*
+        * The product details the enquiry did not ask for — the packing here, the hook and clip
+        * from the parts registers below. Filled in where known; a quote goes out without them,
+        * so nothing here is a tick to pass. The order form asks again before the goods are booked
+        * [components/OrderForm.jsx].
+        */}
       {procurementNeedsDetails(procurement) && (
-        <ProductDetailsConfirm
-          line={{ ...row, category, packing, hookRef: hookRef || undefined, clipRef: clipRef || undefined }}
-          missingAtOpen={missingAtOpen}
-          missingNow={missingNow}
-          confirmed={confirmed}
-          onConfirm={setConfirmed}
-          what="quotation"
-        >
+        <section className="space-y-3 rounded-xl border border-line/[0.1] p-4" aria-labelledby="product-details-heading">
+          <div>
+            <p id="product-details-heading" className="text-sm font-bold text-steel-50">Product details</p>
+            {missingAtOpen.length > 0 && (
+              <p className="mt-0.5 text-xs text-steel-400">Not given on the enquiry: {sayList(missingAtOpen)}. Fill in what is known; the rest is asked for on the order.</p>
+            )}
+          </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Packing" hint="Pieces per carton, polybag — as the buyer wants it">
               <input className="input" placeholder="200 pcs per carton" value={packing} onChange={(event) => setPacking(event.target.value)} aria-label="Packing" />
             </Field>
           </div>
           <p className="text-xs text-steel-400">The hook and clip are picked from the parts registers below.</p>
-        </ProductDetailsConfirm>
+        </section>
       )}
 
       {/*
@@ -745,9 +747,8 @@ export default function CostingSheetForm({ quotation: pricing, line, onClose, on
       {error && <Notice tone="danger">{error}</Notice>}
 
       <div className="flex flex-wrap items-center justify-end gap-2">
-        {needsConfirm && <p className="mr-auto text-xs text-warn-400">Fill in the product details above, or confirm them with the buyer.</p>}
         <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
-        <button type="submit" className="btn-primary" disabled={busy || needsConfirm}>
+        <button type="submit" className="btn-primary" disabled={busy}>
           {busy ? 'Saving…' : 'Save the costing'}
         </button>
       </div>
