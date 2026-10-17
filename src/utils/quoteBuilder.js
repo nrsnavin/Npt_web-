@@ -65,7 +65,9 @@ export const blankItem = () => ({
   modelNumber: '',
   materialRef: '',
   colour: '',
-  withHook: false,
+  /* Every hanger has a hook unless somebody says otherwise: ticked from the start, at the
+     register's price — nothing, where the register gives none — and changeable on the tile. */
+  withHook: true,
   hookRef: AS_MOULD,
   withClip: false,
   clipRef: AS_MOULD,
@@ -111,6 +113,19 @@ export function pick(item, key, value) {
   return { ...item, [key]: value, figures: { ...item.figures, ...cleared } };
 }
 
+/**
+ * A model picked off the one list of both masters [components/pickers.jsx `MasterModelSelect`]:
+ * `m<id>` is a mould, made here; `t<id>` a trading item, bought in. The type follows the pick,
+ * and the other master's choice is cleared with the figures it owned.
+ */
+export function modelPicked(item, ref) {
+  const kind = String(ref || '').charAt(0);
+  const id = String(ref || '').slice(1);
+  if (kind === 't' && id) return pick(pick({ ...item, procurement: TRADE }, 'mould', ''), 'tradedItem', id);
+  if (kind === 'm' && id) return pick(pick({ ...item, procurement: MANUFACTURE }, 'tradedItem', ''), 'mould', id);
+  return pick(pick(item, 'mould', ''), 'tradedItem', '');
+}
+
 /** True when nothing has been chosen on the item yet. */
 export const isBlank = (item) =>
   !item.mould && !item.tradedItem && !item.modelNumber.trim() && !item.materialRef && !item.colour && item.unitPrice === '';
@@ -130,8 +145,8 @@ export function itemsFromEnquiry(enquiry) {
     modelNumber: item.mould ? '' : item.modelNumber || '',
     materialRef: id(item.materialRef),
     colour: item.colour || '',
-    /* A hook or clip the buyer named is part of the piece, so it starts ticked. */
-    withHook: Boolean(id(item.hookRef)),
+    /* The hook is on every hanger; a clip the buyer named is part of the piece, so it starts ticked. */
+    withHook: true,
     hookRef: id(item.hookRef) || AS_MOULD,
     withClip: Boolean(id(item.clipRef)),
     clipRef: id(item.clipRef) || AS_MOULD,
@@ -157,37 +172,49 @@ const fig = (item, key, fallback) => amount(item.figures?.[key]) ?? (Number(fall
  *
  * Made here: the grammage is the tool's consumption in the chosen resin — a denser resin throws
  * a heavier part from the same cavity — exactly as the server's `grammageFrom` works it.
- * A trade hanger is the supplier's inward price instead, and no material cost is added: the resin
- * is in what the supplier charges [server: models/Quotation.js `materialCost`].
- * Hook, clips, packing and misc count only when ticked.
+ * A trade hanger with a supplier's inward price is that price, and no material or job work is
+ * added: the resin is in what the supplier charges [server: models/Quotation.js `materialCost`].
+ * One the supplier has not priced is costed from the plant's own build-up on the trading master
+ * — grams, job work, hook, clips, packing — as a made piece is, with the inward price tile left
+ * to be typed when the supplier gives one. Hook, clips, packing and misc count only when ticked.
  */
 export function costOf(item, { tool, resin, hook, clip, print, traded } = {}) {
   const trade = item.procurement === TRADE;
-  const registerGrams = !trade && tool ? cutGrams((Number(tool.consumptionPerPieceGrams) || 0) * (1 + (Number(resin?.grammageFactorPercent) || 0) / 100)) : 0;
-  const gramWeight = trade ? 0 : cutGrams(fig(item, 'gramWeight', registerGrams));
-  const ratePerKg = trade ? 0 : fig(item, 'rawMaterialRate', resin?.ratePerKg);
-  const materialCost = trade ? 0 : (gramWeight * ratePerKg) / 1000;
-  const inwardPrice = trade ? fig(item, 'inwardPrice', traded?.inwardPrice) : 0;
-  const jobCost = trade ? 0 : fig(item, 'jobWorkCost', tool?.jobWorkCost);
-  const packingCost = item.withPacking ? fig(item, 'packingCost', tool?.packingCost) : 0;
-  const hookCost = item.withHook ? fig(item, 'hookCost', part(item.hookRef, hook, tool?.hookCost)) : 0;
-  const clipCost = item.withClip ? fig(item, 'metalClipsCost', part(item.clipRef, clip, tool?.clipsCost)) : 0;
+  const inwardRegister = Number(traded?.inwardPrice) || 0;
+  const inwardPrice = trade ? fig(item, 'inwardPrice', inwardRegister) : 0;
+  /* The supplier's price stands for the piece: the build-up is off while there is one. */
+  const supplied = trade && inwardPrice > 0;
+  const up = (trade && traded?.buildUp) || {};
+  const own = trade
+    ? { jobWorkCost: up.jobWorkCost, packingCost: up.packingCost, hookCost: up.hookCost, clipsCost: up.clipsCost, printingCost: 0 }
+    : tool || {};
+  const registerGrams = trade
+    ? cutGrams((Number(up.partWeightGrams) || 0) + (Number(up.runnerWeightGrams) || 0))
+    : tool ? cutGrams((Number(tool.consumptionPerPieceGrams) || 0) * (1 + (Number(resin?.grammageFactorPercent) || 0) / 100)) : 0;
+  const gramWeight = supplied ? 0 : cutGrams(fig(item, 'gramWeight', registerGrams));
+  const ratePerKg = supplied ? 0 : fig(item, 'rawMaterialRate', resin?.ratePerKg);
+  const materialCost = supplied ? 0 : (gramWeight * ratePerKg) / 1000;
+  const jobCost = fig(item, 'jobWorkCost', supplied ? 0 : own.jobWorkCost);
+  const packingCost = item.withPacking ? fig(item, 'packingCost', supplied ? 0 : own.packingCost) : 0;
+  const hookCost = item.withHook ? fig(item, 'hookCost', part(item.hookRef, hook, supplied ? 0 : own.hookCost)) : 0;
+  const clipCost = item.withClip ? fig(item, 'metalClipsCost', part(item.clipRef, clip, supplied ? 0 : own.clipsCost)) : 0;
   const miscCost = item.withMisc ? fig(item, 'otherCost', 0) : 0;
-  const printingCost = item.printRef === NONE ? 0 : fig(item, 'printingCost', part(item.printRef, print, tool?.printingCost));
+  const printingCost = item.printRef === NONE ? 0 : fig(item, 'printingCost', part(item.printRef, print, own.printingCost));
   const base = materialCost + inwardPrice + jobCost + packingCost + hookCost + clipCost + miscCost + printingCost;
   return {
     trade,
+    supplied,
     /* What the registers alone give, shown in a blank tile so the typed figure can be judged. */
     register: {
-      gramWeight: registerGrams,
-      rawMaterialRate: Number(resin?.ratePerKg) || 0,
-      jobWorkCost: Number(tool?.jobWorkCost) || 0,
-      packingCost: Number(tool?.packingCost) || 0,
-      hookCost: part(item.hookRef, hook, tool?.hookCost),
-      metalClipsCost: part(item.clipRef, clip, tool?.clipsCost),
-      printingCost: item.printRef === NONE ? 0 : part(item.printRef, print, tool?.printingCost),
+      gramWeight: supplied ? 0 : registerGrams,
+      rawMaterialRate: supplied ? 0 : Number(resin?.ratePerKg) || 0,
+      jobWorkCost: supplied ? 0 : Number(own.jobWorkCost) || 0,
+      packingCost: supplied ? 0 : Number(own.packingCost) || 0,
+      hookCost: part(item.hookRef, hook, supplied ? 0 : own.hookCost),
+      metalClipsCost: part(item.clipRef, clip, supplied ? 0 : own.clipsCost),
+      printingCost: item.printRef === NONE ? 0 : part(item.printRef, print, own.printingCost),
       otherCost: 0,
-      inwardPrice: Number(traded?.inwardPrice) || 0,
+      inwardPrice: inwardRegister,
     },
     gramWeight,
     ratePerKg,
@@ -353,10 +380,12 @@ export function returnsOf(price, base) {
 }
 
 /** What is wrong with the form, in the words to show, or null. */
-export function problemWith({ enquiry, items, editing = false }) {
-  if (!editing && !enquiry) return 'Pick the enquiry this quote is for. No enquiry yet? Raise it first.';
+export function problemWith({ enquiry, customer, items, editing = false }) {
+  /* An enquiry, or the buyer alone: without an enquiry the models are named here. */
+  if (!editing && !enquiry && !customer) return 'Pick the customer this quote is for, or the enquiry it answers.';
   if (items.length > MAX_ITEMS) return `A quotation carries at most ${MAX_ITEMS} models.`;
   const named = items.filter(isNamed);
+  if (!editing && !enquiry && !named.length) return 'Name at least one model — there is no enquiry to take them from.';
   if (named.length && named.length !== items.filter((item) => !isBlank(item)).length) {
     return 'Name the model on every item, or remove the empty ones.';
   }

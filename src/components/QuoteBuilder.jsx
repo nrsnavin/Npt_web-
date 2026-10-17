@@ -3,16 +3,15 @@ import {
   components as componentsApi, enquiries as enquiriesApi, materials as materialsApi,
   moulds as mouldsApi, quotations as quotationsApi, tradedItems as tradedItemsApi,
 } from '../api/endpoints.js';
-import Combobox from './Combobox.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { Notice } from './ui.jsx';
-import { CustomerSelect, EnquirySelect, MaterialSelect, MouldSelect } from './pickers.jsx';
+import { CustomerSelect, EnquirySelect, MasterModelSelect, MaterialSelect } from './pickers.jsx';
 import { inDays } from '../utils/pipeline.js';
 import { formatDate } from '../utils/format.js';
 import { rupees } from '../utils/pricing.js';
 import {
   AS_MOULD, DELIVERY_TERMS, MANUFACTURE, MARKUPS, MAX_ITEMS, NONE, PAYMENT_TERMS, TRADE, blankItem, costOf, costPayload,
-  isBlank, isNamed, itemFromLine, itemsFromEnquiry, lineFor, nudge, pick, problemWith, returnsOf, samePrice,
+  isBlank, isNamed, itemFromLine, itemsFromEnquiry, lineFor, modelPicked, nudge, pick, problemWith, returnsOf, samePrice,
   suggestedPrice, tick, tiersOf,
 } from '../utils/quoteBuilder.js';
 import { GRAM_STEP } from '../utils/grams.js';
@@ -26,7 +25,6 @@ const FREIGHT = [
 ];
 
 /** The trading master, for a trade hanger's picker. */
-const loadTradedItems = (term) => tradedItemsApi.list({ search: term || undefined, isActive: true, limit: 20 });
 
 /** A small label over a control — the form's own, tighter than `Field`, so it fits one window. */
 function Box({ label, className = '', children }) {
@@ -204,6 +202,17 @@ function ItemCard({ index, item, onChange, onRemove, removable, markup, seesCost
       <div className="flex items-start gap-2">
         <span className="mt-6 w-5 shrink-0 text-xs font-bold text-steel-400">{n}</span>
         <div className="grid min-w-0 flex-1 grid-cols-2 gap-2 md:grid-cols-12">
+          {/* Every model on one list — the moulds made here and the trading master's bought-in
+              pieces — so the person types the code the buyer said and the type follows the pick. */}
+          <Box label="Model" className="col-span-2 md:col-span-3">
+            <MasterModelSelect
+              value={trade ? (item.tradedItem ? `t${item.tradedItem}` : '') : (item.mould ? `m${item.mould}` : '')}
+              onChange={(ref) => onChange(modelPicked(item, ref))}
+              disabled={priceLocked}
+              emptyLabel="Search model (e.g. AC-25)"
+              aria-label={`Model on item ${n}`}
+            />
+          </Box>
           <Box label="Type" className="md:col-span-2">
             <select
               className="input"
@@ -216,29 +225,6 @@ function ItemCard({ index, item, onChange, onRemove, removable, markup, seesCost
               <option value={TRADE}>Trade (bought in)</option>
             </select>
           </Box>
-          {trade ? (
-            <Box label="Trade hanger" className="col-span-2 md:col-span-3">
-              <Combobox
-                value={item.tradedItem}
-                onChange={choose('tradedItem')}
-                loadOptions={loadTradedItems}
-                loadOne={tradedItemsApi.get}
-                toOption={(row) => ({
-                  value: row._id,
-                  label: `${row.modelNumber}${seesCost && row.inwardPrice != null ? ` — ₹${row.inwardPrice}` : ''}`,
-                  hint: [row.colour, row.supplier].filter(Boolean).join(' · '),
-                })}
-                placeholder="Search the trading master…"
-                emptyLabel="Pick the bought-in model"
-                noMatchLabel="Not on the trading master"
-                aria-label={`Trade hanger on item ${n}`}
-              />
-            </Box>
-          ) : (
-            <Box label="Model" className="col-span-2 md:col-span-3">
-              <MouldSelect value={item.mould} onChange={choose('mould')} includeBlank="Search model (e.g. AC-25)" aria-label={`Model on item ${n}`} />
-            </Box>
-          )}
           <Box label="Material" className="col-span-2 md:col-span-3">
             <MaterialSelect value={item.materialRef} onChange={choose('materialRef')} emptyLabel="Material" aria-label={`Material on item ${n}`} />
           </Box>
@@ -282,12 +268,17 @@ function ItemCard({ index, item, onChange, onRemove, removable, markup, seesCost
       </div>
 
       {seesCost && (
-        <div className="mt-2 grid grid-cols-2 gap-1.5 pl-7 sm:grid-cols-4 xl:grid-cols-11">
-          {trade ? (
+        <div className="mt-2 grid grid-cols-2 gap-1.5 pl-7 sm:grid-cols-4 xl:grid-cols-12">
+          {/* A bought-in piece: the supplier's inward price, always on show; the build-up tiles
+              beside it work while the supplier has not priced it [utils/quoteBuilder.js `costOf`]. */}
+          {trade && (
+            <EditTile label="Inward price" value={item.figures.inwardPrice} placeholder={reg('inwardPrice')} onChange={figure('inwardPrice')} strong />
+          )}
+          {cost.supplied ? (
             <>
-              <Tile label="Grammage" value="—" />
-              <Tile label="Material/kg" value="—" />
-              <EditTile label="Inward price" value={item.figures.inwardPrice} placeholder={reg('inwardPrice')} onChange={figure('inwardPrice')} />
+              <Tile label="Grammage" value="in inward" />
+              <Tile label="Material/kg" value="in inward" />
+              <Tile label="Material cost" value="in inward" />
             </>
           ) : (
             <>
@@ -296,17 +287,23 @@ function ItemCard({ index, item, onChange, onRemove, removable, markup, seesCost
               <Tile label="Material cost" value={rupees(cost.materialCost)} />
             </>
           )}
-          {trade
-            ? <Tile label="Job cost" value="—" />
-            : <EditTile label="Job cost" value={item.figures.jobWorkCost} placeholder={reg('jobWorkCost')} onChange={figure('jobWorkCost')} />}
+          <EditTile label="Job cost" value={item.figures.jobWorkCost} placeholder={reg('jobWorkCost')} onChange={figure('jobWorkCost')} />
           <EditTile label="Packing cost" value={item.figures.packingCost} placeholder={reg('packingCost')} onChange={figure('packingCost')} off={!item.withPacking} />
-          <EditTile label="Hook cost" value={item.figures.hookCost} placeholder={reg('hookCost')} onChange={figure('hookCost')} off={!item.withHook} />
+          {/* The hook's price is written in, not greyed: the register's where it has one, nothing where it has none, changeable either way. */}
+          <EditTile label="Hook cost" value={item.figures.hookCost === '' ? reg('hookCost') : item.figures.hookCost} placeholder="0.00" onChange={figure('hookCost')} off={!item.withHook} />
           <EditTile label="Clip cost" value={item.figures.metalClipsCost} placeholder={reg('metalClipsCost')} onChange={figure('metalClipsCost')} off={!item.withClip} />
           <EditTile label="Printing cost" value={item.figures.printingCost} placeholder={reg('printingCost')} onChange={figure('printingCost')} off={item.printRef === NONE} />
           <EditTile label="Misc cost" value={item.figures.otherCost} placeholder="0.00" onChange={figure('otherCost')} off={!item.withMisc} />
           <Tile label="Base price" value={rupees(cost.base)} strong />
           <Tile label="Suggested" value={rupees(suggested)} strong />
         </div>
+      )}
+      {seesCost && trade && (
+        <p className="mt-1 pl-7 text-xs text-steel-500">
+          {cost.supplied
+            ? 'Costed at the supplier’s inward price — the resin and job work are in it; hook, clips, packing and printing add what the plant puts on.'
+            : 'No inward price from the supplier yet: costed from the build-up on the trading master. Type the inward price to cost at it instead.'}
+        </p>
       )}
 
       {/* The product details the enquiry did not give — filled in where known; never a gate on the quote. */}
@@ -595,7 +592,7 @@ export default function QuoteBuilder({ onClose, onSaved, onDetailed, enquiry: gi
 
   const submit = async (event) => {
     event.preventDefault();
-    const problem = problemWith({ enquiry, items, editing });
+    const problem = problemWith({ enquiry, customer, items, editing });
     if (problem) { setError(problem); return; }
     const named = items.filter(isNamed);
     setBusy(true);
@@ -604,7 +601,8 @@ export default function QuoteBuilder({ onClose, onSaved, onDetailed, enquiry: gi
       const saved = editing
         ? await saveExisting(named)
         : await quotationsApi.create({
-          enquiry,
+          /* On the enquiry when there is one; on the buyer alone otherwise. */
+          ...(enquiry ? { enquiry } : { customer }),
           ...termsPayload(),
           /* No named rows: the server takes the enquiry's models. */
           lines: named.length
@@ -642,7 +640,7 @@ export default function QuoteBuilder({ onClose, onSaved, onDetailed, enquiry: gi
             <Box label="Customer">
               <CustomerSelect value={customer} onChange={(next) => { setCustomer(next || ''); setEnquiry(''); setCustomerName(''); }} fallbackLabel={customerName || undefined} aria-label="Customer" />
             </Box>
-            <Box label="Enquiry *">
+            <Box label="Enquiry (optional)">
               <EnquirySelect value={enquiry || undefined} onChange={(next) => setEnquiry(next || '')} customer={customer || undefined} aria-label="Enquiry" />
             </Box>
           </>
