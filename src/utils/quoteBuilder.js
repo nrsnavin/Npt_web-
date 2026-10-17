@@ -126,6 +126,24 @@ export function modelPicked(item, ref) {
   return pick(pick(item, 'mould', ''), 'tradedItem', '');
 }
 
+/**
+ * The master's row for a model named by its code — an enquiry's model, or one typed in the
+ * buyer's model box — so the type follows the master wherever the name came from: a code on
+ * the trading master is a trade line, one on the mould register is made here. Exact code only,
+ * whatever the case or spacing; a near match is for the person to pick from the list.
+ */
+export function masterMatch(rows, code) {
+  const key = String(code || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  if (!key) return null;
+  return (rows || []).find((row) => String(row.code || '').trim().toLowerCase().replace(/\s+/g, ' ') === key) || null;
+}
+
+/** The item on the master's row, keeping the name as it was typed; unchanged when there is no row. */
+export function withMaster(item, row) {
+  if (!row?.ref) return item;
+  return { ...modelPicked(item, row.ref), modelNumber: item.modelNumber };
+}
+
 /** True when nothing has been chosen on the item yet. */
 export const isBlank = (item) =>
   !item.mould && !item.tradedItem && !item.modelNumber.trim() && !item.materialRef && !item.colour && item.unitPrice === '';
