@@ -161,3 +161,12 @@ test('the placeholder stops saying "somebody in marketing" when that is not the 
      not in that group, is the small lie that makes people distrust the rest of the form. */
   assert.match(PICKER, /yourself \? 'Choose an owner…' : 'Choose somebody in marketing…'/);
 });
+
+test('the draft enquiry offers the marketing person to everyone, with the reader’s own name first and marked', () => {
+  const cards = readFileSync(new URL('../src/pages/BuyerCards.jsx', import.meta.url), 'utf8');
+  assert.doesNotMatch(cards, /isManagement && team\.length > 0 &&/, 'no longer Admin-only');
+  assert.match(cards, /\{team\.length > 0 && \(/);
+  assert.match(cards, /setYou\(answer\?\.meta\?\.you \? String\(answer\.meta\.you\) : null\)/, 'who "you" is comes from the roster');
+  assert.match(cards, /isYou\(person\) \? `\$\{person\.name\} \(you\)` : person\.name/);
+  assert.match(cards, /Pick yourself to keep it either way/);
+});

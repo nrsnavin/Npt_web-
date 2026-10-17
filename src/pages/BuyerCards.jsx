@@ -214,14 +214,23 @@ function CardEditor({ card, onDone }) {
    */
   const { isManagement } = useAuth();
   const [team, setTeam] = useState([]);
+  const [you, setYou] = useState(null);
+  /* Everyone who saves a draft may say whose it is: a marketing person themselves (the usual
+     answer, so it is marked "you"), or a colleague — handing it over, as on the customer form. */
   useEffect(() => {
-    if (!isManagement) return undefined;
     let live = true;
-    customersApi.team().then((answer) => live && setTeam(answer?.data || [])).catch(() => {});
+    customersApi.team()
+      .then((answer) => {
+        if (!live) return;
+        setTeam(answer?.data || []);
+        setYou(answer?.meta?.you ? String(answer.meta.you) : null);
+      })
+      .catch(() => {});
     return () => {
       live = false;
     };
-  }, [isManagement]);
+  }, []);
+  const isYou = (person) => person.self || (you && String(person._id) === you);
 
   /* Only what was recognised. The next step starts empty — the salesperson's to give, not the
      app's to guess. How we met them starts at Phone, the usual answer; the follow-up at tomorrow. */
@@ -492,12 +501,17 @@ function CardEditor({ card, onDone }) {
                   ))}
                 </select>
               </Field>
-              {isManagement && team.length > 0 && (
-                <Field label="Marketing person" hint="Automatic: the sender keeps it, else the marketing rotation">
+              {team.length > 0 && (
+                <Field
+                  label="Marketing person"
+                  hint={isManagement
+                    ? 'Automatic: the sender keeps it, else the marketing rotation'
+                    : 'Automatic: an existing customer stays with their marketing person, else it is yours. Pick yourself to keep it either way.'}
+                >
                   <select className="input" value={fields.assignedTo || ''} disabled={off} onChange={(event) => set('assignedTo', event.target.value)}>
                     <option value="">Automatic</option>
-                    {team.map((person) => (
-                      <option key={person._id} value={person._id}>{person.self ? `${person.name} (you)` : person.name}</option>
+                    {[...team].sort((a, b) => Number(Boolean(isYou(b))) - Number(Boolean(isYou(a)))).map((person) => (
+                      <option key={person._id} value={person._id}>{isYou(person) ? `${person.name} (you)` : person.name}</option>
                     ))}
                   </select>
                 </Field>
