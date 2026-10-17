@@ -353,10 +353,12 @@ export function returnsOf(price, base) {
 }
 
 /** What is wrong with the form, in the words to show, or null. */
-export function problemWith({ enquiry, items, editing = false }) {
-  if (!editing && !enquiry) return 'Pick the enquiry this quote is for. No enquiry yet? Raise it first.';
+export function problemWith({ enquiry, customer, items, editing = false }) {
+  /* An enquiry, or the buyer alone: without an enquiry the models are named here. */
+  if (!editing && !enquiry && !customer) return 'Pick the customer this quote is for, or the enquiry it answers.';
   if (items.length > MAX_ITEMS) return `A quotation carries at most ${MAX_ITEMS} models.`;
   const named = items.filter(isNamed);
+  if (!editing && !enquiry && !named.length) return 'Name at least one model — there is no enquiry to take them from.';
   if (named.length && named.length !== items.filter((item) => !isBlank(item)).length) {
     return 'Name the model on every item, or remove the empty ones.';
   }

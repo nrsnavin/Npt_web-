@@ -244,8 +244,11 @@ test('the 10/15/20 tiers and the return on a rate', () => {
 });
 
 test('the form names what is missing before it is sent', () => {
-  assert.match(problemWith({ enquiry: '', items: [blankItem()] }), /enquiry/);
+  assert.match(problemWith({ enquiry: '', customer: '', items: [blankItem()] }), /Pick the customer/);
   assert.equal(problemWith({ enquiry: 'e1', items: [blankItem()] }), null, 'all blank takes the enquiry’s models');
+  /* The enquiry is optional: on the buyer alone, the models are named here. */
+  assert.match(problemWith({ enquiry: '', customer: 'c1', items: [blankItem()] }), /Name at least one model/);
+  assert.equal(problemWith({ enquiry: '', customer: 'c1', items: [{ ...blankItem(), modelNumber: 'NH-400' }] }), null);
   const half = [{ ...blankItem(), mould: 'm1' }, { ...blankItem(), colour: 'Red' }];
   assert.match(problemWith({ enquiry: 'e1', items: half }), /Name the model/);
   assert.ok(isBlank(blankItem()));

@@ -595,7 +595,7 @@ export default function QuoteBuilder({ onClose, onSaved, onDetailed, enquiry: gi
 
   const submit = async (event) => {
     event.preventDefault();
-    const problem = problemWith({ enquiry, items, editing });
+    const problem = problemWith({ enquiry, customer, items, editing });
     if (problem) { setError(problem); return; }
     const named = items.filter(isNamed);
     setBusy(true);
@@ -604,7 +604,8 @@ export default function QuoteBuilder({ onClose, onSaved, onDetailed, enquiry: gi
       const saved = editing
         ? await saveExisting(named)
         : await quotationsApi.create({
-          enquiry,
+          /* On the enquiry when there is one; on the buyer alone otherwise. */
+          ...(enquiry ? { enquiry } : { customer }),
           ...termsPayload(),
           /* No named rows: the server takes the enquiry's models. */
           lines: named.length
@@ -642,7 +643,7 @@ export default function QuoteBuilder({ onClose, onSaved, onDetailed, enquiry: gi
             <Box label="Customer">
               <CustomerSelect value={customer} onChange={(next) => { setCustomer(next || ''); setEnquiry(''); setCustomerName(''); }} fallbackLabel={customerName || undefined} aria-label="Customer" />
             </Box>
-            <Box label="Enquiry *">
+            <Box label="Enquiry (optional)">
               <EnquirySelect value={enquiry || undefined} onChange={(next) => setEnquiry(next || '')} customer={customer || undefined} aria-label="Enquiry" />
             </Box>
           </>
