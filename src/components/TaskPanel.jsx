@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import HandoffTaskActions from './HandoffTaskActions.jsx';
 import TaskWorkflow from './TaskWorkflow.jsx';
 import TaskPdfLink from './TaskPdfLink.jsx';
+import TaskEdd from './TaskEdd.jsx';
 import { Modal, Notice } from './ui.jsx';
 import { TaskFacts, TaskTimeline } from './TaskHistory.jsx';
 import { buttonFor, useHandoffCatalogue } from '../hooks/useHandoffCatalogue.js';
@@ -62,6 +63,9 @@ export default function TaskPanel({ task, startWith, mayWork, onClose, onChanged
             </dd>
           </div>
         </dl>
+
+        {/* The EDD on the tasks that give it or work to it; asked for at the top until it is given. */}
+        <TaskEdd todo={task} mayAct={mayWork} onChanged={onChanged} />
 
         {/* The rule's proposal on a collection case — the collector or Admin presses Escalated to PRT, or not. */}
         {!task.completed && task.suggestion?.kind === 'escalate_prt' && (

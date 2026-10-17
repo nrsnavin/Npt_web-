@@ -8,6 +8,7 @@ import HandoffTaskActions from '../components/HandoffTaskActions.jsx';
 import { describeBrief } from '../utils/taskForm.js';
 import TaskPdfLink from '../components/TaskPdfLink.jsx';
 import TaskWorkflow from '../components/TaskWorkflow.jsx';
+import TaskEdd from '../components/TaskEdd.jsx';
 import AttentionPanel from '../components/AttentionPanel.jsx';
 import DepartmentTaskDialog from '../components/DepartmentTaskDialog.jsx';
 import TripPlanner from '../components/TripPlanner.jsx';
@@ -21,6 +22,7 @@ import { DashboardSkeleton, ErrorState, PageHeader } from '../components/ui.jsx'
 import { deskActionsFor } from '../config/deskActions.js';
 import { formatDate } from '../utils/format.js';
 import { departmentLabel } from '../utils/pipeline.js';
+import { EDD_CHIP, eddChipOf } from '../utils/edd.js';
 
 /**
  * A department's dashboard [server: handoff.service `enquiriesHeldBy`, `departmentDashboard`].
@@ -122,6 +124,8 @@ function EnquiryCard({ row, department, me, onChanged }) {
         {enquiry?.requirement?.modelNumber && <Chip>{enquiry.requirement.modelNumber}</Chip>}
         {enquiry?.items?.length > 1 && <Chip>+{enquiry.items.length - 1} more</Chip>}
         {enquiry?.requirement?.colour && <Chip>{enquiry.requirement.colour}</Chip>}
+        {/* The EDD, on the tasks that give it or work to it — or that it is still wanted. */}
+        {eddChipOf(task) && <span className={`rounded-md px-2 py-0.5 text-xs font-semibold ${EDD_CHIP[eddChipOf(task).tone]}`}>{eddChipOf(task).label}</span>}
         {row.records.quotation && <Chip>{row.records.quotation.number}</Chip>}
         {row.records.order && <Chip>{row.records.order.number}</Chip>}
       </div>
@@ -172,6 +176,8 @@ function EnquiryCard({ row, department, me, onChanged }) {
           </button>
         )}
       </div>
+      {/* The EDD: asked for on Production's, Assembly's and Printing's tasks until it is given; read on Dispatch's. */}
+      <TaskEdd todo={task} mayAct onChanged={onChanged} />
       {/* The department's own workflow on the task, where it has one (the SO team's statuses). */}
       <TaskWorkflow todo={task} onChanged={onChanged} />
       <div className="-mt-1 flex flex-wrap gap-3">
