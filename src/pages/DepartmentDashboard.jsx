@@ -289,6 +289,7 @@ function DepartmentDesk() {
                 {departmentLabel(entry)} desk
               </Link>
             ))}
+            {isProduction && <Link to="/production/queue" className="btn-primary">Queue board</Link>}
             {(isAdmin || departments?.includes('marketing')) && firstTask && (
               <button type="button" className="btn-primary" onClick={() => setNewTeamTask(true)}>New team task</button>
             )}

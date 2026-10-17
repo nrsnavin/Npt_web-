@@ -59,6 +59,7 @@ const SampleAnalytics = lazyPage(() => import('./pages/SampleAnalytics.jsx'));
 const Orders = lazyPage(() => import('./pages/Orders.jsx'));
 const OrderDetail = lazyPage(() => import('./pages/OrderDetail.jsx'));
 const Production = lazyPage(() => import('./pages/Production.jsx'));
+const ProductionQueue = lazyPage(() => import('./pages/ProductionQueue.jsx'));
 const Dispatches = lazyPage(() => import('./pages/Dispatches.jsx'));
 const DispatchDetail = lazyPage(() => import('./pages/DispatchDetail.jsx'));
 const DispatchPlan = lazyPage(() => import('./pages/DispatchPlan.jsx'));
@@ -349,6 +350,15 @@ export default function App() {
             element={
               <RequireModule moduleKey="production">
                 <Production />
+              </RequireModule>
+            }
+          />
+          {/* The queue in EDD order, read by every department that works to it. */}
+          <Route
+            path="production/queue"
+            element={
+              <RequireModule moduleKey={['production', 'dispatch', 'quality', 'orders', 'enquiries']}>
+                <ProductionQueue />
               </RequireModule>
             }
           />
