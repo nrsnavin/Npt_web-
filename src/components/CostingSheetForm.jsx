@@ -7,6 +7,7 @@ import { Field, Notice } from './ui.jsx';
 import Combobox from './Combobox.jsx';
 import PreviousQuotes from './PreviousQuotes.jsx';
 import TradingBadge from './TradingBadge.jsx';
+import SupplierCheck from './SupplierCheck.jsx';
 import { missingDetails, sayList } from '../utils/productDetails.js';
 import { MINIMUM_TIER, STANDARD_TIERS, priceAt as priceFor } from '../utils/pricing.js';
 import { changedParts } from '../utils/pricing.js';
@@ -75,6 +76,17 @@ export default function CostingSheetForm({ quotation: pricing, line, onClose, on
   /* The trading master's item, for a bought-in piece: picking one brings its inward price. */
   const openedItem = row.tradedItem?._id ?? row.tradedItem ?? '';
   const [tradedItem, setTradedItem] = useState(openedItem);
+  /* The item itself — its build-up is the making cost set against the inward price [SupplierCheck]. */
+  const [tradedRecord, setTradedRecord] = useState(null);
+  useEffect(() => {
+    if (!tradedItem) {
+      setTradedRecord(null);
+      return undefined;
+    }
+    let live = true;
+    tradedItemsApi.get(tradedItem).then((item) => live && setTradedRecord(item)).catch(() => live && setTradedRecord(null));
+    return () => { live = false; };
+  }, [tradedItem]);
   const [mould, setMould] = useState(row.mould?._id ?? row.mould ?? '');
   const [materialRef, setMaterialRef] = useState(row.materialRef?._id ?? row.materialRef ?? '');
   const [hookRef, setHookRef] = useState(row.hookRef?._id ?? row.hookRef ?? '');
@@ -410,6 +422,7 @@ export default function CostingSheetForm({ quotation: pricing, line, onClose, on
           <button type="button" className="font-semibold underline" onClick={priceAsTrade}>Price it as Trade</button>
         </Notice>
       )}
+      {onTradingMaster && <SupplierCheck traded={onTradingMaster} inwardPrice={onTradingMaster.inwardPrice} />}
       {pricing.lines?.length > 1 && (
         <div className="rounded-lg border border-flame-500/20 bg-flame-500/[0.06] px-3.5 py-2.5">
           <p className="text-xs text-steel-300">
@@ -489,6 +502,8 @@ export default function CostingSheetForm({ quotation: pricing, line, onClose, on
           {costField('inwardPrice', 'Inward price', '₹ per piece paid to the supplier')}
         </div>
       )}
+      {/* What the piece would cost to make, beside what the supplier charges — the number to negotiate from. */}
+      {procurement === 'trade' && tradedRecord && <SupplierCheck traded={tradedRecord} inwardPrice={cost.inwardPrice} />}
 
       {/*
         The two registers first, because they fill most of the sheet below. Picking a tool sets

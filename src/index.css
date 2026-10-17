@@ -334,3 +334,11 @@
     tbody td:not(:has(input[type='checkbox'])):not(.col-actions) { min-width: 10rem; }
   }
 }
+
+/* Printed: the page is the sheet — no bars, no tiles, the table whole. */
+@media print {
+  header, nav, aside, .skip-link, [data-dock], [role='status'] { display: none !important; }
+  main { overflow: visible !important; padding: 0 !important; }
+  body { background: #fff !important; color: #111 !important; }
+  .card { box-shadow: none !important; border: 1px solid #ccc !important; }
+}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { handoffs as handoffsApi, production as productionApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -8,7 +8,8 @@ import DepartmentTaskDialog from '../components/DepartmentTaskDialog.jsx';
 import { ErrorState, PageHeader, TableSkeleton } from '../components/ui.jsx';
 import { formatDate, formatRelative } from '../utils/format.js';
 import { departmentLabel } from '../utils/pipeline.js';
-import { EDD_BANDS } from '../utils/productionQueue.js';
+import { todayInIndia } from '../utils/taskForm.js';
+import { EDD_BANDS, boardOf, dayGroups, dueWords, queueCsv } from '../utils/productionQueue.js';
 
 /**
  * The production queue — the plant's one list of what is on the press, in the order the goods
@@ -21,6 +22,11 @@ import { EDD_BANDS } from '../utils/productionQueue.js';
  *
  * Each row carries the other teams on the same enquiry — Assembly, Printing, Quality, Dispatch —
  * at their own status, so "who is it waiting for" is read off the row rather than asked.
+ *
+ * Two ways to look at it: the list, cut into days with the EDD in words ("2 days late",
+ * "tomorrow") and each row opening to its last few updates; and the board, Production's statuses
+ * folded into five columns — new, planned, on the press, problems, off the press — for the
+ * glance at the start of a shift. Printed or taken as a sheet for the floor's own board.
  */
 
 const REFRESH_MS = 60 * 1000;
@@ -69,6 +75,98 @@ function TeamCell({ team, needed = false, label }) {
   );
 }
 
+/** The row opened: the last few things written on the task, and what was asked. */
+function RowDetail({ row }) {
+  const recent = row.task.recent || [];
+  const brief = row.task.brief || {};
+  const asked = [['Model', brief.model || row.enquiry.model], ['Quantity', brief.quantity], ['Material / colour', brief.material || row.enquiry.colour], ['Assembly', brief.assembly === true || brief.assembly === 'true' || brief.assembly === 'Yes' ? 'needed' : null]].filter(([, value]) => value);
+  return (
+    <div className="grid gap-3 text-xs md:grid-cols-3">
+      <div>
+        <p className="font-semibold text-steel-300">Asked</p>
+        <ul className="mt-1 space-y-0.5 text-steel-400">
+          {asked.map(([label, value]) => <li key={label}>{label}: <span className="text-steel-200">{value}</span></li>)}
+          {row.task.raisedBy?.name && <li>Raised by <span className="text-steel-200">{row.task.raisedBy.name}</span>{row.task.createdAt ? ` · ${formatRelative(row.task.createdAt)}` : ''}</li>}
+          {row.order?.number && <li>SO <span className="text-steel-200">{row.order.number}</span></li>}
+          {row.edd?.department && <li>EDD given by <span className="text-steel-200">{departmentLabel(row.edd.department)}</span></li>}
+        </ul>
+      </div>
+      <div className="md:col-span-2">
+        <p className="font-semibold text-steel-300">Latest on the task</p>
+        {recent.length === 0 ? (
+          <p className="mt-1 text-steel-500">Nothing written on it yet.</p>
+        ) : (
+          <ol className="mt-1 space-y-1">
+            {recent.map((entry, index) => (
+              <li key={`${entry.at}-${index}`} className="flex gap-2">
+                <span className="shrink-0 tabular-nums text-steel-500">{entry.at ? formatRelative(entry.at) : ''}</span>
+                <span className="text-steel-200">{entry.by?.name ? `${entry.by.name}: ` : ''}{entry.note || entry.statusLabel || '—'}</span>
+              </li>
+            ))}
+          </ol>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** The board: five columns, the row as a card, the status moved from the card. */
+function Board({ columns, statuses, mayWork, onMove, onOpen, onAssembly }) {
+  return (
+    <div className="grid gap-3 md:grid-cols-5" data-board>
+      {columns.map((column) => (
+        <section key={column.key} className={`rounded-xl border-t-4 bg-line/[0.02] p-2 ${column.tone}`} aria-label={column.label}>
+          <p className="px-1 pb-2 text-xs font-bold uppercase tracking-[0.06em] text-steel-300">
+            {column.label} <span className="font-normal normal-case tracking-normal text-steel-500">· {column.rows.length}</span>
+          </p>
+          <ul className="space-y-2">
+            {column.rows.length === 0 && <li className="px-1 py-3 text-center text-xs text-steel-600">—</li>}
+            {column.rows.map((row) => (
+              <li key={row.task._id} className={`rounded-lg border bg-ink-900/40 p-2.5 ${row.band === 'late' ? 'border-danger-500/40' : 'border-line/[0.1]'}`}>
+                <div className="flex items-start justify-between gap-2">
+                  <Link to={`/enquiries/${row.enquiry._id}`} className="text-sm font-semibold text-steel-50 hover:text-accent">{row.enquiry.number}</Link>
+                  <span className={`shrink-0 rounded-full px-1.5 py-0.5 text-xs font-semibold ${BAND_CHIP[row.band]}`}>{dueWords(row.edd?.date)}</span>
+                </div>
+                <p className="truncate text-xs text-steel-300">{row.enquiry.customer?.name || '—'}</p>
+                <p className="text-xs text-steel-400">{row.enquiry.model || '—'}{row.enquiry.quantity ? ` · ${Number(row.enquiry.quantity).toLocaleString('en-IN')} pcs` : ''}</p>
+                {mayWork(row) ? (
+                  <select
+                    aria-label={`Production status of ${row.enquiry.number}`}
+                    className="input mt-2 w-full py-1 text-xs"
+                    value={row.task.status || ''}
+                    onChange={(event) => onMove(row, event.target.value)}
+                  >
+                    {!row.task.statusLabel && <option value="">Open</option>}
+                    {statuses.map((entry) => <option key={entry.key} value={entry.key}>{entry.label}</option>)}
+                  </select>
+                ) : (
+                  <p className="mt-1 text-xs font-semibold text-steel-200">{row.task.statusLabel || 'Open'}</p>
+                )}
+                <div className="mt-1.5 flex flex-wrap gap-1 text-xs">
+                  {[['Assembly', row.teams.assembling, row.needsAssembly], ['Printing', row.teams.printing], ['Quality', row.teams.quality], ['Dispatch', row.teams.despatch]].map(([label, entry, needed]) => (
+                    (entry || needed) && (
+                      <span key={label} className={`rounded-full px-1.5 py-0.5 ${entry?.completed ? 'bg-success-500/15 text-success-400' : entry ? 'bg-accent/15 text-accent' : 'bg-warn-500/15 text-warn-400'}`}>
+                        {label}: {entry ? entry.label : 'needed'}
+                      </span>
+                    )
+                  ))}
+                </div>
+                <div className="mt-1.5 flex items-center justify-between gap-2 text-xs">
+                  <span className={`min-w-0 truncate ${row.task.with ? 'text-steel-400' : 'text-warn-400'}`}>{row.task.with?.name || 'not picked up'}</span>
+                  <span className="flex shrink-0 gap-2">
+                    <button type="button" className="row-action" onClick={() => onOpen(row)}>Open</button>
+                    {mayWork(row) && !row.teams.assembling && <button type="button" className="row-action" onClick={() => onAssembly(row)}>{row.needsAssembly ? 'Task Assembly' : 'Assembly'}</button>}
+                  </span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
+    </div>
+  );
+}
+
 export default function ProductionQueue() {
   const { user, departments = [], isAdmin, canWrite } = useAuth();
   const catalogue = useHandoffCatalogue();
@@ -83,9 +181,27 @@ export default function ProductionQueue() {
   const [search, setSearch] = useState('');
   const band = params.get('band') || 'all';
   const team = params.get('team') || 'all';
+  const view = params.get('view') === 'board' ? 'board' : 'list';
+  const [expanded, setExpanded] = useState(() => new Set());
+  const toggleRow = (id) => setExpanded((current) => {
+    const next = new Set(current);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    return next;
+  });
   const setFilter = (next) => {
-    const merged = { band, team, ...next };
+    const merged = { band, team, view: view === 'board' ? 'board' : '', ...next };
     setParams(Object.fromEntries(Object.entries(merged).filter(([, value]) => value && value !== 'all')), { replace: true });
+  };
+  /* The queue as a sheet, for the floor's own board or a supplier's WhatsApp. */
+  const download = () => {
+    const blob = new Blob([queueCsv(shown)], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `production-queue-${todayInIndia()}.csv`;
+    anchor.click();
+    URL.revokeObjectURL(url);
   };
 
   const load = useCallback(() => productionApi.queue()
@@ -140,15 +256,30 @@ export default function ProductionQueue() {
         title="Production queue"
         subtitle={`What is on the press, in the order the goods are due · ${rows.length} open${asOf ? ` · as of ${formatRelative(asOf)}` : ''}`}
         actions={
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 print:hidden">
+            <div className="inline-flex rounded-lg border border-line/[0.12] p-0.5" role="group" aria-label="View">
+              {[['list', 'List'], ['board', 'Board']].map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  aria-pressed={view === key}
+                  onClick={() => setFilter({ view: key === 'board' ? 'board' : '' })}
+                  className={`rounded-md px-3 py-1.5 text-xs font-semibold transition ${view === key ? 'bg-flame-500/15 text-flame-400' : 'text-steel-400 hover:text-steel-200'}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
             {worksProduction && <Link to="/departments/production" className="btn-secondary">Production desk</Link>}
             <Link to="/production" className="btn-secondary">Production status</Link>
+            <button type="button" className="btn-secondary" onClick={() => window.print()}>Print</button>
+            <button type="button" className="btn-secondary" onClick={download}>CSV</button>
             <button type="button" className="btn-secondary" onClick={load}>Refresh</button>
           </div>
         }
       />
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-7">
+      <div className="grid grid-cols-2 gap-3 print:hidden md:grid-cols-4 xl:grid-cols-7">
         <Tile label="Late" value={bands.late || 0} tone={bands.late ? 'text-danger-400' : 'text-success-400'} hint="Past the EDD" active={band === 'late'} onClick={() => setFilter({ band: band === 'late' ? 'all' : 'late' })} />
         <Tile label="Due today" value={bands.today || 0} tone={bands.today ? 'text-warn-400' : 'text-steel-50'} hint="EDD is today" active={band === 'today'} onClick={() => setFilter({ band: band === 'today' ? 'all' : 'today' })} />
         <Tile label="Due tomorrow" value={teams.dueTomorrow || 0} hint="Ready for Dispatch by tonight" active={false} onClick={() => setFilter({ band: 'week' })} />
@@ -158,7 +289,7 @@ export default function ProductionQueue() {
         <Tile label="Not picked up" value={teams.unclaimed || 0} tone={teams.unclaimed ? 'text-warn-400' : 'text-steel-50'} hint="Nobody on it yet" active={team === 'unclaimed'} onClick={() => setFilter({ team: team === 'unclaimed' ? 'all' : 'unclaimed' })} />
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2 print:hidden">
         {[{ key: 'all', label: 'All' }, ...EDD_BANDS.map((entry) => ({ key: entry.key, label: BAND_LABEL[entry.key] })), { key: 'mine', label: 'Mine' }].map((entry) => (
           <button
             key={entry.key}
@@ -195,10 +326,12 @@ export default function ProductionQueue() {
           <p className="text-base font-semibold text-steel-200">{rows.length ? 'Nothing matches this filter.' : 'Nothing on the press right now.'}</p>
           <p className="mt-1 text-sm text-steel-500">{rows.length ? 'Pick another band or team, or clear the search.' : 'A Production task raised on an enquiry appears here, in EDD order.'}</p>
         </div>
+      ) : view === 'board' ? (
+        <Board columns={boardOf(shown)} statuses={statuses} mayWork={mayWork} onMove={open} onOpen={(row) => open(row)} onAssembly={setAssemblyFor} />
       ) : (
         <>
           {/* The table, on a desk. */}
-          <div className="card hidden overflow-x-auto md:block">
+          <div className="card hidden overflow-x-auto md:block print:block print:overflow-visible">
             <table className="min-w-full text-sm">
               <thead className="table-head">
                 <tr>
@@ -214,12 +347,34 @@ export default function ProductionQueue() {
                   <th className="min-w-[11rem] px-2.5 py-3 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody>
-                {shown.map((row) => (
-                  <tr key={row.task._id} className={`border-t border-line/10 align-top ${row.band === 'late' ? 'bg-danger-500/[0.05]' : row.task.issue ? 'bg-warn-500/[0.06]' : ''}`}>
+              {dayGroups(shown).map((group) => (
+              <tbody key={group.key}>
+                {/* The day, as a shift reads it: everything late first, then each EDD day by name. */}
+                <tr className="border-t border-line/10 bg-line/[0.03]">
+                  <th scope="rowgroup" colSpan={10} className={`px-2.5 py-1.5 text-left text-xs font-bold uppercase tracking-[0.06em] ${group.tone}`}>
+                    {group.label} <span className="font-normal normal-case tracking-normal text-steel-500">· {group.rows.length}</span>
+                  </th>
+                </tr>
+                {group.rows.map((row) => (
+                  <Fragment key={row.task._id}>
+                  <tr className={`border-t border-line/10 align-top ${row.band === 'late' ? 'bg-danger-500/[0.05]' : row.task.issue ? 'bg-warn-500/[0.06]' : ''}`}>
                     <td className="whitespace-nowrap px-2.5 py-3">
-                      <p className={`font-semibold ${row.band === 'late' ? 'text-danger-400' : 'text-steel-100'}`}>{row.edd ? formatDate(row.edd.date) : '—'}</p>
-                      <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${BAND_CHIP[row.band]}`}>{BAND_LABEL[row.band]}</span>
+                      <div className="flex items-start gap-1">
+                        <button
+                          type="button"
+                          className="print:hidden -ml-1 mt-0.5 rounded px-1 text-xs text-steel-500 hover:text-steel-200"
+                          aria-expanded={expanded.has(row.task._id)}
+                          aria-label={`${expanded.has(row.task._id) ? 'Hide' : 'Show'} the updates on ${row.enquiry.number}`}
+                          onClick={() => toggleRow(row.task._id)}
+                        >
+                          {expanded.has(row.task._id) ? '▾' : '▸'}
+                        </button>
+                        <div>
+                          <p className={`font-semibold ${row.band === 'late' ? 'text-danger-400' : 'text-steel-100'}`}>{row.edd ? formatDate(row.edd.date) : '—'}</p>
+                          <p className={`text-xs ${row.band === 'late' ? 'text-danger-400' : row.band === 'today' ? 'text-warn-400' : 'text-steel-500'}`}>{dueWords(row.edd?.date)}</p>
+                          <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${BAND_CHIP[row.band]}`}>{BAND_LABEL[row.band]}</span>
+                        </div>
+                      </div>
                     </td>
                     <td className="px-2.5 py-3">
                       <Link to={`/enquiries/${row.enquiry._id}`} className="font-semibold text-steel-50 hover:text-accent">{row.enquiry.number}</Link>
@@ -285,13 +440,22 @@ export default function ProductionQueue() {
                       </div>
                     </td>
                   </tr>
+                  {expanded.has(row.task._id) && (
+                    <tr className="bg-line/[0.02]">
+                      <td colSpan={10} className="px-4 pb-3 pt-1">
+                        <RowDetail row={row} />
+                      </td>
+                    </tr>
+                  )}
+                  </Fragment>
                 ))}
               </tbody>
+              ))}
             </table>
           </div>
 
           {/* The same rows, as cards on a phone. */}
-          <ul className="space-y-3 md:hidden">
+          <ul className="space-y-3 md:hidden print:hidden">
             {shown.map((row) => (
               <li key={row.task._id} className={`rounded-xl border p-3 ${row.band === 'late' ? 'border-danger-500/40 bg-danger-500/[0.05]' : 'border-line/10'}`}>
                 <div className="flex items-start justify-between gap-2">
@@ -299,7 +463,7 @@ export default function ProductionQueue() {
                     <Link to={`/enquiries/${row.enquiry._id}`} className="font-semibold text-steel-50">{row.enquiry.number}</Link>
                     <p className="truncate text-xs text-steel-300">{row.enquiry.customer?.name || '—'} · {row.enquiry.model || '—'}</p>
                   </div>
-                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${BAND_CHIP[row.band]}`}>{row.edd ? formatDate(row.edd.date) : 'No EDD'}</span>
+                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${BAND_CHIP[row.band]}`}>{row.edd ? `${formatDate(row.edd.date)} · ${dueWords(row.edd.date)}` : 'No EDD'}</span>
                 </div>
                 <p className="mt-1 text-xs text-steel-400">{row.task.statusLabel || 'Open'}{row.task.with?.name ? ` · ${row.task.with.name}` : ' · not picked up'}</p>
                 <div className="mt-2 flex flex-wrap gap-1.5 text-xs">

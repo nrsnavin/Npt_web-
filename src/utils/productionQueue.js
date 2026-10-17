@@ -57,3 +57,92 @@ export const PRODUCTION_FILTERS = [
   { key: 'unclaimed', label: 'Not picked up' },
   { key: 'mine', label: 'Mine' },
 ];
+
+/* ------------------------------ The queue board's own helpers ------------------------------ */
+
+const dayDiff = (edd, today) => Math.round((Date.parse(`${edd}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / DAY_MS);
+
+/** The EDD in words the floor uses: "3 days late", "today", "tomorrow", "in 4 days", "no EDD". */
+export function dueWords(edd, now = new Date()) {
+  if (!edd) return 'no EDD';
+  const gap = dayDiff(String(edd).slice(0, 10), todayInIndia(now));
+  if (gap < 0) return `${-gap} day${gap === -1 ? '' : 's'} late`;
+  if (gap === 0) return 'today';
+  if (gap === 1) return 'tomorrow';
+  return `in ${gap} days`;
+}
+
+const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const prettyDay = (day) => {
+  const date = new Date(`${day}T00:00:00Z`);
+  return `${DAY_NAMES[date.getUTCDay()]} ${date.getUTCDate()} ${MONTHS[date.getUTCMonth()]}`;
+};
+
+/**
+ * The queue cut into days, as a shift reads it: everything late first under one heading, then
+ * each EDD day with its name, the undated last. Rows must already be in EDD order [byEdd].
+ */
+export function dayGroups(rows, now = new Date()) {
+  const today = todayInIndia(now);
+  const groups = [];
+  const push = (key, label, tone, row) => {
+    const last = groups.at(-1);
+    if (last && last.key === key) last.rows.push(row);
+    else groups.push({ key, label, tone, rows: [row] });
+  };
+  for (const row of rows) {
+    const edd = dayOf(row);
+    if (!edd) push('none', 'No EDD yet — ask for the date', 'text-warn-400', row);
+    else if (edd < today) push('late', 'Late — past the EDD', 'text-danger-400', row);
+    else {
+      const gap = dayDiff(edd, today);
+      const name = gap === 0 ? `Today · ${prettyDay(edd)}` : gap === 1 ? `Tomorrow · ${prettyDay(edd)}` : prettyDay(edd);
+      push(edd, name, gap === 0 ? 'text-warn-400' : 'text-steel-200', row);
+    }
+  }
+  return groups;
+}
+
+/**
+ * The board's columns: Production's fifteen statuses folded into the five states a glance needs.
+ * A status the server adds later lands in "Planned" rather than off the board.
+ */
+export const BOARD_COLUMNS = [
+  { key: 'new', label: 'New — to accept', statuses: ['received'], tone: 'border-warn-500/40' },
+  { key: 'planned', label: 'Planned', statuses: ['accepted', 'planning', 'ready_tomorrow', 'ready_on_date'], tone: 'border-line/[0.12]' },
+  { key: 'press', label: 'On the press', statuses: ['started', 'part1_ready', 'part2_ready'], tone: 'border-accent/40' },
+  { key: 'problem', label: 'Problems', statuses: ['mould_issue', 'machine_not_allotted', 'raw_material'], tone: 'border-danger-500/40' },
+  { key: 'done', label: 'Off the press', statuses: ['completed', 'assembling', 'ready_for_dispatch'], tone: 'border-success-500/40' },
+];
+
+export function boardColumnOf(status, issue = false) {
+  const found = BOARD_COLUMNS.find((column) => column.statuses.includes(status));
+  if (found) return found.key;
+  return issue ? 'problem' : 'planned';
+}
+
+/** The rows under each column, every column kept so an empty one still reads as empty. */
+export const boardOf = (rows) => BOARD_COLUMNS.map((column) => ({
+  ...column,
+  rows: rows.filter((row) => boardColumnOf(row.task?.status, row.task?.issue) === column.key),
+}));
+
+/** The queue as a sheet for the floor: one line per row, the teams beside it. */
+export function queueCsv(rows, now = new Date()) {
+  const cell = (value) => {
+    const text = value == null ? '' : String(value);
+    return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+  };
+  const team = (entry) => (entry ? `${entry.label}${entry.with?.name ? ` (${entry.with.name})` : ''}` : '');
+  const lines = [['EDD', 'Due', 'Enquiry', 'Buyer', 'Model', 'Qty', 'Colour', 'Production', 'With', 'Assembly', 'Printing', 'Quality', 'Dispatch', 'SO', 'Latest']];
+  for (const row of rows) {
+    lines.push([
+      row.enquiry?.edd?.date || row.edd?.date || '', dueWords(row.enquiry?.edd?.date || row.edd?.date, now), row.enquiry?.number, row.enquiry?.customer?.name,
+      row.enquiry?.model, row.enquiry?.quantity, row.enquiry?.colour, row.task?.statusLabel || 'Open', row.task?.with?.name || 'not picked up',
+      team(row.teams?.assembling) || (row.needsAssembly ? 'needed' : ''), team(row.teams?.printing), team(row.teams?.quality), team(row.teams?.despatch),
+      row.order?.number, row.task?.latest?.note,
+    ]);
+  }
+  return `﻿${lines.map((line) => line.map(cell).join(',')).join('\r\n')}\r\n`;
+}

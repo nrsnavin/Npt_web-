@@ -1,6 +1,7 @@
-import { useState } from 'react';
-import { tradedItems as tradedItemsApi } from '../api/endpoints.js';
+import { useCallback, useState } from 'react';
+import { materials as materialsApi, tradedItems as tradedItemsApi } from '../api/endpoints.js';
 import { Field, FormError } from './ui.jsx';
+import Combobox from './Combobox.jsx';
 import { MouldPhotoField } from './MouldPhoto.jsx';
 import { HANGER_CATEGORIES } from '../utils/pipeline.js';
 
@@ -25,7 +26,12 @@ const blank = (item) => ({
   gstPercent: item?.gstPercent ?? '',
   notes: item?.notes ?? '',
   isActive: item?.isActive !== false,
-  buildUp: Object.fromEntries(BUILD_UP.map(([key]) => [key, item?.buildUp?.[key] ?? ''])),
+  buildUp: {
+    ...Object.fromEntries(BUILD_UP.map(([key]) => [key, item?.buildUp?.[key] ?? ''])),
+    /* The resin the grams are costed in — its rate and grammage over PP — and a rate typed over it. */
+    material: item?.buildUp?.material?._id ?? item?.buildUp?.material ?? '',
+    ratePerKg: item?.buildUp?.ratePerKg ?? '',
+  },
 });
 
 const NUMBERS = ['sizeMm', 'inwardPrice', 'moq', 'piecesPerCarton', 'gstPercent'];
@@ -49,6 +55,8 @@ export default function TradedItemForm({ item, onClose, onSaved }) {
   const [photo, setPhoto] = useState(null);
   const set = (key) => (event) => setValues({ ...values, [key]: event.target.value });
   const setCost = (key) => (event) => setValues({ ...values, buildUp: { ...values.buildUp, [key]: event.target.value } });
+  const setResin = (value) => setValues((current) => ({ ...current, buildUp: { ...current.buildUp, material: value || '' } }));
+  const loadMaterials = useCallback((term) => materialsApi.list({ search: term || undefined, isActive: true, limit: 20 }), []);
   const priceMoved = item && values.inwardPrice !== '' && Number(values.inwardPrice) !== item.inwardPrice;
 
   const submit = async (event) => {
@@ -57,13 +65,15 @@ export default function TradedItemForm({ item, onClose, onSaved }) {
     setError(null);
     const { buildUp: costs, ...plain } = values;
     const buildUp = Object.fromEntries(BUILD_UP.filter(([key]) => costs[key] !== '').map(([key]) => [key, Number(costs[key])]));
+    if (costs.ratePerKg !== '') buildUp.ratePerKg = Number(costs.ratePerKg);
+    buildUp.material = costs.material || null;
     const payload = Object.fromEntries(
       Object.entries(plain)
         .map(([key, value]) => [key, NUMBERS.includes(key) ? (value === '' ? undefined : Number(value)) : value])
         .map(([key, value]) => [key, typeof value === 'string' ? value.trim() || undefined : value])
     );
     /* Sent whenever the item had one or now has one, so clearing a figure clears it. */
-    if (Object.keys(buildUp).length || item?.buildUp) payload.buildUp = buildUp;
+    if (Object.keys(buildUp).length > 1 || buildUp.material || item?.buildUp) payload.buildUp = buildUp;
     try {
       let saved = item
         ? await tradedItemsApi.update({ id: item._id, ...payload, priceNote: priceMoved ? priceNote.trim() || undefined : undefined })
@@ -125,7 +135,23 @@ export default function TradedItemForm({ item, onClose, onSaved }) {
 
       <fieldset className="rounded-xl border border-line/[0.08] p-4">
         <legend className="px-1 text-xs font-bold uppercase tracking-[0.08em] text-steel-400">Cost build-up — per piece</legend>
+        <p className="mb-3 text-xs text-steel-400">What the piece would cost the plant to make. The costing sheet sets it beside the inward price, so the supplier’s margin shows and there is a number to negotiate to.</p>
         <div className="grid gap-4 sm:grid-cols-3">
+          <Field label="Resin" hint="Its rate, and its grammage over PP">
+            <Combobox
+              value={values.buildUp.material}
+              onChange={setResin}
+              loadOptions={loadMaterials}
+              loadOne={materialsApi.get}
+              toOption={(row) => ({ value: row._id, label: `${row.name}${row.colour ? ` · ${row.colour}` : ''} — ₹${row.ratePerKg}/kg` })}
+              placeholder="Search the material register…"
+              emptyLabel="No resin — type the rate"
+              noMatchLabel="No material matches"
+            />
+          </Field>
+          <Field label="Rate (₹/kg)" hint="Typed over the resin's register rate">
+            <input type="number" min="0" step="any" className="input" value={values.buildUp.ratePerKg} onChange={setCost('ratePerKg')} />
+          </Field>
           {BUILD_UP.map(([key, label]) => (
             <Field key={key} label={label}>
               <input type="number" min="0" step="any" className="input" value={values.buildUp[key]} onChange={setCost(key)} />

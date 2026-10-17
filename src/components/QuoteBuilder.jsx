@@ -5,6 +5,7 @@ import {
 } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { Notice } from './ui.jsx';
+import SupplierCheck from './SupplierCheck.jsx';
 import { CustomerSelect, EnquirySelect, MasterModelSelect, MaterialSelect } from './pickers.jsx';
 import { inDays } from '../utils/pipeline.js';
 import { formatDate } from '../utils/format.js';
@@ -305,6 +306,8 @@ function ItemCard({ index, item, onChange, onResolve, onRemove, removable, marku
             : 'No inward price from the supplier yet: costed from the build-up on the trading master. Type the inward price to cost at it instead.'}
         </p>
       )}
+      {/* The making cost against the supplier's price: what they keep, and the figure to negotiate to. */}
+      {seesCost && trade && traded && <SupplierCheck compact traded={traded} inwardPrice={cost.inwardPrice} className="mt-1 pl-7" />}
 
       {/* The product details the enquiry did not give — filled in where known; never a gate on the quote. */}
       {editing && item.missingAtOpen.length > 0 && (
