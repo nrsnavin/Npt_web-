@@ -1,18 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  components as componentsApi, enquiries as enquiriesApi, materials as materialsApi,
+  buyerCards as buyerCardsApi, components as componentsApi, enquiries as enquiriesApi, materials as materialsApi,
   moulds as mouldsApi, quotations as quotationsApi, tradedItems as tradedItemsApi,
 } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { Notice } from './ui.jsx';
+import SupplierCheck from './SupplierCheck.jsx';
 import { CustomerSelect, EnquirySelect, MasterModelSelect, MaterialSelect } from './pickers.jsx';
 import { inDays } from '../utils/pipeline.js';
 import { formatDate } from '../utils/format.js';
 import { rupees } from '../utils/pricing.js';
 import {
   AS_MOULD, DELIVERY_TERMS, MANUFACTURE, MARKUPS, MAX_ITEMS, NONE, PAYMENT_TERMS, TRADE, blankItem, costOf, costPayload,
-  isBlank, isNamed, itemFromLine, itemsFromEnquiry, lineFor, modelPicked, nudge, pick, problemWith, returnsOf, samePrice,
-  suggestedPrice, tick, tiersOf,
+  isBlank, isNamed, itemFromLine, itemsFromEnquiry, lineFor, masterMatch, modelPicked, nudge, pick, problemWith, returnsOf, samePrice,
+  suggestedPrice, tick, tiersOf, withMaster,
 } from '../utils/quoteBuilder.js';
 import { GRAM_STEP } from '../utils/grams.js';
 import { sayList } from '../utils/productDetails.js';
@@ -174,7 +175,7 @@ function EditTile({ label, value, placeholder, onChange, off, step = '0.01', str
 }
 
 /** One model on the quotation: what it is, what it costs, and the rate it goes out at. */
-function ItemCard({ index, item, onChange, onRemove, removable, markup, seesCost, registers, parts, editing, sent, onDetailed }) {
+function ItemCard({ index, item, onChange, onResolve, onRemove, removable, markup, seesCost, registers, parts, editing, sent, onDetailed }) {
   const trade = item.procurement === TRADE;
   const tool = trade ? undefined : registers.mould(item.mould);
   const traded = trade ? registers.traded(item.tradedItem) : undefined;
@@ -305,6 +306,8 @@ function ItemCard({ index, item, onChange, onRemove, removable, markup, seesCost
             : 'No inward price from the supplier yet: costed from the build-up on the trading master. Type the inward price to cost at it instead.'}
         </p>
       )}
+      {/* The making cost against the supplier's price: what they keep, and the figure to negotiate to. */}
+      {seesCost && trade && traded && <SupplierCheck compact traded={traded} inwardPrice={cost.inwardPrice} className="mt-1 pl-7" />}
 
       {/* The product details the enquiry did not give — filled in where known; never a gate on the quote. */}
       {editing && item.missingAtOpen.length > 0 && (
@@ -316,7 +319,7 @@ function ItemCard({ index, item, onChange, onRemove, removable, markup, seesCost
 
       <div className="mt-2 grid grid-cols-2 items-end gap-2 pl-7 md:grid-cols-12">
         <Box label="Buyer's model no." className="md:col-span-2">
-          <input className="input" value={item.modelNumber} onChange={setFrom('modelNumber')} disabled={priceLocked} placeholder={(trade ? traded?.modelNumber : tool?.mouldCode) || 'NPT-400S'} aria-label={`Model number on item ${n}`} />
+          <input className="input" value={item.modelNumber} onChange={setFrom('modelNumber')} onBlur={onResolve} disabled={priceLocked} placeholder={(trade ? traded?.modelNumber : tool?.mouldCode) || 'NPT-400S'} aria-label={`Model number on item ${n}`} />
         </Box>
         <Box label="Min. pcs" className="md:col-span-2">
           <input type="number" min="0" className="input" value={item.moq} onChange={setFrom('moq')} placeholder={(trade ? traded?.moq : tool?.moq) ? String(trade ? traded.moq : tool.moq) : ''} aria-label={`Minimum on item ${n}`} />
@@ -511,8 +514,10 @@ export default function QuoteBuilder({ onClose, onSaved, onDetailed, enquiry: gi
         const buyer = record?.customer?._id || record?.customer;
         if (buyer && !customer) setCustomer(buyer);
         setCustomerName(record?.customer?.name || '');
-        const fromEnquiry = itemsFromEnquiry(record);
-        if (fromEnquiry.length) setItems((current) => (current.every(isBlank) ? fromEnquiry : current));
+        return resolveItems(itemsFromEnquiry(record)).then((fromEnquiry) => {
+          if (!live || !fromEnquiry.length) return;
+          setItems((current) => (current.every(isBlank) ? fromEnquiry : current));
+        });
       })
       .catch(() => {});
     return () => { live = false; };
@@ -522,6 +527,23 @@ export default function QuoteBuilder({ onClose, onSaved, onDetailed, enquiry: gi
   const setTerm = (key) => (event) =>
     setTerms({ ...terms, [key]: event.target.type === 'checkbox' ? event.target.checked : event.target.value });
   const updateItem = (index) => (next) => setItems(items.map((item, at) => (at === index ? next : item)));
+  /*
+   * A model named by its code alone — brought in from the enquiry, or typed in the buyer's model
+   * box — is looked up on both masters, so the type follows: on the trading master it is a trade
+   * line, on the mould register it is made here [utils/quoteBuilder.js `masterMatch`].
+   */
+  const matchMaster = (code) => buyerCardsApi.models(code).then((reply) => masterMatch(reply?.data || reply || [], code)).catch(() => null);
+  const resolveItems = (list) => Promise.all(list.map(async (item) => (
+    item.mould || item.tradedItem || !item.modelNumber.trim() ? item : withMaster(item, await matchMaster(item.modelNumber))
+  )));
+  const resolveItem = (index) => async () => {
+    const item = items[index];
+    if (!item || item.mould || item.tradedItem || !item.modelNumber.trim()) return;
+    const row = await matchMaster(item.modelNumber);
+    if (!row) return;
+    /* Only if the box still says what was looked up: a name typed over in the meantime stands. */
+    setItems((current) => current.map((entry, at) => (at === index && entry.modelNumber === item.modelNumber && !entry.mould && !entry.tradedItem ? withMaster(entry, row) : entry)));
+  };
   const removeItem = (index) => setItems(items.length === 1 ? items : items.filter((unused, at) => at !== index));
   const listRef = useRef(null);
   const addItem = () => {
@@ -688,6 +710,7 @@ export default function QuoteBuilder({ onClose, onSaved, onDetailed, enquiry: gi
             index={index}
             item={item}
             onChange={updateItem(index)}
+            onResolve={resolveItem(index)}
             onRemove={() => removeItem(index)}
             removable={items.length > 1 && !sent}
             markup={markup}

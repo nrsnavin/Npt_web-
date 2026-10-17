@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   AS_MOULD, MAX_ITEMS, NONE, TRADE, blankItem, costOf, costPayload, costSent, isBlank, isNamed, itemFromLine,
-  itemsFromEnquiry, lineFor, modelPicked, nudge, pick, problemWith, returnsOf, samePrice, suggestedPrice, tick, tiersOf,
+  itemsFromEnquiry, lineFor, masterMatch, modelPicked, nudge, pick, problemWith, returnsOf, samePrice, suggestedPrice, tick, tiersOf, withMaster,
 } from '../src/utils/quoteBuilder.js';
 
 const read = (path) => readFileSync(new URL(`../src/${path}`, import.meta.url), 'utf8');
@@ -315,4 +315,29 @@ test('one model list for both masters: the pick sets the type and clears the oth
   assert.doesNotMatch(builder, /MouldSelect|loadTradedItems/);
   /* The inward price has its own tile on a trade line, whatever the costing rests on. */
   assert.match(builder, /\{trade && \(\s*<EditTile label="Inward price"/);
+});
+
+test('a model named by its code alone takes its type from the master: trade on the trading master, made here on the register', () => {
+  const rows = [
+    { ref: 'm1', kind: 'mould', code: 'M-101', name: '380mm slim shirt hanger' },
+    { ref: 't7', kind: 'traded', code: 'MAU-35 WB', name: 'Velvet' },
+  ];
+  assert.equal(masterMatch(rows, 'mau-35  wb')?.ref, 't7', 'the code, whatever the case or spacing');
+  assert.equal(masterMatch(rows, 'M-101')?.ref, 'm1');
+  assert.equal(masterMatch(rows, 'M-10'), null, 'a near match is for the person to pick');
+  assert.equal(masterMatch(rows, ''), null);
+  const typed = { ...blankItem(), modelNumber: 'MAU-35 WB' };
+  const trade = withMaster(typed, rows[1]);
+  assert.equal(trade.procurement, TRADE);
+  assert.equal(trade.tradedItem, '7');
+  assert.equal(trade.modelNumber, 'MAU-35 WB', 'the name stays as typed');
+  const made = withMaster({ ...blankItem(), modelNumber: 'M-101' }, rows[0]);
+  assert.equal(made.procurement, 'manufacture');
+  assert.equal(made.mould, '1');
+  assert.equal(withMaster(typed, null), typed, 'nothing on the master, nothing changed');
+  /* Looked up for the enquiry's models as they come in, and when a model number is typed. */
+  const builder = read('components/QuoteBuilder.jsx');
+  assert.match(builder, /return resolveItems\(itemsFromEnquiry\(record\)\)/);
+  assert.match(builder, /onBlur=\{onResolve\}/);
+  assert.match(builder, /buyerCardsApi\.models\(code\)/);
 });

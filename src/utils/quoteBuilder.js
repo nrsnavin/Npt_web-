@@ -126,6 +126,24 @@ export function modelPicked(item, ref) {
   return pick(pick(item, 'mould', ''), 'tradedItem', '');
 }
 
+/**
+ * The master's row for a model named by its code — an enquiry's model, or one typed in the
+ * buyer's model box — so the type follows the master wherever the name came from: a code on
+ * the trading master is a trade line, one on the mould register is made here. Exact code only,
+ * whatever the case or spacing; a near match is for the person to pick from the list.
+ */
+export function masterMatch(rows, code) {
+  const key = String(code || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  if (!key) return null;
+  return (rows || []).find((row) => String(row.code || '').trim().toLowerCase().replace(/\s+/g, ' ') === key) || null;
+}
+
+/** The item on the master's row, keeping the name as it was typed; unchanged when there is no row. */
+export function withMaster(item, row) {
+  if (!row?.ref) return item;
+  return { ...modelPicked(item, row.ref), modelNumber: item.modelNumber };
+}
+
 /** True when nothing has been chosen on the item yet. */
 export const isBlank = (item) =>
   !item.mould && !item.tradedItem && !item.modelNumber.trim() && !item.materialRef && !item.colour && item.unitPrice === '';
@@ -393,4 +411,58 @@ export function problemWith({ enquiry, customer, items, editing = false }) {
   if (bad) return 'A rate must be a number.';
   /* A product detail the enquiry did not give is no bar to the quote: the order form asks for it. */
   return null;
+}
+
+/**
+ * What a bought-in piece would cost the plant to make, from the trading master's own build-up:
+ * the grams in the named resin (over PP, as the register's grammage factor says) at that resin's
+ * rate — or a rate typed on the item — plus job work, hook, clips and packing. No margin.
+ *
+ * Nothing is costed without a rate and grams: a build-up with the parts alone gives the parts,
+ * and `known` says whether the material side is in. The percent is the supplier's keep over the
+ * making cost — markup on cost, as the plant's own tiers are, so "the supplier is on 28%" reads
+ * against "we quote at 20%".
+ */
+export function makeCostOf(traded) {
+  const up = traded?.buildUp || {};
+  const resin = up.material && typeof up.material === 'object' ? up.material : null;
+  const ratePerKg = Number(up.ratePerKg) || Number(resin?.ratePerKg) || 0;
+  const ppGrams = (Number(up.partWeightGrams) || 0) + (Number(up.runnerWeightGrams) || 0);
+  const grams = cutGrams(ppGrams * (1 + (Number(resin?.grammageFactorPercent) || 0) / 100));
+  const material = (grams * ratePerKg) / 1000;
+  const jobWork = Number(up.jobWorkCost) || 0;
+  const hook = Number(up.hookCost) || 0;
+  const clips = Number(up.clipsCost) || 0;
+  const packing = Number(up.packingCost) || 0;
+  const total = material + jobWork + hook + clips + packing;
+  return {
+    resin: resin ? resin.name : null,
+    grams,
+    ratePerKg,
+    material: paise(material),
+    jobWork,
+    hook,
+    clips,
+    packing,
+    total: paise(total),
+    exactTotal: total,
+    known: grams > 0 && ratePerKg > 0,
+    hasParts: jobWork + hook + clips + packing > 0,
+  };
+}
+
+/** The making cost set against the supplier's price: the margin they keep, and ours at the tiers. */
+export function supplierCheck(traded, inwardPrice, tiers = [10, 20]) {
+  const make = makeCostOf(traded);
+  const inward = Number(inwardPrice) || 0;
+  if (!(make.total > 0)) return null;
+  const margin = paise(inward - make.exactTotal);
+  const percent = inward > 0 ? Math.round(((inward - make.exactTotal) / make.exactTotal) * 1000) / 10 : null;
+  return {
+    ...make,
+    inward,
+    margin,
+    percent,
+    at: tiers.map((tier) => [tier, priceAt(make.exactTotal, tier)]),
+  };
 }

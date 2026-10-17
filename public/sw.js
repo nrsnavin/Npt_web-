@@ -101,13 +101,19 @@ self.addEventListener('push', (event) => {
     message = { title: event.data?.text() || 'Navin Hangers' };
   }
   event.waitUntil(
-    self.registration.showNotification(message.title || 'Navin Hangers', {
-      body: message.body || '',
-      icon: '/icons/icon-192.png',
-      badge: '/icons/icon-192.png',
-      data: { link: message.link || '/' },
-      tag: message.link || undefined,
-    })
+    Promise.all([
+      self.registration.showNotification(message.title || 'Navin Hangers', {
+        body: message.body || '',
+        icon: '/icons/icon-192.png',
+        badge: '/icons/icon-192.png',
+        data: { link: message.link || '/' },
+        tag: message.tag || message.taskId || message.link || undefined,
+      }),
+      /* The app, where it is open, is told the same moment — a toast and the bell, no polling. */
+      self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windows) => {
+        windows.forEach((client) => client.postMessage({ type: 'push', message }));
+      }),
+    ])
   );
 });
 

@@ -53,6 +53,8 @@ export const workspace = {
   todos: {
     list: (params) => api.get('/workspace/todos', { params }).then((response) => response.data),
     reminders: () => api.get('/workspace/todos/reminders').then(unwrap),
+    /** Tasks raised for my departments since a moment — the app's own poll between pushes [components/LiveAlerts.jsx]. */
+    fresh: (since) => api.get('/workspace/todos/fresh', { params: { since } }).then((response) => response.data),
     /**
      * What needs somebody in this department today: `{ handedOver, urgent }`.
      *
@@ -633,6 +635,8 @@ export const payments = {
 
 export const production = {
   list: (params) => api.get('/production', { params }).then((response) => response.data),
+  /** The queue in EDD order with the other teams beside each row — `{ data, meta }`, read by every department. */
+  queue: () => api.get('/production/queue').then((response) => response.data),
   /**
    * The plant's front page: what to run next, with the reason on each row, and the questions
    * marketing is waiting on. Both in one reply so the screen cannot render half of itself.

@@ -5,6 +5,7 @@ import { useTheme } from '../context/ThemeContext.jsx';
 import WorkspaceRail from './dock/WorkspaceRail.jsx';
 import SidebarNav from './SidebarNav.jsx';
 import InboxBell from './InboxBell.jsx';
+import LiveAlerts from './LiveAlerts.jsx';
 import GlobalSearch from './GlobalSearch.jsx';
 import ErrorBoundary from './ErrorBoundary.jsx';
 import { Modal } from './ui.jsx';
@@ -455,6 +456,8 @@ export default function Layout() {
           <button type="button" className="row-action" onClick={clearNotice}>Dismiss</button>
         </div>
       )}
+
+      <LiveAlerts />
 
       <div className="flex min-h-0 flex-1">
         <div className="flex min-w-0 flex-1 flex-col">

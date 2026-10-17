@@ -181,7 +181,7 @@ test('Quality, Assembly and Printing are one desk: one choice on the board, each
   assert.match(board, /section\.label && <li key=\{`head-\$\{section\.key\}`\}/, 'and on the phone list');
   const desk = read('pages/DepartmentDashboard.jsx');
   assert.match(desk, /const deskMembers = data\.desk\?\.departments \|\| \[figures\.department\];/);
-  assert.match(desk, /bySection\(shown, \(row\) => row\.task\.department\)\.map/);
+  assert.match(desk, /: bySection\(shown, \(row\) => row\.task\.department\)\s*\)\.map/, 'every other desk still sections by department');
   assert.match(desk, /bySection\(requests, \(task\) => task\.department\)\.map/);
   const overview = read('pages/OverviewDashboard.jsx');
   assert.match(overview, /\{isAdmin && \(\s*<div className="grid grid-cols-2 gap-3 lg:grid-cols-4">\s*<FigureTile label="Customers"/, 'the figures are Admin’s only');

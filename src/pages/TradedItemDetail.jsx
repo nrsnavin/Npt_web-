@@ -6,6 +6,7 @@ import { useRecord } from '../hooks/useRecords.js';
 import { Badge, ErrorState, Facts, Modal, PageHeader, Section, Spinner } from '../components/ui.jsx';
 import TradedItemForm from '../components/TradedItemForm.jsx';
 import DeleteRecordButton from '../components/DeleteRecordButton.jsx';
+import SupplierCheck from '../components/SupplierCheck.jsx';
 import { MouldThumb } from '../components/MouldPhoto.jsx';
 import { formatDate } from '../utils/format.js';
 import { HANGER_CATEGORIES, optionLabel } from '../utils/pipeline.js';
@@ -126,6 +127,8 @@ export default function TradedItemDetail() {
               <Facts
                 columns={1}
                 items={[
+                  { label: 'Resin', value: item.buildUp.material?.name ? `${item.buildUp.material.name} — ₹${item.buildUp.material.ratePerKg}/kg` : undefined },
+                  { label: 'Rate typed', value: item.buildUp.ratePerKg != null ? `₹${item.buildUp.ratePerKg}/kg` : undefined },
                   { label: 'Grammage as PP', value: item.buildUp.partWeightGrams != null ? `${item.buildUp.partWeightGrams} g` : undefined },
                   { label: 'Runner grammage', value: item.buildUp.runnerWeightGrams != null ? `${item.buildUp.runnerWeightGrams} g` : undefined },
                   { label: 'Job work', value: item.buildUp.jobWorkCost != null ? rupees(item.buildUp.jobWorkCost) : undefined },
@@ -134,6 +137,7 @@ export default function TradedItemDetail() {
                   { label: 'Packing', value: item.buildUp.packingCost != null ? rupees(item.buildUp.packingCost) : undefined },
                 ].filter((row) => row.value !== undefined)}
               />
+              <SupplierCheck traded={item} inwardPrice={item.inwardPrice} className="mt-4" />
             </Section>
           )}
 

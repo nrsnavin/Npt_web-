@@ -69,6 +69,7 @@ export const DEPARTMENT_WORKSPACES = {
       { label: 'Approved enquiries', to: '/enquiries?stage=po_so', module: 'enquiries', hint: 'Enquiries at PO & SO' },
       { label: 'Quotations sent', to: '/quotations/sent', module: 'pricing' },
       { label: 'Customer PO / sales orders', to: '/orders', module: 'orders' },
+      { label: 'Production queue', to: '/production/queue', module: 'production' },
       { label: 'Production status', to: '/production', module: 'production' },
       { label: 'Dispatch status', to: '/dispatches', module: 'dispatch' },
     ],
@@ -124,6 +125,7 @@ export const DEPARTMENT_WORKSPACES = {
   production: {
     purpose: 'Makes the order and keeps everyone told of what is done and what is pending.',
     pages: [
+      { label: 'Production queue', to: '/production/queue', module: 'production', hint: 'In EDD order, with Assembly, Quality and Dispatch beside each row' },
       { label: 'Production status', to: '/production', module: 'production', hint: 'By customer and model' },
       { label: 'Assigned orders', to: '/orders', module: 'orders' },
       { label: 'Moulds', to: '/moulds', module: 'moulds' },
@@ -143,6 +145,7 @@ export const DEPARTMENT_WORKSPACES = {
     pages: [
       { label: 'Mould issues', to: '/enquiries?stage=mould', module: 'enquiries', hint: 'Enquiries sent with a Mould Issue' },
       { label: 'Mould register', to: '/moulds', module: 'moulds', hint: 'Cavities, weights and condition' },
+      { label: 'Production queue', to: '/production/queue', module: 'production' },
       { label: 'Production status', to: '/production', module: 'production' },
       { label: 'Orders', to: '/orders', module: 'orders' },
     ],
@@ -161,6 +164,7 @@ export const DEPARTMENT_WORKSPACES = {
       { label: 'Waiting for a check', to: '/enquiries?stage=quality', module: 'enquiries', hint: 'Enquiries sent for Quality Check' },
       { label: 'Quality check queue', to: '/quality', module: 'quality' },
       { label: 'Quality report', to: '/quality/report', module: 'quality' },
+      { label: 'Production queue', to: '/production/queue', module: 'production' },
       { label: 'Production status', to: '/production', module: 'production' },
     ],
     jobs: [
@@ -176,6 +180,7 @@ export const DEPARTMENT_WORKSPACES = {
     pages: [
       { label: 'Enquiries at Assembly', to: '/enquiries?stage=assembling', module: 'enquiries' },
       { label: 'Order / model details', to: '/orders', module: 'orders' },
+      { label: 'Production queue', to: '/production/queue', module: 'production' },
       { label: 'Production status', to: '/production', module: 'production' },
       { label: 'Models', to: '/moulds', module: 'moulds' },
     ],
@@ -193,6 +198,7 @@ export const DEPARTMENT_WORKSPACES = {
     pages: [
       { label: 'Enquiries at Assembly / Printing', to: '/enquiries?stage=assembling', module: 'enquiries' },
       { label: 'Order / model details', to: '/orders', module: 'orders' },
+      { label: 'Production queue', to: '/production/queue', module: 'production' },
       { label: 'Production status', to: '/production', module: 'production' },
       { label: 'Models', to: '/moulds', module: 'moulds' },
     ],
@@ -208,6 +214,7 @@ export const DEPARTMENT_WORKSPACES = {
     purpose: 'Sends the goods and proves they went.',
     pages: [
       { label: 'Plan trips', to: '/dispatch/plan', module: 'dispatch' },
+      { label: 'Production queue', to: '/production/queue', module: 'dispatch', hint: 'What is still on the press, in EDD order' },
       { label: 'Ready / pending dispatch', to: '/dispatches', module: 'dispatch' },
       { label: 'Enquiries to invoice', to: '/enquiries?stage=invoice_dispatch,lr_copy', module: 'enquiries' },
       { label: 'Orders', to: '/orders', module: 'orders' },

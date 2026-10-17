@@ -245,7 +245,7 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
 
   const current = statuses.find((entry) => entry.key === todo.status);
   /* The readiness tasks this one asked for and are still open. */
-  const waiting = (todo.waitingOn || []).filter((task) => (button.form.actions || []).some((action) => action.kind === task.kind));
+  const waiting = (todo.waitingOn || []).filter((task) => (button.form.actions || []).some((action) => action.kind === task.kind && action.waits));
   const resultStep = statuses.find((entry) => entry.pdf);
   const editable = (button.asks || []).filter((field) => field.editable);
   /* The obvious move — the rung after the one the task stands on — as the one big button. */
