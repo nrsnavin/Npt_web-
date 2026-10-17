@@ -7,10 +7,13 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   AS_MOULD, MAX_ITEMS, NONE, TRADE, blankItem, costOf, costPayload, costSent, isBlank, isNamed, itemFromLine,
-  itemsFromEnquiry, lineFor, needsConfirm, nudge, pick, problemWith, returnsOf, samePrice, suggestedPrice, tick, tiersOf,
+  itemsFromEnquiry, lineFor, nudge, pick, problemWith, returnsOf, samePrice, suggestedPrice, tick, tiersOf,
 } from '../src/utils/quoteBuilder.js';
+
+const read = (path) => readFileSync(new URL(`../src/${path}`, import.meta.url), 'utf8');
 
 const typed = (figures) => ({ ...blankItem().figures, ...figures });
 
@@ -197,14 +200,13 @@ test('a saved line reopens as it was left', () => {
   assert.deepEqual(trade.missingAtOpen, [], 'a bought-in hanger is not asked about its hook or packing');
 });
 
-test('the product details a line arrived without are filled in or confirmed', () => {
+test('the product details a line arrived without are named, and never bar the quote', () => {
   const item = itemFromLine(savedLine);
-  assert.ok(needsConfirm(item), 'clip and packing unanswered');
-  assert.match(problemWith({ items: [item], editing: true }), /Confirm the product details on M-141/);
-  assert.ok(!needsConfirm({ ...item, confirmed: true }), 'confirmed with the buyer');
-  assert.ok(!needsConfirm({ ...item, withClip: true, detailPacking: '100 pcs a bag' }), 'both answered on the sheet');
-  assert.ok(needsConfirm({ ...item, detailPacking: '100 pcs a bag' }), 'the clip still unanswered');
-  assert.equal(problemWith({ items: [{ ...item, confirmed: true }], editing: true }), null, 'editing needs no enquiry picked');
+  assert.deepEqual(item.missingAtOpen, ['Clip', 'Packing'], 'said on the item, for whoever fills them in');
+  assert.equal(problemWith({ items: [item], editing: true }), null, 'blanks are no problem — the order form asks for them');
+  assert.equal(problemWith({ items: [{ ...item, detailPacking: '100 pcs a bag' }], editing: true }), null);
+  /* No tick to pass on the quote: the order form is where the buyer's word is taken. */
+  assert.doesNotMatch(read('components/QuoteBuilder.jsx'), /Confirmed with the buyer|needsConfirm/);
 });
 
 test('costing a saved line sends every figure and only the choices that changed', () => {

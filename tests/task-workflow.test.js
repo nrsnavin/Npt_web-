@@ -55,8 +55,9 @@ test('only Admin is offered "Hand to someone" on the enquiry', () => {
 test('in Production the enquiry shows the EDD, or that it was asked and not given', () => {
   const desk = read('components/DepartmentDesk.jsx');
   assert.match(desk, /const inProduction = \['production_edd', 'assembling'\]\.includes\(stage\) \|\| Boolean\(production\?\.asked\);/);
-  assert.match(desk, /EDD \{formatDate\(production\.edd\.edd\)\}/);
-  assert.match(desk, /EDD not given yet/);
+  assert.match(desk, /<EddLine edd=\{\{ date: production\.edd\.edd, department: production\.edd\.department/);
+  assert.match(desk, /EDD not set yet/);
+  assert.match(desk, /asked \{formatDate\(production\.asked\.at\)\}, not given yet/);
   assert.match(desk, /plant expects \$\{formatDate\(line\.expectedCompletion\)\}/);
 });
 

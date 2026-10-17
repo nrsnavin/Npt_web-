@@ -9,6 +9,8 @@ import { timelineOf } from '../utils/taskHistory.js';
 import { latestOf, stateOf, whenOf } from '../utils/taskState.js';
 import { departmentLabel } from '../utils/pipeline.js';
 import { formatDate, formatRelative, initialsOf } from '../utils/format.js';
+import TaskEdd from './TaskEdd.jsx';
+import { EDD_CHIP, eddChipOf } from '../utils/edd.js';
 
 /**
  * One department task on the enquiry, read in a glance and opened for the rest
@@ -43,6 +45,8 @@ export default function TaskCard({ task, mayAct = false, open: openAtFirst = fal
   const hasWorkflow = Boolean(button?.form?.statuses?.length);
   const overdue = !task.completed && task.dueDate && new Date(task.dueDate) < new Date();
   const bodyId = `task-${task._id}-body`;
+  /* The EDD, on the tasks that give it or work to it — or that it is still wanted. */
+  const edd = eddChipOf(task);
 
   return (
     <li className={`rounded-xl border bg-ink-850 ${EDGE[state.tone]} ${task.completed ? 'opacity-80' : ''}`}>
@@ -68,6 +72,7 @@ export default function TaskCard({ task, mayAct = false, open: openAtFirst = fal
               {who?.name ? ` · ${who.name}` : task.completed ? '' : ' · not picked up'}
             </span>
             <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${CHIP[state.tone]}`}>{state.label}</span>
+            {edd && <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${EDD_CHIP[edd.tone]}`}>{edd.label}</span>}
           </span>
           {latest && (
             <span className="mt-0.5 block truncate text-sm text-steel-300">
@@ -97,6 +102,7 @@ export default function TaskCard({ task, mayAct = false, open: openAtFirst = fal
             )}
             {when && <span className="sm:hidden">{` · ${when.late ? 'late' : when.label.toLowerCase()} ${formatDate(when.date)}`}</span>}
           </p>
+          <TaskEdd todo={task} mayAct={mayAct} onChanged={onChanged} />
           {(task.brief || task.attachment) && (
             <div className="rounded-lg border border-line/[0.06] p-2.5">
               <p className="mb-1 text-xs font-semibold text-steel-400">What was asked</p>

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
-import { handoffs as handoffsApi } from '../api/endpoints.js';
+import { enquiries as enquiriesApi, handoffs as handoffsApi } from '../api/endpoints.js';
 import TaskPdfLink from './TaskPdfLink.jsx';
+import { EddForm, EddLine } from './TaskEdd.jsx';
+import { useToast } from '../context/ToastContext.jsx';
 import TaskCard from './TaskCard.jsx';
 import Menu from './Menu.jsx';
 import DepartmentTaskDialog from './DepartmentTaskDialog.jsx';
@@ -112,10 +114,13 @@ function ViewToggle({ view, onChange }) {
 
 export default function DepartmentDesk({ enquiry, onChanged }) {
   const catalogue = useHandoffCatalogue();
-  const { user, worksIn } = useAuth();
+  const { user, worksIn, canWrite } = useAuth();
+  const { toast } = useToast();
   const [history, setHistory] = useState(null);
   const [problem, setProblem] = useState(null);
   const [sending, setSending] = useState(null);
+  /* Marketing's own EDD on the enquiry: the form open, or not. */
+  const [settingEdd, setSettingEdd] = useState(false);
   const [view, setView] = useState('tasks');
   const [showDone, setShowDone] = useState(false);
   const [feedDepartment, setFeedDepartment] = useState('');
@@ -170,6 +175,20 @@ export default function DepartmentDesk({ enquiry, onChanged }) {
    */
   const production = history?.production;
   const inProduction = ['production_edd', 'assembling'].includes(stage) || Boolean(production?.asked);
+  /*
+   * The EDD is marketing's to set from the order on — the date the buyer is working to, before
+   * or instead of waiting for Production to give one [server: pipeline.controller `setEnquiryEdd`].
+   * The box shows from the order stage, or as soon as a date or a Production task exists.
+   */
+  const fromOrder = !['enquiry', 'sample', 'pricing_quote'].includes(stage);
+  const maySetEdd = canWrite('enquiries') && !closed;
+  const showEdd = !closed && production && (inProduction || fromOrder || Boolean(production.edd));
+  const setEdd = async ({ date, note }) => {
+    await enquiriesApi.setEdd({ id: enquiry._id, date, note });
+    toast(`EDD ${formatDate(date)}`, 'Production and Dispatch see it on their tasks.');
+    setSettingEdd(false);
+    refresh();
+  };
 
   /* The work itself — the holding task is the enquiry, said above, not a card. */
   const work = tasks.filter((task) => !task.holds);
@@ -204,26 +223,26 @@ export default function DepartmentDesk({ enquiry, onChanged }) {
   return (
     <Section title="Departments" actions={work.length > 0 ? <ViewToggle view={view} onChange={setView} /> : undefined}>
       <div className="space-y-4">
-        {!closed && inProduction && production && (
-          <div className="rounded-xl border border-accent/40 bg-accent/[0.07] px-3 py-2.5" aria-label="Expected delivery">
-            {production.edd ? (
-              <p className="text-sm text-steel-100">
-                <span className="font-bold">EDD {formatDate(production.edd.edd)}</span>
-                <span className="text-steel-400">
-                  {' · '}{departmentLabel(production.edd.department)}
-                  {production.edd.by ? ` · ${production.edd.by}` : ''}
-                  {production.edd.at ? `, ${formatDate(production.edd.at)}` : ''}
-                  {production.edd.pending ? ` · ${Number(production.edd.pending).toLocaleString('en-IN')} pcs pending` : ''}
-                </span>
-              </p>
-            ) : (
-              <p className="text-sm text-steel-100">
-                <span className="font-bold">EDD not given yet</span>
-                {production.asked && (
-                  <span className="text-steel-400"> · {departmentLabel(production.asked.department)} asked {formatDate(production.asked.at)}</span>
-                )}
-              </p>
-            )}
+        {showEdd && (
+          <div className={`rounded-xl border px-3 py-2.5 ${production.edd ? 'border-accent/40 bg-accent/[0.07]' : 'border-warn-500/40 bg-warn-500/[0.07]'}`} aria-label="Expected delivery">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              {production.edd ? (
+                <EddLine edd={{ date: production.edd.edd, department: production.edd.department, by: production.edd.by ? { name: production.edd.by } : null, at: production.edd.at, note: production.edd.note || (production.edd.pending ? `${Number(production.edd.pending).toLocaleString('en-IN')} pcs pending` : '') }} />
+              ) : (
+                <p className="text-sm text-steel-100">
+                  <span className="font-bold text-warn-400">EDD not set yet</span>
+                  {production.asked ? (
+                    <span className="text-steel-400"> · {departmentLabel(production.asked.department)} asked {formatDate(production.asked.at)}, not given yet</span>
+                  ) : maySetEdd ? (
+                    <span className="text-steel-400"> · the date the buyer is working to, for Production and Dispatch</span>
+                  ) : null}
+                </p>
+              )}
+              {maySetEdd && !settingEdd && (
+                <button type="button" className="row-action" onClick={() => setSettingEdd(true)}>{production.edd ? 'Change EDD' : 'Set EDD'}</button>
+              )}
+            </div>
+            {settingEdd && <EddForm onSave={setEdd} onCancel={() => setSettingEdd(false)} label={production.edd ? 'Change EDD' : 'Set EDD'} />}
             {production.asked?.status && (
               <p className="mt-0.5 text-xs text-steel-300">Production status: <span className="font-semibold text-steel-100">{production.asked.status}</span></p>
             )}

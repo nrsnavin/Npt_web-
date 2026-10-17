@@ -9,6 +9,7 @@ import DepartmentTaskDialog from './DepartmentTaskDialog.jsx';
 import { ErrorState, TableSkeleton } from './ui.jsx';
 import { formatDate, humanise } from '../utils/format.js';
 import { DEPARTMENT_CHOICES, departmentLabel, deskOf } from '../utils/pipeline.js';
+import { EDD_CHIP, eddChipOf } from '../utils/edd.js';
 
 /**
  * Department Tasks [the plant's own layout]: every open request this person follows — Admin all
@@ -51,6 +52,13 @@ const emptyLine = (state, department) => {
 
 const modelOf = (task) =>
   task.enquiry?.requirement?.modelNumber || task.enquiry?.items?.find((item) => item.modelNumber)?.modelNumber || null;
+
+/** The EDD on a Production, Assembly, Printing or Dispatch row — or that it is still wanted. */
+function EddChip({ task }) {
+  const edd = eddChipOf(task);
+  if (!edd) return null;
+  return <span className={`rounded-full px-1.5 py-0.5 text-xs font-semibold ${EDD_CHIP[edd.tone]}`}>{edd.label}</span>;
+}
 
 function StatusReply({ task, statuses, mayWork, onPick }) {
   const current = statuses.find((entry) => entry.key === task.status);
@@ -228,6 +236,7 @@ export default function DepartmentTasksBoard({
                       <p className="text-xs text-steel-400">
                         {task.label}
                         {modelOf(task) ? ` · ${modelOf(task)}` : ''}
+                        {eddChipOf(task) && <> · <EddChip task={task} /></>}
                         {task.suggestion?.kind === 'escalate_prt' && !task.completed && <> · <span className="font-semibold text-warn-400">Escalate to PRT?</span></>}
                         {task.enquiry?.number && <> · <Link className="text-accent hover:underline" to={`/enquiries/${task.enquiry._id}`}>{task.enquiry.number}</Link></>}
                         {' · '}
@@ -259,7 +268,7 @@ export default function DepartmentTasksBoard({
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <p className="truncate font-semibold text-steel-50">{task.customer?.name || task.label}</p>
-                    <p className="text-xs text-steel-400">{task.label}{modelOf(task) ? ` · ${modelOf(task)}` : ''}</p>
+                    <p className="text-xs text-steel-400">{task.label}{modelOf(task) ? ` · ${modelOf(task)}` : ''}{eddChipOf(task) && <> · <EddChip task={task} /></>}</p>
                   </div>
                   <span className={`shrink-0 text-xs ${isLate(task) ? 'font-semibold text-danger-400' : 'text-steel-400'}`}>
                     {whenOf(task)}

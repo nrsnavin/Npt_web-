@@ -80,6 +80,8 @@ export const workspace = {
     reschedule: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/reschedule`, payload).then(unwrap),
     /** The department's own status on its task — SO Waiting, Preparing, Needs Clarification. */
     status: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/status`, payload).then(unwrap),
+    /** The EDD from the Production / Assembly / Printing task, without a status move; said by the screen. */
+    edd: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/edd`, payload, { feedback: false }).then(unwrap),
     /** "Got it" on an answer that came back to the department — it leaves the top of the dashboard. */
     seen: (id) => api.post(`/workspace/todos/${id}/seen`, {}, { feedback: false }).then(unwrap),
     /** Another department asked from this task — Dispatch's "Ask Production"; keeps `raised` / `addedTo`. */
@@ -495,6 +497,8 @@ export const enquiries = {
   delegate: ({ id, ...payload }) => api.post(`/enquiries/${id}/delegate`, payload).then(unwrap),
   /** "Save & Mark as Checked": the captured details corrected, and the enquiry marked as read through. */
   check: ({ id, ...payload }) => api.post(`/enquiries/${id}/check`, payload).then(unwrap),
+  /** The expected delivery date, set by marketing on the enquiry; the departments working to it hear it. */
+  setEdd: ({ id, ...payload }) => api.post(`/enquiries/${id}/edd`, payload, { feedback: false }).then(unwrap),
   /** The picture the enquiry was read from, or null when it was typed in. */
   source: (id) => api.get(`/enquiries/${id}/source`).then(unwrap),
   /** That picture, as a blob — the route needs the session's token. */

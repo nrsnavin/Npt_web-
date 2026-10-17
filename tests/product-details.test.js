@@ -60,13 +60,13 @@ test('converting a prospect fills the customer form with everything the call too
   assert.match(card, /name: prospect\.contactPerson, mobile: prospect\.mobile \|\| prospect\.whatsapp \|\| '', email: prospect\.email \|\| '', isPrimary: true/);
 });
 
-test('the costing sheet confirms the blanks before the quote, and saves what was filled', () => {
+test('the costing sheet names the blanks and saves what was filled — no tick stands between them and the quote', () => {
   const sheet = read('components/CostingSheetForm.jsx');
   assert.match(sheet, /const missingAtOpen = useRef\(missingDetails\(row\)\)\.current;/);
-  assert.match(sheet, /const missingNow = missingDetails\(\{ category, hookRef, clipRef, packing \}\);/);
-  assert.match(sheet, /const needsConfirm = procurementNeedsDetails\(procurement\) && missingAtOpen\.length > 0 && missingNow\.length > 0 && !confirmed;/);
-  assert.match(sheet, /<ProductDetailsConfirm\s+line=\{\{ \.\.\.row, category, packing/);
-  assert.match(sheet, /disabled=\{busy \|\| needsConfirm\}/);
+  assert.match(sheet, /Not given on the enquiry: \{sayList\(missingAtOpen\)\}\. Fill in what is known; the rest is asked for on the order\./);
+  /* The confirmation tick is the order form's, not the quotation's. */
+  assert.doesNotMatch(sheet, /ProductDetailsConfirm|needsConfirm|setConfirmed/);
+  assert.match(sheet, /disabled=\{busy\}/);
   assert.match(sheet, /\.\.\.\(category !== \(row\.category \?\? ''\) \? \{ category: category \|\| null \} : \{\}\)/);
   /* Only the packing is typed in the panel — the hook and clip are the parts pickers below, the category comes from the mould. */
   assert.doesNotMatch(sheet, /Hook to confirm|Clip to confirm|aria-label="Category"/);

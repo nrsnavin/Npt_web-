@@ -342,7 +342,7 @@ export default function Enquiries({ embedded = false }) {
                     {/* Where it is with the departments [server: handoff.service `enquiryProgress`]. */}
                     <th className="px-1.5 py-3">Stage</th>
                     <th className="px-1.5 py-3" title="Expected ready date of the mould">ERD</th>
-                    <th className="px-1.5 py-3" title="Expected date Production gave">EDD</th>
+                    <th className="px-1.5 py-3" title="Expected delivery date — set by marketing on the enquiry, or given by Production">EDD</th>
                     <th className="px-1.5 py-3">Issues</th>
                     <SortHeader field="status" label="Sales stage" sort={sort} onToggle={sortBy} padding="px-1.5" />
                   </tr>
