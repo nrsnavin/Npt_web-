@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   AS_MOULD, MAX_ITEMS, NONE, TRADE, blankItem, costOf, costPayload, costSent, isBlank, isNamed, itemFromLine,
-  itemsFromEnquiry, lineFor, nudge, pick, problemWith, returnsOf, samePrice, suggestedPrice, tick, tiersOf,
+  itemsFromEnquiry, lineFor, modelPicked, nudge, pick, problemWith, returnsOf, samePrice, suggestedPrice, tick, tiersOf,
 } from '../src/utils/quoteBuilder.js';
 
 const read = (path) => readFileSync(new URL(`../src/${path}`, import.meta.url), 'utf8');
@@ -48,12 +48,13 @@ test('a ticked hook from the register replaces the mould’s; unticked, it costs
 });
 
 test('hook, clips, packing and misc count only when ticked', () => {
-  const none = costOf(blankItem(), { tool, resin: hips });
+  /* The hook is ticked from the start on every hanger; unticked here to see the four count only when ticked. */
+  const none = costOf({ ...blankItem(), withHook: false }, { tool, resin: hips });
   assert.deepEqual([none.hookCost, none.clipCost, none.packingCost, none.miscCost], [0, 0, 0, 0]);
   assert.equal(none.base, 3.88, 'material 2.78 + job 1.10 only');
   const all = costOf({ ...blankItem(), withHook: true, withClip: true, clipRef: 'c1', withPacking: true, withMisc: true, figures: typed({ packingCost: '0.55', otherCost: '0.25' }) }, { tool, resin: hips, clip: { ratePerPiece: 0.9 } });
   assert.deepEqual([all.hookCost, all.clipCost, all.packingCost, all.miscCost], [0.6, 0.9, 0.55, 0.25]);
-  const mouldPacking = costOf({ ...blankItem(), withPacking: true }, { tool, resin: hips });
+  const mouldPacking = costOf({ ...blankItem(), withHook: false, withPacking: true }, { tool, resin: hips });
   assert.equal(mouldPacking.packingCost, 0.4, 'ticked with no amount takes the mould’s packing');
 });
 
@@ -71,7 +72,7 @@ test('a trade hanger is its inward price — no material cost, no job work', () 
 });
 
 test('a typed figure wins over the register; blank takes the register', () => {
-  const item = { ...blankItem(), withPacking: true, figures: typed({ gramWeight: '25', rawMaterialRate: '120', jobWorkCost: '1.2' }) };
+  const item = { ...blankItem(), withHook: false, withPacking: true, figures: typed({ gramWeight: '25', rawMaterialRate: '120', jobWorkCost: '1.2' }) };
   const cost = costOf(item, { tool, resin: hips });
   assert.equal(cost.gramWeight, 25);
   assert.equal(cost.materialCost, 3, '25 g × ₹120/kg');
@@ -254,4 +255,64 @@ test('the form names what is missing before it is sent', () => {
   assert.ok(isBlank(blankItem()));
   assert.ok(isNamed({ ...blankItem(), modelNumber: 'X' }));
   assert.ok(blankItem().key !== blankItem().key, 'every row its own key');
+});
+
+test('every hanger starts with a hook, at the register’s price or nothing, changeable on the tile', () => {
+  assert.equal(blankItem().withHook, true);
+  const fromEnquiry = itemsFromEnquiry({ items: [{ modelNumber: 'NH-400' }] });
+  assert.equal(fromEnquiry[0].withHook, true, 'a hook the buyer did not name is still on the hanger');
+  const noPrice = costOf({ ...blankItem(), mould: 'm1' }, { tool: { consumptionPerPieceGrams: 20, jobWorkCost: 0.5 }, resin: { ratePerKg: 100 } });
+  assert.equal(noPrice.hookCost, 0, 'no hook price on the register: nothing, not a refusal');
+  assert.equal(noPrice.register.hookCost, 0);
+  const priced = costOf({ ...blankItem(), mould: 'm1' }, { tool: { consumptionPerPieceGrams: 20, hookCost: 0.35 }, resin: { ratePerKg: 100 } });
+  assert.equal(priced.hookCost, 0.35, 'the register’s hook price is in the cost from the start');
+  const changed = costOf({ ...blankItem(), mould: 'm1', figures: typed({ hookCost: '0.5' }) }, { tool: { consumptionPerPieceGrams: 20, hookCost: 0.35 }, resin: { ratePerKg: 100 } });
+  assert.equal(changed.hookCost, 0.5, 'and changeable');
+  /* The tile writes the register’s figure in, rather than greying it as a placeholder. */
+  assert.match(read('components/QuoteBuilder.jsx'), /label="Hook cost" value=\{item\.figures\.hookCost === '' \? reg\('hookCost'\) : item\.figures\.hookCost\}/);
+});
+
+test('a bought-in piece the supplier has not priced is costed from the trading master’s build-up', () => {
+  const traded = { inwardPrice: 0, buildUp: { partWeightGrams: 18, runnerWeightGrams: 2, jobWorkCost: 0.4, hookCost: 0.3, clipsCost: 0.9, packingCost: 0.2 } };
+  const cost = costOf({ ...blankItem(), procurement: TRADE, tradedItem: 't1', materialRef: 'mat1', withPacking: true }, { resin: { ratePerKg: 100 }, traded });
+  assert.equal(cost.supplied, false);
+  assert.equal(cost.gramWeight, 20, 'part and runner from the master');
+  assert.equal(cost.materialCost, 2, '20g at ₹100/kg');
+  assert.equal(cost.jobCost, 0.4);
+  assert.equal(cost.hookCost, 0.3, 'the hook is on by default, at the master’s figure');
+  assert.equal(cost.packingCost, 0.2);
+  assert.equal(cost.inwardPrice, 0);
+  assert.equal(cost.base, 2.9);
+  /* The supplier's price, typed or on the master, takes over: the build-up is off. */
+  const supplied = costOf({ ...blankItem(), procurement: TRADE, tradedItem: 't1', materialRef: 'mat1', withPacking: true }, { resin: { ratePerKg: 100 }, traded: { ...traded, inwardPrice: 6.5 } });
+  assert.equal(supplied.supplied, true);
+  assert.equal(supplied.materialCost, 0);
+  assert.equal(supplied.jobCost, 0);
+  assert.equal(supplied.hookCost, 0, 'in the inward price unless typed');
+  assert.equal(supplied.base, 6.5);
+  assert.equal(supplied.register.inwardPrice, 6.5, 'shown on the tile either way');
+  const addOn = costOf({ ...blankItem(), procurement: TRADE, tradedItem: 't1', figures: typed({ hookCost: '0.3' }) }, { traded: { ...traded, inwardPrice: 6.5 } });
+  assert.equal(addOn.base, 6.8, 'a hook the plant puts on is added');
+});
+
+test('one model list for both masters: the pick sets the type and clears the other master’s choice', () => {
+  const item = { ...blankItem(), mould: 'm1', figures: typed({ gramWeight: '21' }) };
+  const trade = modelPicked(item, 't9');
+  assert.equal(trade.procurement, TRADE);
+  assert.equal(trade.tradedItem, '9');
+  assert.equal(trade.mould, '');
+  assert.equal(trade.figures.gramWeight, '', 'the mould’s figures went with it');
+  const made = modelPicked(trade, 'm4');
+  assert.equal(made.procurement, 'manufacture');
+  assert.equal(made.mould, '4');
+  assert.equal(made.tradedItem, '');
+  const cleared = modelPicked(made, undefined);
+  assert.equal(cleared.mould, '');
+  assert.equal(cleared.tradedItem, '');
+  const builder = read('components/QuoteBuilder.jsx');
+  assert.match(builder, /<MasterModelSelect/);
+  assert.match(builder, /onChange=\{\(ref\) => onChange\(modelPicked\(item, ref\)\)\}/);
+  assert.doesNotMatch(builder, /MouldSelect|loadTradedItems/);
+  /* The inward price has its own tile on a trade line, whatever the costing rests on. */
+  assert.match(builder, /\{trade && \(\s*<EditTile label="Inward price"/);
 });

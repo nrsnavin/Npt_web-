@@ -108,7 +108,9 @@ export default function CostingSheetForm({ quotation: pricing, line, onClose, on
    * piece has it. Opened on a saved sheet, a line already carrying a cost is ticked.
    */
   const [included, setIncluded] = useState(() => Object.fromEntries(
-    OPTIONAL_COSTS.map(([key]) => [key, Number(row.cost?.[key]) > 0])
+    /* Every hanger has a hook unless somebody says otherwise: ticked on a line not yet priced,
+       at the register's price or nothing, and changeable here. */
+    OPTIONAL_COSTS.map(([key]) => [key, Number(row.cost?.[key]) > 0 || (key === 'hookCost' && row.unitPrice == null)])
   ));
   const [markupPercent, setMarkup] = useState(row.markupPercent ?? 10);
   const [printing, setPrinting] = useState(row.printing ?? '');
@@ -258,9 +260,11 @@ export default function CostingSheetForm({ quotation: pricing, line, onClose, on
 
   // The same arithmetic the server does, so the sheet adds up as it is typed rather than after
   // it is saved. The server's answer is still the one that is stored.
-  /* A trade hanger is its inward price: the resin is in it, so no material cost is added [server: Quotation.js]. */
+  /* A trade hanger with a supplier's price is that price: the resin is in it, so no material cost is
+     added. One the supplier has not priced is costed from the build-up, as a made piece is [server: Quotation.js]. */
   const trade = procurement === 'trade';
-  const material = trade ? 0 : (Number(cost.gramWeight) * Number(cost.rawMaterialRate)) / 1000 || 0;
+  const supplied = trade && Number(cost.inwardPrice) > 0;
+  const material = supplied ? 0 : (Number(cost.gramWeight) * Number(cost.rawMaterialRate)) / 1000 || 0;
   const counts = (key) => !OPTIONAL_KEYS.includes(key) || included[key];
   const total =
     material +
@@ -493,10 +497,15 @@ export default function CostingSheetForm({ quotation: pricing, line, onClose, on
         they fill stays editable underneath.
       */}
       {trade && (
-        <Notice tone="info">A bought-in piece: costed at the inward price, so no material cost is added.</Notice>
+        <Notice tone="info">
+          {supplied
+            ? 'A bought-in piece: costed at the inward price, so no material cost is added.'
+            : 'A bought-in piece the supplier has not priced: costed from the build-up below, as a made piece is. Type the inward price to cost at it instead.'}
+        </Notice>
       )}
-      {!trade && (<>
+      {!supplied && (<>
       <div className="grid gap-4 sm:grid-cols-2">
+        {!trade && (
         <Field label="Mould" hint="Fills the grammage and this tool's cost lines">
           <Combobox
             value={mould}
@@ -509,6 +518,7 @@ export default function CostingSheetForm({ quotation: pricing, line, onClose, on
             noMatchLabel="No tool matches"
           />
         </Field>
+        )}
         <Field label="Material" hint="Brings its rate, and its grammage over PP">
           <Combobox
             value={materialRef}
