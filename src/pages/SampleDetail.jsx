@@ -8,6 +8,7 @@ import {
 } from '../components/ui.jsx';
 import HistoryPanel from '../components/HistoryPanel.jsx';
 import AuthedImage from '../components/AuthedImage.jsx';
+import BuyerContactCard from '../components/BuyerContactCard.jsx';
 import { CustomerSelect, EnquirySelect } from '../components/pickers.jsx';
 import SampleLog from '../components/SampleLog.jsx';
 import SampleRequestForm from '../components/SampleRequestForm.jsx';
@@ -1511,6 +1512,12 @@ export default function SampleDetail() {
         </div>
 
         <div className="space-y-5">
+          {/* Who to ring about the shade, who receives the bag — the same card the enquiry shows.
+              Only once there is a customer: an internal trial has nobody to reach. */}
+          {sample.customer && (
+            <BuyerContactCard enquiry={{ ...(sample.enquiry || {}), customer: sample.customer }} canConvert={false} />
+          )}
+
           <Section title="Due">
             {closed ? (
               <p className="text-sm text-steel-500">This request is settled.</p>
