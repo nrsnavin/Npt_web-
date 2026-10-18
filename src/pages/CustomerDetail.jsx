@@ -12,7 +12,7 @@ import ViewSwitch from '../components/ViewSwitch.jsx';
 import { useViewMode } from '../hooks/useBoard.js';
 import HistoryPanel from '../components/HistoryPanel.jsx';
 import { accuracyLabel, directionsUrl, mapsUrl, placeLabel } from '../utils/maps.js';
-import { formatCompactCurrency, formatCurrency, formatDate, formatNumber } from '../utils/format.js';
+import { formatCompactCurrency, formatCurrency, formatDate, formatNumber, humanise } from '../utils/format.js';
 import {
   CREDIT_STATUSES, CUSTOMER_TYPES, SAMPLE_PURPOSES, SOURCES, creditLabel, creditStatusOf, optionLabel, ownsRecord, sampleStageLabel,
   stageLabel,
@@ -404,6 +404,67 @@ export default function CustomerDetail() {
               </p>
             )}
           </Section>
+          {/* The quotations made for this buyer — every one for Admin, their own for a marketing
+              person — with the rate on each model and never the cost. Shown to whoever may read
+              quotations at all; the server leaves the strand out for the rest. */}
+          {timeline.quotations && (
+            <Section
+              title={`Quotations (${timeline.quotationTotal ?? timeline.quotations.length})`}
+              actions={timeline.quotations.length > 0 && <Link to={`/quotations?customer=${customer._id}`} className="text-sm font-semibold text-accent hover:underline">All quotations</Link>}
+            >
+              {timeline.quotations.length ? (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-sm">
+                    <thead className="table-head">
+                      <tr>
+                        <th className="px-3 py-2.5">Quotation</th>
+                        <th className="px-3 py-2.5">Models · rate</th>
+                        <th className="px-3 py-2.5">Enquiry</th>
+                        <th className="px-3 py-2.5">Valid until</th>
+                        <th className="px-3 py-2.5">Stage</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-line/[0.04]">
+                      {timeline.quotations.map((quotation) => (
+                        <tr key={quotation._id} className="row-hover">
+                          <td className="px-3 py-3">
+                            <Link to={`/quotations/${quotation._id}`} className="font-semibold text-steel-100 hover:text-accent">
+                              {quotation.number}{quotation.revision > 1 ? ` · rev ${quotation.revision}` : ''}
+                            </Link>
+                            <p className="text-xs text-steel-400">{formatDate(quotation.sentAt || quotation.createdAt)}{quotation.sentAt ? ' · sent' : ''}</p>
+                          </td>
+                          <td className="px-3 py-3 text-steel-200">
+                            {quotation.lines.length
+                              ? quotation.lines.map((line, index) => (
+                                <p key={`${line.modelNumber || 'model'}-${index}`} className="tabular-nums">
+                                  {line.modelNumber || 'Model'}{line.unitPrice != null ? ` · ${formatCurrency(line.unitPrice)}` : ''}
+                                </p>
+                              ))
+                              : '—'}
+                          </td>
+                          <td className="px-3 py-3">
+                            {quotation.enquiry
+                              ? <Link to={`/enquiries/${quotation.enquiry._id}`} className="text-steel-300 hover:text-accent">{quotation.enquiry.number}</Link>
+                              : <span className="text-steel-500">—</span>}
+                          </td>
+                          <td className="px-3 py-3 text-steel-400">{quotation.validUntil ? formatDate(quotation.validUntil) : '—'}</td>
+                          <td className="px-3 py-3"><Badge status={quotation.status}>{humanise(quotation.status)}</Badge></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="py-6 text-center text-sm text-steel-500">No quotation for this customer yet.</p>
+              )}
+              {timeline.quotationTotal > timeline.quotations.length && (
+                <p className="mt-3 text-center text-xs text-steel-500">
+                  Showing the {timeline.quotations.length} most recent of {timeline.quotationTotal}.
+                </p>
+              )}
+            </Section>
+          )}
+
           {/* §27: the buyer's drawing and their signed approvals belong on the record, not
               in somebody's inbox. */}
           <Documents collection="customers" id={customer._id} canWrite={mayWrite} />

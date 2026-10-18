@@ -647,6 +647,8 @@ export default function Quotations() {
     search: term || undefined,
     status: status || undefined,
     enquiry: params.get('enquiry') || undefined,
+    /* From the customer's page: that buyer's quotations alone. */
+    customer: params.get('customer') || undefined,
   };
   const { data, pagination, meta, loading, error, reload } = useRecordList(quotationsApi.list, {
     ...filters,

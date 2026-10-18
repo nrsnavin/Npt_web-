@@ -280,3 +280,14 @@ test('a team task types its model and material, needs no instruction, and a cost
   /* Create Quotation raised the costing sheet: whoever may cost it is taken there. */
   assert.match(dialog, /if \(sent\.quotation\?\._id && canWrite\('pricing'\)\) navigate\(`\/quotations\/\$\{sent\.quotation\._id\}`\);/);
 });
+
+test('the customer page lists the buyer’s quotations — models and rates, never the cost — with a way to the full list', () => {
+  const page = readFileSync(new URL('../src/pages/CustomerDetail.jsx', import.meta.url), 'utf8');
+  assert.match(page, /title=\{`Quotations \(\$\{timeline\.quotationTotal \?\? timeline\.quotations\.length\}\)`\}/);
+  assert.match(page, /\{timeline\.quotations && \(/, 'only where the server sent the strand');
+  assert.match(page, /to=\{`\/quotations\?customer=\$\{customer\._id\}`\}/);
+  assert.match(page, /to=\{`\/quotations\/\$\{quotation\._id\}`\}/);
+  assert.match(page, /formatCurrency\(line\.unitPrice\)/);
+  assert.doesNotMatch(page, /totalCost|materialCost|markup/, 'nothing of the cost on a buyer’s page');
+  assert.match(readFileSync(new URL('../src/pages/Quotations.jsx', import.meta.url), 'utf8'), /customer: params\.get\('customer'\) \|\| undefined/, 'the list takes the buyer');
+});
