@@ -1166,4 +1166,7 @@ export const dispatchRegisterApi = {
 export const settings = {
   security: () => api.get('/settings/security').then(unwrap),
   setSecurity: (payload) => api.put('/settings/security', payload).then(unwrap),
+  /* The plant calendar capacity is worked out from: press hours a day, shifts, weekly off. */
+  plant: () => api.get('/settings/plant').then(unwrap),
+  setPlant: (payload) => api.put('/settings/plant', payload).then(unwrap),
 };

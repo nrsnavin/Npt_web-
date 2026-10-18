@@ -4,6 +4,7 @@ import { machinesApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { Badge, EmptyState, ErrorState, Field, FormError, Modal, PageHeader, TableSkeleton } from '../components/ui.jsx';
 import { formatDate } from '../utils/format.js';
+import PlantCalendarCard from '../components/PlantCalendarCard.jsx';
 import { MACHINE_STATUSES, labelOf, toneOf } from '../utils/records.js';
 
 /**
@@ -94,6 +95,7 @@ export default function Machines() {
           {overdue.length > 0 && <Badge tone="progress">{overdue.length} due for service</Badge>}
         </div>
       )}
+      <PlantCalendarCard mayEdit={mayEdit} />
       {error && <ErrorState error={error} onRetry={load} />}
       {!machines && !error && <TableSkeleton rows={5} columns={6} />}
       {machines && !machines.length && <EmptyState title="No machines yet" description={mayEdit ? 'Add each press once — its maintenance and runs are kept against it.' : 'Production adds the machines.'} />}
