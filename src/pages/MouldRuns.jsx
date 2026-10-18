@@ -23,7 +23,7 @@ const elapsed = (from) => {
   return minutes < 60 ? `${minutes} min` : `${Math.floor(minutes / 60)} h ${minutes % 60} min`;
 };
 
-function StartRun({ onClose, onStarted, initial = {} }) {
+export function StartRun({ onClose, onStarted, initial = {} }) {
   const [values, setValues] = useState({ mould: '', machine: '', enquiry: initial.enquiry || '', order: initial.order || '', orderLine: '', colour: '', plannedQuantity: '', shift: '', operator: '', counterStart: '', resinMaterial: '', resinName: '', resinBatch: '' });
   /* Started from a work order: its mould, order and line are taken from it [server: `startRun`]. */
   const [workOrder, setWorkOrder] = useState(null);
@@ -132,7 +132,7 @@ function StartRun({ onClose, onStarted, initial = {} }) {
   );
 }
 
-function FinishRun({ run, onClose, onFinished }) {
+export function FinishRun({ run, onClose, onFinished }) {
   const reasons = useRunReasons();
   const [values, setValues] = useState({ counterEnd: '', goodPieces: '', rejectedPieces: '', usedKg: '', regrindKg: '', downtimeReason: '', issues: '', aborted: false });
   /* Stops and rejects by coded reason, beside any logged while it ran. */

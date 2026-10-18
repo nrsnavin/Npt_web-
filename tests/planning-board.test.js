@@ -62,3 +62,16 @@ test('material needs and the hook and clip store', () => {
   assert.match(read('components/PartForm.jsx'), /reorderQty: number\(values\.reorderQty\), perHanger: number\(values\.perHanger\)/);
   assert.match(read('pages/PlanningBoard.jsx'), /Will run short:/);
 });
+
+test('the floor tablet, the andon, the job card and the shift handover', () => {
+  const floor = read('pages/Floor.jsx');
+  assert.match(floor, /machinesApi\.andon\(\{ id: machine\._id, reason/);
+  assert.match(floor, /machinesApi\.clearAndon\(/);
+  assert.match(floor, /params\.get\('wo'\)/, 'a job card QR opens its job');
+  assert.match(floor, /setInterval\(load, 30000\)/);
+  assert.match(read('pages/WorkOrders.jsx'), /workOrdersApi\.jobCard\(wo\._id\)/);
+  assert.match(read('pages/ShiftHandover.jsx'), /productionApi\.shiftSummary\(/);
+  const app = read('App.jsx');
+  assert.match(app, /path="floor"/);
+  assert.match(app, /path="production\/shift"/);
+});

@@ -650,6 +650,10 @@ export const production = {
   day: () => api.get('/production/day').then((response) => response.data),
   /** The planning board: presses by day with their work orders, daily load, and what is not on a press. */
   plan: (params) => api.get('/production/plan', { params }).then(unwrap),
+  /** The floor tablet's view: each press, its running job, its next work orders, any open call. */
+  floor: () => api.get('/production/floor').then(unwrap),
+  /** What one shift hands the next: per press, runs, pieces, stops, problems; presses still called in. */
+  shiftSummary: (params) => api.get('/production/shift-summary', { params }).then(unwrap),
   /** What the open work orders need from the stores, what is short, and what to buy. */
   shortages: () => api.get('/production/shortages').then(unwrap),
   /** A press's queue light to dark — `{ before, after }` colour changes. */
@@ -1134,6 +1138,9 @@ export const machinesApi = {
   get: (id) => api.get(`/machines/${id}`).then(unwrap),
   create: (payload) => api.post('/machines', payload).then(unwrap),
   update: ({ id, ...payload }) => api.patch(`/machines/${id}`, payload).then(unwrap),
+  /** The andon: call a breakdown on a press, and mark it running again. */
+  andon: ({ id, ...payload }) => api.post(`/machines/${id}/andon`, payload, { feedback: false }).then(unwrap),
+  clearAndon: ({ id, ...payload }) => api.post(`/machines/${id}/andon/clear`, payload, { feedback: false }).then(unwrap),
 };
 
 /** Maintenance on a machine or a mould; recording one sets when the next falls due. */
@@ -1163,6 +1170,13 @@ export const workOrdersApi = {
   list: (params) => api.get('/work-orders', { params }).then((response) => response.data),
   get: (id) => api.get(`/work-orders/${id}`).then(unwrap),
   plan: ({ id, ...payload }) => api.patch(`/work-orders/${id}`, payload, { feedback: false }).then(unwrap),
+  /** The job card PDF, opened in a new tab for printing. */
+  jobCard: async (id) => {
+    const response = await api.get(`/work-orders/${id}/job-card`, { responseType: 'blob' });
+    const url = URL.createObjectURL(response.data);
+    window.open(url, '_blank', 'noopener');
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  },
 };
 
 /** The dispatch register: every stop on every trip that left, with the LR details. */

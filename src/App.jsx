@@ -64,6 +64,8 @@ const Oee = lazyPage(() => import('./pages/Oee.jsx'));
 const WorkOrders = lazyPage(() => import('./pages/WorkOrders.jsx'));
 const PlanningBoard = lazyPage(() => import('./pages/PlanningBoard.jsx'));
 const MaterialNeeds = lazyPage(() => import('./pages/MaterialNeeds.jsx'));
+const Floor = lazyPage(() => import('./pages/Floor.jsx'));
+const ShiftHandover = lazyPage(() => import('./pages/ShiftHandover.jsx'));
 const Dispatches = lazyPage(() => import('./pages/Dispatches.jsx'));
 const DispatchDetail = lazyPage(() => import('./pages/DispatchDetail.jsx'));
 const DispatchPlan = lazyPage(() => import('./pages/DispatchPlan.jsx'));
@@ -354,6 +356,24 @@ export default function App() {
             element={
               <RequireModule moduleKey="production">
                 <Production />
+              </RequireModule>
+            }
+          />
+          {/* The floor tablet: each press, its job, log / finish / start / breakdown. A job card's QR opens it. */}
+          <Route
+            path="floor"
+            element={
+              <RequireModule moduleKey="production">
+                <Floor />
+              </RequireModule>
+            }
+          />
+          {/* What one shift hands the next. */}
+          <Route
+            path="production/shift"
+            element={
+              <RequireModule moduleKey="production">
+                <ShiftHandover />
               </RequireModule>
             }
           />
