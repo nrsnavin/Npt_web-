@@ -244,6 +244,9 @@ export const components = {
   get: (id) => api.get(`/components/${id}`).then(unwrap),
   create: (payload) => api.post('/components', payload).then(unwrap),
   update: ({ id, ...payload }) => api.patch(`/components/${id}`, payload).then(unwrap),
+  /** The store's book for a hook or clip, and a receipt, issue or count correction on it. */
+  stock: (id) => api.get(`/components/${id}/stock`).then(unwrap),
+  moveStock: ({ id, ...payload }) => api.post(`/components/${id}/stock`, payload).then(unwrap),
   /** What has been costed with this part — see the note on the material register's own. */
   pricings: (id) =>
     api.get(`/components/${id}/pricings`).then((response) => ({
@@ -647,6 +650,8 @@ export const production = {
   day: () => api.get('/production/day').then((response) => response.data),
   /** The planning board: presses by day with their work orders, daily load, and what is not on a press. */
   plan: (params) => api.get('/production/plan', { params }).then(unwrap),
+  /** What the open work orders need from the stores, what is short, and what to buy. */
+  shortages: () => api.get('/production/shortages').then(unwrap),
   /** A press's queue light to dark — `{ before, after }` colour changes. */
   sequenceByColour: (machineId) => api.post(`/production/plan/${machineId}/sequence-by-colour`).then(unwrap),
   /** Whether a mould can go on a press: `{ ok, blocks, warnings }`. */

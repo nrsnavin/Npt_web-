@@ -63,6 +63,7 @@ const ProductionQueue = lazyPage(() => import('./pages/ProductionQueue.jsx'));
 const Oee = lazyPage(() => import('./pages/Oee.jsx'));
 const WorkOrders = lazyPage(() => import('./pages/WorkOrders.jsx'));
 const PlanningBoard = lazyPage(() => import('./pages/PlanningBoard.jsx'));
+const MaterialNeeds = lazyPage(() => import('./pages/MaterialNeeds.jsx'));
 const Dispatches = lazyPage(() => import('./pages/Dispatches.jsx'));
 const DispatchDetail = lazyPage(() => import('./pages/DispatchDetail.jsx'));
 const DispatchPlan = lazyPage(() => import('./pages/DispatchPlan.jsx'));
@@ -353,6 +354,15 @@ export default function App() {
             element={
               <RequireModule moduleKey="production">
                 <Production />
+              </RequireModule>
+            }
+          />
+          {/* What the plan needs from the stores, what is short, what to buy. */}
+          <Route
+            path="production/materials"
+            element={
+              <RequireModule moduleKey={['production', 'materials']}>
+                <MaterialNeeds />
               </RequireModule>
             }
           />
