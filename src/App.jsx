@@ -61,6 +61,7 @@ const OrderDetail = lazyPage(() => import('./pages/OrderDetail.jsx'));
 const Production = lazyPage(() => import('./pages/Production.jsx'));
 const ProductionQueue = lazyPage(() => import('./pages/ProductionQueue.jsx'));
 const Oee = lazyPage(() => import('./pages/Oee.jsx'));
+const ProductionInsights = lazyPage(() => import('./pages/ProductionInsights.jsx'));
 const WorkOrders = lazyPage(() => import('./pages/WorkOrders.jsx'));
 const PlanningBoard = lazyPage(() => import('./pages/PlanningBoard.jsx'));
 const MaterialNeeds = lazyPage(() => import('./pages/MaterialNeeds.jsx'));
@@ -401,6 +402,15 @@ export default function App() {
             element={
               <RequireModule moduleKey={['production', 'orders']}>
                 <WorkOrders />
+              </RequireModule>
+            }
+          />
+          {/* Looking ahead: ask the floor, a suggested schedule, maintenance risk, when to buy, WhatsApp readings. */}
+          <Route
+            path="production/insights"
+            element={
+              <RequireModule moduleKey="production">
+                <ProductionInsights />
               </RequireModule>
             }
           />

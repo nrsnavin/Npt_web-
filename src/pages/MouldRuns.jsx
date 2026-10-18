@@ -324,6 +324,8 @@ export default function MouldRuns() {
                   {(run.counterLog?.length > 0 || run.downtimeMinutes > 0 || run.rejectedPieces > 0) && (
                     <p className="mt-1 text-xs text-steel-400">{[run.counterLog?.length && `Counter ${formatNumber(run.counterLog.at(-1).counter)}`, run.downtimeMinutes > 0 && `${formatNumber(run.downtimeMinutes)} min stopped`, run.rejectedPieces > 0 && `${formatNumber(run.rejectedPieces)} rejects`].filter(Boolean).join(' · ')}</p>
                   )}
+                  {/* Rejects running far above this mould's usual [server: productionInsights `unusualSoFar`]. */}
+                  {run.anomalies?.length > 0 && <p className="mt-1 text-xs font-semibold text-warn-400">⚠ {run.anomalies.at(-1).text}</p>}
                 </div>
                 {mayRun && (
                   <div className="flex shrink-0 flex-col gap-1.5">

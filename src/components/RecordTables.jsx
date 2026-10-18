@@ -83,6 +83,8 @@ export function RunsTable({ rows, showMould = false, showMachine = false, empty,
                 {run.downtimeMinutes ? <p className="mt-1 text-xs text-steel-500">{run.downtimeMinutes} min stopped{run.downtimeReason ? ` — ${run.downtimeReason}` : ''}</p> : null}
                 {run.productionNote && <p className={`mt-1 text-xs ${run.producedAdded != null ? 'text-success-400' : 'text-warn-400'}`}>{run.productionNote}</p>}
                 {run.resinIssued ? <p className="mt-1 text-xs text-steel-500">{run.resinIssued} kg resin taken from the store</p> : null}
+                {/* Far outside what this mould usually does [server: productionInsights `unusual`]. */}
+                {(run.anomalies || []).map((entry) => <p key={`${entry.kind}:${entry.at}`} className="mt-1 text-xs font-semibold text-warn-400">⚠ {entry.text}</p>)}
               </td>
               {actions && <td className="py-2 text-right">{actions(run)}</td>}
             </tr>

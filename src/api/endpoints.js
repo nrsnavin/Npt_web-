@@ -662,6 +662,18 @@ export const production = {
   fit: (params) => api.get('/production/fit', { params }).then(unwrap),
   /** OEE for a span of days, by press, mould, shift and day, with the losses behind it. */
   oee: (params) => api.get('/production/oee', { params }).then(unwrap),
+  /** A suggested schedule: each press's queue, the reason for each job, and the moves to apply. */
+  suggestPlan: (body = {}) => api.post('/production/plan/suggest', body).then(unwrap),
+  /** Applies a suggestion's moves; a work order changed since is skipped and said. */
+  applyPlan: (moves) => api.post('/production/plan/apply', { moves }, { feedback: false }).then(unwrap),
+  /** Presses and moulds most likely to stop soon, with the reasons. */
+  maintenanceRisk: () => api.get('/production/maintenance-risk').then(unwrap),
+  /** Each resin and part: weekly use, weeks of cover, run-out and order-by days. */
+  purchaseForecast: (params) => api.get('/production/purchase-forecast', { params }).then(unwrap),
+  /** Press readings sent over WhatsApp, newest first. */
+  floorMessages: () => api.get('/production/floor-messages').then(unwrap),
+  /** A question answered from the plant's own figures. */
+  ask: (question) => api.post('/production/ask', { question }, { feedback: false }).then(unwrap),
   statuses: () => api.get('/production/statuses').then(unwrap),
   /** What the plant did to one line. The figures and the status go through one door. */
   record: ({ orderId, lineId, ...payload }) =>

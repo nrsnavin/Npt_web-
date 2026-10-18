@@ -36,6 +36,14 @@ function JobDialog({ job, press, mayPlan, onClose, onChanged }) {
           <div><dt className="text-xs text-steel-500">Press days</dt><dd className="text-steel-100">{job.pressDays ?? '—'}{job.perDay ? ` at ${formatNumber(job.perDay)} a day` : ''}</dd></div>
           <div><dt className="text-xs text-steel-500">Planned</dt><dd className="text-steel-100">{job.plannedStart ? `${formatDate(job.plannedStart)} to ${formatDate(job.plannedEnd)}` : 'Not on a press'}</dd></div>
           <div><dt className="text-xs text-steel-500">Due</dt><dd className={job.late ? 'font-semibold text-danger-400' : 'text-steel-100'}>{job.dueDate ? formatDate(job.dueDate) : '—'}{job.late ? ' — the plan ends after it' : ''}</dd></div>
+          {job.predictedEnd && (
+            <div className="col-span-2">
+              <dt className="text-xs text-steel-500">History predicts</dt>
+              <dd className={job.predictedLate ? 'font-semibold text-warn-400' : 'text-steel-100'}>
+                {formatDate(job.predictedEnd)}{job.slip > 1 ? ` — this mould runs ${Math.round((job.slip - 1) * 100)}% over standard` : ' — on standard'}{job.predictedLate && !job.late ? '; after the due date' : ''}
+              </dd>
+            </div>
+          )}
         </dl>
         {job.fit?.blocks?.length > 0 && <Notice tone="danger">{job.fit.blocks.join(' · ')}</Notice>}
         {job.fit?.warnings?.length > 0 && <Notice tone="warn">{job.fit.warnings.join(' · ')}</Notice>}
@@ -114,6 +122,7 @@ export default function PlanningBoard() {
           <>
             <Link to="/work-orders" className="btn-secondary">Work orders</Link>
             <Link to="/production/materials" className="btn-secondary">Material needs</Link>
+            <Link to="/production/insights" className="btn-secondary">Suggest a schedule</Link>
             <Link to="/machines" className="btn-secondary">Plant hours</Link>
           </>
         )}
@@ -189,9 +198,9 @@ export default function PlanningBoard() {
                             draggable={mayPlan}
                             onDragStart={() => setDragging(job)}
                             onClick={() => setOpen({ job, press: press.machine })}
-                            className={`truncate rounded-md px-2 py-1 text-left text-xs font-semibold ${BAR_TONE[job.status] || 'bg-steel-500/70 text-white'} ${job.late ? 'ring-2 ring-danger-500' : ''} ${span.clippedLeft ? 'rounded-l-none' : ''} ${span.clippedRight ? 'rounded-r-none' : ''}`}
+                            className={`truncate rounded-md px-2 py-1 text-left text-xs font-semibold ${BAR_TONE[job.status] || 'bg-steel-500/70 text-white'} ${job.late ? 'ring-2 ring-danger-500' : job.predictedLate ? 'ring-2 ring-warn-500' : ''} ${span.clippedLeft ? 'rounded-l-none' : ''} ${span.clippedRight ? 'rounded-r-none' : ''}`}
                             style={{ gridColumn: `${span.from + 2} / ${span.to + 3}` }}
-                            title={`${job.number} · ${job.colour || ''} · ${formatNumber(job.toMake)} pcs${job.late ? ' · ends after the due date' : ''}`}
+                            title={`${job.number} · ${job.colour || ''} · ${formatNumber(job.toMake)} pcs${job.late ? ' · ends after the due date' : job.predictedLate ? ' · history predicts it ends after the due date' : ''}`}
                           >
                             {job.fit?.warnings?.length || job.short?.length ? '⚠ ' : ''}{job.mould?.mouldCode || job.modelNumber} · {job.colour || '—'} · {formatNumber(job.toMake)}
                           </button>
@@ -208,7 +217,7 @@ export default function PlanningBoard() {
               {board.presses.length === 0 && <p className="p-4 text-sm text-steel-500">No presses yet. Add them on the Machines page.</p>}
             </div>
           </div>
-          <p className="text-xs text-steel-500">Bars are coloured by status; a red ring means the plan ends after the due date; ⚠ means a warning on the press or mould, or a store that will run short. The thin line under each press is its daily load — red is double-booked.</p>
+          <p className="text-xs text-steel-500">Bars are coloured by status; a red ring means the plan ends after the due date, an amber one that the mould's own history predicts it will; ⚠ means a warning on the press or mould, or a store that will run short. The thin line under each press is its daily load — red is double-booked.</p>
         </>
       )}
       {open && <JobDialog job={open.job} press={open.press} mayPlan={mayPlan} onClose={() => setOpen(null)} onChanged={load} />}

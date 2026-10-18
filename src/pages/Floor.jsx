@@ -152,6 +152,7 @@ export default function Floor() {
                   <p className="text-lg font-bold text-steel-50">{run.mould?.mouldCode}{run.workOrder?.colour ? ` · ${run.workOrder.colour}` : ''}</p>
                   <p className="text-sm text-steel-300">{[run.customer?.name, run.workOrder?.number, run.number].filter(Boolean).join(' · ')}</p>
                   <p className="mt-1 text-sm text-steel-300">Counter {formatNumber(lastCounter)}{run.downtimeMinutes ? ` · ${formatNumber(run.downtimeMinutes)} min stopped` : ''}{run.rejectedPieces ? ` · ${formatNumber(run.rejectedPieces)} rejects` : ''}</p>
+                  {run.anomalies?.length > 0 && <p className="mt-1 text-sm font-semibold text-warn-400">⚠ {run.anomalies.at(-1).text}</p>}
                   {run.workOrder && <p className="text-xs text-steel-500">{formatNumber(Math.max(0, (run.workOrder.quantity || 0) - (run.workOrder.goodQty || 0)))} still to make on the work order</p>}
                   {mayRun && (
                     <div className="mt-3 grid grid-cols-2 gap-2">
