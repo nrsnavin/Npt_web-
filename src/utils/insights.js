@@ -6,6 +6,13 @@
 /** The tone a risk level is shown in. */
 export const RISK_TONE = { high: 'danger', watch: 'warn', ok: 'success' };
 
+/** "Due now" items first, then by the day to order by; nothing to forecast last. */
+export function buyOrder(items = []) {
+  return [...items].sort((a, b) => Number(Boolean(b.orderNow)) - Number(Boolean(a.orderNow))
+    || String(a.orderBy || '9').localeCompare(String(b.orderBy || '9'))
+    || String(a.name || '').localeCompare(String(b.name || '')));
+}
+
 /** One line saying what a suggestion buys: late jobs before and after, colour changes, moves. */
 export function suggestionHeadline(summary) {
   if (!summary) return '';

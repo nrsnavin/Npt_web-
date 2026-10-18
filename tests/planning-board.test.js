@@ -52,13 +52,24 @@ test('the board drags onto a press, steps a job, sorts light to dark; runs start
   assert.match(app, /path="work-orders"/);
 });
 
-test('the floor tablet, the andon and the shift handover — no job card', () => {
+test('material needs and the hook and clip store', () => {
+  const needs = read('pages/MaterialNeeds.jsx');
+  assert.match(needs, /productionApi\.shortages\(\)/);
+  assert.match(needs, /Work orders that will run short/);
+  const store = read('components/PartStore.jsx');
+  assert.match(store, /componentsApi\.moveStock\(\{ id: part\._id, kind: moving/);
+  assert.match(read('pages/PartDetail.jsx'), /kind !== 'print' && <PartStore/);
+  assert.match(read('components/PartForm.jsx'), /reorderQty: number\(values\.reorderQty\), perHanger: number\(values\.perHanger\)/);
+  assert.match(read('pages/PlanningBoard.jsx'), /Will run short:/);
+});
+
+test('the floor tablet, the andon, the job card and the shift handover', () => {
   const floor = read('pages/Floor.jsx');
   assert.match(floor, /machinesApi\.andon\(\{ id: machine\._id, reason/);
   assert.match(floor, /machinesApi\.clearAndon\(/);
+  assert.match(floor, /params\.get\('wo'\)/, 'a job card QR opens its job');
   assert.match(floor, /setInterval\(load, 30000\)/);
-  for (const page of ['pages/WorkOrders.jsx', 'pages/Floor.jsx', 'pages/PlanningBoard.jsx']) assert.doesNotMatch(read(page), /jobCard|Job card/);
-  assert.doesNotMatch(read('App.jsx'), /production\/materials/, 'no bill of materials page');
+  assert.match(read('pages/WorkOrders.jsx'), /workOrdersApi\.jobCard\(wo\._id\)/);
   assert.match(read('pages/ShiftHandover.jsx'), /productionApi\.shiftSummary\(/);
   const app = read('App.jsx');
   assert.match(app, /path="floor"/);

@@ -5,12 +5,13 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import { Badge, EmptyState, ErrorState, FormError, Notice, PageHeader, Section, Spinner, TableSkeleton } from '../components/ui.jsx';
 import { formatDateTime, formatNumber } from '../utils/format.js';
-import { RISK_TONE, dayText, suggestionHeadline } from '../utils/insights.js';
+import { RISK_TONE, buyOrder, dayText, suggestionHeadline } from '../utils/insights.js';
 
 const TABS = [
   ['ask', 'Ask'],
   ['schedule', 'Suggested schedule'],
   ['risk', 'Maintenance risk'],
+  ['buy', 'When to buy'],
   ['whatsapp', 'WhatsApp readings'],
 ];
 
@@ -41,7 +42,7 @@ function AskPanel() {
         <button type="submit" className="btn-primary" disabled={busy || question.trim().length < 3}>{busy ? 'Reading the figures…' : 'Ask'}</button>
       </form>
       <div className="mt-2 flex flex-wrap gap-2">
-        {['Which orders will be late?', 'Why is OEE low this week?', 'Which press is likely to break down?'].map((text) => (
+        {['Which orders will be late?', 'Why is OEE low this week?', 'What do we need to buy?', 'Which press is likely to break down?'].map((text) => (
           <button key={text} type="button" className="row-action text-xs" onClick={() => ask(text)}>{text}</button>
         ))}
       </div>
@@ -185,6 +186,52 @@ function RiskPanel() {
   );
 }
 
+/** When to order each resin and part [server: productionRisk.service `purchaseForecast`]. */
+function BuyPanel() {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState(null);
+  const load = useCallback(() => productionApi.purchaseForecast().then((value) => { setData(value); setError(null); }).catch(setError), []);
+  useEffect(() => { load(); }, [load]);
+  if (error) return <ErrorState error={error} onRetry={load} />;
+  if (!data) return <TableSkeleton rows={6} columns={6} />;
+  const rows = buyOrder(data.items);
+  return (
+    <Section title="When to buy" actions={<Link to="/production/materials" className="row-action text-xs">Material needs</Link>}>
+      <p className="mb-3 text-xs text-steel-400">Use is the store’s issues over the last {data.weeks} weeks; the order-by day leaves {data.leadDays} days for it to arrive.</p>
+      {rows.length === 0 ? <EmptyState title="Nothing to forecast yet" description="Issues from the store and resin named on work orders appear here." /> : (
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead className="table-head">
+              <tr>
+                <th className="px-3 py-2 text-left">Item</th>
+                <th className="px-3 py-2 text-right">On hand</th>
+                <th className="px-3 py-2 text-right">Use a week</th>
+                <th className="px-3 py-2 text-right">Weeks cover</th>
+                <th className="px-3 py-2 text-left">Runs out</th>
+                <th className="px-3 py-2 text-left">Order by</th>
+                <th className="px-3 py-2 text-right">Buy</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-line/[0.04]">
+              {rows.map((item) => (
+                <tr key={`${item.kind}:${item.ref}`}>
+                  <td className="px-3 py-2 font-semibold text-steel-100">{item.name}</td>
+                  <td className="px-3 py-2 text-right tabular-nums text-steel-200">{formatNumber(item.onHand)} {item.unit}</td>
+                  <td className="px-3 py-2 text-right tabular-nums text-steel-300">{item.weeklyUse ? `${formatNumber(item.weeklyUse)} ${item.unit}` : '—'}</td>
+                  <td className="px-3 py-2 text-right tabular-nums text-steel-300">{item.weeksCover ?? '—'}</td>
+                  <td className="px-3 py-2 text-steel-300">{dayText(item.runOutOn)}</td>
+                  <td className={`px-3 py-2 ${item.orderNow ? 'font-bold text-danger-400' : 'text-steel-300'}`}>{item.orderNow ? 'Now' : dayText(item.orderBy)}</td>
+                  <td className={`px-3 py-2 text-right tabular-nums ${item.buy ? 'font-semibold text-warn-400' : 'text-steel-500'}`}>{item.buy ? `${formatNumber(item.buy)} ${item.unit}` : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Section>
+  );
+}
+
 const MESSAGE_TONE = { pending: 'warn', applied: 'success', cancelled: 'neutral', expired: 'neutral', failed: 'danger' };
 
 /** Press readings sent over WhatsApp [server: floorMessage.service]. */
@@ -217,7 +264,7 @@ function WhatsappPanel() {
 /**
  * Looking ahead [server: productionInsights, scheduleSuggest, productionRisk, floorMessage,
  * productionCopilot]: a question box answered from the plant's figures, a suggested schedule to
- * apply, the presses and moulds most likely to stop, and the floor's WhatsApp readings.
+ * apply, the presses and moulds most likely to stop, when to buy, and the floor's WhatsApp readings.
  */
 export default function ProductionInsights() {
   const { canWrite } = useAuth();
@@ -237,6 +284,7 @@ export default function ProductionInsights() {
       {tab === 'ask' && <AskPanel />}
       {tab === 'schedule' && <SchedulePanel mayPlan={canWrite('production')} />}
       {tab === 'risk' && <RiskPanel />}
+      {tab === 'buy' && <BuyPanel />}
       {tab === 'whatsapp' && <WhatsappPanel />}
     </div>
   );
