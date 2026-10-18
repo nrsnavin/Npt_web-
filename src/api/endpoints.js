@@ -645,6 +645,12 @@ export const production = {
    * marketing is waiting on. Both in one reply so the screen cannot render half of itself.
    */
   day: () => api.get('/production/day').then((response) => response.data),
+  /** The planning board: presses by day with their work orders, daily load, and what is not on a press. */
+  plan: (params) => api.get('/production/plan', { params }).then(unwrap),
+  /** A press's queue light to dark — `{ before, after }` colour changes. */
+  sequenceByColour: (machineId) => api.post(`/production/plan/${machineId}/sequence-by-colour`).then(unwrap),
+  /** Whether a mould can go on a press: `{ ok, blocks, warnings }`. */
+  fit: (params) => api.get('/production/fit', { params }).then(unwrap),
   /** OEE for a span of days, by press, mould, shift and day, with the losses behind it. */
   oee: (params) => api.get('/production/oee', { params }).then(unwrap),
   statuses: () => api.get('/production/statuses').then(unwrap),
@@ -1142,6 +1148,16 @@ export const mouldRunsApi = {
   reasons: () => api.get('/mould-runs/reasons').then(unwrap),
   /** A mould's runs, maintenance and QC records, and where its shot count stands. */
   mouldHistory: (mouldId) => api.get(`/moulds/${mouldId}/history`).then(unwrap),
+};
+
+/**
+ * Work orders: one per released order line, planned onto a press and fed by the runs
+ * [server: workOrder.service]. `list` replies `{ data, meta: { moves } }`.
+ */
+export const workOrdersApi = {
+  list: (params) => api.get('/work-orders', { params }).then((response) => response.data),
+  get: (id) => api.get(`/work-orders/${id}`).then(unwrap),
+  plan: ({ id, ...payload }) => api.patch(`/work-orders/${id}`, payload, { feedback: false }).then(unwrap),
 };
 
 /** The dispatch register: every stop on every trip that left, with the LR details. */

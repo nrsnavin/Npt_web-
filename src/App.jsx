@@ -61,6 +61,8 @@ const OrderDetail = lazyPage(() => import('./pages/OrderDetail.jsx'));
 const Production = lazyPage(() => import('./pages/Production.jsx'));
 const ProductionQueue = lazyPage(() => import('./pages/ProductionQueue.jsx'));
 const Oee = lazyPage(() => import('./pages/Oee.jsx'));
+const WorkOrders = lazyPage(() => import('./pages/WorkOrders.jsx'));
+const PlanningBoard = lazyPage(() => import('./pages/PlanningBoard.jsx'));
 const Dispatches = lazyPage(() => import('./pages/Dispatches.jsx'));
 const DispatchDetail = lazyPage(() => import('./pages/DispatchDetail.jsx'));
 const DispatchPlan = lazyPage(() => import('./pages/DispatchPlan.jsx'));
@@ -351,6 +353,24 @@ export default function App() {
             element={
               <RequireModule moduleKey="production">
                 <Production />
+              </RequireModule>
+            }
+          />
+          {/* The planning board: presses by day, drag a work order onto a press. */}
+          <Route
+            path="production/plan"
+            element={
+              <RequireModule moduleKey={['production', 'orders']}>
+                <PlanningBoard />
+              </RequireModule>
+            }
+          />
+          {/* Work orders: one per released order line, planned onto a press. */}
+          <Route
+            path="work-orders"
+            element={
+              <RequireModule moduleKey={['production', 'orders']}>
+                <WorkOrders />
               </RequireModule>
             }
           />

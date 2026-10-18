@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { mouldRunsApi, orders as ordersApi } from '../api/endpoints.js';
+import { mouldRunsApi, orders as ordersApi, workOrdersApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { EmptyState, ErrorState, Field, FormError, Modal, PageHeader, Section, Spinner } from '../components/ui.jsx';
 import { EnquirySelect, MaterialSelect, MouldSelect } from '../components/pickers.jsx';
@@ -25,6 +25,18 @@ const elapsed = (from) => {
 
 function StartRun({ onClose, onStarted, initial = {} }) {
   const [values, setValues] = useState({ mould: '', machine: '', enquiry: initial.enquiry || '', order: initial.order || '', orderLine: '', colour: '', plannedQuantity: '', shift: '', operator: '', counterStart: '', resinMaterial: '', resinName: '', resinBatch: '' });
+  /* Started from a work order: its mould, order and line are taken from it [server: `startRun`]. */
+  const [workOrder, setWorkOrder] = useState(null);
+  useEffect(() => {
+    if (!initial.workOrder) return undefined;
+    let live = true;
+    workOrdersApi.get(initial.workOrder).then((wo) => {
+      if (!live) return;
+      setWorkOrder(wo);
+      setValues((current) => ({ ...current, machine: current.machine || wo.machine?._id || '', colour: current.colour || wo.colour || '', plannedQuantity: current.plannedQuantity || String(wo.toMakeQty || '') }));
+    }).catch(() => null);
+    return () => { live = false; };
+  }, [initial.workOrder]);
   /* The enquiry's SOs, to say which SO line the run makes — its good pieces are added to that line. */
   const [orders, setOrders] = useState([]);
   useEffect(() => {
@@ -44,7 +56,8 @@ function StartRun({ onClose, onStarted, initial = {} }) {
     setProblem(null);
     try {
       await mouldRunsApi.start({
-        mould: values.mould,
+        ...(workOrder ? { workOrder: workOrder._id } : {}),
+        mould: workOrder ? undefined : values.mould,
         machine: values.machine || undefined,
         enquiry: values.enquiry || undefined,
         order: values.order || undefined,
@@ -67,11 +80,17 @@ function StartRun({ onClose, onStarted, initial = {} }) {
   return (
     <Modal open onClose={onClose} title="Start a run" description="One mould on one machine. Finish it when the mould comes off." size="lg">
       <form onSubmit={save} className="space-y-4">
+        {workOrder && (
+          <div className="rounded-xl border border-accent/30 bg-accent/[0.05] px-3 py-2 text-sm">
+            <p className="font-semibold text-steel-100">{workOrder.number} · {workOrder.mould?.mouldCode || workOrder.modelNumber}</p>
+            <p className="text-xs text-steel-400">{[workOrder.customer?.name, workOrder.order?.number, workOrder.colour, `${formatNumber(workOrder.toMakeQty)} of ${formatNumber(workOrder.quantity)} still to make`].filter(Boolean).join(' · ')}</p>
+          </div>
+        )}
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Mould" required><MouldSelect value={values.mould} onChange={set('mould')} allowCreate={false} /></Field>
+          {!workOrder && <Field label="Mould" required><MouldSelect value={values.mould} onChange={set('mould')} allowCreate={false} /></Field>}
           <Field label="Machine"><MachineSelect value={values.machine} onChange={set('machine')} emptyLabel="Pick the machine…" /></Field>
-          <Field label="For enquiry / order" className="sm:col-span-2"><EnquirySelect value={values.enquiry} onChange={(value) => setValues((current) => ({ ...current, enquiry: value, order: '', orderLine: '' }))} won emptyLabel="Stock run — no order" fallbackLabel={values.enquiry && values.enquiry === initial.enquiry ? initial.label : undefined} /></Field>
-          {orders.length > 0 && (
+          {!workOrder && <Field label="For enquiry / order" className="sm:col-span-2"><EnquirySelect value={values.enquiry} onChange={(value) => setValues((current) => ({ ...current, enquiry: value, order: '', orderLine: '' }))} won emptyLabel="Stock run — no order" fallbackLabel={values.enquiry && values.enquiry === initial.enquiry ? initial.label : undefined} /></Field>}
+          {!workOrder && orders.length > 0 && (
             <Field label="Sales order" hint="Good pieces are added to the SO line when the run ends">
               <select className="input" value={values.order} onChange={(event) => setValues((current) => ({ ...current, order: event.target.value, orderLine: '' }))}>
                 <option value="">{orders.length > 1 ? 'Pick the SO…' : orders[0].number}</option>
@@ -79,7 +98,7 @@ function StartRun({ onClose, onStarted, initial = {} }) {
               </select>
             </Field>
           )}
-          {chosenOrder?.lines?.length > 1 && (
+          {!workOrder && chosenOrder?.lines?.length > 1 && (
             <Field label="Line of the order" hint="Left empty, the line on this mould">
               <select className="input" value={values.orderLine} onChange={set('orderLine')}>
                 <option value="">The line on this mould</option>
@@ -106,7 +125,7 @@ function StartRun({ onClose, onStarted, initial = {} }) {
         {problem && <FormError error={problem} />}
         <div className="flex justify-end gap-2">
           <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
-          <button type="submit" className="btn-primary" disabled={busy || !values.mould || needsOrder}>{busy ? 'Starting…' : 'Start the run'}</button>
+          <button type="submit" className="btn-primary" disabled={busy || (!workOrder && (!values.mould || needsOrder))}>{busy ? 'Starting…' : 'Start the run'}</button>
         </div>
       </form>
     </Modal>
@@ -268,7 +287,7 @@ export default function MouldRuns() {
   const [error, setError] = useState(null);
   /* Opened from a Production task (Start a run): the dialog opens with the enquiry and its SO. */
   const [params, setParams] = useSearchParams();
-  const fromTask = params.get('start') ? { enquiry: params.get('enquiry') || '', order: params.get('order') || '', label: params.get('label') || undefined } : null;
+  const fromTask = params.get('start') ? { enquiry: params.get('enquiry') || '', order: params.get('order') || '', label: params.get('label') || undefined, workOrder: params.get('workOrder') || undefined } : null;
   const [starting, setStarting] = useState(Boolean(fromTask));
   const [finishing, setFinishing] = useState(null);
   const [logging, setLogging] = useState(null);
