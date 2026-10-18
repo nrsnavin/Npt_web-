@@ -645,6 +645,8 @@ export const production = {
    * marketing is waiting on. Both in one reply so the screen cannot render half of itself.
    */
   day: () => api.get('/production/day').then((response) => response.data),
+  /** OEE for a span of days, by press, mould, shift and day, with the losses behind it. */
+  oee: (params) => api.get('/production/oee', { params }).then(unwrap),
   statuses: () => api.get('/production/statuses').then(unwrap),
   /** What the plant did to one line. The figures and the status go through one door. */
   record: ({ orderId, lineId, ...payload }) =>
@@ -1134,6 +1136,10 @@ export const mouldRunsApi = {
   list: (params) => api.get('/mould-runs', { params }).then(unwrap),
   start: (payload) => api.post('/mould-runs', payload).then(unwrap),
   finish: ({ id, ...payload }) => api.post(`/mould-runs/${id}/finish`, payload).then(unwrap),
+  /** A line on a running job: counter read, a coded stop, or rejects by defect. */
+  log: ({ id, ...payload }) => api.post(`/mould-runs/${id}/log`, payload).then(unwrap),
+  /** The fixed lists stops and rejects are coded from: `{ downtime, rejects }`. */
+  reasons: () => api.get('/mould-runs/reasons').then(unwrap),
   /** A mould's runs, maintenance and QC records, and where its shot count stands. */
   mouldHistory: (mouldId) => api.get(`/moulds/${mouldId}/history`).then(unwrap),
 };

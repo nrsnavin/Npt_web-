@@ -127,6 +127,8 @@ export const DEPARTMENT_WORKSPACES = {
     pages: [
       { label: 'Production queue', to: '/production/queue', module: 'production', hint: 'In EDD order, with Assembly, Quality and Dispatch beside each row' },
       { label: 'Production status', to: '/production', module: 'production', hint: 'By customer and model' },
+      { label: 'OEE', to: '/production/oee', module: 'production', hint: 'Availability, performance and quality by press, mould and shift, with the losses' },
+      { label: 'Mould runs', to: '/mould-runs', module: 'production', hint: 'Start, log and finish runs; code stops and rejects' },
       { label: 'Assigned orders', to: '/orders', module: 'orders' },
       { label: 'Moulds', to: '/moulds', module: 'moulds' },
       { label: 'Materials', to: '/materials', module: 'materials' },

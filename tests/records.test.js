@@ -78,7 +78,7 @@ test('runs start and finish; the counter cannot go backwards', () => {
   const runs = read('pages/MouldRuns.jsx');
   assert.match(runs, /mouldRunsApi\.start\(/);
   assert.match(runs, /mouldRunsApi\.finish\(\{\s*id: run\._id/);
-  assert.match(runs, /disabled=\{busy \|\| \(shots != null && shots < 0\)\}/);
+  assert.match(runs, /disabled=\{busy \|\| \(shots != null && shots < 0\) \|\| rejectsOver\}/);
   assert.match(runs, /const mayRun = canWrite\('production'\);/);
 });
 
