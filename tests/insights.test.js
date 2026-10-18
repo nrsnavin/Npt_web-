@@ -5,17 +5,7 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { RISK_TONE, buyOrder, dayText, suggestionHeadline } from '../src/utils/insights.js';
-
-test('items to order now come first, then by the order-by day', () => {
-  const rows = buyOrder([
-    { name: 'B', orderBy: '2026-11-02' },
-    { name: 'A', orderBy: null },
-    { name: 'C', orderBy: '2026-10-20', orderNow: true },
-    { name: 'D', orderBy: '2026-10-25' },
-  ]);
-  assert.deepEqual(rows.map((row) => row.name), ['C', 'D', 'B', 'A']);
-});
+import { RISK_TONE, dayText, suggestionHeadline } from '../src/utils/insights.js';
 
 test('the suggestion says what it buys', () => {
   assert.equal(

@@ -244,9 +244,6 @@ export const components = {
   get: (id) => api.get(`/components/${id}`).then(unwrap),
   create: (payload) => api.post('/components', payload).then(unwrap),
   update: ({ id, ...payload }) => api.patch(`/components/${id}`, payload).then(unwrap),
-  /** The store's book for a hook or clip, and a receipt, issue or count correction on it. */
-  stock: (id) => api.get(`/components/${id}/stock`).then(unwrap),
-  moveStock: ({ id, ...payload }) => api.post(`/components/${id}/stock`, payload).then(unwrap),
   /** What has been costed with this part — see the note on the material register's own. */
   pricings: (id) =>
     api.get(`/components/${id}/pricings`).then((response) => ({
@@ -654,8 +651,6 @@ export const production = {
   floor: () => api.get('/production/floor').then(unwrap),
   /** What one shift hands the next: per press, runs, pieces, stops, problems; presses still called in. */
   shiftSummary: (params) => api.get('/production/shift-summary', { params }).then(unwrap),
-  /** What the open work orders need from the stores, what is short, and what to buy. */
-  shortages: () => api.get('/production/shortages').then(unwrap),
   /** A press's queue light to dark — `{ before, after }` colour changes. */
   sequenceByColour: (machineId) => api.post(`/production/plan/${machineId}/sequence-by-colour`).then(unwrap),
   /** Whether a mould can go on a press: `{ ok, blocks, warnings }`. */
@@ -668,8 +663,6 @@ export const production = {
   applyPlan: (moves) => api.post('/production/plan/apply', { moves }, { feedback: false }).then(unwrap),
   /** Presses and moulds most likely to stop soon, with the reasons. */
   maintenanceRisk: () => api.get('/production/maintenance-risk').then(unwrap),
-  /** Each resin and part: weekly use, weeks of cover, run-out and order-by days. */
-  purchaseForecast: (params) => api.get('/production/purchase-forecast', { params }).then(unwrap),
   /** Press readings sent over WhatsApp, newest first. */
   floorMessages: () => api.get('/production/floor-messages').then(unwrap),
   /** A question answered from the plant's own figures. */
@@ -1182,13 +1175,6 @@ export const workOrdersApi = {
   list: (params) => api.get('/work-orders', { params }).then((response) => response.data),
   get: (id) => api.get(`/work-orders/${id}`).then(unwrap),
   plan: ({ id, ...payload }) => api.patch(`/work-orders/${id}`, payload, { feedback: false }).then(unwrap),
-  /** The job card PDF, opened in a new tab for printing. */
-  jobCard: async (id) => {
-    const response = await api.get(`/work-orders/${id}/job-card`, { responseType: 'blob' });
-    const url = URL.createObjectURL(response.data);
-    window.open(url, '_blank', 'noopener');
-    setTimeout(() => URL.revokeObjectURL(url), 60000);
-  },
 };
 
 /** The dispatch register: every stop on every trip that left, with the LR details. */

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { machinesApi, production as productionApi, workOrdersApi } from '../api/endpoints.js';
+import { Link } from 'react-router-dom';
+import { machinesApi, production as productionApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import { ErrorState, Field, FormError, Modal, Spinner } from '../components/ui.jsx';
@@ -94,7 +94,6 @@ export default function Floor() {
   const { canWrite } = useAuth();
   const mayRun = canWrite('production');
   const { toast } = useToast();
-  const [params, setParams] = useSearchParams();
   const [tiles, setTiles] = useState(null);
   const [error, setError] = useState(null);
   const [dialog, setDialog] = useState(null);
@@ -104,15 +103,6 @@ export default function Floor() {
     const timer = setInterval(load, 30000);
     return () => clearInterval(timer);
   }, [load]);
-  /* Opened from a job card's QR code: start that job, or show it running. */
-  const scanned = params.get('wo');
-  useEffect(() => {
-    if (!scanned || !tiles || dialog) return;
-    const running = tiles.find((tile) => String(tile.run?.workOrder?._id) === scanned);
-    if (running) setDialog({ kind: 'log', run: running.run });
-    else if (mayRun) setDialog({ kind: 'start', workOrder: scanned });
-    setParams({}, { replace: true });
-  }, [scanned, tiles, dialog, mayRun, setParams]);
   const done = (title, detail) => { toast(title, detail); load(); };
 
   return (
@@ -171,7 +161,6 @@ export default function Floor() {
                         <p className="text-xs text-steel-400">{job.number} · {formatNumber(job.left)} pcs{job.dueDate ? ` · due ${formatDate(job.dueDate)}` : ''}</p>
                       </div>
                       {mayRun && index === 0 && !down && <button type="button" className="btn-primary px-4 py-3" onClick={() => setDialog({ kind: 'start', workOrder: job._id, machine: machine._id })}>Start</button>}
-                      <button type="button" className="row-action" onClick={() => workOrdersApi.jobCard(job._id)}>Job card</button>
                     </div>
                   ))}
                 </div>

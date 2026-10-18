@@ -50,7 +50,7 @@ export default function PartForm({ kind, part, onClose, onSaved }) {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm({ defaultValues: editing ? { ...part } : { isActive: true, perHanger: kind === 'clip' ? 1 : 1 } });
+  } = useForm({ defaultValues: editing ? { ...part } : { isActive: true } });
 
   const number = (value) =>
     value === '' || value === null || value === undefined ? undefined : Number(value);
@@ -62,7 +62,6 @@ export default function PartForm({ kind, part, onClose, onSaved }) {
       colour: values.colour || undefined,
       ratePerPiece: number(values.ratePerPiece),
       supplier: values.supplier || undefined,
-      ...(kind === 'print' ? {} : { reorderQty: number(values.reorderQty), perHanger: number(values.perHanger) }),
       isActive: values.isActive,
       notes: values.notes || undefined,
     };
@@ -121,16 +120,6 @@ export default function PartForm({ kind, part, onClose, onSaved }) {
         <Field label="Supplier">
           <input className="input" {...register('supplier')} />
         </Field>
-        {kind !== 'print' && (
-          <>
-            <Field label={`${copy.one === 'hook' ? 'Hooks' : 'Clips'} on one hanger`} hint="Used to work out what a work order needs">
-              <input type="number" min="0" step="1" className="input" {...register('perHanger')} />
-            </Field>
-            <Field label="Reorder below (pieces)" hint="The store is asked to buy when it falls under this">
-              <input type="number" min="0" step="1" className="input" {...register('reorderQty')} />
-            </Field>
-          </>
-        )}
       </div>
 
       <label className="flex items-center gap-2 text-sm text-steel-200">

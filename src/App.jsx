@@ -64,7 +64,6 @@ const Oee = lazyPage(() => import('./pages/Oee.jsx'));
 const ProductionInsights = lazyPage(() => import('./pages/ProductionInsights.jsx'));
 const WorkOrders = lazyPage(() => import('./pages/WorkOrders.jsx'));
 const PlanningBoard = lazyPage(() => import('./pages/PlanningBoard.jsx'));
-const MaterialNeeds = lazyPage(() => import('./pages/MaterialNeeds.jsx'));
 const Floor = lazyPage(() => import('./pages/Floor.jsx'));
 const ShiftHandover = lazyPage(() => import('./pages/ShiftHandover.jsx'));
 const Dispatches = lazyPage(() => import('./pages/Dispatches.jsx'));
@@ -375,15 +374,6 @@ export default function App() {
             element={
               <RequireModule moduleKey="production">
                 <ShiftHandover />
-              </RequireModule>
-            }
-          />
-          {/* What the plan needs from the stores, what is short, what to buy. */}
-          <Route
-            path="production/materials"
-            element={
-              <RequireModule moduleKey={['production', 'materials']}>
-                <MaterialNeeds />
               </RequireModule>
             }
           />

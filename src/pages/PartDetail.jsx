@@ -7,7 +7,6 @@ import {
   Badge, ErrorState, Facts, Modal, Notice, PageHeader, Section, Spinner,
 } from '../components/ui.jsx';
 import PartForm, { KINDS } from '../components/PartForm.jsx';
-import PartStore from '../components/PartStore.jsx';
 import { formatDate, humanise } from '../utils/format.js';
 
 /**
@@ -96,7 +95,6 @@ export default function PartDetail({ kind }) {
 
       <div className="mt-5 grid gap-5 lg:grid-cols-[1.3fr_1fr]">
         <div className="space-y-5">
-          {kind !== 'print' && <PartStore part={part} mayEdit={canWrite('materials') || canWrite('production')} onChanged={reload} />}
 
           <Section title="What it costs">
             <div className="card px-4 py-3">
