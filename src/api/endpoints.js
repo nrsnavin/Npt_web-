@@ -84,6 +84,9 @@ export const workspace = {
     status: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/status`, payload).then(unwrap),
     /** The EDD from the Production / Assembly / Printing task, without a status move; said by the screen. */
     edd: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/edd`, payload, { feedback: false }).then(unwrap),
+    /* Production's call, model by model: printing, assembly, both or neither [server: `decideRouting`]. */
+    routing: (id) => api.get(`/workspace/todos/${id}/routing`).then(unwrap),
+    route: ({ id, models }) => api.post(`/workspace/todos/${id}/routing`, { models }, { feedback: false }).then(unwrap),
     /** "Got it" on an answer that came back to the department — it leaves the top of the dashboard. */
     seen: (id) => api.post(`/workspace/todos/${id}/seen`, {}, { feedback: false }).then(unwrap),
     /** Another department asked from this task — Dispatch's "Ask Production"; keeps `raised` / `addedTo`. */
@@ -841,6 +844,18 @@ export const samples = {
     if (body) form.append('body', body);
     form.append('photo', photo);
     return api.post(`/samples/${id}/logs`, form).then(unwrap);
+  },
+  /*
+   * Handed to the buyer without a courier: by the marketer on a visit, or at reception
+   * [server: sample.controller `handOverSample`]. Multipart only with a photo.
+   */
+  handOver: ({ id, photo, ...fields }) => {
+    const said = Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== undefined && value !== ''));
+    if (!photo) return api.post(`/samples/${id}/hand-over`, said).then(unwrap);
+    const form = new FormData();
+    for (const [key, value] of Object.entries(said)) form.append(key, String(value));
+    form.append('photo', photo);
+    return api.post(`/samples/${id}/hand-over`, form).then(unwrap);
   },
   removeLog: ({ id, logId }) => api.delete(`/samples/${id}/logs/${logId}`).then(unwrap),
   addComment: ({ id, logId, body }) =>

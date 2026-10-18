@@ -32,10 +32,18 @@ test('the chip: the date when there is one; "EDD needed" on an open Production t
   assert.equal(eddOf(enquiry).department, 'marketing');
   assert.equal(eddOf(bare), null);
   assert.equal(eddOf('e1'), null);
-  const set = eddChipOf({ kind: 'ask_edd', enquiry });
+  /* Production decides printing and assembly first [TaskRouting]; until then the chip says so. */
+  const routed = { decidedAt: '2026-10-18T05:00:00Z', models: [{ model: 'NPT-410V' }], handsTo: [] };
+  assert.deepEqual(eddChipOf({ kind: 'ask_edd', enquiry: bare }), { tone: 'needed', label: 'Printing / assembly to decide' });
+  const set = eddChipOf({ kind: 'ask_edd', enquiry, routing: routed });
   assert.equal(set.tone, 'set');
   assert.match(set.label, /^EDD 12 Nov 2026$/);
-  assert.deepEqual(eddChipOf({ kind: 'ask_edd', enquiry: bare }), { tone: 'needed', label: 'EDD needed' });
+  assert.deepEqual(eddChipOf({ kind: 'ask_edd', enquiry: bare, routing: routed }), { tone: 'needed', label: 'EDD needed' });
+  /* A team that hands on shows its hand-over date, not the EDD. */
+  const handing = { ...routed, handsTo: ['printing'] };
+  assert.deepEqual(eddChipOf({ kind: 'ask_edd', enquiry, routing: handing }), { tone: 'needed', label: 'Hand-over date needed' });
+  assert.equal(eddChipOf({ kind: 'ask_edd', enquiry, routing: { ...handing, handOverDate: '2026-11-05' } }).label, 'To Printing 05 Nov 2026');
+  assert.deepEqual(eddChipOf({ kind: 'ask_printing', enquiry: bare, routing: { handsTo: ['assembling'] } }), { tone: 'needed', label: 'Hand-over date needed' });
   assert.deepEqual(eddChipOf({ kind: 'ask_assembling_edd', enquiry: bare }), { tone: 'needed', label: 'EDD needed' });
   assert.deepEqual(eddChipOf({ kind: 'invoice_dispatch', enquiry: bare }), { tone: 'missing', label: 'EDD not given yet' });
   /* A finished task with no date says nothing; a finished one with a date still shows it. */

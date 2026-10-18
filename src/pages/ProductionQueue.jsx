@@ -8,6 +8,7 @@ import DepartmentTaskDialog from '../components/DepartmentTaskDialog.jsx';
 import { ErrorState, PageHeader, TableSkeleton } from '../components/ui.jsx';
 import { formatDate, formatRelative } from '../utils/format.js';
 import { departmentLabel } from '../utils/pipeline.js';
+import { pathOf } from '../utils/edd.js';
 import { todayInIndia } from '../utils/taskForm.js';
 import { EDD_BANDS, boardOf, dayGroups, dueWords, queueCsv } from '../utils/productionQueue.js';
 
@@ -42,6 +43,7 @@ const BAND_LABEL = { late: 'Late', today: 'Today', week: 'This week', later: 'La
 
 /** The team filters beside the bands: who the row is waiting for. */
 const TEAM_FILTERS = [
+  { key: 'route', label: 'Printing / assembly to decide', test: (row) => !row.routing },
   { key: 'assembly', label: 'Needs assembly', test: (row) => row.needsAssembly },
   { key: 'quality', label: 'With Quality', test: (row) => row.teams.quality && !row.teams.quality.completed },
   { key: 'dispatch', label: 'Dispatch waiting', test: (row) => row.teams.despatch && !row.teams.despatch.completed },
@@ -79,7 +81,9 @@ function TeamCell({ team, needed = false, label }) {
 function RowDetail({ row }) {
   const recent = row.task.recent || [];
   const brief = row.task.brief || {};
-  const asked = [['Model', brief.model || row.enquiry.model], ['Quantity', brief.quantity], ['Material / colour', brief.material || row.enquiry.colour], ['Assembly', brief.assembly === true || brief.assembly === 'true' || brief.assembly === 'Yes' ? 'needed' : null]].filter(([, value]) => value);
+  const asked = [['Model', brief.model || row.enquiry.model], ['Quantity', brief.quantity], ['Material / colour', brief.material || row.enquiry.colour], ['Assembly', !row.routing && (brief.assembly === true || brief.assembly === 'true' || brief.assembly === 'Yes') ? 'needed' : null]].filter(([, value]) => value);
+  /* What Production decided follows moulding, model by model [components/TaskRouting.jsx]. */
+  const paths = (row.routing?.models || []).map((entry) => [entry.model, pathOf(entry)]);
   return (
     <div className="grid gap-3 text-xs md:grid-cols-3">
       <div>
@@ -89,7 +93,16 @@ function RowDetail({ row }) {
           {row.task.raisedBy?.name && <li>Raised by <span className="text-steel-200">{row.task.raisedBy.name}</span>{row.task.createdAt ? ` · ${formatRelative(row.task.createdAt)}` : ''}</li>}
           {row.order?.number && <li>SO <span className="text-steel-200">{row.order.number}</span></li>}
           {row.edd?.department && <li>EDD given by <span className="text-steel-200">{departmentLabel(row.edd.department)}</span></li>}
+          {row.routing?.handOverDate && <li>Hand-over to the next team <span className="text-steel-200">{formatDate(row.routing.handOverDate)}</span></li>}
         </ul>
+        <p className="mt-2 font-semibold text-steel-300">After moulding</p>
+        {paths.length ? (
+          <ul className="mt-1 space-y-0.5 text-steel-400">
+            {paths.map(([model, path]) => <li key={model}>{model}: <span className="text-steel-200">{path}</span></li>)}
+          </ul>
+        ) : (
+          <p className="mt-1 text-warn-400">Not decided yet — printing or assembly is decided on the task.</p>
+        )}
       </div>
       <div className="md:col-span-2">
         <p className="font-semibold text-steel-300">Latest on the task</p>
@@ -284,7 +297,7 @@ export default function ProductionQueue() {
         <Tile label="Due today" value={bands.today || 0} tone={bands.today ? 'text-warn-400' : 'text-steel-50'} hint="EDD is today" active={band === 'today'} onClick={() => setFilter({ band: band === 'today' ? 'all' : 'today' })} />
         <Tile label="Due tomorrow" value={teams.dueTomorrow || 0} hint="Ready for Dispatch by tonight" active={false} onClick={() => setFilter({ band: 'week' })} />
         <Tile label="No EDD yet" value={bands.none || 0} tone={bands.none ? 'text-warn-400' : 'text-success-400'} hint="Give the date on the task" active={band === 'none'} onClick={() => setFilter({ band: band === 'none' ? 'all' : 'none' })} />
-        <Tile label="Needs assembly" value={teams.needsAssembly || 0} tone={teams.needsAssembly ? 'text-warn-400' : 'text-steel-50'} hint="Assembly not tasked yet" active={team === 'assembly'} onClick={() => setFilter({ team: team === 'assembly' ? 'all' : 'assembly' })} />
+        <Tile label="Printing / assembly?" value={teams.toRoute || 0} tone={teams.toRoute ? 'text-warn-400' : 'text-success-400'} hint="Not decided on the task yet" active={team === 'route'} onClick={() => setFilter({ team: team === 'route' ? 'all' : 'route' })} />
         <Tile label="Problems" value={teams.issues || 0} tone={teams.issues ? 'text-danger-400' : 'text-success-400'} hint="Mould, machine, material" active={team === 'issues'} onClick={() => setFilter({ team: team === 'issues' ? 'all' : 'issues' })} />
         <Tile label="Not picked up" value={teams.unclaimed || 0} tone={teams.unclaimed ? 'text-warn-400' : 'text-steel-50'} hint="Nobody on it yet" active={team === 'unclaimed'} onClick={() => setFilter({ team: team === 'unclaimed' ? 'all' : 'unclaimed' })} />
       </div>

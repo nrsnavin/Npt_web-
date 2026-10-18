@@ -26,12 +26,13 @@ test('the board reads one endpoint, refreshes itself, and keeps its band and tea
   for (const key of ['assembly', 'quality', 'dispatch', 'issues', 'unclaimed']) assert.match(page, new RegExp(`key: '${key}'`), `team filter ${key}`);
 });
 
-test('the tiles answer the questions the floor asks: late, due today, due tomorrow, no EDD, needs assembly, problems, not picked up', () => {
-  for (const label of ['Late', 'Due today', 'Due tomorrow', 'No EDD yet', 'Needs assembly', 'Problems', 'Not picked up']) {
+test('the tiles answer the questions the floor asks: late, due today, due tomorrow, no EDD, printing / assembly to decide, problems, not picked up', () => {
+  for (const label of ['Late', 'Due today', 'Due tomorrow', 'No EDD yet', 'Printing / assembly\\?', 'Problems', 'Not picked up']) {
     assert.match(page, new RegExp(`<Tile label="${label}"`), label);
   }
   assert.match(page, /teams\.dueTomorrow/);
   assert.match(page, /bands\.none/);
+  assert.match(page, /teams\.toRoute/);
 });
 
 test('each row carries Assembly, Printing, Quality and Dispatch beside Production’s own status, and who has it', () => {

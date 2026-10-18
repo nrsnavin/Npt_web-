@@ -14,10 +14,11 @@ import SampleLog from '../components/SampleLog.jsx';
 import SampleRequestForm from '../components/SampleRequestForm.jsx';
 import ItemList from '../components/ItemList.jsx';
 import { formatDate, formatNumber } from '../utils/format.js';
+import { todayInIndia } from '../utils/taskForm.js';
 import {
   CLOSED_SAMPLE_STAGES, HANGER_CATEGORIES, MATERIALS, MESSAGE_CHANNELS, MESSAGE_EVENTS,
   BACKWARD_REASON_MIN, NOTIFIABLE_STAGES,
-  SAMPLE_PURPOSES, SAMPLE_STAGE_HINTS, SAMPLE_STAGE_RANK, SKIP_REASONS,
+  SAMPLE_HANDOVERS, SAMPLE_PURPOSES, SAMPLE_STAGE_HINTS, SAMPLE_STAGE_RANK, SKIP_REASONS,
   WITH_CUSTOMER_STAGES, followUpState, isBackwardSampleMove, numeric, optionLabel,
   sampleMovesFrom, sampleStageLabel, text,
 } from '../utils/pipeline.js';
@@ -1106,6 +1107,123 @@ function LinkEnquiryForm({ sample, onClose, onSaved }) {
  * draws a segment per stage, which says more than one fill could, and two bars stacked would
  * read as two different measurements.
  */
+/**
+ * Putting the sample in the buyer's hands without a courier — the marketing person on a visit,
+ * from the sample rack or with a piece the bench made [server: sample.controller `handOverSample`].
+ * Who received it, how many pieces, when, and a photo of it or of the signed slip.
+ */
+function HandOverForm({ sample, onClose, onSaved }) {
+  const [values, setValues] = useState({
+    receivedBy: '', phone: '', pieces: String(sample.quantity ?? ''), handedAt: todayInIndia(), note: '',
+  });
+  const [photo, setPhoto] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const set = (key) => (event) => setValues((current) => ({ ...current, [key]: event.target.value }));
+  const phoneOk = !values.phone || /^\+?\d{10,13}$/.test(values.phone.replace(/\s/g, ''));
+  const named = values.receivedBy.trim() || values.phone.trim();
+  const tooBig = photo && photo.size > 8 * 1024 * 1024;
+
+  const submit = async (event) => {
+    event.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      onSaved(await samplesApi.handOver({
+        id: sample._id,
+        receivedBy: text(values.receivedBy),
+        phone: text(values.phone.replace(/\s/g, '')),
+        pieces: numeric(values.pieces),
+        handedAt: text(values.handedAt),
+        note: text(values.note),
+        photo: photo || undefined,
+      }));
+      onClose();
+    } catch (submitError) {
+      setError(submitError.message);
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form onSubmit={submit} className="space-y-4" aria-label="Hand over to the buyer">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Received by" hint="The buyer's name, or whoever took it for them">
+          <input className="input" value={values.receivedBy} onChange={set('receivedBy')} placeholder="Mr Ravi, purchase" autoFocus />
+        </Field>
+        <Field label="Their phone" error={phoneOk ? undefined : { message: 'A 10-digit mobile number' }}>
+          <input className="input" inputMode="tel" value={values.phone} onChange={set('phone')} placeholder="98xxxxxxxx" />
+        </Field>
+        <Field label="Pieces handed over">
+          <input type="number" min="1" className="input" value={values.pieces} onChange={set('pieces')} />
+        </Field>
+        <Field label="Handed over on">
+          <input type="date" className="input" max={todayInIndia()} value={values.handedAt} onChange={set('handedAt')} />
+        </Field>
+        <Field label="Note" className="sm:col-span-2">
+          <textarea rows={2} className="input" value={values.note} onChange={set('note')} placeholder="Models shown, what they said on the spot" />
+        </Field>
+        <Field label="Photo of the hand-over or the signed slip" className="sm:col-span-2" hint="JPEG, PNG or PDF, up to 8 MB">
+          <input type="file" accept="image/jpeg,image/png,application/pdf" capture="environment" className="input" aria-label="Hand-over photo" onChange={(event) => setPhoto(event.target.files?.[0] || null)} />
+        </Field>
+      </div>
+      {tooBig && <Notice tone="warn">That file is over 8 MB — take a smaller photo.</Notice>}
+      <Notice tone="info">The sample is marked Delivered, the enquiry moves to feedback, and you record what the buyer says next.</Notice>
+      {error && <Notice tone="danger">{error}</Notice>}
+      <div className="flex justify-end gap-2">
+        <button type="button" className="btn-secondary" onClick={onClose} disabled={busy}>Cancel</button>
+        <button type="submit" className="btn-primary" disabled={busy || !named || !phoneOk || tooBig}>
+          {busy ? 'Saving…' : 'Record the hand-over'}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+/**
+ * How this sample reaches the buyer when no courier carries it: collected at reception, or
+ * handed over by the marketing person. Where it stands, and who took it.
+ */
+function HandoverCard({ sample }) {
+  const mode = sample.handover || 'dispatch';
+  const given = sample.collection || {};
+  if (mode === 'dispatch' && !given.collectedAt) return null;
+  const photo = given.photo?.key ? given.photo : null;
+  const state = given.collectedAt
+    ? `${mode === 'collect' ? 'Collected at reception' : 'Handed over'} on ${formatDate(given.collectedAt)}`
+    : mode === 'collect'
+      ? given.informedAt
+        ? `At reception — the buyer was told on ${formatDate(given.informedAt)}`
+        : given.readyAt
+          ? `At reception since ${formatDate(given.readyAt)} — the buyer is to be told`
+          : 'Goes to reception when the bench marks it ready'
+      : 'To be handed over on a visit, from the sample rack';
+  return (
+    <Section title="Hand-over">
+      <p className="text-sm font-semibold text-steel-100">{state}</p>
+      <p className="mt-0.5 text-xs text-steel-500">{optionLabel(SAMPLE_HANDOVERS, mode)}</p>
+      {given.collectedAt && (
+        <div className="mt-3">
+          <Facts
+            columns={1}
+            items={[
+              { label: 'Received by', value: [given.collectorName, given.collectorPhone].filter(Boolean).join(' · ') },
+              { label: 'Pieces', value: given.pieces && formatNumber(given.pieces) },
+              { label: 'Recorded by', value: given.collectedBy?.name },
+              { label: 'Note', value: given.note },
+            ]}
+          />
+        </div>
+      )}
+      {photo && (
+        photo.mimeType === 'application/pdf'
+          ? <p className="mt-3 text-sm text-steel-300">Signed slip attached: {photo.filename || 'PDF'}</p>
+          : <AuthedImage attachmentKey={photo.key} alt="Hand-over photo" className="mt-3 h-40 w-full rounded-lg object-cover" />
+      )}
+    </Section>
+  );
+}
+
 function StageBanner({ sample }) {
   /* Counted the way the stepper below draws it, so the two never disagree. */
   const rank = SAMPLE_STAGE_RANK[sample.status];
@@ -1176,6 +1294,7 @@ export default function SampleDetail() {
   /* The stage a card asked for that needs telling something first — or null. */
   const [movingStage, setMovingStage] = useState(null);
   const [givingFeedback, setGivingFeedback] = useState(false);
+  const [handingOver, setHandingOver] = useState(false);
   const [messaging, setMessaging] = useState(false);
   const [editingDispatch, setEditingDispatch] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -1212,6 +1331,12 @@ export default function SampleDetail() {
   const bag = sample.items?.length ? sample.items : [sample];
   const withCustomer = WITH_CUSTOMER_STAGES.includes(sample.status);
   const due = followUpState(sample.requiredDate);
+  /*
+   * The marketing person putting it in the buyer's hands: one taken from the rack, or one the
+   * bench has ready that they carry rather than courier. A collection is Reception's, on its task.
+   */
+  const mayHandOver = canWrite('enquiries') && !closed && !withCustomer && sample.handover !== 'collect'
+    && (sample.handover === 'in_person' || sample.status === 'sample_ready');
 
   const act = async (run) => {
     setBusy(true);
@@ -1327,6 +1452,12 @@ export default function SampleDetail() {
             {mayMessage && notifiable && (
               <button type="button" className="btn-secondary" onClick={() => setMessaging(true)}>
                 Tell the customer
+              </button>
+            )}
+
+            {mayHandOver && (
+              <button type="button" className={sample.handover === 'in_person' ? 'btn-primary' : 'btn-secondary'} onClick={() => setHandingOver(true)}>
+                Hand over to the buyer
               </button>
             )}
 
@@ -1514,6 +1645,8 @@ export default function SampleDetail() {
         <div className="space-y-5">
           {/* Who to ring about the shade, who receives the bag — the same card the enquiry shows.
               Only once there is a customer: an internal trial has nobody to reach. */}
+          <HandoverCard sample={sample} />
+
           {sample.customer && (
             <BuyerContactCard enquiry={{ ...(sample.enquiry || {}), customer: sample.customer }} canConvert={false} />
           )}
@@ -1651,6 +1784,15 @@ export default function SampleDetail() {
             onSent={() => setMessagesKey((key) => key + 1)}
           />
         )}
+      </Modal>
+
+      <Modal
+        open={handingOver}
+        title="Hand over to the buyer"
+        description={`${sample.number} — handed over in person, without a courier`}
+        onClose={() => setHandingOver(false)}
+      >
+        {handingOver && <HandOverForm sample={sample} onClose={() => setHandingOver(false)} onSaved={setData} />}
       </Modal>
 
       <Modal

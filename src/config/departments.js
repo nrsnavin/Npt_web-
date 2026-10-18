@@ -133,6 +133,8 @@ export const DEPARTMENT_WORKSPACES = {
     ],
     jobs: [
       'Work from the sales order: model, quantity, material, colour, printing, required date.',
+      'First, decide for each model whether it is printed, assembled, both (printing first) or neither — Printing and Assembly get their tasks from that.',
+      'Then give the date: the hand-over date to Printing or Assembly when they follow you, or the EDD when nothing does.',
       'Update progress and pending quantity.',
       'Record why anything is late or stuck.',
       'Tell the next department when it is done.',
@@ -185,7 +187,8 @@ export const DEPARTMENT_WORKSPACES = {
       { label: 'Models', to: '/moulds', module: 'moulds' },
     ],
     jobs: [
-      'Work from the assembly instructions on each task.',
+      'Work from the assembly instructions on each task — only the models Production sent to Assembly.',
+      'See when the goods come from Production or Printing, and give the EDD: Assembly is last in the chain.',
       'Update completed and pending work.',
       'Tell the next department and marketing when it is done.',
     ],
@@ -203,7 +206,8 @@ export const DEPARTMENT_WORKSPACES = {
       { label: 'Models', to: '/moulds', module: 'moulds' },
     ],
     jobs: [
-      'Work from the print instructions on each task — artwork, colours, pieces.',
+      'Work from the print instructions on each task — artwork, colours, pieces — for the models Production sent to Printing.',
+      'Give Assembly your hand-over date when the models go on to assembly; give the EDD when printing is the last step.',
       'Update completed and pending work.',
       'Tell Dispatch and marketing when it is ready.',
     ],
@@ -232,9 +236,10 @@ export const DEPARTMENT_WORKSPACES = {
   },
 
   reception: {
-    purpose: 'Once the goods have gone: the LR copy to the buyer, and the dispatch details kept.',
+    purpose: 'Once the goods have gone: the LR copy to the buyer, and the dispatch details kept. Samples a buyer comes in for are handed over here.',
     pages: [
       { label: 'Enquiries at LR Copy', to: '/enquiries?stage=lr_copy', module: 'enquiries' },
+      { label: 'Samples to hand over', to: '/samples?handover=collect', module: 'samples' },
       { label: 'Dispatches', to: '/dispatches', module: 'dispatch' },
       { label: 'Customers', to: '/customers', module: 'customers' },
     ],
@@ -242,6 +247,7 @@ export const DEPARTMENT_WORKSPACES = {
       'Upload the LR copy (PDF or photo) — it goes to the buyer by email and WhatsApp.',
       'Keep the dispatch details: invoice, LR / docket number, transporter, vehicle, quantity sent.',
       'Track it to the buyer: In Transit, Delivered — each with a remark.',
+      'Sample collection: tell the buyer it is ready (WhatsApp and email go from the company number), then record who collected it, their phone and the pieces, with a photo of the hand-over or the signed slip.',
     ],
     toConfirm: [],
   },

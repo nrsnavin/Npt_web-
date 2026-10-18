@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { samples as samplesApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useDebounced, useRecord, useRecordList } from '../hooks/useRecords.js';
@@ -15,7 +15,7 @@ import ViewSwitch from '../components/ViewSwitch.jsx';
 import { useViewMode } from '../hooks/useBoard.js';
 import { formatDate, formatNumber, plural } from '../utils/format.js';
 import {
-  HANGER_CATEGORIES, MATERIALS, SAMPLE_PURPOSES, SAMPLE_STAGES, followUpState, numeric,
+  HANGER_CATEGORIES, MATERIALS, SAMPLE_HANDOVERS, SAMPLE_PURPOSES, SAMPLE_STAGES, followUpState, numeric,
   optionLabel, sampleStageLabel, text,
 } from '../utils/pipeline.js';
 import useOpenFromLink from '../hooks/useOpenFromLink.js';
@@ -93,6 +93,9 @@ export default function Samples() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const [view, setView] = useState('open');
+  /* `?handover=collect` from Reception's desk: the samples the buyer comes in for. */
+  const [searchParams] = useSearchParams();
+  const [handover, setHandover] = useState(() => searchParams.get('handover') || '');
   const [page, setPage] = useState(1);
   const { sort, toggle } = useSort();
 
@@ -130,6 +133,7 @@ export default function Samples() {
     overdue: view === 'overdue' ? 'true' : undefined,
     unassigned: view === 'unassigned' ? 'true' : undefined,
     mine: view === 'mine' ? 'true' : undefined,
+    handover: handover || undefined,
   };
 
   const { data, pagination, loading, error, reload } = useRecordList(
@@ -227,6 +231,18 @@ export default function Samples() {
             ))}
           </select>
         )}
+
+        <select
+          className="input w-52"
+          aria-label="How it reaches the buyer"
+          value={handover}
+          onChange={(event) => change(setHandover)(event.target.value)}
+        >
+          <option value="">Any hand-over</option>
+          {SAMPLE_HANDOVERS.map((option) => (
+            <option key={option.value} value={option.value}>{option.short}</option>
+          ))}
+        </select>
       </div>
 
       {board && <SampleBoard filters={filters} canMove={canWrite('samples')} />}
@@ -353,6 +369,11 @@ export default function Samples() {
                             sentence comes off the record, so a screen cannot drift from it.
                           */}
                           <Badge status={sample.status}>{sampleStageLabel(sample.status)}</Badge>
+                          {sample.handover && sample.handover !== 'dispatch' && (
+                            <span className="ml-1.5 whitespace-nowrap rounded bg-aqua-500/15 px-1.5 py-0.5 text-xs font-semibold text-aqua-300">
+                              {SAMPLE_HANDOVERS.find((option) => option.value === sample.handover)?.short}
+                            </span>
+                          )}
                           {sample.nextStep && (
                             <p className="mt-1.5 text-sm font-semibold text-accent">
                               {sample.nextStep}

@@ -6,7 +6,9 @@ import {
   ColourInput, EnquirySelect, MaterialSelect, MouldSelect, PartSelect,
 } from './pickers.jsx';
 import ItemCards, { filledItem, itemsForSave } from './ItemCards.jsx';
-import { SAMPLE_PURPOSES, itemForEdit, numeric, text } from '../utils/pipeline.js';
+import { SAMPLE_HANDOVERS, SAMPLE_PURPOSES, itemForEdit, numeric, text } from '../utils/pipeline.js';
+
+const handoverHint = (value) => SAMPLE_HANDOVERS.find((option) => option.value === value)?.hint;
 
 /**
  * Raising a sample request, from wherever it is being asked for.
@@ -87,8 +89,9 @@ export default function SampleRequestForm({ sample, onClose, onSaved }) {
           requiredDate: sample.requiredDate ? sample.requiredDate.slice(0, 10) : '',
           remarks: sample.remarks || '',
         }
-      : { quantity: 5, purpose: 'existing_model' },
+      : { quantity: 5, purpose: 'existing_model', handover: 'dispatch' },
   });
+  const handover = watch('handover');
 
   const modelNumber = watch('modelNumber');
   /* Only a request from before every sample had an enquiry has nothing to inherit from. */
@@ -162,6 +165,8 @@ export default function SampleRequestForm({ sample, onClose, onSaved }) {
       purpose: values.purpose,
       requiredDate: text(values.requiredDate),
       remarks: text(values.remarks),
+      /* How it reaches the buyer is decided when it is raised [server: Sample `handover`]. */
+      ...(editing ? {} : { handover: values.handover || 'dispatch' }),
     };
 
     try {
@@ -220,7 +225,19 @@ export default function SampleRequestForm({ sample, onClose, onSaved }) {
         <Field label="Required by" className="sm:col-span-2" hint="Today if left empty — re-date it if the bench needs longer">
           <input type="date" className="input" {...register('requiredDate')} />
         </Field>
+        {!editing && (
+          <Field label="How it reaches the buyer" className="sm:col-span-2">
+            <select className="input" aria-label="How it reaches the buyer" {...register('handover')}>
+              {SAMPLE_HANDOVERS.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </Field>
+        )}
       </div>
+      {!editing && handover && handover !== 'dispatch' && (
+        <Notice tone="info">{handoverHint(handover)}</Notice>
+      )}
 
       <Field label="Remarks">
         <textarea rows={2} className="input" {...register('remarks')} />
