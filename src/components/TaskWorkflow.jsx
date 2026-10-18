@@ -11,6 +11,7 @@ import { useToast } from '../context/ToastContext.jsx';
 import { todayInIndia } from '../utils/taskForm.js';
 import { ladderOf } from '../utils/taskState.js';
 import { departmentLabel } from '../utils/pipeline.js';
+import { dateLabelFor, needsRouting } from '../utils/edd.js';
 
 /**
  * A department's own workflow on its task [server: config/departmentTaskForms.js `statuses`]:
@@ -40,6 +41,9 @@ function MoveForm({ todo, form, step, onCancel, onMoved }) {
   const [answers, setAnswers] = useState(() => Object.fromEntries(asks.map((field) => [field.key, ''])));
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState(null);
+  /* Production gives no date until it has said what follows moulding [TaskRouting]; a team that hands on gives a hand-over date. */
+  const unrouted = needsRouting(todo) && Boolean(form.statusDate);
+  const dateLabel = dateLabelFor(todo, form.statusDate?.label || 'Ready date');
   const dateNeeded = step.date === 'required' && !date;
   const remarkNeeded = form.remarkRequired && note.trim().length < 3;
   const fieldMissing = asks.find((field) => field.required && !String(answers[field.key] || '').trim());
@@ -52,7 +56,7 @@ function MoveForm({ todo, form, step, onCancel, onMoved }) {
       .map((field) => [field.key, field.type === 'number' ? Number(answers[field.key]) : String(answers[field.key]).trim()]));
     try {
       onMoved(await workspace.todos.status({
-        id: todo._id, status: step.key, note, ...(date ? { date } : {}), ...(asks.length ? { fields } : {}),
+        id: todo._id, status: step.key, note, ...(date && !unrouted ? { date } : {}), ...(asks.length ? { fields } : {}),
       }));
     } catch (failure) {
       setProblem(failure.message);
@@ -78,8 +82,8 @@ function MoveForm({ todo, form, step, onCancel, onMoved }) {
             />
           </Field>
         ))}
-        {form.statusDate && (
-          <Field label={form.statusDate.label} required={step.date === 'required'}>
+        {form.statusDate && !unrouted && (
+          <Field label={dateLabel} required={step.date === 'required'}>
             <input type="date" className="input" min={todayInIndia()} value={date} onChange={(event) => setDate(event.target.value)} />
           </Field>
         )}
@@ -87,7 +91,8 @@ function MoveForm({ todo, form, step, onCancel, onMoved }) {
           <textarea rows={2} className="input" placeholder={form.remark?.placeholder || ''} value={note} onChange={(event) => setNote(event.target.value)} autoFocus={!asks.length} />
         </Field>
       </div>
-      {dateNeeded && <p className="text-xs text-warn-400">Give the {form.statusDate?.label || 'ready date'} for {step.label}</p>}
+      {unrouted && step.date && <p className="text-xs text-warn-400">Decide printing and assembly for each model first (above the status) — then give the date.</p>}
+      {dateNeeded && !unrouted && <p className="text-xs text-warn-400">Give the {dateLabel.toLowerCase()} for {step.label}</p>}
       {fieldMissing && <p className="text-xs text-warn-400">Fill in {fieldMissing.label.toLowerCase()} for {step.label}</p>}
       {step.tellBuyer && <p className="text-xs text-steel-400">This sends the buyer a WhatsApp and email from the company number.</p>}
       {step.done && step.fields?.length > 0 && form.documents?.length > 0 && (
@@ -96,7 +101,7 @@ function MoveForm({ todo, form, step, onCancel, onMoved }) {
       {problem && <Notice tone="danger">{problem}</Notice>}
       <div className="flex justify-end gap-2">
         <button type="button" className="btn-ghost px-3 py-1.5 text-xs" onClick={onCancel} disabled={busy}>Cancel</button>
-        <button type="submit" className="btn-primary px-3 py-1.5 text-xs" disabled={busy || dateNeeded || remarkNeeded || Boolean(fieldMissing)}>{busy ? 'Saving…' : 'Update status'}</button>
+        <button type="submit" className="btn-primary px-3 py-1.5 text-xs" disabled={busy || dateNeeded || remarkNeeded || Boolean(fieldMissing) || (unrouted && Boolean(step.date))}>{busy ? 'Saving…' : 'Update status'}</button>
       </div>
     </form>
   );

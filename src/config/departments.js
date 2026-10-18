@@ -133,6 +133,8 @@ export const DEPARTMENT_WORKSPACES = {
     ],
     jobs: [
       'Work from the sales order: model, quantity, material, colour, printing, required date.',
+      'First, decide for each model whether it is printed, assembled, both (printing first) or neither — Printing and Assembly get their tasks from that.',
+      'Then give the date: the hand-over date to Printing or Assembly when they follow you, or the EDD when nothing does.',
       'Update progress and pending quantity.',
       'Record why anything is late or stuck.',
       'Tell the next department when it is done.',
@@ -185,7 +187,8 @@ export const DEPARTMENT_WORKSPACES = {
       { label: 'Models', to: '/moulds', module: 'moulds' },
     ],
     jobs: [
-      'Work from the assembly instructions on each task.',
+      'Work from the assembly instructions on each task — only the models Production sent to Assembly.',
+      'See when the goods come from Production or Printing, and give the EDD: Assembly is last in the chain.',
       'Update completed and pending work.',
       'Tell the next department and marketing when it is done.',
     ],
@@ -203,7 +206,8 @@ export const DEPARTMENT_WORKSPACES = {
       { label: 'Models', to: '/moulds', module: 'moulds' },
     ],
     jobs: [
-      'Work from the print instructions on each task — artwork, colours, pieces.',
+      'Work from the print instructions on each task — artwork, colours, pieces — for the models Production sent to Printing.',
+      'Give Assembly your hand-over date when the models go on to assembly; give the EDD when printing is the last step.',
       'Update completed and pending work.',
       'Tell Dispatch and marketing when it is ready.',
     ],

@@ -84,6 +84,9 @@ export const workspace = {
     status: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/status`, payload).then(unwrap),
     /** The EDD from the Production / Assembly / Printing task, without a status move; said by the screen. */
     edd: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/edd`, payload, { feedback: false }).then(unwrap),
+    /* Production's call, model by model: printing, assembly, both or neither [server: `decideRouting`]. */
+    routing: (id) => api.get(`/workspace/todos/${id}/routing`).then(unwrap),
+    route: ({ id, models }) => api.post(`/workspace/todos/${id}/routing`, { models }, { feedback: false }).then(unwrap),
     /** "Got it" on an answer that came back to the department — it leaves the top of the dashboard. */
     seen: (id) => api.post(`/workspace/todos/${id}/seen`, {}, { feedback: false }).then(unwrap),
     /** Another department asked from this task — Dispatch's "Ask Production"; keeps `raised` / `addedTo`. */
