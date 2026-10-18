@@ -272,18 +272,17 @@ export default function CostingSheetForm({ quotation: pricing, line, onClose, on
 
   // The same arithmetic the server does, so the sheet adds up as it is typed rather than after
   // it is saved. The server's answer is still the one that is stored.
-  /* A trade hanger with a supplier's price is that price: the resin is in it, so no material cost is
-     added. One the supplier has not priced is costed from the build-up, as a made piece is [server: Quotation.js]. */
+  /* A trade hanger with a supplier's price is priced on it — the resin, job work and parts are in
+     what the supplier charges, so only printing and misc add; the build-up is the making cost beside
+     it. One the supplier has not priced is costed from the build-up, as a made piece is [server: Quotation.js `totalCost`]. */
   const trade = procurement === 'trade';
   const supplied = trade && Number(cost.inwardPrice) > 0;
-  const material = supplied ? 0 : (Number(cost.gramWeight) * Number(cost.rawMaterialRate)) / 1000 || 0;
+  const material = (Number(cost.gramWeight) * Number(cost.rawMaterialRate)) / 1000 || 0;
   const counts = (key) => !OPTIONAL_KEYS.includes(key) || included[key];
-  const total =
-    material +
-    ['jobWorkCost', 'hookCost', 'metalClipsCost', 'printingCost', 'packingCost', 'otherCost', 'inwardPrice'].reduce(
-      (sum, key) => sum + (counts(key) ? Number(cost[key]) || 0 : 0),
-      0
-    );
+  const sumOf = (keys) => keys.reduce((sum, key) => sum + (counts(key) ? Number(cost[key]) || 0 : 0), 0);
+  const total = supplied
+    ? Number(cost.inwardPrice) + sumOf(['printingCost', 'otherCost'])
+    : material + sumOf(['jobWorkCost', 'hookCost', 'metalClipsCost', 'printingCost', 'packingCost', 'otherCost']);
 
   /*
    * Cost plus a markup, rounded up to five paise — from `utils/pricing.js`, which mirrors the

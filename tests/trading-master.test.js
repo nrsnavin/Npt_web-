@@ -38,7 +38,7 @@ test('a traded line is costed at the inward price, picked from the master', () =
   const form = read('components/CostingSheetForm.jsx');
   assert.match(form, /\{procurement === 'trade' && \(\s*<Field label="Trading master item"/);
   assert.match(form, /costField\('inwardPrice', 'Inward price'/);
-  assert.match(form, /'packingCost', 'otherCost', 'inwardPrice'\]\.reduce\(/, 'the net total counts it');
+  assert.match(form, /\? Number\(cost\.inwardPrice\) \+ sumOf\(\['printingCost', 'otherCost'\]\)/, 'the net total is the inward price plus what the plant adds itself');
   assert.match(form, /\.\.\.\(tradedItem !== openedItem \? \{ tradedItem: tradedItem \|\| null \} : \{\}\)/,
     'sent only when the pick changed, so a typed price is not refilled');
 });

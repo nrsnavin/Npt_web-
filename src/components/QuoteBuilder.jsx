@@ -5,7 +5,6 @@ import {
 } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { Notice } from './ui.jsx';
-import SupplierCheck from './SupplierCheck.jsx';
 import { CustomerSelect, EnquirySelect, MasterModelSelect, MaterialSelect } from './pickers.jsx';
 import { inDays } from '../utils/pipeline.js';
 import { formatDate } from '../utils/format.js';
@@ -38,11 +37,11 @@ function Box({ label, className = '', children }) {
 }
 
 /** One figure of the cost build-up. */
-function Tile({ label, value, strong = false }) {
+function Tile({ label, value, strong = false, tone }) {
   return (
     <div className={`min-w-0 rounded-lg border px-2.5 py-1.5 ${strong ? 'border-accent/40 bg-accent/[0.06]' : 'border-line/[0.1] bg-line/[0.02]'}`}>
       <p className="truncate text-xs text-steel-400">{label}</p>
-      <p className={`truncate text-sm tabular-nums ${strong ? 'font-bold text-steel-50' : 'font-semibold text-steel-100'}`}>{value}</p>
+      <p className={`truncate text-sm tabular-nums ${tone || (strong ? 'text-steel-50' : 'text-steel-100')} ${strong ? 'font-bold' : 'font-semibold'}`}>{value}</p>
     </div>
   );
 }
@@ -185,6 +184,18 @@ function ItemCard({ index, item, onChange, onResolve, onRemove, removable, marku
   const print = registers.part(item.printRef);
   const cost = costOf(item, { tool, resin, hook, clip, print, traded });
   const suggested = suggestedPrice(cost.exactBase, markup);
+  /* A bought-in piece whose master carries clips and packing has them: ticked once, when the item
+     is picked, so its making cost shows whole — and untickable after, as any other line. */
+  const tickedFor = useRef(null);
+  useEffect(() => {
+    if (!trade || !traded?._id || tickedFor.current === traded._id) return;
+    tickedFor.current = traded._id;
+    let next = item;
+    if (Number(traded.buildUp?.clipsCost) > 0 && !item.withClip) next = tick(next, 'withClip', true);
+    if (Number(traded.buildUp?.packingCost) > 0 && !item.withPacking) next = tick(next, 'withPacking', true);
+    if (next !== item) onChange(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trade, traded?._id]);
   const set = (key) => (value) => onChange({ ...item, [key]: value });
   const setFrom = (key) => (event) => set(key)(event.target.value);
   const choose = (key) => (value) => onChange(pick(item, key, value || ''));
@@ -270,44 +281,43 @@ function ItemCard({ index, item, onChange, onResolve, onRemove, removable, marku
 
       {seesCost && (
         <div className="mt-2 grid grid-cols-2 gap-1.5 pl-7 sm:grid-cols-4 xl:grid-cols-12">
-          {/* A bought-in piece: the supplier's inward price, always on show; the build-up tiles
-              beside it work while the supplier has not priced it [utils/quoteBuilder.js `costOf`]. */}
-          {trade && (
-            <EditTile label="Inward price" value={item.figures.inwardPrice} placeholder={reg('inwardPrice')} onChange={figure('inwardPrice')} strong />
-          )}
-          {cost.supplied ? (
-            <>
-              <Tile label="Grammage" value="in inward" />
-              <Tile label="Material/kg" value="in inward" />
-              <Tile label="Material cost" value="in inward" />
-            </>
-          ) : (
-            <>
-              <EditTile label="Grammage (g)" value={item.figures.gramWeight} placeholder={cost.register.gramWeight ? String(cost.register.gramWeight) : '0'} onChange={figure('gramWeight')} step={GRAM_STEP} />
-              <EditTile label="Material/kg" value={item.figures.rawMaterialRate} placeholder={reg('rawMaterialRate')} onChange={figure('rawMaterialRate')} />
-              <Tile label="Material cost" value={rupees(cost.materialCost)} />
-            </>
-          )}
+          {/* The making cost — resin, job work, hook, clips, packing — for a made piece and a bought-in one
+              alike: the trading master's build-up fills the tiles [utils/quoteBuilder.js `costOf`]. */}
+          <EditTile label="Grammage (g)" value={item.figures.gramWeight} placeholder={cost.register.gramWeight ? String(cost.register.gramWeight) : '0'} onChange={figure('gramWeight')} step={GRAM_STEP} />
+          <EditTile label={cost.resin ? `${cost.resin}/kg` : 'Material/kg'} value={item.figures.rawMaterialRate} placeholder={reg('rawMaterialRate')} onChange={figure('rawMaterialRate')} />
+          <Tile label="Material cost" value={rupees(cost.materialCost)} />
           <EditTile label="Job cost" value={item.figures.jobWorkCost} placeholder={reg('jobWorkCost')} onChange={figure('jobWorkCost')} />
-          <EditTile label="Packing cost" value={item.figures.packingCost} placeholder={reg('packingCost')} onChange={figure('packingCost')} off={!item.withPacking} />
           {/* The hook's price is written in, not greyed: the register's where it has one, nothing where it has none, changeable either way. */}
           <EditTile label="Hook cost" value={item.figures.hookCost === '' ? reg('hookCost') : item.figures.hookCost} placeholder="0.00" onChange={figure('hookCost')} off={!item.withHook} />
           <EditTile label="Clip cost" value={item.figures.metalClipsCost} placeholder={reg('metalClipsCost')} onChange={figure('metalClipsCost')} off={!item.withClip} />
+          <EditTile label="Packing cost" value={item.figures.packingCost} placeholder={reg('packingCost')} onChange={figure('packingCost')} off={!item.withPacking} />
+          <Tile label="Making cost" value={rupees(cost.makeCost)} strong={trade} />
           <EditTile label="Printing cost" value={item.figures.printingCost} placeholder={reg('printingCost')} onChange={figure('printingCost')} off={item.printRef === NONE} />
           <EditTile label="Misc cost" value={item.figures.otherCost} placeholder="0.00" onChange={figure('otherCost')} off={!item.withMisc} />
-          <Tile label="Base price" value={rupees(cost.base)} strong />
-          <Tile label="Suggested" value={rupees(suggested)} strong />
+          {!trade && <Tile label="Base price" value={rupees(cost.base)} strong />}
+          {!trade && <Tile label="Suggested" value={rupees(suggested)} strong />}
         </div>
       )}
       {seesCost && trade && (
-        <p className="mt-1 pl-7 text-xs text-steel-500">
-          {cost.supplied
-            ? 'Costed at the supplier’s inward price — the resin and job work are in it; hook, clips, packing and printing add what the plant puts on.'
-            : 'No inward price from the supplier yet: costed from the build-up on the trading master. Type the inward price to cost at it instead.'}
-        </p>
+        <div className="mt-1.5 grid grid-cols-2 gap-1.5 rounded-lg border border-aqua-500/25 bg-aqua-500/[0.05] p-1.5 pl-2 sm:grid-cols-3 xl:grid-cols-6" data-trade-price>
+          {/* Beneath the making cost: what the supplier charges, what that leaves them, and the price built on it. */}
+          <EditTile label="Inward price" value={item.figures.inwardPrice} placeholder={reg('inwardPrice')} onChange={figure('inwardPrice')} strong />
+          <Tile
+            label="Supplier keeps"
+            value={cost.supplierKeeps == null ? '—' : `${rupees(cost.supplierKeeps)} · ${cost.supplierPercent}%`}
+            tone={cost.supplierPercent == null ? undefined : cost.supplierPercent > 20 ? 'text-danger-400' : cost.supplierPercent > 10 ? 'text-warn-400' : 'text-success-400'}
+          />
+          <Tile label="Making + 10%" value={rupees(cost.makeAt[0][1])} />
+          <Tile label="Making + 20%" value={rupees(cost.makeAt[1][1])} />
+          <Tile label="Base price" value={rupees(cost.base)} strong />
+          <Tile label="Suggested" value={rupees(suggested)} strong />
+          <p className="col-span-full text-xs text-steel-400">
+            {cost.supplied
+              ? `Priced on the inward price — the resin, job work, hook, clips and packing are in what the supplier charges; printing and misc are the plant’s own. ${cost.supplierKeeps != null ? `The supplier keeps ${cost.supplierPercent}% over the making cost.` : 'Give the item its build-up on the trading master to see what the supplier keeps.'}`
+              : 'No inward price from the supplier yet: priced on the making cost. Type the inward price to price on it instead.'}
+          </p>
+        </div>
       )}
-      {/* The making cost against the supplier's price: what they keep, and the figure to negotiate to. */}
-      {seesCost && trade && traded && <SupplierCheck compact traded={traded} inwardPrice={cost.inwardPrice} className="mt-1 pl-7" />}
 
       {/* The product details the enquiry did not give — filled in where known; never a gate on the quote. */}
       {editing && item.missingAtOpen.length > 0 && (
