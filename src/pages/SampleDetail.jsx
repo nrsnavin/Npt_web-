@@ -1196,7 +1196,7 @@ function HandoverCard({ sample }) {
         ? `At reception — the buyer was told on ${formatDate(given.informedAt)}`
         : given.readyAt
           ? `At reception since ${formatDate(given.readyAt)} — the buyer is to be told`
-          : 'Goes to reception when the bench marks it ready'
+          : 'Internal sample — with Reception to get ready and hand over'
       : 'To be handed over on a visit, from the sample rack';
   return (
     <Section title="Hand-over">

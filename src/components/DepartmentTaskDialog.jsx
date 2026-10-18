@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import { Field, Modal, Notice } from './ui.jsx';
 import { CustomerSelect } from './pickers.jsx';
+import { SAMPLE_HANDOVERS } from '../utils/pipeline.js';
 import {
   briefToSend, departmentOptions, missingAnswer, noteNeeded, optionOf, optionsOf, prefillValue, startingAnswers, todayInIndia,
 } from '../utils/taskForm.js';
@@ -66,11 +67,16 @@ function Answer({ field, value, prefill, onChange }) {
     );
   }
   if (field.type === 'choice') {
+    /* How a sample reaches the buyer: what each answer means for who gets the task. */
+    const hint = field.key === 'handover' ? SAMPLE_HANDOVERS.find((option) => option.label === value)?.hint : null;
     return (
-      <select className="input" value={value || ''} onChange={(event) => onChange(event.target.value)}>
-        <option value="">{field.placeholder || 'Choose…'}</option>
-        {options.map((option) => <option key={option} value={option}>{option}</option>)}
-      </select>
+      <>
+        <select className="input" value={value || ''} onChange={(event) => onChange(event.target.value)}>
+          <option value="">{field.placeholder || 'Choose…'}</option>
+          {options.map((option) => <option key={option} value={option}>{option}</option>)}
+        </select>
+        {hint && <p className="mt-1 text-xs text-steel-400">{hint}</p>}
+      </>
     );
   }
   if (field.type === 'check') {
@@ -221,6 +227,8 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
           ? await workspace.teamTasks.create({ ...payload, ...(customer ? { customer } : {}) })
           : await handoffsApi.send({ id: enquiry._id, addToOpen: true, ...payload, ...(order ? { order } : {}) });
       if (team) toast(`Sent to ${form.team || 'the team'}`, 'It is on their dashboard now — no enquiry needed.');
+      /* A sample the buyer collects at reception is internal: Reception has it, not the sampling queue. */
+      if (!team && sent.task?.kind === 'sample_collect' && !sent.addedTo) toast('Sent to Reception', 'An internal sample — Reception gets it ready and hands it over; it does not go to the sampling queue.');
       if (fromTask && !sent.addedTo) toast(`${form.team || 'The department'} asked`, 'Their task is raised, and this task says so.');
       if (sent.addedTo) {
         toast(`Added to ${form.team || 'the department'}’s open task`, 'They already had this task — your request is on it as an update.');
