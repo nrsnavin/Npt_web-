@@ -96,7 +96,7 @@ function MoveForm({ todo, form, step, onCancel, onMoved }) {
       {fieldMissing && <p className="text-xs text-warn-400">Fill in {fieldMissing.label.toLowerCase()} for {step.label}</p>}
       {step.tellBuyer && <p className="text-xs text-steel-400">This sends the buyer a WhatsApp and email from the company number.</p>}
       {step.done && step.fields?.length > 0 && form.documents?.length > 0 && (
-        <p className="text-xs text-steel-400">Attach the {form.documents.map((doc) => doc.label.toLowerCase()).join(' or ')} before you finish, so it is kept on the record.</p>
+        <p className="text-xs text-steel-400">Attach the {form.documents.map((doc) => doc.label.toLowerCase()).join(' or ')} under Documents, now or afterwards; it is kept on the record.</p>
       )}
       {problem && <Notice tone="danger">{problem}</Notice>}
       <div className="flex justify-end gap-2">
