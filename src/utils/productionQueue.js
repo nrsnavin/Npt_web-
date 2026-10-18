@@ -146,3 +146,19 @@ export function queueCsv(rows, now = new Date()) {
   }
   return `﻿${lines.map((line) => line.map(cell).join(',')).join('\r\n')}\r\n`;
 }
+
+/**
+ * The press time a row needs, from its mould [server: capacity.service `estimate`]: "2 press days
+ * · 12,960 a day", or the plant assumption named as one. Null without a quantity.
+ */
+export function capacityWords(capacity) {
+  if (!capacity?.days) return null;
+  const rate = `${Number(capacity.perDay).toLocaleString('en-IN')} a day`;
+  return `${capacity.days} press ${capacity.days === 1 ? 'day' : 'days'} · ${capacity.basis === 'mould' ? rate : `${rate} (plant estimate)`}`;
+}
+
+/** Whether the press time alone runs past the EDD — started today, it finishes after the promise. */
+export function pressTimeTight(row) {
+  if (!row?.capacity?.finish || !row?.edd?.date) return false;
+  return String(row.capacity.finish).slice(0, 10) > String(row.edd.date).slice(0, 10);
+}

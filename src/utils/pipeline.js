@@ -171,7 +171,7 @@ export const SAMPLE_HANDOVERS = [
   { value: 'dispatch', label: 'Sent by the bench (courier or at the gate)', short: 'Courier / gate' },
   {
     value: 'collect', label: 'Buyer collects at reception', short: 'Collect at reception',
-    hint: 'Sampling makes it as usual. When it is ready, Reception gets a task, tells the buyer it is ready to collect, and records who took it with a photo of the hand-over.',
+    hint: 'An internal sample: it does not go to the sampling queue. Reception gets the task — Noted, Sample ready (the buyer is told), Sample handed with who received it, then Task closed.',
   },
   {
     value: 'in_person', label: 'I will hand it over on my visit (from the sample rack)', short: 'Marketer in person',

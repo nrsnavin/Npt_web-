@@ -95,6 +95,7 @@ export default function PartDetail({ kind }) {
 
       <div className="mt-5 grid gap-5 lg:grid-cols-[1.3fr_1fr]">
         <div className="space-y-5">
+
           <Section title="What it costs">
             <div className="card px-4 py-3">
               <p className="eyebrow">Rate</p>

@@ -60,6 +60,12 @@ const Orders = lazyPage(() => import('./pages/Orders.jsx'));
 const OrderDetail = lazyPage(() => import('./pages/OrderDetail.jsx'));
 const Production = lazyPage(() => import('./pages/Production.jsx'));
 const ProductionQueue = lazyPage(() => import('./pages/ProductionQueue.jsx'));
+const Oee = lazyPage(() => import('./pages/Oee.jsx'));
+const ProductionInsights = lazyPage(() => import('./pages/ProductionInsights.jsx'));
+const WorkOrders = lazyPage(() => import('./pages/WorkOrders.jsx'));
+const PlanningBoard = lazyPage(() => import('./pages/PlanningBoard.jsx'));
+const Floor = lazyPage(() => import('./pages/Floor.jsx'));
+const ShiftHandover = lazyPage(() => import('./pages/ShiftHandover.jsx'));
 const Dispatches = lazyPage(() => import('./pages/Dispatches.jsx'));
 const DispatchDetail = lazyPage(() => import('./pages/DispatchDetail.jsx'));
 const DispatchPlan = lazyPage(() => import('./pages/DispatchPlan.jsx'));
@@ -350,6 +356,60 @@ export default function App() {
             element={
               <RequireModule moduleKey="production">
                 <Production />
+              </RequireModule>
+            }
+          />
+          {/* The floor tablet: each press, its job, log / finish / start / breakdown. A job card's QR opens it. */}
+          <Route
+            path="floor"
+            element={
+              <RequireModule moduleKey="production">
+                <Floor />
+              </RequireModule>
+            }
+          />
+          {/* What one shift hands the next. */}
+          <Route
+            path="production/shift"
+            element={
+              <RequireModule moduleKey="production">
+                <ShiftHandover />
+              </RequireModule>
+            }
+          />
+          {/* The planning board: presses by day, drag a work order onto a press. */}
+          <Route
+            path="production/plan"
+            element={
+              <RequireModule moduleKey={['production', 'orders']}>
+                <PlanningBoard />
+              </RequireModule>
+            }
+          />
+          {/* Work orders: one per released order line, planned onto a press. */}
+          <Route
+            path="work-orders"
+            element={
+              <RequireModule moduleKey={['production', 'orders']}>
+                <WorkOrders />
+              </RequireModule>
+            }
+          />
+          {/* Looking ahead: ask the floor, a suggested schedule, maintenance risk, when to buy, WhatsApp readings. */}
+          <Route
+            path="production/insights"
+            element={
+              <RequireModule moduleKey="production">
+                <ProductionInsights />
+              </RequireModule>
+            }
+          />
+          {/* OEE from the runs: availability, performance, quality, and the losses behind them. */}
+          <Route
+            path="production/oee"
+            element={
+              <RequireModule moduleKey="production">
+                <Oee />
               </RequireModule>
             }
           />

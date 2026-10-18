@@ -137,3 +137,13 @@ test('the page offers list and board, the day headings, the row opened to its up
   assert.match(page, /queueCsv\(shown\)/);
   assert.match(read('index.css'), /@media print/);
 });
+
+test('press time reads from the mould, and is flagged when it runs past the EDD', async () => {
+  const { capacityWords, pressTimeTight } = await import('../src/utils/productionQueue.js');
+  assert.equal(capacityWords({ days: 2, perDay: 12960, basis: 'mould' }), '2 press days · 12,960 a day');
+  assert.equal(capacityWords({ days: 1, perDay: 12000, basis: 'assumed' }), '1 press day · 12,000 a day (plant estimate)');
+  assert.equal(capacityWords(null), null);
+  assert.equal(pressTimeTight({ capacity: { finish: '2026-11-05T00:00:00Z' }, edd: { date: '2026-11-03' } }), true);
+  assert.equal(pressTimeTight({ capacity: { finish: '2026-11-02T00:00:00Z' }, edd: { date: '2026-11-03' } }), false);
+  assert.match(page, /capacityWords\(row\.capacity\)/);
+});

@@ -10,7 +10,7 @@ import { formatDate, formatRelative } from '../utils/format.js';
 import { departmentLabel } from '../utils/pipeline.js';
 import { pathOf } from '../utils/edd.js';
 import { todayInIndia } from '../utils/taskForm.js';
-import { EDD_BANDS, boardOf, dayGroups, dueWords, queueCsv } from '../utils/productionQueue.js';
+import { EDD_BANDS, boardOf, capacityWords, dayGroups, dueWords, pressTimeTight, queueCsv } from '../utils/productionQueue.js';
 
 /**
  * The production queue — the plant's one list of what is on the press, in the order the goods
@@ -93,6 +93,7 @@ function RowDetail({ row }) {
           {row.task.raisedBy?.name && <li>Raised by <span className="text-steel-200">{row.task.raisedBy.name}</span>{row.task.createdAt ? ` · ${formatRelative(row.task.createdAt)}` : ''}</li>}
           {row.order?.number && <li>SO <span className="text-steel-200">{row.order.number}</span></li>}
           {row.edd?.department && <li>EDD given by <span className="text-steel-200">{departmentLabel(row.edd.department)}</span></li>}
+          {row.capacity?.days > 0 && <li>Press time <span className="text-steel-200">{capacityWords(row.capacity)}</span>{row.capacity.finish ? ` · done ${formatDate(row.capacity.finish)} if started today` : ''}</li>}
           {row.routing?.handOverDate && <li>Hand-over to the next team <span className="text-steel-200">{formatDate(row.routing.handOverDate)}</span></li>}
         </ul>
         <p className="mt-2 font-semibold text-steel-300">After moulding</p>
@@ -386,6 +387,11 @@ export default function ProductionQueue() {
                           <p className={`font-semibold ${row.band === 'late' ? 'text-danger-400' : 'text-steel-100'}`}>{row.edd ? formatDate(row.edd.date) : '—'}</p>
                           <p className={`text-xs ${row.band === 'late' ? 'text-danger-400' : row.band === 'today' ? 'text-warn-400' : 'text-steel-500'}`}>{dueWords(row.edd?.date)}</p>
                           <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${BAND_CHIP[row.band]}`}>{BAND_LABEL[row.band]}</span>
+                          {capacityWords(row.capacity) && (
+                            <p className={`mt-1 text-xs ${pressTimeTight(row) ? 'font-semibold text-warn-400' : 'text-steel-500'}`} title={pressTimeTight(row) ? 'Started today, the press time ends after the EDD' : undefined}>
+                              {capacityWords(row.capacity)}{pressTimeTight(row) ? ' — past the EDD' : ''}
+                            </p>
+                          )}
                         </div>
                       </div>
                     </td>

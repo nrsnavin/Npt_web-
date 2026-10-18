@@ -645,6 +645,28 @@ export const production = {
    * marketing is waiting on. Both in one reply so the screen cannot render half of itself.
    */
   day: () => api.get('/production/day').then((response) => response.data),
+  /** The planning board: presses by day with their work orders, daily load, and what is not on a press. */
+  plan: (params) => api.get('/production/plan', { params }).then(unwrap),
+  /** The floor tablet's view: each press, its running job, its next work orders, any open call. */
+  floor: () => api.get('/production/floor').then(unwrap),
+  /** What one shift hands the next: per press, runs, pieces, stops, problems; presses still called in. */
+  shiftSummary: (params) => api.get('/production/shift-summary', { params }).then(unwrap),
+  /** A press's queue light to dark — `{ before, after }` colour changes. */
+  sequenceByColour: (machineId) => api.post(`/production/plan/${machineId}/sequence-by-colour`).then(unwrap),
+  /** Whether a mould can go on a press: `{ ok, blocks, warnings }`. */
+  fit: (params) => api.get('/production/fit', { params }).then(unwrap),
+  /** OEE for a span of days, by press, mould, shift and day, with the losses behind it. */
+  oee: (params) => api.get('/production/oee', { params }).then(unwrap),
+  /** A suggested schedule: each press's queue, the reason for each job, and the moves to apply. */
+  suggestPlan: (body = {}) => api.post('/production/plan/suggest', body).then(unwrap),
+  /** Applies a suggestion's moves; a work order changed since is skipped and said. */
+  applyPlan: (moves) => api.post('/production/plan/apply', { moves }, { feedback: false }).then(unwrap),
+  /** Presses and moulds most likely to stop soon, with the reasons. */
+  maintenanceRisk: () => api.get('/production/maintenance-risk').then(unwrap),
+  /** Press readings sent over WhatsApp, newest first. */
+  floorMessages: () => api.get('/production/floor-messages').then(unwrap),
+  /** A question answered from the plant's own figures. */
+  ask: (question) => api.post('/production/ask', { question }, { feedback: false }).then(unwrap),
   statuses: () => api.get('/production/statuses').then(unwrap),
   /** What the plant did to one line. The figures and the status go through one door. */
   record: ({ orderId, lineId, ...payload }) =>
@@ -1121,6 +1143,9 @@ export const machinesApi = {
   get: (id) => api.get(`/machines/${id}`).then(unwrap),
   create: (payload) => api.post('/machines', payload).then(unwrap),
   update: ({ id, ...payload }) => api.patch(`/machines/${id}`, payload).then(unwrap),
+  /** The andon: call a breakdown on a press, and mark it running again. */
+  andon: ({ id, ...payload }) => api.post(`/machines/${id}/andon`, payload, { feedback: false }).then(unwrap),
+  clearAndon: ({ id, ...payload }) => api.post(`/machines/${id}/andon/clear`, payload, { feedback: false }).then(unwrap),
 };
 
 /** Maintenance on a machine or a mould; recording one sets when the next falls due. */
@@ -1134,8 +1159,22 @@ export const mouldRunsApi = {
   list: (params) => api.get('/mould-runs', { params }).then(unwrap),
   start: (payload) => api.post('/mould-runs', payload).then(unwrap),
   finish: ({ id, ...payload }) => api.post(`/mould-runs/${id}/finish`, payload).then(unwrap),
+  /** A line on a running job: counter read, a coded stop, or rejects by defect. */
+  log: ({ id, ...payload }) => api.post(`/mould-runs/${id}/log`, payload).then(unwrap),
+  /** The fixed lists stops and rejects are coded from: `{ downtime, rejects }`. */
+  reasons: () => api.get('/mould-runs/reasons').then(unwrap),
   /** A mould's runs, maintenance and QC records, and where its shot count stands. */
   mouldHistory: (mouldId) => api.get(`/moulds/${mouldId}/history`).then(unwrap),
+};
+
+/**
+ * Work orders: one per released order line, planned onto a press and fed by the runs
+ * [server: workOrder.service]. `list` replies `{ data, meta: { moves } }`.
+ */
+export const workOrdersApi = {
+  list: (params) => api.get('/work-orders', { params }).then((response) => response.data),
+  get: (id) => api.get(`/work-orders/${id}`).then(unwrap),
+  plan: ({ id, ...payload }) => api.patch(`/work-orders/${id}`, payload, { feedback: false }).then(unwrap),
 };
 
 /** The dispatch register: every stop on every trip that left, with the LR details. */
@@ -1166,4 +1205,7 @@ export const dispatchRegisterApi = {
 export const settings = {
   security: () => api.get('/settings/security').then(unwrap),
   setSecurity: (payload) => api.put('/settings/security', payload).then(unwrap),
+  /* The plant calendar capacity is worked out from: press hours a day, shifts, weekly off. */
+  plant: () => api.get('/settings/plant').then(unwrap),
+  setPlant: (payload) => api.put('/settings/plant', payload).then(unwrap),
 };

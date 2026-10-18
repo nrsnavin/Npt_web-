@@ -127,6 +127,13 @@ export const DEPARTMENT_WORKSPACES = {
     pages: [
       { label: 'Production queue', to: '/production/queue', module: 'production', hint: 'In EDD order, with Assembly, Quality and Dispatch beside each row' },
       { label: 'Production status', to: '/production', module: 'production', hint: 'By customer and model' },
+      { label: 'Floor', to: '/floor', module: 'production', hint: 'The tablet at the presses: log, finish, start the next job, call a breakdown' },
+      { label: 'Shift handover', to: '/production/shift', module: 'production', hint: 'What the shift made, what stopped the presses, what the next shift picks up' },
+      { label: 'Planning board', to: '/production/plan', module: 'production', hint: 'Presses by day — drag a work order onto a press; light-to-dark colour order' },
+      { label: 'Work orders', to: '/work-orders', module: 'production', hint: 'One per released order line — plan it onto a press and start the run from it' },
+      { label: 'OEE', to: '/production/oee', module: 'production', hint: 'Availability, performance and quality by press, mould and shift, with the losses' },
+      { label: 'Look-ahead', to: '/production/insights', module: 'production', hint: 'Ask the floor a question, a suggested schedule, maintenance risk, WhatsApp readings' },
+      { label: 'Mould runs', to: '/mould-runs', module: 'production', hint: 'Start, log and finish runs; code stops and rejects' },
       { label: 'Assigned orders', to: '/orders', module: 'orders' },
       { label: 'Moulds', to: '/moulds', module: 'moulds' },
       { label: 'Materials', to: '/materials', module: 'materials' },

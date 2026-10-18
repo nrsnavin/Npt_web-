@@ -78,7 +78,7 @@ test('runs start and finish; the counter cannot go backwards', () => {
   const runs = read('pages/MouldRuns.jsx');
   assert.match(runs, /mouldRunsApi\.start\(/);
   assert.match(runs, /mouldRunsApi\.finish\(\{\s*id: run\._id/);
-  assert.match(runs, /disabled=\{busy \|\| \(shots != null && shots < 0\)\}/);
+  assert.match(runs, /disabled=\{busy \|\| \(shots != null && shots < 0\) \|\| rejectsOver\}/);
   assert.match(runs, /const mayRun = canWrite\('production'\);/);
 });
 
@@ -245,7 +245,7 @@ test('several open SOs: every form asks which, and the planner can ask unpinned 
   assert.match(dialog, /<option value="">Pick the SO…<\/option>/);
   const form = read('pages/QcRecordForm.jsx');
   assert.match(form, /prefill\?\.orderChoices\?\.length > 0 && !sheet\.order/);
-  assert.match(read('pages/MouldRuns.jsx'), /disabled=\{busy \|\| !values\.mould \|\| needsOrder\}/);
+  assert.match(read('pages/MouldRuns.jsx'), /disabled=\{busy \|\| \(!workOrder && \(!values\.mould \|\| needsOrder\)\)\}/);
   const planner = read('components/TripPlanner.jsx');
   assert.match(planner, /canPlan && plan\.unpinned\?\.length > 0 && <AskAllUnpinned buyers=\{plan\.unpinned\} \/>/);
   assert.match(planner, /await askCustomerLocation\(buyer\._id\)/);
