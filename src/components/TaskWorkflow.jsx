@@ -35,16 +35,25 @@ const tomorrowInIndia = () => todayInIndia(new Date(Date.now() + 24 * 60 * 60 * 
 function MoveForm({ todo, form, step, onCancel, onMoved }) {
   const [date, setDate] = useState(step.date === 'tomorrow' ? tomorrowInIndia() : '');
   const [note, setNote] = useState('');
+  /* What this move records [server: departmentTaskForms `statuses[].fields`] — who collected a sample, say. */
+  const asks = step.fields || [];
+  const [answers, setAnswers] = useState(() => Object.fromEntries(asks.map((field) => [field.key, ''])));
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState(null);
   const dateNeeded = step.date === 'required' && !date;
   const remarkNeeded = form.remarkRequired && note.trim().length < 3;
+  const fieldMissing = asks.find((field) => field.required && !String(answers[field.key] || '').trim());
   const save = async (event) => {
     event.preventDefault();
     setBusy(true);
     setProblem(null);
+    const fields = Object.fromEntries(asks
+      .filter((field) => String(answers[field.key] ?? '').trim() !== '')
+      .map((field) => [field.key, field.type === 'number' ? Number(answers[field.key]) : String(answers[field.key]).trim()]));
     try {
-      onMoved(await workspace.todos.status({ id: todo._id, status: step.key, note, ...(date ? { date } : {}) }));
+      onMoved(await workspace.todos.status({
+        id: todo._id, status: step.key, note, ...(date ? { date } : {}), ...(asks.length ? { fields } : {}),
+      }));
     } catch (failure) {
       setProblem(failure.message);
       setBusy(false);
@@ -57,20 +66,37 @@ function MoveForm({ todo, form, step, onCancel, onMoved }) {
         {form.notifyStatus && <span className="font-normal text-steel-400"> · the enquiry’s marketing person and Admin are told</span>}
       </p>
       <div className="grid gap-2">
+        {asks.map((field) => (
+          <Field key={field.key} label={field.label} required={field.required}>
+            <input
+              type={field.type === 'number' ? 'number' : 'text'}
+              min={field.type === 'number' ? 0 : undefined}
+              className="input"
+              required={field.required ? true : undefined}
+              value={answers[field.key]}
+              onChange={(event) => setAnswers((current) => ({ ...current, [field.key]: event.target.value }))}
+            />
+          </Field>
+        ))}
         {form.statusDate && (
           <Field label={form.statusDate.label} required={step.date === 'required'}>
             <input type="date" className="input" min={todayInIndia()} value={date} onChange={(event) => setDate(event.target.value)} />
           </Field>
         )}
         <Field label={form.remark?.label || 'Remarks'} required={form.remarkRequired}>
-          <textarea rows={2} className="input" placeholder={form.remark?.placeholder || ''} value={note} onChange={(event) => setNote(event.target.value)} autoFocus />
+          <textarea rows={2} className="input" placeholder={form.remark?.placeholder || ''} value={note} onChange={(event) => setNote(event.target.value)} autoFocus={!asks.length} />
         </Field>
       </div>
       {dateNeeded && <p className="text-xs text-warn-400">Give the {form.statusDate?.label || 'ready date'} for {step.label}</p>}
+      {fieldMissing && <p className="text-xs text-warn-400">Fill in {fieldMissing.label.toLowerCase()} for {step.label}</p>}
+      {step.tellBuyer && <p className="text-xs text-steel-400">This sends the buyer a WhatsApp and email from the company number.</p>}
+      {step.done && step.fields?.length > 0 && form.documents?.length > 0 && (
+        <p className="text-xs text-steel-400">Attach the {form.documents.map((doc) => doc.label.toLowerCase()).join(' or ')} before you finish, so it is kept on the record.</p>
+      )}
       {problem && <Notice tone="danger">{problem}</Notice>}
       <div className="flex justify-end gap-2">
         <button type="button" className="btn-ghost px-3 py-1.5 text-xs" onClick={onCancel} disabled={busy}>Cancel</button>
-        <button type="submit" className="btn-primary px-3 py-1.5 text-xs" disabled={busy || dateNeeded || remarkNeeded}>{busy ? 'Saving…' : 'Update status'}</button>
+        <button type="submit" className="btn-primary px-3 py-1.5 text-xs" disabled={busy || dateNeeded || remarkNeeded || Boolean(fieldMissing)}>{busy ? 'Saving…' : 'Update status'}</button>
       </div>
     </form>
   );
@@ -267,8 +293,9 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
     setProblem(null);
     if (step.pdf) return setUploading(true);
     if (step.comment) return setAsking(step);
-    /* A workflow whose every move says why, or says when: the remark and date first. */
-    if (button.form.remarkRequired || button.form.statusDate) return setMoving(key === todo.status ? null : step);
+    /* A workflow whose every move says why, or says when — or a move that records something
+       (who collected the sample) or tells the buyer: the form first. */
+    if (button.form.remarkRequired || button.form.statusDate || step.fields?.length || step.tellBuyer) return setMoving(key === todo.status ? null : step);
     try {
       onChanged?.(await workspace.todos.status({ id: todo._id, status: key }));
     } catch (failure) {

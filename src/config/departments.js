@@ -232,9 +232,10 @@ export const DEPARTMENT_WORKSPACES = {
   },
 
   reception: {
-    purpose: 'Once the goods have gone: the LR copy to the buyer, and the dispatch details kept.',
+    purpose: 'Once the goods have gone: the LR copy to the buyer, and the dispatch details kept. Samples a buyer comes in for are handed over here.',
     pages: [
       { label: 'Enquiries at LR Copy', to: '/enquiries?stage=lr_copy', module: 'enquiries' },
+      { label: 'Samples to hand over', to: '/samples?handover=collect', module: 'samples' },
       { label: 'Dispatches', to: '/dispatches', module: 'dispatch' },
       { label: 'Customers', to: '/customers', module: 'customers' },
     ],
@@ -242,6 +243,7 @@ export const DEPARTMENT_WORKSPACES = {
       'Upload the LR copy (PDF or photo) — it goes to the buyer by email and WhatsApp.',
       'Keep the dispatch details: invoice, LR / docket number, transporter, vehicle, quantity sent.',
       'Track it to the buyer: In Transit, Delivered — each with a remark.',
+      'Sample collection: tell the buyer it is ready (WhatsApp and email go from the company number), then record who collected it, their phone and the pieces, with a photo of the hand-over or the signed slip.',
     ],
     toConfirm: [],
   },

@@ -162,6 +162,23 @@ export const SKIP_REASONS = [
   { value: 'no_provider', label: 'No provider configured' },
 ];
 
+/**
+ * How a sample reaches the buyer [server: models/Sample.js HANDOVER_MODES]: by the bench
+ * (courier or at the gate), collected at reception, or carried by the marketing person from the
+ * sample rack on a visit.
+ */
+export const SAMPLE_HANDOVERS = [
+  { value: 'dispatch', label: 'Sent by the bench (courier or at the gate)', short: 'Courier / gate' },
+  {
+    value: 'collect', label: 'Buyer collects at reception', short: 'Collect at reception',
+    hint: 'Sampling makes it as usual. When it is ready, Reception gets a task, tells the buyer it is ready to collect, and records who took it with a photo of the hand-over.',
+  },
+  {
+    value: 'in_person', label: 'I will hand it over on my visit (from the sample rack)', short: 'Marketer in person',
+    hint: 'No bench task is raised: you take it from the sample rack. Record who received it from the sample page once you have handed it over, then record their feedback.',
+  },
+];
+
 export const SAMPLE_PURPOSES = [
   { value: 'existing_model', label: 'Existing model' },
   { value: 'colour_approval', label: 'Colour approval' },

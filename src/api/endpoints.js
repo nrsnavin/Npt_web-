@@ -842,6 +842,18 @@ export const samples = {
     form.append('photo', photo);
     return api.post(`/samples/${id}/logs`, form).then(unwrap);
   },
+  /*
+   * Handed to the buyer without a courier: by the marketer on a visit, or at reception
+   * [server: sample.controller `handOverSample`]. Multipart only with a photo.
+   */
+  handOver: ({ id, photo, ...fields }) => {
+    const said = Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== undefined && value !== ''));
+    if (!photo) return api.post(`/samples/${id}/hand-over`, said).then(unwrap);
+    const form = new FormData();
+    for (const [key, value] of Object.entries(said)) form.append(key, String(value));
+    form.append('photo', photo);
+    return api.post(`/samples/${id}/hand-over`, form).then(unwrap);
+  },
   removeLog: ({ id, logId }) => api.delete(`/samples/${id}/logs/${logId}`).then(unwrap),
   addComment: ({ id, logId, body }) =>
     api.post(`/samples/${id}/logs/${logId}/comments`, { body }).then(unwrap),

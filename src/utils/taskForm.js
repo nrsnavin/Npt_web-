@@ -123,6 +123,8 @@ export function briefEntries(button, brief) {
   for (const [key, value] of Object.entries(brief)) {
     const field = asks.find((entry) => entry.key === key);
     if (value === undefined || value === null || value === '' || value === false) continue;
+    /* A record's id the app keeps on the brief for itself (the sample a desk task is about). */
+    if (field?.hidden) continue;
     if (Array.isArray(value)) {
       for (const row of value) {
         const cells = (field?.columns || Object.keys(row).map((column) => ({ key: column })))
@@ -148,6 +150,7 @@ export function describeBrief(button, brief) {
   const plain = [];
   for (const [key, value] of Object.entries(brief)) {
     const field = asks.find((entry) => entry.key === key);
+    if (field?.hidden) continue;
     if (Array.isArray(value)) {
       for (const row of value) {
         lines.push((field?.columns || Object.keys(row).map((column) => ({ key: column })))
