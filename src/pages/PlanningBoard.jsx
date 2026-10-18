@@ -47,6 +47,7 @@ function JobDialog({ job, press, mayPlan, onClose, onChanged }) {
         </dl>
         {job.fit?.blocks?.length > 0 && <Notice tone="danger">{job.fit.blocks.join(' · ')}</Notice>}
         {job.fit?.warnings?.length > 0 && <Notice tone="warn">{job.fit.warnings.join(' · ')}</Notice>}
+        {job.short?.length > 0 && <Notice tone="warn">Will run short: {job.short.map((item) => `${item.name} ${formatNumber(item.short)} ${item.unit}`).join(' · ')} — <Link to="/production/materials" className="underline">material needs</Link></Notice>}
         {problem && <FormError error={problem} />}
         {mayPlan && (
           <>
@@ -62,6 +63,7 @@ function JobDialog({ job, press, mayPlan, onClose, onChanged }) {
                 <button type="button" className="btn-secondary" disabled={busy} onClick={() => send({ step: 1 }, 'Runs later')}>Run later</button>
                 {job.status === 'planned' && <button type="button" className="btn-secondary" disabled={busy} onClick={() => send({ move: 'release' }, 'Released to the floor')}>Release to the floor</button>}
                 {['planned', 'released', 'paused'].includes(job.status) && <Link className="btn-secondary" to={`/mould-runs?start=1&workOrder=${job._id}`}>Start the run</Link>}
+                <button type="button" className="btn-secondary" onClick={() => workOrdersApi.jobCard(job._id)}>Job card</button>
               </div>
             )}
           </>
@@ -119,6 +121,7 @@ export default function PlanningBoard() {
         actions={(
           <>
             <Link to="/work-orders" className="btn-secondary">Work orders</Link>
+            <Link to="/production/materials" className="btn-secondary">Material needs</Link>
             <Link to="/production/insights" className="btn-secondary">Suggest a schedule</Link>
             <Link to="/machines" className="btn-secondary">Plant hours</Link>
           </>
@@ -199,7 +202,7 @@ export default function PlanningBoard() {
                             style={{ gridColumn: `${span.from + 2} / ${span.to + 3}` }}
                             title={`${job.number} · ${job.colour || ''} · ${formatNumber(job.toMake)} pcs${job.late ? ' · ends after the due date' : job.predictedLate ? ' · history predicts it ends after the due date' : ''}`}
                           >
-                            {job.fit?.warnings?.length ? '⚠ ' : ''}{job.mould?.mouldCode || job.modelNumber} · {job.colour || '—'} · {formatNumber(job.toMake)}
+                            {job.fit?.warnings?.length || job.short?.length ? '⚠ ' : ''}{job.mould?.mouldCode || job.modelNumber} · {job.colour || '—'} · {formatNumber(job.toMake)}
                           </button>
                         ) : (
                           <button type="button" className="row-action text-left text-xs" style={{ gridColumn: '2 / -1' }} onClick={() => setOpen({ job, press: press.machine })}>
@@ -214,7 +217,7 @@ export default function PlanningBoard() {
               {board.presses.length === 0 && <p className="p-4 text-sm text-steel-500">No presses yet. Add them on the Machines page.</p>}
             </div>
           </div>
-          <p className="text-xs text-steel-500">Bars are coloured by status; a red ring means the plan ends after the due date, an amber one that the mould's own history predicts it will; ⚠ means a warning on the press or mould. The thin line under each press is its daily load — red is double-booked.</p>
+          <p className="text-xs text-steel-500">Bars are coloured by status; a red ring means the plan ends after the due date, an amber one that the mould's own history predicts it will; ⚠ means a warning on the press or mould, or a store that will run short. The thin line under each press is its daily load — red is double-booked.</p>
         </>
       )}
       {open && <JobDialog job={open.job} press={open.press} mayPlan={mayPlan} onClose={() => setOpen(null)} onChanged={load} />}
