@@ -189,51 +189,64 @@ const fig = (item, key, fallback) => amount(item.figures?.[key]) ?? (Number(fall
  * `{ tool, resin, hook, clip, print, traded }` are the register records, any of them missing.
  *
  * Made here: the grammage is the tool's consumption in the chosen resin — a denser resin throws
- * a heavier part from the same cavity — exactly as the server's `grammageFrom` works it.
- * A trade hanger with a supplier's inward price is that price, and no material or job work is
- * added: the resin is in what the supplier charges [server: models/Quotation.js `materialCost`].
- * One the supplier has not priced is costed from the plant's own build-up on the trading master
- * — grams, job work, hook, clips, packing — as a made piece is, with the inward price tile left
- * to be typed when the supplier gives one. Hook, clips, packing and misc count only when ticked.
+ * a heavier part from the same cavity — exactly as the server's `grammageFrom` works it; the base
+ * is the making cost plus printing and anything else.
+ *
+ * Bought in: the making cost is the plant's own build-up from the trading master — grams in the
+ * item's resin (or the one picked on the line) at its rate, job work, hook, clips, packing —
+ * shown whole, with no margin, and the supplier's inward price set beneath it. With an inward
+ * price the base is that price plus the printing and anything else the plant puts on itself:
+ * the resin and parts are in what the supplier charges. Without one the making cost stands in
+ * [server: models/Quotation.js `totalCost`]. The gap between the two is the supplier's margin,
+ * as a percent on the making cost, with the making cost at 10% and 20% as figures to negotiate
+ * to. Hook, clips, packing and misc count only when ticked.
  */
 export function costOf(item, { tool, resin, hook, clip, print, traded } = {}) {
   const trade = item.procurement === TRADE;
   const inwardRegister = Number(traded?.inwardPrice) || 0;
   const inwardPrice = trade ? fig(item, 'inwardPrice', inwardRegister) : 0;
-  /* The supplier's price stands for the piece: the build-up is off while there is one. */
   const supplied = trade && inwardPrice > 0;
   const up = (trade && traded?.buildUp) || {};
+  /* The resin a bought-in piece is costed in: the one picked on the line, else the master's. */
+  const itemResin = up.material && typeof up.material === 'object' ? up.material : null;
+  const costedIn = trade ? (resin || itemResin) : resin;
   const own = trade
     ? { jobWorkCost: up.jobWorkCost, packingCost: up.packingCost, hookCost: up.hookCost, clipsCost: up.clipsCost, printingCost: 0 }
     : tool || {};
   const registerGrams = trade
-    ? cutGrams((Number(up.partWeightGrams) || 0) + (Number(up.runnerWeightGrams) || 0))
+    ? cutGrams(((Number(up.partWeightGrams) || 0) + (Number(up.runnerWeightGrams) || 0)) * (1 + (Number(costedIn?.grammageFactorPercent) || 0) / 100))
     : tool ? cutGrams((Number(tool.consumptionPerPieceGrams) || 0) * (1 + (Number(resin?.grammageFactorPercent) || 0) / 100)) : 0;
-  const gramWeight = supplied ? 0 : cutGrams(fig(item, 'gramWeight', registerGrams));
-  const ratePerKg = supplied ? 0 : fig(item, 'rawMaterialRate', resin?.ratePerKg);
-  const materialCost = supplied ? 0 : (gramWeight * ratePerKg) / 1000;
-  const jobCost = fig(item, 'jobWorkCost', supplied ? 0 : own.jobWorkCost);
-  const packingCost = item.withPacking ? fig(item, 'packingCost', supplied ? 0 : own.packingCost) : 0;
-  const hookCost = item.withHook ? fig(item, 'hookCost', part(item.hookRef, hook, supplied ? 0 : own.hookCost)) : 0;
-  const clipCost = item.withClip ? fig(item, 'metalClipsCost', part(item.clipRef, clip, supplied ? 0 : own.clipsCost)) : 0;
+  const registerRate = trade ? (Number(up.ratePerKg) || Number(costedIn?.ratePerKg) || 0) : Number(resin?.ratePerKg) || 0;
+  const gramWeight = cutGrams(fig(item, 'gramWeight', registerGrams));
+  const ratePerKg = fig(item, 'rawMaterialRate', registerRate);
+  const materialCost = (gramWeight * ratePerKg) / 1000;
+  const jobCost = fig(item, 'jobWorkCost', own.jobWorkCost);
+  const packingCost = item.withPacking ? fig(item, 'packingCost', own.packingCost) : 0;
+  const hookCost = item.withHook ? fig(item, 'hookCost', part(item.hookRef, hook, own.hookCost)) : 0;
+  const clipCost = item.withClip ? fig(item, 'metalClipsCost', part(item.clipRef, clip, own.clipsCost)) : 0;
   const miscCost = item.withMisc ? fig(item, 'otherCost', 0) : 0;
   const printingCost = item.printRef === NONE ? 0 : fig(item, 'printingCost', part(item.printRef, print, own.printingCost));
-  const base = materialCost + inwardPrice + jobCost + packingCost + hookCost + clipCost + miscCost + printingCost;
+  const makeCost = materialCost + jobCost + packingCost + hookCost + clipCost;
+  const base = (supplied ? inwardPrice : makeCost) + miscCost + printingCost;
+  /* What the supplier keeps over the making cost — markup on cost, as the plant's own tiers are. */
+  const supplierKeeps = supplied && makeCost > 0 ? inwardPrice - makeCost : null;
+  const supplierPercent = supplierKeeps == null ? null : Math.round((supplierKeeps / makeCost) * 1000) / 10;
   return {
     trade,
     supplied,
     /* What the registers alone give, shown in a blank tile so the typed figure can be judged. */
     register: {
-      gramWeight: supplied ? 0 : registerGrams,
-      rawMaterialRate: supplied ? 0 : Number(resin?.ratePerKg) || 0,
-      jobWorkCost: supplied ? 0 : Number(own.jobWorkCost) || 0,
-      packingCost: supplied ? 0 : Number(own.packingCost) || 0,
-      hookCost: part(item.hookRef, hook, supplied ? 0 : own.hookCost),
-      metalClipsCost: part(item.clipRef, clip, supplied ? 0 : own.clipsCost),
+      gramWeight: registerGrams,
+      rawMaterialRate: registerRate,
+      jobWorkCost: Number(own.jobWorkCost) || 0,
+      packingCost: Number(own.packingCost) || 0,
+      hookCost: part(item.hookRef, hook, own.hookCost),
+      metalClipsCost: part(item.clipRef, clip, own.clipsCost),
       printingCost: item.printRef === NONE ? 0 : part(item.printRef, print, own.printingCost),
       otherCost: 0,
       inwardPrice: inwardRegister,
     },
+    resin: costedIn?.name || null,
     gramWeight,
     ratePerKg,
     materialCost: paise(materialCost),
@@ -244,6 +257,10 @@ export function costOf(item, { tool, resin, hook, clip, print, traded } = {}) {
     clipCost,
     miscCost,
     printingCost,
+    makeCost: paise(makeCost),
+    supplierKeeps: supplierKeeps == null ? null : paise(supplierKeeps),
+    supplierPercent,
+    makeAt: [10, 20].map((tier) => [tier, priceAt(makeCost, tier)]),
     base: paise(base),
     /* Unrounded, as the server's `totalCost` is — the suggested price is worked from this. */
     exactBase: base,

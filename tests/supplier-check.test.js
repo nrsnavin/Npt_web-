@@ -55,7 +55,7 @@ test('the panel is on the costing sheet, the quote builder and the item page; th
   const sheet = read('components/CostingSheetForm.jsx');
   assert.match(sheet, /\{procurement === 'trade' && tradedRecord && <SupplierCheck traded=\{tradedRecord\} inwardPrice=\{cost\.inwardPrice\} \/>\}/);
   assert.match(sheet, /\{onTradingMaster && <SupplierCheck traded=\{onTradingMaster\}/, 'a made-here line whose model is on the trading master');
-  assert.match(read('components/QuoteBuilder.jsx'), /\{seesCost && trade && traded && <SupplierCheck compact/);
+  assert.match(read('components/QuoteBuilder.jsx'), /label="Supplier keeps"/, 'the builder works it into its own tiles');
   assert.match(read('pages/TradedItemDetail.jsx'), /<SupplierCheck traded=\{item\} inwardPrice=\{item\.inwardPrice\}/);
   const form = read('components/TradedItemForm.jsx');
   assert.match(form, /<Field label="Resin" hint="Its rate, and its grammage over PP">/);

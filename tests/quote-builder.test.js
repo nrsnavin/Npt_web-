@@ -58,14 +58,17 @@ test('hook, clips, packing and misc count only when ticked', () => {
   assert.equal(mouldPacking.packingCost, 0.4, 'ticked with no amount takes the mould’s packing');
 });
 
-test('a trade hanger is its inward price — no material cost, no job work', () => {
-  const cost = costOf({ ...blankItem(), procurement: TRADE, tradedItem: 't1', materialRef: 'mat1', withPacking: true, figures: typed({ packingCost: '0.3' }) }, { resin: hips, traded: { inwardPrice: 6.5 } });
+test('a trade hanger with a supplier’s price is priced on it — the packing and parts are in what the supplier charges', () => {
+  const cost = costOf({ ...blankItem(), procurement: TRADE, tradedItem: 't1', materialRef: 'mat1', withPacking: true, withMisc: true, figures: typed({ packingCost: '0.3', otherCost: '0.1' }) }, { resin: hips, traded: { inwardPrice: 6.5 } });
   assert.equal(cost.trade, true);
-  assert.equal(cost.materialCost, 0);
+  assert.equal(cost.supplied, true);
+  assert.equal(cost.materialCost, 0, 'no grams on the master: nothing to work');
   assert.equal(cost.gramWeight, 0);
   assert.equal(cost.jobCost, 0);
+  assert.equal(cost.packingCost, 0.3, 'shown in the making cost');
+  assert.equal(cost.makeCost, 0.3);
   assert.equal(cost.inwardPrice, 6.5);
-  assert.equal(cost.base, 6.8);
+  assert.equal(cost.base, 6.6, 'the inward price plus the misc the plant adds itself');
   const typedInward = costOf({ ...blankItem(), procurement: TRADE, tradedItem: 't1', figures: typed({ inwardPrice: '4.7' }) }, { traded: { inwardPrice: 6.5 } });
   assert.equal(typedInward.base, 4.7, 'a typed inward price wins over the trading master');
   assert.equal(typedInward.register.inwardPrice, 6.5, 'the master’s figure stays on hand for the tile');
@@ -158,7 +161,7 @@ test('a line sends the registers, the rate and the mark-up; the cost on screen o
   assert.equal(trade.tradedItem, 't1');
   assert.equal(trade.mould, undefined);
   assert.equal(trade.cost.inwardPrice, 6.5);
-  assert.equal(trade.cost.gramWeight, 0, 'no material on a trade hanger');
+  assert.equal(trade.cost.gramWeight, 0, 'no build-up on the master, no grams');
   assert.ok(isNamed(tradeItem), 'a trade item names the row');
   assert.equal(costSent(costOf(blankItem())).inwardPrice, undefined, 'made here sends no inward price');
 });
@@ -283,16 +286,26 @@ test('a bought-in piece the supplier has not priced is costed from the trading m
   assert.equal(cost.packingCost, 0.2);
   assert.equal(cost.inwardPrice, 0);
   assert.equal(cost.base, 2.9);
-  /* The supplier's price, typed or on the master, takes over: the build-up is off. */
+  /* The supplier's price, typed or on the master, is what the quote rests on; the build-up stays
+     on show as the making cost, with what the supplier keeps over it and the tiers to negotiate to. */
   const supplied = costOf({ ...blankItem(), procurement: TRADE, tradedItem: 't1', materialRef: 'mat1', withPacking: true }, { resin: { ratePerKg: 100 }, traded: { ...traded, inwardPrice: 6.5 } });
   assert.equal(supplied.supplied, true);
-  assert.equal(supplied.materialCost, 0);
-  assert.equal(supplied.jobCost, 0);
-  assert.equal(supplied.hookCost, 0, 'in the inward price unless typed');
-  assert.equal(supplied.base, 6.5);
+  assert.equal(supplied.materialCost, 2, 'still worked');
+  assert.equal(supplied.jobCost, 0.4);
+  assert.equal(supplied.hookCost, 0.3, 'the master’s hook, in the making cost');
+  assert.equal(supplied.makeCost, 2.9);
+  assert.equal(supplied.base, 6.5, 'priced on the inward price alone');
+  assert.equal(supplied.supplierKeeps, 3.6);
+  assert.equal(supplied.supplierPercent, 124.1, 'over the making cost');
+  assert.deepEqual(supplied.makeAt, [[10, 3.2], [20, 3.5]]);
   assert.equal(supplied.register.inwardPrice, 6.5, 'shown on the tile either way');
-  const addOn = costOf({ ...blankItem(), procurement: TRADE, tradedItem: 't1', figures: typed({ hookCost: '0.3' }) }, { traded: { ...traded, inwardPrice: 6.5 } });
-  assert.equal(addOn.base, 6.8, 'a hook the plant puts on is added');
+  const printed = costOf({ ...blankItem(), procurement: TRADE, tradedItem: 't1', printRef: 'p1', figures: typed({ printingCost: '0.3' }) }, { traded: { ...traded, inwardPrice: 6.5 } });
+  assert.equal(printed.base, 6.8, 'printing the plant does itself is added');
+  /* The resin named on the master costs the grams, with its grammage over PP, unless one is picked on the line. */
+  const inResin = costOf({ ...blankItem(), procurement: TRADE, tradedItem: 't1' }, { traded: { ...traded, inwardPrice: 6.5, buildUp: { ...traded.buildUp, ratePerKg: 90, material: { name: 'HIPS Black', ratePerKg: 100, grammageFactorPercent: 18.8 } } } });
+  assert.equal(inResin.resin, 'HIPS Black');
+  assert.equal(inResin.gramWeight, 23.76, '20 g as PP, 18.8% heavier');
+  assert.equal(inResin.ratePerKg, 90, 'the rate typed on the master wins over the resin’s');
 });
 
 test('one model list for both masters: the pick sets the type and clears the other master’s choice', () => {
@@ -313,8 +326,13 @@ test('one model list for both masters: the pick sets the type and clears the oth
   assert.match(builder, /<MasterModelSelect/);
   assert.match(builder, /onChange=\{\(ref\) => onChange\(modelPicked\(item, ref\)\)\}/);
   assert.doesNotMatch(builder, /MouldSelect|loadTradedItems/);
-  /* The inward price has its own tile on a trade line, whatever the costing rests on. */
-  assert.match(builder, /\{trade && \(\s*<EditTile label="Inward price"/);
+  /* A trade line: the making cost tiles above, the inward price and what the supplier keeps beneath them. */
+  assert.match(builder, /\{seesCost && trade && \(\s*<div[^>]*data-trade-price>/);
+  assert.match(builder, /<EditTile label="Inward price" value=\{item\.figures\.inwardPrice\}/);
+  assert.match(builder, /<Tile\s+label="Supplier keeps"/);
+  assert.match(builder, /<Tile label="Making \+ 10%" value=\{rupees\(cost\.makeAt\[0\]\[1\]\)\} \/>/);
+  assert.match(builder, /<Tile label="Making cost" value=\{rupees\(cost\.makeCost\)\} strong=\{trade\} \/>/);
+  assert.doesNotMatch(builder, /value="in inward"/, 'the build-up is never hidden behind the inward price');
 });
 
 test('a model named by its code alone takes its type from the master: trade on the trading master, made here on the register', () => {
