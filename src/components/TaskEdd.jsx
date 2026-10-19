@@ -5,7 +5,7 @@ import { useToast } from '../context/ToastContext.jsx';
 import { todayInIndia } from '../utils/taskForm.js';
 import { departmentLabel } from '../utils/pipeline.js';
 import { formatDate } from '../utils/format.js';
-import { dateLabelFor, datesOfTask, eddByModelOf, eddOf, givesEdd, handsOnOf, incomingOf, modelsOfTask, needsRouting, showsEdd, teamWords } from '../utils/edd.js';
+import { dateLabelFor, datesOfTask, eddByModelOf, eddOfTask, givesEdd, handsOnOf, incomingOf, modelsOfTask, needsRouting, showsEdd, teamWords } from '../utils/edd.js';
 import TaskRouting from './TaskRouting.jsx';
 
 /**
@@ -181,7 +181,7 @@ function HandOverDate({ todo, mayAct, onChanged }) {
 
 /** The enquiry's EDD, read beside a hand-over date: the last team's word. */
 function EddReadOnly({ todo }) {
-  const edd = eddOf(todo.enquiry);
+  const edd = eddOfTask(todo);
   if (!edd) return null;
   return <EddLine edd={edd} className="mt-1 text-xs" />;
 }
@@ -191,7 +191,7 @@ export default function TaskEdd({ todo, mayAct = false, onChanged }) {
   const [editing, setEditing] = useState(false);
   if (!showsEdd(todo)) return null;
   /* Production decides printing and assembly first, then gives a date. */
-  if (todo.kind === 'ask_edd' && todo.enquiry) {
+  if (todo.kind === 'ask_edd') {
     const routed = !needsRouting(todo);
     return (
       <div className="space-y-2">
@@ -206,7 +206,7 @@ export default function TaskEdd({ todo, mayAct = false, onChanged }) {
 }
 
 function EddBox({ todo, mayAct, onChanged, toast, editing, setEditing }) {
-  const edd = eddOf(todo.enquiry);
+  const edd = eddOfTask(todo);
   const gives = givesEdd(todo) && mayAct && !todo.completed;
   const needed = !edd && !todo.completed;
 
@@ -226,7 +226,7 @@ function EddBox({ todo, mayAct, onChanged, toast, editing, setEditing }) {
       ) : givesEdd(todo) ? (
         <p className="text-sm text-steel-100">
           <span className="font-bold text-warn-400">EDD needed</span>
-          <span className="text-steel-300"> — the enquiry has no expected delivery date yet.{gives ? ' Give it here; marketing and Admin are told.' : ''}</span>
+          <span className="text-steel-300"> — {todo.enquiry ? 'the enquiry has' : 'this job has'} no expected delivery date yet.{gives ? ' Give it here; marketing and Admin are told.' : ''}</span>
         </p>
       ) : (
         <p className="text-sm text-steel-100">

@@ -43,7 +43,7 @@ function RoutingForm({ todo, onSaved, onCancel }) {
   };
 
   if (!rows) return problem ? <Notice tone="danger">{problem}</Notice> : <p className="text-xs text-steel-400">Loading the models…</p>;
-  if (!rows.length) return <Notice tone="warn">The enquiry names no model. Add the model on the enquiry first.</Notice>;
+  if (!rows.length) return <Notice tone="warn">{todo.enquiry ? 'The enquiry names no model. Add the model on the enquiry first.' : 'The task names no model. Edit the task’s hanger details to add it.'}</Notice>;
   return (
     <form onSubmit={save} aria-label="Printing and assembly" className="mt-2 space-y-2">
       <div className="overflow-x-auto">
@@ -92,7 +92,7 @@ function RoutingForm({ todo, onSaved, onCancel }) {
 export default function TaskRouting({ todo, mayAct = false, onChanged }) {
   const { toast } = useToast();
   const [editing, setEditing] = useState(false);
-  if (todo.kind !== 'ask_edd' || !todo.enquiry) return null;
+  if (todo.kind !== 'ask_edd') return null;
   const routing = todo.routing?.decidedAt ? todo.routing : null;
   const open = !todo.completed;
   const saved = (task) => {

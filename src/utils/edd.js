@@ -14,6 +14,16 @@ export const SHOWS_EDD_KINDS = [...EDD_TASK_KINDS, 'invoice_dispatch'];
 
 /** The enquiry's EDD as the server sends it — `{ date, department, at, by, note }` — or null. */
 export const eddOf = (enquiry) => (enquiry && typeof enquiry === 'object' && enquiry.edd?.date ? enquiry.edd : null);
+/**
+ * A task's EDD: its enquiry's, or — raised from the customer with no enquiry — the latest date
+ * the task itself gave [server: Todo `modelDates`].
+ */
+export const eddOfTask = (task) => {
+  const fromEnquiry = eddOf(task?.enquiry);
+  if (fromEnquiry || task?.enquiry) return fromEnquiry;
+  const latest = (task?.modelDates || []).map((row) => row.date).filter(Boolean).sort().at(-1);
+  return latest ? { date: latest, department: task.department || null } : null;
+};
 
 /*
  * What follows moulding, decided by Production model by model [server: handoff.service
@@ -25,7 +35,8 @@ export const ROUTE_LABELS = { production: 'Production', printing: 'Printing', as
 export const handsOnOf = (task) => (Array.isArray(task?.routing?.handsTo) ? task.routing.handsTo : []);
 export const teamWords = (teams) => teams.map((team) => ROUTE_LABELS[team] || team).join(' and ');
 /** Production has yet to say what follows moulding — it gives no date until it has. */
-export const needsRouting = (task) => Boolean(task?.kind === 'ask_edd' && task.enquiry && !task.completed && !task.routing?.decidedAt);
+/* With or without an enquiry: a Production task raised from the customer goes through the same cycle [server: journey.service `jobFilter`]. */
+export const needsRouting = (task) => Boolean(task?.kind === 'ask_edd' && !task.completed && !task.routing?.decidedAt);
 /** The label of the date a task gives: a hand-over date while it hands on. */
 export const dateLabelFor = (task, fallback) => {
   const teams = handsOnOf(task);
@@ -38,8 +49,8 @@ export const incomingOf = (task) => Object.entries(task?.routing?.incoming || {}
   .filter(([, day]) => day)
   .map(([from, day]) => ({ from, label: ROUTE_LABELS[from] || from, day }));
 
-export const showsEdd = (task) => Boolean(task?.kind && SHOWS_EDD_KINDS.includes(task.kind) && task.enquiry);
-export const givesEdd = (task) => Boolean(task?.kind && EDD_TASK_KINDS.includes(task.kind) && task.enquiry);
+export const showsEdd = (task) => Boolean(task?.kind && SHOWS_EDD_KINDS.includes(task.kind) && (task.enquiry || EDD_TASK_KINDS.includes(task.kind)));
+export const givesEdd = (task) => Boolean(task?.kind && EDD_TASK_KINDS.includes(task.kind));
 
 /**
  * What a task says about the EDD, in one chip: the date; "EDD needed" on an open task whose

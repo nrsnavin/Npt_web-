@@ -143,3 +143,13 @@ test('Production adds a task to the queue from the desk or the workflow page: ro
   assert.match(flow, /works && !task\.completed && !task\.queuedAt && \(/);
   assert.match(readFileSync(new URL('../src/api/endpoints.js', import.meta.url), 'utf8'), /api\.post\(`\/workspace\/todos\/\$\{id\}\/production-queue`, payload/);
 });
+
+test('a Production task raised from the customer, with no enquiry, is a job of its own on the queue and its workflow page', () => {
+  const list = readFileSync(new URL('../src/components/ProductionQueueList.jsx', import.meta.url), 'utf8');
+  assert.match(list, /row\.enquiry\.team\s*\? <p className="font-bold text-steel-50">Team task/);
+  const flow = readFileSync(new URL('../src/pages/ProductionWorkflow.jsx', import.meta.url), 'utf8');
+  assert.match(flow, /enquiry\.team \? `Team task · \$\{enquiry\.customer\?\.name \|\| 'no customer named'\}`/);
+  assert.match(flow, /\{!enquiry\.team && <Link to=\{`\/enquiries\/\$\{enquiry\._id\}`\} className="btn-secondary">Enquiry<\/Link>\}/);
+  const routing = readFileSync(new URL('../src/components/TaskRouting.jsx', import.meta.url), 'utf8');
+  assert.match(routing, /if \(todo\.kind !== 'ask_edd'\) return null;/, 'printing and assembly decided on a team task too');
+});

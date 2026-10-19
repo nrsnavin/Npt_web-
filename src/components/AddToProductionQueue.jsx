@@ -66,7 +66,7 @@ export default function AddToProductionQueue({ task, enquiryNumber, open, onClos
       {!rows ? (
         problem ? <Notice tone="danger">{problem}</Notice> : <p className="text-sm text-steel-400">Loading the models…</p>
       ) : !rows.length ? (
-        <Notice tone="warn">The enquiry names no model. Add the model on the enquiry first.</Notice>
+        <Notice tone="warn">{task.enquiry ? 'The enquiry names no model. Add the model on the enquiry first.' : 'The task names no model. Edit the task’s hanger details to add it.'}</Notice>
       ) : (
         <form onSubmit={save} className="space-y-4" aria-label="Add to the production queue">
           <div>
