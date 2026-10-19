@@ -1,0 +1,152 @@
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { production as productionApi } from '../api/endpoints.js';
+import { ErrorState, TableSkeleton } from './ui.jsx';
+import { formatDate, formatRelative } from '../utils/format.js';
+import { EDD_BANDS, dueWords } from '../utils/productionQueue.js';
+import { WORK_ORDER_STATUS } from '../utils/workOrders.js';
+
+/**
+ * The production queue, read at a glance [server: productionQueue.controller]: one line per
+ * enquiry in EDD order — when it is due, whose it is, its state in at most thirty words, and its
+ * work orders. Nothing is changed here: every status, hand-over and date is given on the
+ * enquiry's Production workflow page [pages/ProductionWorkflow.jsx], which each line opens.
+ */
+
+const REFRESH_MS = 60 * 1000;
+
+export const BAND_TONE = {
+  late: { edge: 'border-l-danger-500', chip: 'bg-danger-500/15 text-danger-400', label: 'Late' },
+  today: { edge: 'border-l-warn-500', chip: 'bg-warn-500/15 text-warn-400', label: 'Today' },
+  week: { edge: 'border-l-accent', chip: 'bg-accent/15 text-accent', label: 'This week' },
+  later: { edge: 'border-l-line/20', chip: 'bg-line/[0.08] text-steel-300', label: 'Later' },
+  none: { edge: 'border-l-warn-500/60', chip: 'bg-warn-500/15 text-warn-400', label: 'No EDD' },
+};
+
+/** A work order as a small chip: its number, status and how much is made. */
+export function WorkOrderChip({ wo, orderId }) {
+  const status = WORK_ORDER_STATUS[wo.status] || { label: wo.status };
+  const done = wo.quantity ? Math.min(100, Math.round(((wo.goodQty || 0) / wo.quantity) * 100)) : 0;
+  const body = (
+    <>
+      <span className="font-semibold text-steel-100">{wo.number}</span>
+      <span className="text-steel-400">{wo.modelNumber ? ` · ${wo.modelNumber}` : ''} · {status.label}{wo.quantity ? ` · ${done}%` : ''}</span>
+    </>
+  );
+  const tone = 'inline-flex items-center gap-1 rounded-md border border-line/[0.1] bg-line/[0.03] px-2 py-0.5 text-xs';
+  return orderId
+    ? <Link to={`/work-orders?order=${orderId}`} className={`${tone} hover:border-accent/50`} title="Open the work orders for this order">{body}</Link>
+    : <span className={tone}>{body}</span>;
+}
+
+export default function ProductionQueueList({ compact = false, onRows }) {
+  const [rows, setRows] = useState(null);
+  const [meta, setMeta] = useState(null);
+  const [error, setError] = useState(null);
+  const [asOf, setAsOf] = useState(null);
+  const [band, setBand] = useState('all');
+  const [search, setSearch] = useState('');
+
+  const load = useCallback(() => productionApi.queue()
+    .then((reply) => { setRows(reply.data || []); setMeta(reply.meta || null); setAsOf(new Date()); setError(null); onRows?.(reply.data || []); })
+    .catch((failure) => setError(failure)), [onRows]);
+  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const timer = setInterval(load, REFRESH_MS);
+    return () => clearInterval(timer);
+  }, [load]);
+
+  const shown = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return (rows || []).filter((row) => {
+      if (band === 'problems' && !row.task.issue) return false;
+      if (!['all', 'problems'].includes(band) && row.band !== band) return false;
+      if (!term) return true;
+      return [row.enquiry.number, row.enquiry.customer?.name, row.order?.number, ...(row.models || []).map((entry) => entry.model)]
+        .filter(Boolean).some((text) => String(text).toLowerCase().includes(term));
+    });
+  }, [rows, band, search]);
+
+  if (error && !rows) return <ErrorState error={error} onRetry={load} />;
+  if (!rows) return <TableSkeleton rows={6} columns={4} />;
+
+  const bands = meta?.bands || {};
+  const chips = [
+    { key: 'all', label: 'All', count: rows.length },
+    ...EDD_BANDS.map((entry) => ({ key: entry.key, label: BAND_TONE[entry.key]?.label || entry.label, count: bands[entry.key] || 0 })),
+    { key: 'problems', label: 'Problems', count: meta?.teams?.issues || 0 },
+  ];
+
+  return (
+    <section className="space-y-3" aria-label="Production queue">
+      <div className="flex flex-wrap items-center gap-2 print:hidden">
+        {chips.map((entry) => (
+          <button
+            key={entry.key}
+            type="button"
+            aria-pressed={band === entry.key}
+            onClick={() => setBand(entry.key)}
+            className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${band === entry.key ? 'border-flame-500 bg-flame-500/10 text-flame-400' : 'border-line/[0.1] text-steel-400 hover:text-steel-200'}`}
+          >
+            {entry.label} <span className="tabular-nums opacity-75">{entry.count}</span>
+          </button>
+        ))}
+        <input
+          aria-label="Search enquiry, buyer, model or SO"
+          type="search"
+          className="input ml-auto w-full sm:w-64"
+          placeholder="Search enquiry, buyer, model, SO…"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+        />
+      </div>
+
+      {shown.length === 0 ? (
+        <div className="card px-6 py-10 text-center">
+          <p className="text-base font-semibold text-steel-200">{rows.length ? 'Nothing matches this filter.' : 'Nothing on the press right now.'}</p>
+          <p className="mt-1 text-sm text-steel-500">{rows.length ? 'Pick another, or clear the search.' : 'A Production task raised on an enquiry appears here, in EDD order.'}</p>
+        </div>
+      ) : (
+        <ol className="space-y-2">
+          {shown.map((row) => {
+            const tone = BAND_TONE[row.band] || BAND_TONE.later;
+            const models = row.models?.length ? row.models.map((entry) => entry.model) : [row.enquiry.model].filter(Boolean);
+            return (
+              <li key={row.task._id} className={`card border-l-4 ${tone.edge} p-3 sm:p-4`}>
+                <div className="grid gap-3 md:grid-cols-[8.5rem_minmax(0,14rem)_minmax(0,1fr)_auto] md:items-center">
+                  {/* When it is due. */}
+                  <div className="flex items-center gap-2 md:block">
+                    <p className={`text-base font-bold tabular-nums ${row.band === 'late' ? 'text-danger-400' : 'text-steel-50'}`}>{row.edd ? formatDate(row.edd.date) : 'No EDD'}</p>
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${tone.chip}`}>{row.edd ? dueWords(row.edd.date) : 'give the date'}</span>
+                  </div>
+                  {/* Whose it is, and what. */}
+                  <div className="min-w-0">
+                    <Link to={`/enquiries/${row.enquiry._id}`} className="font-bold text-steel-50 hover:text-accent">{row.enquiry.number}</Link>
+                    <p className="truncate text-sm text-steel-300">{row.enquiry.customer?.name || '—'}</p>
+                    <p className="truncate text-xs text-steel-500">{models.join(', ') || '—'}{row.order?.number ? ` · ${row.order.number}` : ''}</p>
+                  </div>
+                  {/* Where it stands, in at most thirty words, and its work orders. */}
+                  <div className="min-w-0 space-y-1.5">
+                    <p className={`text-sm leading-snug ${row.task.issue ? 'font-semibold text-danger-400' : 'text-steel-200'}`}>{row.summary}</p>
+                    {row.workOrders?.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {row.workOrders.map((wo) => <WorkOrderChip key={wo._id} wo={wo} orderId={row.order?._id} />)}
+                      </div>
+                    )}
+                  </div>
+                  <Link to={row.link} className="btn-primary justify-center px-3 py-2 text-sm print:hidden">Workflow →</Link>
+                </div>
+              </li>
+            );
+          })}
+        </ol>
+      )}
+
+      {!compact && (
+        <p className="text-xs text-steel-500">
+          {rows.length} open{asOf ? ` · as of ${formatRelative(asOf)}` : ''} · statuses, hand-overs to Printing and Assembly, and the EDD are given on each enquiry’s workflow page.
+        </p>
+      )}
+    </section>
+  );
+}

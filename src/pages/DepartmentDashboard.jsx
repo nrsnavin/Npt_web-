@@ -23,6 +23,7 @@ import { deskActionsFor } from '../config/deskActions.js';
 import { formatDate } from '../utils/format.js';
 import { departmentLabel, deskOf } from '../utils/pipeline.js';
 import DeskTabs, { firstDeskTab } from '../components/DeskTabs.jsx';
+import ProductionQueueList from '../components/ProductionQueueList.jsx';
 import { EDD_CHIP, eddChipOf } from '../utils/edd.js';
 import { EDD_BANDS, PRODUCTION_FILTERS, eddBandOf, eddBands } from '../utils/productionQueue.js';
 
@@ -290,7 +291,7 @@ function DepartmentDesk() {
     <div className="mx-auto max-w-7xl space-y-5">
       <PageHeader
         title={`${figures.label} dashboard`}
-        subtitle={isProduction ? 'The queue in EDD order — the goods due soonest first; hand on to Assembly, Printing, Quality and Dispatch from each task' : seesEnquiries ? 'Your department’s tasks, and every enquiry you can see' : 'The tasks raised for your department'}
+        subtitle={isProduction ? 'The queue in EDD order — open an enquiry’s workflow to give its statuses, hand-overs and EDD' : seesEnquiries ? 'Your department’s tasks, and every enquiry you can see' : 'The tasks raised for your department'}
         actions={
           <div className="flex flex-wrap gap-2">
             {otherDesks.map((entry) => (
@@ -298,7 +299,7 @@ function DepartmentDesk() {
                 {departmentLabel(entry)} desk
               </Link>
             ))}
-            {isProduction && <Link to="/production/queue" className="btn-primary">Queue board</Link>}
+            {isProduction && <Link to="/work-orders" className="btn-secondary">Work orders</Link>}
             {(isAdmin || departments?.includes('marketing')) && firstTask && (
               <button type="button" className="btn-primary" onClick={() => setNewTeamTask(true)}>New team task</button>
             )}
@@ -318,7 +319,7 @@ function DepartmentDesk() {
       {/* Questions for this person and answers back to the department — acted on here, on every tab. */}
       <AttentionPanel attention={data.attention} onChanged={reload} />
 
-      {tab === 'enquiries' && <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      {tab === 'enquiries' && !isProduction && <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Tile label="Open tasks" value={enquiries.length} hint={`${figures.open} on the department in all`} active={tab === 'enquiries' && filter === 'all'} onClick={() => pick('all')} />
         <Tile label="Late" value={late} tone={late ? 'text-danger-400' : 'text-success-400'} hint={isProduction ? 'Past the EDD' : 'Past the day they were due'} active={filter === 'late'} onClick={() => pick('late')} />
         <Tile label="Due today" value={today} tone={today ? 'text-warn-400' : 'text-steel-50'} hint={isProduction ? 'EDD is today' : 'By the end of today'} active={filter === 'today'} onClick={() => pick('today')} />
@@ -360,7 +361,10 @@ function DepartmentDesk() {
 
       {tab === 'all' && <Enquiries embedded />}
 
-      {tab === 'enquiries' && (
+      {/* Production's queue: one line per enquiry in EDD order; each is worked on its workflow page. */}
+      {tab === 'enquiries' && isProduction && <ProductionQueueList compact />}
+
+      {tab === 'enquiries' && !isProduction && (
         <section className="space-y-4">
           <div className="flex flex-wrap items-center gap-2">
             {filters.map((entry) => (

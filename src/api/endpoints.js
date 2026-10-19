@@ -655,6 +655,8 @@ export const production = {
   list: (params) => api.get('/production', { params }).then((response) => response.data),
   /** The queue in EDD order with the other teams beside each row — `{ data, meta }`, read by every department. */
   queue: () => api.get('/production/queue').then((response) => response.data),
+  /** One Production task worked whole: models, hand-overs, EDD, work orders and the teams after it. */
+  workflow: (taskId) => api.get(`/production/workflow/${taskId}`).then(unwrap),
   /**
    * The plant's front page: what to run next, with the reason on each row, and the questions
    * marketing is waiting on. Both in one reply so the screen cannot render half of itself.

@@ -491,6 +491,10 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
             {action.label}
           </button>
         ))}
+        {/* The whole of it — each model, the hand-overs, the work orders — on its workflow page [pages/ProductionWorkflow.jsx]. */}
+        {todo.kind === 'ask_edd' && todo.enquiry && !window.location.pathname.startsWith('/production/workflow/') && (
+          <Link to={`/production/workflow/${todo._id}`} className="btn-secondary px-3 py-1.5 text-xs">Production workflow</Link>
+        )}
         {/* Production's job, on the press: a mould run for this enquiry's SO, started from the task. */}
         {todo.kind === 'ask_edd' && todo.enquiry && canWrite('production') && (
           <Link
