@@ -122,3 +122,16 @@ test('the held order’s banner and Move to Production are drawn by the desk for
   assert.match(desk, /isManagement \|\| owner === me/);
   assert.match(desk, /Move to Production/);
 });
+
+test('Release to production: on the Sales orders list for confirmed orders, and on the enquiry with when and by whom', () => {
+  const read = (path) => readFileSync(new URL(`../src/${path}`, import.meta.url), 'utf8');
+  const list = read('pages/Orders.jsx');
+  assert.match(list, /readyToRelease: ready \? 'true' : undefined/);
+  assert.match(list, /Confirmed — ready to release/);
+  assert.match(list, /order\.releasable && \(mayWrite \?/);
+  assert.match(list, /ordersApi\.act\(\{ id: order\._id, expectedUpdatedAt: order\.updatedAt, action: 'release' \}\)/);
+  const desk = read('components/DepartmentDesk.jsx');
+  assert.match(desk, /const orders = history\?\.orders \|\| \[\];/);
+  assert.match(desk, /Released to production \{formatDate\(order\.released\.at\)\}/);
+  assert.match(desk, /\{order\.mayRelease && \(/);
+});

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { downloads, orders as ordersApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useToast } from '../context/ToastContext.jsx';
 import { useDebounced, useRecordList } from '../hooks/useRecords.js';
 import {
   Badge, EmptyState, ErrorState, Field, Modal, Notice, PageHeader, Pagination, TableSkeleton,
@@ -55,6 +56,10 @@ export default function Orders() {
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const [awaiting, setAwaiting] = useState(false);
+  /* Confirmed — every check ticked — and waiting only on the Release to production button. */
+  const [ready, setReady] = useState(false);
+  const [releasing, setReleasing] = useState(null);
+  const { toast, warn } = useToast();
   const [page, setPage] = useState(1);
   const [creating, setCreating] = useState(false);
   /* Which order's priority is being set, if any. Held here rather than per row so only one
@@ -75,6 +80,7 @@ export default function Orders() {
     search: term || undefined,
     status: status || undefined,
     awaitingRelease: awaiting ? 'true' : undefined,
+    readyToRelease: ready ? 'true' : undefined,
     priority: urgentOnly ? 'raised' : undefined,
   };
   const { data, pagination, loading, error, reload } = useRecordList(ordersApi.list, {
@@ -85,6 +91,24 @@ export default function Orders() {
   });
 
   const mayWrite = canWrite('orders');
+
+  /*
+   * Straight from the list: the plant gets the order, the enquiry's SO task and Production's task
+   * say so, and Production has its task [server: handoff.subscriber ORDER_RELEASED]. Refused with
+   * the reason — the advance not in, or a Production Holded Order that is not this person's.
+   */
+  const release = async (order) => {
+    setReleasing(order._id);
+    try {
+      await ordersApi.act({ id: order._id, expectedUpdatedAt: order.updatedAt, action: 'release' });
+      toast(`${order.number} released to production`, 'Production has its task; the enquiry and its tasks show the release.');
+      reload();
+    } catch (failure) {
+      warn(`${order.number} not released`, failure.message);
+    } finally {
+      setReleasing(null);
+    }
+  };
 
   const onFilterChange = (setter) => (event) => {
     setter(event.target.value);
@@ -138,6 +162,18 @@ export default function Orders() {
             }}
           />
           Waiting on verification
+        </label>
+        <label className="flex items-center gap-2 text-sm text-steel-300">
+          <input
+            type="checkbox"
+            className="h-4 w-4 accent-flame-500"
+            checked={ready}
+            onChange={(event) => {
+              setReady(event.target.checked);
+              setPage(1);
+            }}
+          />
+          Confirmed — ready to release
         </label>
 
         {/* The other question this register gets asked, and could not answer: what have we told
@@ -225,6 +261,18 @@ export default function Orders() {
                               {short} check{short === 1 ? '' : 's'} short
                             </p>
                           )}
+                          {order.releasable && (mayWrite ? (
+                            <button
+                              type="button"
+                              className="btn-primary mt-1.5 whitespace-nowrap px-2.5 py-1 text-xs"
+                              disabled={releasing === order._id}
+                              onClick={() => release(order)}
+                            >
+                              {releasing === order._id ? 'Releasing…' : 'Release to production'}
+                            </button>
+                          ) : (
+                            <p className="mt-1 text-xs font-semibold text-success-400">Confirmed — ready to release</p>
+                          ))}
                         </td>
 
                         {/*

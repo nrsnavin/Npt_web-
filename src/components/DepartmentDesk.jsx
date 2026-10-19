@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { enquiries as enquiriesApi, handoffs as handoffsApi } from '../api/endpoints.js';
+import { enquiries as enquiriesApi, handoffs as handoffsApi, orders as ordersApi } from '../api/endpoints.js';
+import { Link } from 'react-router-dom';
 import TaskPdfLink from './TaskPdfLink.jsx';
 import { EddForm, EddLine } from './TaskEdd.jsx';
 import { useToast } from '../context/ToastContext.jsx';
@@ -115,7 +116,8 @@ function ViewToggle({ view, onChange }) {
 export default function DepartmentDesk({ enquiry, onChanged }) {
   const catalogue = useHandoffCatalogue();
   const { user, worksIn, canWrite, isManagement } = useAuth();
-  const { toast } = useToast();
+  const { toast, warn } = useToast();
+  const [releasing, setReleasing] = useState(null);
   const [history, setHistory] = useState(null);
   const [problem, setProblem] = useState(null);
   const [sending, setSending] = useState(null);
@@ -198,6 +200,24 @@ export default function DepartmentDesk({ enquiry, onChanged }) {
   const held = stage === 'production_hold';
   const mayRelease = held && !awaitingCheck && (isManagement || owner === me);
   const productionButton = catalogue.buttons.find((button) => button.key === 'ask_edd');
+
+  /*
+   * The enquiry's sales orders, and whether each has gone to the plant — released here or on the
+   * Sales orders screen, it reads the same [server: handoff.controller `ordersOnEnquiry`].
+   */
+  const orders = history?.orders || [];
+  const releaseOrder = async (order) => {
+    setReleasing(order._id);
+    try {
+      await ordersApi.act({ id: order._id, expectedUpdatedAt: order.updatedAt, action: 'release' });
+      toast(`${order.number} released to production`, 'Production has its task.');
+      refresh();
+    } catch (failure) {
+      warn(`${order.number} not released`, failure.message);
+    } finally {
+      setReleasing(null);
+    }
+  };
 
   /* The work itself — the holding task is the enquiry, said above, not a card. */
   const work = tasks.filter((task) => !task.holds);
@@ -287,6 +307,42 @@ export default function DepartmentDesk({ enquiry, onChanged }) {
                 </div>
               );
             })}
+          </div>
+        )}
+        {orders.length > 0 && (
+          <div className="space-y-2" aria-label="Sales orders">
+            {orders.map((order) => (
+              <div
+                key={order._id}
+                className={`flex flex-wrap items-center justify-between gap-2 rounded-xl border px-3 py-2.5 ${
+                  order.released ? 'border-success-500/40 bg-success-500/[0.07]' : order.mayRelease ? 'border-accent/40 bg-accent/[0.06]' : 'border-line/[0.1] bg-line/[0.02]'
+                }`}
+              >
+                <p className="text-sm text-steel-100">
+                  <Link to={`/orders/${order._id}`} className="font-bold hover:text-accent">{order.number}</Link>
+                  <span className="text-steel-400">
+                    {order.poNumber ? ` · PO ${order.poNumber}` : ''}
+                    {order.quantity ? ` · ${Number(order.quantity).toLocaleString('en-IN')} pcs` : ''}
+                  </span>
+                  {order.released ? (
+                    <span className="block text-xs font-semibold text-success-400">
+                      Released to production {formatDate(order.released.at)}{order.released.by ? ` · ${order.released.by}` : ''}
+                    </span>
+                  ) : order.waiting ? (
+                    <span className={`block text-xs ${order.checksShort.length ? 'text-warn-400' : 'font-semibold text-accent'}`}>
+                      {order.checksShort.length
+                        ? `Not released — still needs ${order.checksShort.join(', ').toLowerCase()}`
+                        : 'Confirmed — ready to release to production'}
+                    </span>
+                  ) : null}
+                </p>
+                {order.mayRelease && (
+                  <button type="button" className="btn-primary px-3 py-1.5 text-sm" disabled={releasing === order._id} onClick={() => releaseOrder(order)}>
+                    {releasing === order._id ? 'Releasing…' : 'Release to production'}
+                  </button>
+                )}
+              </div>
+            ))}
           </div>
         )}
         {held && (
