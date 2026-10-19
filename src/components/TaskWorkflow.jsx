@@ -7,6 +7,7 @@ import TaskPdfLink from './TaskPdfLink.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import TaskDocuments from './TaskDocuments.jsx';
 import DepartmentTaskDialog from './DepartmentTaskDialog.jsx';
+import RegisterPick from './RegisterPick.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import { todayInIndia } from '../utils/taskForm.js';
 import { ladderOf } from '../utils/taskState.js';
@@ -255,6 +256,70 @@ function ContactDialog({ fields, todo, title = 'Edit contact details', onClose, 
   );
 }
 
+/**
+ * The hanger's details on a task raised without them — model, material & colour, hook, clip,
+ * print, pieces — picked from the registers [server: departmentTaskForms `HANGER_DETAILS`].
+ * Filled by the department working it, whoever raised it, its marketing person or Admin.
+ */
+export function DetailsDialog({ fields, todo, onClose, onSaved }) {
+  const [values, setValues] = useState(() => Object.fromEntries(fields.map((field) => [field.key, todo.brief?.[field.key] == null ? '' : String(todo.brief[field.key])])));
+  const [registers, setRegisters] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState(null);
+  useEffect(() => {
+    let live = true;
+    workspace.todos.registers().then((data) => live && setRegisters(data)).catch(() => live && setRegisters({}));
+    return () => { live = false; };
+  }, []);
+  const set = (key) => (value) => setValues((current) => ({ ...current, [key]: value }));
+  const save = async (event) => {
+    event.preventDefault();
+    setBusy(true);
+    setProblem(null);
+    try {
+      onSaved(await workspace.todos.brief({ id: todo._id, brief: values }));
+      onClose();
+    } catch (failure) {
+      setProblem(failure.message);
+      setBusy(false);
+    }
+  };
+  return (
+    <Modal open title="Hanger details" onClose={onClose}>
+      <form onSubmit={save} className="space-y-3">
+        <p className="text-xs text-steel-400">What the task is about — the team working it, whoever raised it and its marketing person are told.</p>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {fields.map((field) => (
+            <Field key={field.key} label={field.label}>
+              {field.register && registers?.[field.register]
+                ? <RegisterPick field={field} register={registers[field.register]} value={values[field.key]} onChange={set(field.key)} />
+                : (
+                  <input
+                    type={field.type === 'number' ? 'number' : 'text'}
+                    min={field.type === 'number' ? 0 : undefined}
+                    className="input"
+                    value={values[field.key]}
+                    onChange={(event) => set(field.key)(event.target.value)}
+                  />
+                )}
+            </Field>
+          ))}
+        </div>
+        {problem && <Notice tone="danger">{problem}</Notice>}
+        <div className="flex justify-end gap-2">
+          <button type="button" className="btn-ghost" onClick={onClose} disabled={busy}>Cancel</button>
+          <button type="submit" className="btn-primary" disabled={busy}>{busy ? 'Saving…' : 'Save details'}</button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+/** The details a hanger task cannot do without, missing from its brief. */
+export const missingDetails = (todo, fields = []) => (fields.length
+  ? ['model', 'material', 'quantity'].filter((key) => fields.some((field) => field.key === key) && !String(todo.brief?.[key] ?? '').trim())
+  : []);
+
 const QC_KINDS = ['quality_check', 'quality_issue'];
 
 /** The status list and the workflow's actions, for a task whose department has a workflow. */
@@ -273,6 +338,7 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
   const [askingDepartment, setAskingDepartment] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [fillingDetails, setFillingDetails] = useState(false);
   const [problem, setProblem] = useState(null);
   /* Said as a toast: the finished task leaves the list it was on. */
   const { toast, warn } = useToast();
@@ -290,6 +356,9 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
   const waiting = (todo.waitingOn || []).filter((task) => (button.form.actions || []).some((action) => action.kind === task.kind && action.waits));
   const resultStep = statuses.find((entry) => entry.pdf);
   const editable = (button.asks || []).filter((field) => field.editable);
+  /* The hanger's details — model, material, parts, pieces — filled on a task raised without them. */
+  const details = (button.details || []).filter((field) => !editable.some((entry) => entry.key === field.key));
+  const missing = missingDetails(todo, details);
   /* The obvious move — the rung after the one the task stands on — as the one big button. */
   const next = ladderOf(button, todo)?.next;
   const nextIsButton = next && !next.pdf && !waiting.length;
@@ -354,6 +423,16 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
       <div className="flex flex-wrap gap-2">
         {editable.length > 0 && (
           <button type="button" className="btn-secondary px-3 py-1.5 text-xs" onClick={() => setEditing(true)}>{button.form.editLabel || 'Edit contact details'}</button>
+        )}
+        {details.length > 0 && !todo.completed && (
+          <button
+            type="button"
+            className={`${missing.length ? 'btn-primary' : 'btn-secondary'} px-3 py-1.5 text-xs`}
+            title={missing.length ? `Not given: ${missing.join(', ')}` : undefined}
+            onClick={() => setFillingDetails(true)}
+          >
+            {missing.length ? 'Add hanger details' : 'Edit hanger details'}
+          </button>
         )}
         {/* Asking another department raises its task on the enquiry — a team task has none. */}
         {todo.enquiry && (button.form.actions || []).map((action) => (
@@ -448,6 +527,7 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
         />
       )}
       {editing && <ContactDialog fields={editable} todo={todo} title={button.form.editLabel} onClose={() => setEditing(false)} onSaved={(saved) => onChanged?.(saved)} />}
+      {fillingDetails && <DetailsDialog fields={details} todo={todo} onClose={() => setFillingDetails(false)} onSaved={(saved) => onChanged?.(saved)} />}
     </div>
   );
 }

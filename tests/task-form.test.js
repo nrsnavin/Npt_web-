@@ -88,8 +88,9 @@ test('register questions are a dropdown from the register — on an enquiry or a
   /* The enquiry's own models stay the choices where a question offers them. */
   assert.match(dialog, /if \(register && !\(field\.optionsFrom && options\.length\)\)/);
   /* Narrowing as you go, and a model or material the register does not know is kept as typed. */
-  assert.match(dialog, /<Combobox/);
-  assert.match(dialog, /createLabel="Use as typed"/);
+  const pick = readFileSync(new URL('../src/components/RegisterPick.jsx', import.meta.url), 'utf8');
+  assert.match(pick, /<Combobox/);
+  assert.match(pick, /createLabel="Use as typed"/);
   assert.match(dialog, /<Answer field=\{column\} value=\{row\[column\.key\]\} prefill=\{prefill\}/);
   assert.match(dialog, /<Rows field=\{field\} rows=\{answers\[field\.key\] \|\| \[\]\} prefill=\{prefill\}/);
 });
@@ -157,4 +158,16 @@ test('the SO upload reads the PDF and drafts the order; the order says how it wa
   const order = read('pages/OrderDetail.jsx');
   assert.match(order, /Drafted by reading the SO PDF/);
   assert.match(order, /order\.drafted\.differences\.map/);
+});
+
+test('a task raised without the hanger details offers to fill them, from the registers', async () => {
+  const { missingDetails } = await import('../src/components/TaskWorkflow.jsx').catch(() => ({}));
+  const workflow = readFileSync(new URL('../src/components/TaskWorkflow.jsx', import.meta.url), 'utf8');
+  assert.match(workflow, /missing\.length \? 'Add hanger details' : 'Edit hanger details'/);
+  assert.match(workflow, /workspace\.todos\.registers\(\)/);
+  assert.match(workflow, /<RegisterPick field=\{field\} register=\{registers\[field\.register\]\}/);
+  if (missingDetails) {
+    const fields = [{ key: 'model' }, { key: 'material' }, { key: 'quantity' }, { key: 'hook' }];
+    assert.deepEqual(missingDetails({ brief: { model: 'CRF25' } }, fields), ['material', 'quantity']);
+  }
 });

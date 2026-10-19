@@ -272,7 +272,7 @@ test('a team task types its model and material, needs no instruction, and a cost
   const dialog = read('components/DepartmentTaskDialog.jsx');
   /* A dropdown from the register that narrows as you type; a model or material it does not know is kept as typed. */
   assert.match(dialog, /<RegisterPick field=\{field\} register=\{register\}/);
-  assert.match(dialog, /onCreate=\{\(typed\) => \{ if \(typed\) onChange\(typed\); \}\}/);
+  assert.match(read('components/RegisterPick.jsx'), /onCreate=\{\(typed\) => \{ if \(typed\) onChange\(typed\); \}\}/);
   assert.doesNotMatch(dialog, /Choose from the \$\{field\.register/, 'the fixed dropdown is gone');
   /* The instruction is optional on a team task; the answers say what to do. */
   assert.match(dialog, /const mustExplain = \(noteNeeded\(button, answers\) \|\| Boolean\(fromTask\)\) && note\.trim\(\)\.length < 3;/);
