@@ -24,6 +24,7 @@ import { formatDate } from '../utils/format.js';
 import { departmentLabel, deskOf } from '../utils/pipeline.js';
 import DeskTabs, { firstDeskTab } from '../components/DeskTabs.jsx';
 import ProductionQueueList from '../components/ProductionQueueList.jsx';
+import FinishingDeskList from '../components/FinishingDeskList.jsx';
 import { EDD_CHIP, eddChipOf } from '../utils/edd.js';
 import { EDD_BANDS, PRODUCTION_FILTERS, eddBandOf, eddBands } from '../utils/productionQueue.js';
 
@@ -388,7 +389,10 @@ function DepartmentDesk() {
             />
           </div>
 
-          {shown.length ? (
+          {/* Quality · Printing · Assembly: one line a task — enquiry, buyer, EDD, the state in 20–30 words, the workflow page. */}
+          {deskList && shown.length > 0 ? (
+            <FinishingDeskList rows={shown} onChanged={reload} />
+          ) : shown.length ? (
             (isProduction
               ? eddBands(shown).map((band) => ({ key: band.key, label: band.label, tone: band.tone, rows: band.rows }))
               : bySection(shown, (row) => row.task.department)
