@@ -60,6 +60,7 @@ const Orders = lazyPage(() => import('./pages/Orders.jsx'));
 const OrderDetail = lazyPage(() => import('./pages/OrderDetail.jsx'));
 const Production = lazyPage(() => import('./pages/Production.jsx'));
 const ProductionQueue = lazyPage(() => import('./pages/ProductionQueue.jsx'));
+const ProductionWorkflow = lazyPage(() => import('./pages/ProductionWorkflow.jsx'));
 const Oee = lazyPage(() => import('./pages/Oee.jsx'));
 const ProductionInsights = lazyPage(() => import('./pages/ProductionInsights.jsx'));
 const WorkOrders = lazyPage(() => import('./pages/WorkOrders.jsx'));
@@ -429,6 +430,15 @@ export default function App() {
             element={
               <RequireModule moduleKey={['production', 'dispatch', 'quality', 'orders', 'enquiries']}>
                 <ProductionQueue />
+              </RequireModule>
+            }
+          />
+          {/* One enquiry's production worked whole: each model's status, the hand-overs, the EDD, the work orders. */}
+          <Route
+            path="production/workflow/:taskId"
+            element={
+              <RequireModule moduleKey={['production', 'dispatch', 'quality', 'orders', 'enquiries']}>
+                <ProductionWorkflow />
               </RequireModule>
             }
           />

@@ -53,6 +53,8 @@ const rupees = (value) => (value === undefined || value === null ? '—' : forma
 function Checklist({ order, checks, onChanged, mayWrite }) {
   const [busy, setBusy] = useState(null);
   const [error, setError] = useState(null);
+  /* Release in one click; with checks still open, a second click says which get confirmed. */
+  const [confirming, setConfirming] = useState(false);
 
   /*
    * The same rule the server holds: the checks are editable only while the order is in front
@@ -74,6 +76,22 @@ function Checklist({ order, checks, onChanged, mayWrite }) {
   };
 
   const done = checks.filter((check) => check.done).length;
+  const open = checks.filter((check) => !check.done);
+
+  const release = async () => {
+    if (open.length && !confirming) return setConfirming(true);
+    setBusy('release');
+    setError(null);
+    try {
+      onChanged(await ordersApi.release({ id: order._id, expectedUpdatedAt: order.updatedAt }));
+      setConfirming(false);
+    } catch (releaseError) {
+      setError(releaseError);
+    } finally {
+      setBusy(null);
+    }
+    return null;
+  };
 
   return (
     <Section
@@ -125,6 +143,29 @@ function Checklist({ order, checks, onChanged, mayWrite }) {
           </li>
         ))}
       </ul>
+
+      {/* The one button the checklist is for: everything confirmed, and off to the plant. */}
+      {!frozen && mayWrite && order.status !== 'cancelled' && (
+        <div className="mt-3 space-y-2 border-t border-line/[0.06] pt-3">
+          {confirming && open.length > 0 && (
+            <p className="text-xs text-warn-400">
+              This confirms {open.map((check) => check.label.toLowerCase()).join(', ')} in your name, then releases the order to production.
+            </p>
+          )}
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className="btn-primary w-full justify-center" disabled={Boolean(busy)} onClick={release}>
+              {busy === 'release'
+                ? 'Releasing…'
+                : open.length
+                  ? confirming ? `Yes — confirm ${open.length} and release` : 'Confirm all & release to production'
+                  : 'Release to production'}
+            </button>
+            {confirming && (
+              <button type="button" className="btn-ghost w-full justify-center" disabled={Boolean(busy)} onClick={() => setConfirming(false)}>Cancel</button>
+            )}
+          </div>
+        </div>
+      )}
 
       {error && (
         <Notice tone="danger">

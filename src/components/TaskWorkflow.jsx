@@ -106,6 +106,17 @@ function MoveForm({ todo, form, step, onCancel, onMoved }) {
         )}
         {asks.map((field) => (
           <Field key={field.key} label={field.label} required={field.required}>
+            {field.options ? (
+              <select
+                className="input"
+                required={field.required ? true : undefined}
+                value={answers[field.key]}
+                onChange={(event) => setAnswers((current) => ({ ...current, [field.key]: event.target.value }))}
+              >
+                <option value="">Choose…</option>
+                {field.options.map((option) => <option key={option} value={option}>{option}</option>)}
+              </select>
+            ) : (
             <input
               type={field.type === 'number' ? 'number' : 'text'}
               min={field.type === 'number' ? 0 : undefined}
@@ -114,6 +125,7 @@ function MoveForm({ todo, form, step, onCancel, onMoved }) {
               value={answers[field.key]}
               onChange={(event) => setAnswers((current) => ({ ...current, [field.key]: event.target.value }))}
             />
+            )}
           </Field>
         ))}
         {form.statusDate && !unrouted && (
@@ -130,6 +142,7 @@ function MoveForm({ todo, form, step, onCancel, onMoved }) {
       {fieldMissing && <p className="text-xs text-warn-400">Fill in {fieldMissing.label.toLowerCase()} for {step.label}</p>}
       {noModel && <p className="text-xs text-warn-400">Tick at least one model</p>}
       {step.tellBuyer && <p className="text-xs text-steel-400">This sends the buyer a WhatsApp and email from the company number.</p>}
+      {step.confirmsInward && <p className="text-xs text-steel-400">Logged on the sales order’s RCV, and Accounts gets a task to confirm it in the bank. Once Accounts confirms the advance, this task closes and the SO team and marketing are told to release the order to production.</p>}
       {step.done && step.fields?.length > 0 && form.documents?.length > 0 && (
         <p className="text-xs text-steel-400">Attach the {form.documents.map((doc) => doc.label.toLowerCase()).join(' or ')} under Documents, now or afterwards; it is kept on the record.</p>
       )}
@@ -478,6 +491,10 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
             {action.label}
           </button>
         ))}
+        {/* The whole of it — each model, the hand-overs, the work orders — on its workflow page [pages/ProductionWorkflow.jsx]. */}
+        {todo.kind === 'ask_edd' && todo.enquiry && !window.location.pathname.startsWith('/production/workflow/') && (
+          <Link to={`/production/workflow/${todo._id}`} className="btn-secondary px-3 py-1.5 text-xs">Production workflow</Link>
+        )}
         {/* Production's job, on the press: a mould run for this enquiry's SO, started from the task. */}
         {todo.kind === 'ask_edd' && todo.enquiry && canWrite('production') && (
           <Link

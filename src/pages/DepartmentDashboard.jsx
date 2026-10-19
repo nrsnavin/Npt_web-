@@ -21,7 +21,10 @@ import { WorkspaceBrief, WorkspaceLinks } from '../components/DepartmentWorkspac
 import { DashboardSkeleton, ErrorState, PageHeader } from '../components/ui.jsx';
 import { deskActionsFor } from '../config/deskActions.js';
 import { formatDate } from '../utils/format.js';
-import { departmentLabel } from '../utils/pipeline.js';
+import { departmentLabel, deskOf } from '../utils/pipeline.js';
+import DeskTabs, { firstDeskTab } from '../components/DeskTabs.jsx';
+import ProductionQueueList from '../components/ProductionQueueList.jsx';
+import FinishingDeskList from '../components/FinishingDeskList.jsx';
 import { EDD_CHIP, eddChipOf } from '../utils/edd.js';
 import { EDD_BANDS, PRODUCTION_FILTERS, eddBandOf, eddBands } from '../utils/productionQueue.js';
 
@@ -210,7 +213,15 @@ function DepartmentDesk() {
   const firstTask = (catalogue?.buttons || []).find((button) => button.department && !button.hidden && button.form)?.key;
   const me = String(user?.id || user?._id || '');
 
-  const enquiries = data?.enquiries || [];
+  /*
+   * A shared desk (Quality · Printing · Assembling): one team at a time, as tabs across the top
+   * [components/DeskTabs.jsx] — each team's tasks fill the screen instead of being stacked.
+   */
+  const [deskChoice, setDeskChoice] = useState(null);
+  const deskList = data?.desk ? (deskOf(data.desk.departments[0])?.departments || data.desk.departments) : null;
+  const deskTab = deskList ? (deskList.includes(deskChoice) ? deskChoice : firstDeskTab(deskList, departments)) : null;
+  const everyRow = data?.enquiries || [];
+  const enquiries = useMemo(() => (deskTab ? everyRow.filter((row) => row.task.department === deskTab) : everyRow), [everyRow, deskTab]);
   /*
    * Production's desk is its queue in EDD order — the goods due soonest first, the undated last —
    * rather than every enquiry in the plant [utils/productionQueue.js]. Its filters are the bands.
@@ -236,7 +247,9 @@ function DepartmentDesk() {
   if (loading && !data) return <DashboardSkeleton label="Loading the department" tiles={4} />;
   if (error) return <ErrorState error={error} onRetry={reload} />;
 
-  const { figures, requests = [], recentlyDone, waitingOnOthers, cameBack, atStages } = data;
+  const { figures, requests: everyRequest = [], recentlyDone, waitingOnOthers, cameBack, atStages } = data;
+  const requests = deskTab ? everyRequest.filter((task) => task.department === deskTab) : everyRequest;
+  const deskCounts = deskList ? Object.fromEntries(deskList.map((key) => [key, everyRow.filter((row) => row.task.department === key).length])) : {};
   /* Sampling works from its own queue — the sample requests, as the team designed it. */
   const isSampling = figures.department === 'sampling';
   /* Every enquiry this person may see — all of them for Admin, their own for marketing. Not on
@@ -245,11 +258,9 @@ function DepartmentDesk() {
   const everyone = isAdmin || figures.department === 'management';
   const tab = chosenTab || firstDashboardTab(figures.department, { isAdmin: everyone, seesEnquiries });
   const seesAll = mayDelete;
-  /* A shared desk (Quality · Assembling · Printing): every member's tasks here, each under its own header. */
-  const deskMembers = data.desk?.departments || [figures.department];
-  const bySection = (rows, departmentOf) => (data.desk
-    ? deskMembers.map((key) => ({ key, label: departmentLabel(key), rows: rows.filter((row) => departmentOf(row) === key) })).filter((section) => section.rows.length)
-    : [{ key: 'all', label: null, rows }]);
+  /* A shared desk: the tab above has picked the team, so its rows are one list. */
+  const deskMembers = deskList || [figures.department];
+  const bySection = (rows) => [{ key: 'all', label: null, rows }];
   /* The person's other desks, when they work in more than one department. */
   const otherDesks = departments.filter((entry) => !deskMembers.includes(entry));
   const late = enquiries.filter((row) => (isProduction ? eddBandOf(row) === 'late' : row.late)).length;
@@ -281,7 +292,7 @@ function DepartmentDesk() {
     <div className="mx-auto max-w-7xl space-y-5">
       <PageHeader
         title={`${figures.label} dashboard`}
-        subtitle={isProduction ? 'The queue in EDD order — the goods due soonest first; hand on to Assembly, Printing, Quality and Dispatch from each task' : seesEnquiries ? 'Your department’s tasks, and every enquiry you can see' : 'The tasks raised for your department'}
+        subtitle={isProduction ? 'The queue in EDD order — open an enquiry’s workflow to give its statuses, hand-overs and EDD' : seesEnquiries ? 'Your department’s tasks, and every enquiry you can see' : 'The tasks raised for your department'}
         actions={
           <div className="flex flex-wrap gap-2">
             {otherDesks.map((entry) => (
@@ -289,7 +300,7 @@ function DepartmentDesk() {
                 {departmentLabel(entry)} desk
               </Link>
             ))}
-            {isProduction && <Link to="/production/queue" className="btn-primary">Queue board</Link>}
+            {isProduction && <Link to="/work-orders" className="btn-secondary">Work orders</Link>}
             {(isAdmin || departments?.includes('marketing')) && firstTask && (
               <button type="button" className="btn-primary" onClick={() => setNewTeamTask(true)}>New team task</button>
             )}
@@ -303,10 +314,13 @@ function DepartmentDesk() {
         <DepartmentTaskDialog enquiry={null} catalogue={catalogue} kind={firstTask} onClose={() => setNewTeamTask(false)} onSent={reload} />
       )}
 
+      {/* Quality · Printing · Assembling: one team on screen at a time. */}
+      {deskList && <DeskTabs departments={deskList} counts={deskCounts} value={deskTab} onChange={setDeskChoice} />}
+
       {/* Questions for this person and answers back to the department — acted on here, on every tab. */}
       <AttentionPanel attention={data.attention} onChanged={reload} />
 
-      {tab === 'enquiries' && <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      {tab === 'enquiries' && !isProduction && <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Tile label="Open tasks" value={enquiries.length} hint={`${figures.open} on the department in all`} active={tab === 'enquiries' && filter === 'all'} onClick={() => pick('all')} />
         <Tile label="Late" value={late} tone={late ? 'text-danger-400' : 'text-success-400'} hint={isProduction ? 'Past the EDD' : 'Past the day they were due'} active={filter === 'late'} onClick={() => pick('late')} />
         <Tile label="Due today" value={today} tone={today ? 'text-warn-400' : 'text-steel-50'} hint={isProduction ? 'EDD is today' : 'By the end of today'} active={filter === 'today'} onClick={() => pick('today')} />
@@ -348,7 +362,10 @@ function DepartmentDesk() {
 
       {tab === 'all' && <Enquiries embedded />}
 
-      {tab === 'enquiries' && (
+      {/* Production's queue: one line per enquiry in EDD order; each is worked on its workflow page. */}
+      {tab === 'enquiries' && isProduction && <ProductionQueueList compact />}
+
+      {tab === 'enquiries' && !isProduction && (
         <section className="space-y-4">
           <div className="flex flex-wrap items-center gap-2">
             {filters.map((entry) => (
@@ -372,7 +389,10 @@ function DepartmentDesk() {
             />
           </div>
 
-          {shown.length ? (
+          {/* Quality · Printing · Assembly: one line a task — enquiry, buyer, EDD, the state in 20–30 words, the workflow page. */}
+          {deskList && shown.length > 0 ? (
+            <FinishingDeskList rows={shown} onChanged={reload} />
+          ) : shown.length ? (
             (isProduction
               ? eddBands(shown).map((band) => ({ key: band.key, label: band.label, tone: band.tone, rows: band.rows }))
               : bySection(shown, (row) => row.task.department)

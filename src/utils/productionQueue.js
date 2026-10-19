@@ -134,14 +134,15 @@ export function queueCsv(rows, now = new Date()) {
     const text = value == null ? '' : String(value);
     return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
   };
-  const team = (entry) => (entry ? `${entry.label}${entry.with?.name ? ` (${entry.with.name})` : ''}` : '');
-  const lines = [['EDD', 'Due', 'Enquiry', 'Buyer', 'Model', 'Qty', 'Colour', 'Production', 'With', 'Assembly', 'Printing', 'Quality', 'Dispatch', 'SO', 'Latest']];
+  /* The queue as the screen reads it: when, whose, the models, and the state in at most thirty words. */
+  const lines = [['EDD', 'Due', 'Enquiry', 'Buyer', 'Models', 'SO', 'Status', 'Work orders']];
   for (const row of rows) {
+    const edd = row.enquiry?.edd?.date || row.edd?.date || '';
     lines.push([
-      row.enquiry?.edd?.date || row.edd?.date || '', dueWords(row.enquiry?.edd?.date || row.edd?.date, now), row.enquiry?.number, row.enquiry?.customer?.name,
-      row.enquiry?.model, row.enquiry?.quantity, row.enquiry?.colour, row.task?.statusLabel || 'Open', row.task?.with?.name || 'not picked up',
-      team(row.teams?.assembling) || (row.needsAssembly ? 'needed' : ''), team(row.teams?.printing), team(row.teams?.quality), team(row.teams?.despatch),
-      row.order?.number, row.task?.latest?.note,
+      edd, dueWords(edd, now), row.enquiry?.number, row.enquiry?.customer?.name,
+      (row.models || []).map((entry) => entry.model).join(', ') || row.enquiry?.model, row.order?.number,
+      row.summary || row.task?.statusLabel || 'Open',
+      (row.workOrders || []).map((wo) => `${wo.number} ${wo.status}`).join('; '),
     ]);
   }
   return `﻿${lines.map((line) => line.map(cell).join(',')).join('\r\n')}\r\n`;

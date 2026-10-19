@@ -8,7 +8,7 @@ import {
 import { canSeal, openToken, sealToken } from '../auth/pinCrypto.js';
 import { unwrapToken, wrapToken } from '../auth/deviceKey.js';
 import { idlePast, touch, watchActivity } from '../auth/idle.js';
-import { resubscribePush } from '../utils/push.js';
+import { forgetPushForMe, syncPush } from '../utils/push.js';
 
 const AuthContext = createContext(null);
 
@@ -117,7 +117,6 @@ export function AuthProvider({ children }) {
         setUser(me);
         updateAccount(me.id, { name: me.name, department: me.department, roleLabel: roleLabelOf(me), expiresAt: me.sessionExpiresAt || null });
         auth.switched().catch(() => null);
-        resubscribePush().catch(() => null);
         touch();
       } catch (failure) {
         if (failure?.response?.status !== 401) setUnreachable(failure);
@@ -135,6 +134,8 @@ export function AuthProvider({ children }) {
 
   /** Signs the active account out of this device and moves to the next one, if any. */
   const logout = useCallback(async () => {
+    /* Asked while this account's token is still the one in use; a slow network does not hold the sign-out up. */
+    await Promise.race([forgetPushForMe().catch(() => null), new Promise((resolve) => setTimeout(resolve, 1500))]);
     const next = removeAccount(activeId());
     clearToken();
     setUser(null);
@@ -165,6 +166,19 @@ export function AuthProvider({ children }) {
     }
     return false;
   }), [refreshAccounts, switchTo]);
+
+  /*
+   * This device keeps ringing for whoever is signed in [utils/push.js `syncPush`]: once for each
+   * person who comes to the screen — open, sign-in, switch, unlock — and again, at most every ten
+   * minutes, when the app is brought back to the front.
+   */
+  useEffect(() => {
+    if (!user?.id || locked) return undefined;
+    syncPush({ force: true }).catch(() => null);
+    const onVisible = () => { if (document.visibilityState === 'visible') syncPush().catch(() => null); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [user?.id, locked]);
 
   /* The idle lock: the policy's minutes with nothing from the person, and the account has a PIN. */
   const minutes = user?.policy?.lockAfterMinutes || 15;

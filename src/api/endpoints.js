@@ -8,6 +8,8 @@ export const pushApi = {
   key: () => api.get('/workspace/push/key').then(unwrap),
   subscribe: (payload) => api.post('/workspace/push/subscribe', payload, { feedback: false }).then(unwrap),
   unsubscribe: (payload) => api.post('/workspace/push/unsubscribe', payload, { feedback: false }).then(unwrap),
+  /** A device whose subscription was replaced: every account's row moves to the new one. */
+  renew: (payload) => api.post('/workspace/push/renew', payload, { feedback: false }).then(unwrap),
   /** What is set up — push, email, WhatsApp — and, on a development server, where it is all redirected. */
   status: () => api.get('/workspace/notifications/status').then(unwrap),
   /** A push to my devices and an email to me, by the same path real notifications take. */
@@ -545,6 +547,8 @@ export const orders = {
   /** What can be done from here, and doing one — verbs rather than a ladder of fourteen. */
   actions: (id) => api.get(`/orders/${id}/actions`).then(unwrap),
   act: ({ id, ...payload }) => api.post(`/orders/${id}/actions`, payload).then(unwrap),
+  /* One click: the checks still open confirmed, and the order released — with its checklist back [server: applyOrderAction `confirmAll`]. */
+  release: ({ id, ...payload }) => api.post(`/orders/${id}/actions`, { ...payload, action: 'release', confirmAll: true }).then((r) => r.data),
   /** Where the order stands against its payment terms, before production and before dispatch. */
   payment: (id) => api.get(`/orders/${id}/payment`).then(unwrap),
   /** Admin lets production or dispatch go on before the money is in: `{ stage, reason }`. */
@@ -653,6 +657,8 @@ export const production = {
   list: (params) => api.get('/production', { params }).then((response) => response.data),
   /** The queue in EDD order with the other teams beside each row — `{ data, meta }`, read by every department. */
   queue: () => api.get('/production/queue').then((response) => response.data),
+  /** One Production task worked whole: models, hand-overs, EDD, work orders and the teams after it. */
+  workflow: (taskId) => api.get(`/production/workflow/${taskId}`).then(unwrap),
   /**
    * The plant's front page: what to run next, with the reason on each row, and the questions
    * marketing is waiting on. Both in one reply so the screen cannot render half of itself.

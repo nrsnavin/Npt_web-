@@ -143,9 +143,9 @@ test('one story: the journey and the mould running on the enquiry, the productio
   assert.match(desk, /<JourneyStrip journey=\{history\?\.journey\} floor=\{history\?\.floor\} \/>/);
   assert.match(desk, /Moulding now/);
   assert.match(desk, /sample: 'Sample — ends at the sample'/);
-  const queue = read('pages/ProductionQueue.jsx');
-  assert.match(queue, /<Moulding floor=\{row\.floor\} \/>/);
-  assert.match(queue, /key: 'moulding', label: 'Moulding now'/);
+  /* The queue says the press in its summary [server: productionSummary `summarise`]; the workflow page shows the run. */
+  assert.match(read('components/ProductionQueueList.jsx'), /\{row\.summary\}/);
+  assert.match(read('pages/ProductionWorkflow.jsx'), /running since \{formatDate\(run\.startedAt\)\}/);
   const machines = read('pages/Machines.jsx');
   assert.match(machines, /machine\.running\.enquiry\.number/);
 });

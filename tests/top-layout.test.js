@@ -170,19 +170,23 @@ test('every task on the board opens into its panel: Admin works any department鈥
   assert.match(panel, /<TaskTimeline task=\{task\} button=\{button\} \/>/);
 });
 
-test('Quality, Assembly and Printing are one desk: one choice on the board, each department under its own header; marketing鈥檚 figures are gone', () => {
+test('Quality, Printing and Assembly are one desk: one choice on the board, each team a tab across the top; marketing鈥檚 figures are gone', () => {
   const pipeline = read('utils/pipeline.js');
   assert.match(pipeline, /\{ key: 'printing', label: 'Printing' \}/);
-  assert.match(pipeline, /key: 'finishing', label: 'Quality 路 Assembling 路 Printing', departments: \['quality', 'assembling', 'printing'\]/);
+  assert.match(pipeline, /key: 'finishing', label: 'Quality 路 Printing 路 Assembling', departments: \['quality', 'printing', 'assembling'\]/);
   assert.match(pipeline, /export const DEPARTMENT_CHOICES = DEPARTMENTS\.flatMap/);
+  const tabs = read('components/DeskTabs.jsx');
+  assert.match(tabs, /role="tablist"/);
+  assert.match(tabs, /role="tab"\s+aria-selected=\{active\}/);
+  assert.match(tabs, /export const firstDeskTab = \(desk, departments = \[\]\) => desk\.find\(\(key\) => departments\.includes\(key\)\) \|\| desk\[0\];/);
   const board = read('components/DepartmentTasksBoard.jsx');
   assert.match(board, /const desk = department && deskOf\(department\)\?\.key === department \? deskOf\(department\) : null;/);
-  assert.match(board, /<th scope="colgroup" colSpan=\{4\}[^>]*>\{section\.label\}/, 'a header row per department on the table');
-  assert.match(board, /section\.label && <li key=\{`head-\$\{section\.key\}`\}/, 'and on the phone list');
+  assert.match(board, /<DeskTabs departments=\{desk\.departments\} counts=\{deskCounts\} value=\{deskTab\}/);
+  assert.match(board, /everyTask\.filter\(\(task\) => task\.department === deskTab\)/, 'one team鈥檚 tasks on screen');
   const desk = read('pages/DepartmentDashboard.jsx');
-  assert.match(desk, /const deskMembers = data\.desk\?\.departments \|\| \[figures\.department\];/);
-  assert.match(desk, /: bySection\(shown, \(row\) => row\.task\.department\)\s*\)\.map/, 'every other desk still sections by department');
-  assert.match(desk, /bySection\(requests, \(task\) => task\.department\)\.map/);
+  assert.match(desk, /\{deskList && <DeskTabs departments=\{deskList\} counts=\{deskCounts\} value=\{deskTab\} onChange=\{setDeskChoice\} \/>\}/);
+  assert.match(desk, /everyRow\.filter\(\(row\) => row\.task\.department === deskTab\)/);
+  assert.match(desk, /everyRequest\.filter\(\(task\) => task\.department === deskTab\)/, 'requests follow the tab too');
   const overview = read('pages/OverviewDashboard.jsx');
   assert.match(overview, /\{isAdmin && \(\s*<div className="grid grid-cols-2 gap-3 lg:grid-cols-4">\s*<FigureTile label="Customers"/, 'the figures are Admin鈥檚 only');
 });

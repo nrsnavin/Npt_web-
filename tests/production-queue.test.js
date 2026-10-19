@@ -1,8 +1,8 @@
 /**
- * The production queue board [pages/ProductionQueue.jsx; server: controllers/productionQueue.controller.js]:
- * one row per open Production task in EDD order, the other teams beside each, filters by band and
- * by team, status moves and problem reports from the row, Assembly tasked from the row, and the
- * page reachable from every department that works to it.
+ * The production queue [pages/ProductionQueue.jsx; components/ProductionQueueList.jsx;
+ * server: controllers/productionQueue.controller.js]: one line per open Production task in EDD
+ * order — the EDD, whose it is, its state in at most thirty words and its work orders — and the
+ * Production workflow page [pages/ProductionWorkflow.jsx] where every update is given.
  *
  *   node --test tests/production-queue.test.js
  */
@@ -14,63 +14,46 @@ import { DEPARTMENT_WORKSPACES } from '../src/config/departments.js';
 
 const read = (path) => readFileSync(new URL(`../src/${path}`, import.meta.url), 'utf8');
 const page = read('pages/ProductionQueue.jsx');
+const list = read('components/ProductionQueueList.jsx');
+const workflow = read('pages/ProductionWorkflow.jsx');
 
-test('the board reads one endpoint, refreshes itself, and keeps its band and team filters in the address', () => {
-  assert.match(read('api/endpoints.js'), /queue: \(\) => api\.get\('\/production\/queue'\)/);
-  assert.match(page, /productionApi\.queue\(\)/);
-  assert.match(page, /const REFRESH_MS = 60 \* 1000;/, 'a minute between refreshes');
-  assert.match(page, /setInterval\(load, REFRESH_MS\)/);
-  assert.match(page, /useSearchParams\(\)/);
-  assert.match(page, /params\.get\('band'\)/);
-  assert.match(page, /params\.get\('team'\)/);
-  for (const key of ['assembly', 'quality', 'dispatch', 'issues', 'unclaimed']) assert.match(page, new RegExp(`key: '${key}'`), `team filter ${key}`);
+test('the queue is one line per enquiry: EDD, whose it is, the thirty-word summary, work orders, and Workflow →', () => {
+  assert.match(list, /productionApi\.queue\(\)/);
+  assert.match(list, /setInterval\(load, REFRESH_MS\)/, 'it keeps itself fresh');
+  assert.match(list, /\{row\.summary\}/);
+  assert.match(list, /<WorkOrderChip key=\{wo\._id\} wo=\{wo\} orderId=\{row\.order\?\._id\} \/>/);
+  assert.match(list, /<Link to=\{row\.link\} className="btn-primary[^"]*">Workflow →<\/Link>/);
+  assert.match(list, /\{row\.edd \? dueWords\(row\.edd\.date\) : 'give the date'\}/);
+  assert.doesNotMatch(list, /<select/, 'no status is changed from the queue');
+  assert.match(page, /<ProductionQueueList onRows=\{onRows\} \/>/);
+  assert.match(page, /onClick=\{\(\) => window\.print\(\)\}>Print</);
 });
 
-test('the tiles answer the questions the floor asks: late, due today, due tomorrow, no EDD, printing / assembly to decide, problems, not picked up', () => {
-  for (const label of ['Late', 'Due today', 'Due tomorrow', 'No EDD yet', 'Printing / assembly\\?', 'Problems', 'Not picked up']) {
-    assert.match(page, new RegExp(`<Tile label="${label}"`), label);
-  }
-  assert.match(page, /teams\.dueTomorrow/);
-  assert.match(page, /bands\.none/);
-  assert.match(page, /teams\.toRoute/);
-});
-
-test('each row carries Assembly, Printing, Quality and Dispatch beside Production’s own status, and who has it', () => {
-  for (const team of ['assembling', 'printing', 'quality', 'despatch']) assert.match(page, new RegExp(`row\\.teams\\.${team}`), team);
-  assert.match(page, /<TeamCell /);
-  assert.match(page, /row\.task\.with/);
-  assert.match(page, /row\.task\.latest/);
-});
-
-test('Production moves its status and reports a problem from the row; everyone else sees the status as a chip', () => {
-  assert.match(page, /aria-label=\{`Production status of \$\{row\.enquiry\.number\}`\}/);
-  assert.match(page, /aria-label=\{`Report a problem on \$\{row\.enquiry\.number\}`\}/);
-  assert.match(page, /<option value="">Report a problem…<\/option>/);
-  assert.match(page, /\.filter\(\(entry\) => entry\.issue\)/, 'the problem list is the issue statuses');
-  assert.match(page, /mayWork\(row\)/);
-  assert.match(page, /<TaskPanel/);
-  assert.match(page, /startWith=/);
-});
-
-test('Assembly is tasked from the row with the Production task behind it, on the enquiry, with the model prefilled', () => {
-  assert.match(page, /<DepartmentTaskDialog/);
-  assert.match(page, /kind="ask_assembling_edd"/);
-  assert.match(page, /fromTask=\{\{ _id: assemblyFor\.task\._id, kind: 'ask_edd' \}\}/);
-  assert.match(page, /enquiry=\{\{ _id: assemblyFor\.enquiry\._id, customer: assemblyFor\.enquiry\.customer \}\}/);
-  assert.match(page, />Task Assembly</);
-  assert.match(page, />Needs assembly</);
-  assert.match(page, /!row\.teams\.assembling/, 'not offered once Assembly has its task');
-});
-
-test('the board is reachable: its route, the Production desk button, and a page link on every desk that works to it', () => {
+test('the Production desk shows the same compact queue; the workflow page is reachable from the queue, the desk and the task', () => {
+  const desk = read('pages/DepartmentDashboard.jsx');
+  assert.match(desk, /\{tab === 'enquiries' && isProduction && <ProductionQueueList compact \/>\}/);
   const app = read('App.jsx');
   assert.match(app, /path="production\/queue"/);
+  assert.match(app, /path="production\/workflow\/:taskId"/);
   assert.match(app, /moduleKey=\{\['production', 'dispatch', 'quality', 'orders', 'enquiries'\]\}/, 'every department that reads it');
-  assert.match(read('pages/DepartmentDashboard.jsx'), /\{isProduction && <Link to="\/production\/queue" className="btn-primary">Queue board<\/Link>\}/);
+  assert.match(read('components/TaskWorkflow.jsx'), /<Link to=\{`\/production\/workflow\/\$\{todo\._id\}`\} className="btn-secondary px-3 py-1\.5 text-xs">Production workflow<\/Link>/);
   const linked = Object.entries(DEPARTMENT_WORKSPACES)
     .filter(([, workspace]) => (workspace.pages || []).some((entry) => entry.to === '/production/queue'))
     .map(([key]) => key);
   for (const key of ['production', 'despatch', 'assembling', 'quality', 'printing', 'mould']) assert.ok(linked.includes(key), `${key} desk links the queue`);
+});
+
+test('the workflow page: the model table, Production’s updates, Printing and Assembly beside, the work orders and presses', () => {
+  assert.match(workflow, /productionApi\.workflow\(taskId\)/);
+  for (const head of ['Model', 'After moulding', 'Production', 'Printing', 'Assembly', 'EDD', 'Work order']) assert.ok(workflow.includes(`>${head}</th>`), head);
+  assert.match(workflow, /goods came \{formatDate\(received\)\}/);
+  assert.match(workflow, /<TaskEdd todo=\{task\} mayAct onChanged=\{changed\} \/>/, 'printing / assembly decided and the dates given');
+  assert.match(workflow, /<TaskWorkflow todo=\{task\} onChanged=\{changed\} \/>/, 'each model’s status and hand-over');
+  assert.match(workflow, /<TeamCard title="Printing" task=\{teams\.printing\}/);
+  assert.match(workflow, /<TeamCard title="Assembly" task=\{teams\.assembling\}/);
+  assert.match(workflow, /title=\{`Work orders \(\$\{workOrders\.length\}\)`\}/);
+  assert.match(workflow, /Plan on a press/);
+  assert.match(workflow, /running since \{formatDate\(run\.startedAt\)\}/);
 });
 
 /* ------------------------------ The board's second pass ------------------------------ */
@@ -114,28 +97,15 @@ test('the board folds Production’s statuses into five columns; a problem lands
   assert.deepEqual(board.map((column) => column.rows.length), [1, 0, 1, 1, 0], 'every column kept, empty ones too');
 });
 
-test('the sheet for the floor: one line a row, the teams beside it, quoted where a comma would break it', () => {
+test('the sheet for the floor: one line a row — the models, the summary, the work orders — quoted where a comma would break it', () => {
   const row = at('ENQ-1', '2026-10-17', 'started');
-  row.teams = { assembling: { label: 'Started', with: { name: 'Anand' } }, quality: null };
-  row.task.latest = { note: 'Slotted on M2, after the current run' };
+  row.models = [{ model: 'CRF25' }, { model: 'CRF30' }];
+  row.summary = 'CRF25 Handed to Printing; CRF30 Production Started. No EDD yet';
+  row.workOrders = [{ number: 'WO-1', status: 'running' }];
   const csv = queueCsv([row], now);
   const [head, line] = csv.replace(/^﻿/, '').split('\r\n');
-  assert.equal(head, 'EDD,Due,Enquiry,Buyer,Model,Qty,Colour,Production,With,Assembly,Printing,Quality,Dispatch,SO,Latest');
-  assert.equal(line, '2026-10-17,today,ENQ-1,SCM,NPT-400S,6000,,started,not picked up,Started (Anand),,,,,"Slotted on M2, after the current run"');
-});
-
-test('the page offers list and board, the day headings, the row opened to its updates, print and CSV', () => {
-  assert.match(page, /\[\['list', 'List'\], \['board', 'Board'\]\]/);
-  assert.match(page, /params\.get\('view'\) === 'board'/);
-  assert.match(page, /\{dayGroups\(shown\)\.map\(\(group\) => \(/);
-  assert.match(page, /\{dueWords\(row\.edd\?\.date\)\}/);
-  assert.match(page, /aria-expanded=\{expanded\.has\(row\.task\._id\)\}/);
-  assert.match(page, /<RowDetail row=\{row\} \/>/);
-  assert.match(page, /row\.task\.recent/);
-  assert.match(page, /<Board columns=\{boardOf\(shown\)\}/);
-  assert.match(page, /onClick=\{\(\) => window\.print\(\)\}>Print</);
-  assert.match(page, /queueCsv\(shown\)/);
-  assert.match(read('index.css'), /@media print/);
+  assert.equal(head, 'EDD,Due,Enquiry,Buyer,Models,SO,Status,Work orders');
+  assert.equal(line, '2026-10-17,today,ENQ-1,SCM,"CRF25, CRF30",,CRF25 Handed to Printing; CRF30 Production Started. No EDD yet,WO-1 running');
 });
 
 test('press time reads from the mould, and is flagged when it runs past the EDD', async () => {
@@ -145,5 +115,4 @@ test('press time reads from the mould, and is flagged when it runs past the EDD'
   assert.equal(capacityWords(null), null);
   assert.equal(pressTimeTight({ capacity: { finish: '2026-11-05T00:00:00Z' }, edd: { date: '2026-11-03' } }), true);
   assert.equal(pressTimeTight({ capacity: { finish: '2026-11-02T00:00:00Z' }, edd: { date: '2026-11-03' } }), false);
-  assert.match(page, /capacityWords\(row\.capacity\)/);
 });
