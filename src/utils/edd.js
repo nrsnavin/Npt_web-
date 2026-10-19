@@ -66,3 +66,21 @@ export const EDD_CHIP = {
   needed: 'bg-warn-500/15 text-warn-400',
   missing: 'bg-line/[0.08] text-steel-400',
 };
+
+/**
+ * The models a Production, Printing or Assembly task gives dates for — its routed models, else
+ * its brief's [server: handoff.service `modelsOfTask`]. Several: a date is asked for each.
+ */
+export function modelsOfTask(task) {
+  const routed = (task?.routing?.models || []).map((row) => (typeof row === 'string' ? row : row?.model)).filter(Boolean);
+  if (routed.length) return [...new Set(routed.map((model) => String(model).trim()))];
+  const listed = String(task?.brief?.models || '').split(',').map((model) => model.trim()).filter(Boolean);
+  if (listed.length) return [...new Set(listed)];
+  return task?.brief?.model ? [String(task.brief.model).trim()] : [];
+}
+
+/** The date this task gave for each model [server: Todo `modelDates`], as `{ model: 'YYYY-MM-DD' }`. */
+export const datesOfTask = (task) => Object.fromEntries((task?.modelDates || []).map((row) => [row.model, row.date]));
+
+/** Each model's EDD on the enquiry — the latest its teams gave — or [] [server: Enquiry `eddByModel`]. */
+export const eddByModelOf = (enquiry) => (enquiry && typeof enquiry === 'object' && Array.isArray(enquiry.eddByModel) ? enquiry.eddByModel : []);

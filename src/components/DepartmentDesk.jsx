@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { enquiries as enquiriesApi, handoffs as handoffsApi, orders as ordersApi } from '../api/endpoints.js';
 import { Link } from 'react-router-dom';
 import TaskPdfLink from './TaskPdfLink.jsx';
-import { EddForm, EddLine } from './TaskEdd.jsx';
+import { EddForm, EddLine, ModelEdds } from './TaskEdd.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import TaskCard from './TaskCard.jsx';
 import Menu from './Menu.jsx';
@@ -342,6 +342,8 @@ export default function DepartmentDesk({ enquiry, onChanged }) {
               )}
             </div>
             {settingEdd && <EddForm onSave={setEdd} onCancel={() => setSettingEdd(false)} label={production.edd ? 'Change EDD' : 'Set EDD'} />}
+            {/* Each model's EDD — the latest its teams gave — with each team's own date. */}
+            {production.byModel?.length > 0 && <ModelEdds rows={production.byModel} className="mt-1.5" />}
             {production.asked?.status && (
               <p className="mt-0.5 text-xs text-steel-300">Production status: <span className="font-semibold text-steel-100">{production.asked.status}</span></p>
             )}
