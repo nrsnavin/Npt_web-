@@ -21,7 +21,8 @@ import { WorkspaceBrief, WorkspaceLinks } from '../components/DepartmentWorkspac
 import { DashboardSkeleton, ErrorState, PageHeader } from '../components/ui.jsx';
 import { deskActionsFor } from '../config/deskActions.js';
 import { formatDate } from '../utils/format.js';
-import { departmentLabel } from '../utils/pipeline.js';
+import { departmentLabel, deskOf } from '../utils/pipeline.js';
+import DeskTabs, { firstDeskTab } from '../components/DeskTabs.jsx';
 import { EDD_CHIP, eddChipOf } from '../utils/edd.js';
 import { EDD_BANDS, PRODUCTION_FILTERS, eddBandOf, eddBands } from '../utils/productionQueue.js';
 
@@ -210,7 +211,15 @@ function DepartmentDesk() {
   const firstTask = (catalogue?.buttons || []).find((button) => button.department && !button.hidden && button.form)?.key;
   const me = String(user?.id || user?._id || '');
 
-  const enquiries = data?.enquiries || [];
+  /*
+   * A shared desk (Quality · Printing · Assembling): one team at a time, as tabs across the top
+   * [components/DeskTabs.jsx] — each team's tasks fill the screen instead of being stacked.
+   */
+  const [deskChoice, setDeskChoice] = useState(null);
+  const deskList = data?.desk ? (deskOf(data.desk.departments[0])?.departments || data.desk.departments) : null;
+  const deskTab = deskList ? (deskList.includes(deskChoice) ? deskChoice : firstDeskTab(deskList, departments)) : null;
+  const everyRow = data?.enquiries || [];
+  const enquiries = useMemo(() => (deskTab ? everyRow.filter((row) => row.task.department === deskTab) : everyRow), [everyRow, deskTab]);
   /*
    * Production's desk is its queue in EDD order — the goods due soonest first, the undated last —
    * rather than every enquiry in the plant [utils/productionQueue.js]. Its filters are the bands.
@@ -236,7 +245,9 @@ function DepartmentDesk() {
   if (loading && !data) return <DashboardSkeleton label="Loading the department" tiles={4} />;
   if (error) return <ErrorState error={error} onRetry={reload} />;
 
-  const { figures, requests = [], recentlyDone, waitingOnOthers, cameBack, atStages } = data;
+  const { figures, requests: everyRequest = [], recentlyDone, waitingOnOthers, cameBack, atStages } = data;
+  const requests = deskTab ? everyRequest.filter((task) => task.department === deskTab) : everyRequest;
+  const deskCounts = deskList ? Object.fromEntries(deskList.map((key) => [key, everyRow.filter((row) => row.task.department === key).length])) : {};
   /* Sampling works from its own queue — the sample requests, as the team designed it. */
   const isSampling = figures.department === 'sampling';
   /* Every enquiry this person may see — all of them for Admin, their own for marketing. Not on
@@ -245,11 +256,9 @@ function DepartmentDesk() {
   const everyone = isAdmin || figures.department === 'management';
   const tab = chosenTab || firstDashboardTab(figures.department, { isAdmin: everyone, seesEnquiries });
   const seesAll = mayDelete;
-  /* A shared desk (Quality · Assembling · Printing): every member's tasks here, each under its own header. */
-  const deskMembers = data.desk?.departments || [figures.department];
-  const bySection = (rows, departmentOf) => (data.desk
-    ? deskMembers.map((key) => ({ key, label: departmentLabel(key), rows: rows.filter((row) => departmentOf(row) === key) })).filter((section) => section.rows.length)
-    : [{ key: 'all', label: null, rows }]);
+  /* A shared desk: the tab above has picked the team, so its rows are one list. */
+  const deskMembers = deskList || [figures.department];
+  const bySection = (rows) => [{ key: 'all', label: null, rows }];
   /* The person's other desks, when they work in more than one department. */
   const otherDesks = departments.filter((entry) => !deskMembers.includes(entry));
   const late = enquiries.filter((row) => (isProduction ? eddBandOf(row) === 'late' : row.late)).length;
@@ -302,6 +311,9 @@ function DepartmentDesk() {
       {newTeamTask && (
         <DepartmentTaskDialog enquiry={null} catalogue={catalogue} kind={firstTask} onClose={() => setNewTeamTask(false)} onSent={reload} />
       )}
+
+      {/* Quality · Printing · Assembling: one team on screen at a time. */}
+      {deskList && <DeskTabs departments={deskList} counts={deskCounts} value={deskTab} onChange={setDeskChoice} />}
 
       {/* Questions for this person and answers back to the department — acted on here, on every tab. */}
       <AttentionPanel attention={data.attention} onChanged={reload} />

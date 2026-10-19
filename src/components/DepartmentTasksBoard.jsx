@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { useRecord } from '../hooks/useRecords.js';
 import { buttonFor, useHandoffCatalogue } from '../hooks/useHandoffCatalogue.js';
 import TaskPanel from './TaskPanel.jsx';
+import DeskTabs, { firstDeskTab } from './DeskTabs.jsx';
 import DepartmentTaskDialog from './DepartmentTaskDialog.jsx';
 import { ErrorState, TableSkeleton } from './ui.jsx';
 import { formatDate, humanise } from '../utils/format.js';
@@ -114,7 +115,13 @@ export default function DepartmentTasksBoard({
   const firstTask = (catalogue?.buttons || []).find((button) => button.department && !button.hidden && button.form)?.key;
   const mayAssign = isAdmin || departments.includes('marketing');
 
-  const tasks = useMemo(() => data || [], [data]);
+  /* A shared desk picked (Quality · Printing · Assembling): one team at a time, as tabs across the top. */
+  const desk = department && deskOf(department)?.key === department ? deskOf(department) : null;
+  const [deskChoice, setDeskChoice] = useState(null);
+  const deskTab = desk ? (desk.departments.includes(deskChoice) ? deskChoice : firstDeskTab(desk.departments, departments)) : null;
+  const everyTask = useMemo(() => data || [], [data]);
+  const tasks = useMemo(() => (deskTab ? everyTask.filter((task) => task.department === deskTab) : everyTask), [everyTask, deskTab]);
+  const deskCounts = desk ? Object.fromEntries(desk.departments.map((key) => [key, everyTask.filter((task) => task.department === key).length])) : {};
   const teams = useMemo(() => [...new Set(tasks.map((task) => task.department).filter(Boolean))], [tasks]);
   /* The payment reminders people put on their own list — Admin's every one, a marketing person's their own. */
   const isPaymentFollowUp = (task) => task.kind === 'my_payment_followup';
@@ -141,11 +148,8 @@ export default function DepartmentTasksBoard({
   /* The server's rule [handoff.service `mayWorkOnHandoff`]: Admin, the person it is assigned to, or its department. */
   const mayWork = (task) => isAdmin || (me && String(task.user?._id || task.user || '') === me) || departments.includes(task.department);
   const statusesOf = (task) => buttonFor(catalogue, task.kind)?.form?.statuses || [];
-  /* A shared desk picked (Quality · Assembling · Printing): each department's tasks under its own header. */
-  const desk = department && deskOf(department)?.key === department ? deskOf(department) : null;
-  const sections = desk
-    ? desk.departments.map((key) => ({ key, label: departmentLabel(key), rows: shown.filter((task) => task.department === key) })).filter((section) => section.rows.length)
-    : [{ key: 'all', label: null, rows: shown }];
+  /* One team on screen at a time on a shared desk — its tab picks which. */
+  const sections = [{ key: 'all', label: null, rows: shown }];
 
   return (
     <section className="card space-y-4 p-4 sm:p-5" aria-label={title}>
@@ -160,6 +164,10 @@ export default function DepartmentTasksBoard({
           <button type="button" className="btn-primary" onClick={() => setAssigning(true)}>+ Assign Task</button>
         )}
       </div>
+
+      {desk && (
+        <DeskTabs departments={desk.departments} counts={deskCounts} value={deskTab} onChange={(key) => { setDeskChoice(key); setChip('all'); }} />
+      )}
 
       <div className="flex flex-wrap items-center gap-2">
         {chips.map((entry) => (
@@ -288,7 +296,7 @@ export default function DepartmentTasksBoard({
         </>
       ) : (
         <p className="rounded-xl border border-dashed border-line/15 px-4 py-8 text-center text-sm text-steel-400">
-          {tasks.length ? 'Nothing matches this filter.' : emptyLine(state, department)}
+          {tasks.length ? 'Nothing matches this filter.' : emptyLine(state, deskTab || department)}
         </p>
       )}
 

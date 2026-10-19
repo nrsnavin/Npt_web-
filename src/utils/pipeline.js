@@ -729,12 +729,12 @@ export const departmentLabel = (key) =>
   String(key || '').replace(/_/g, ' ');
 
 /**
- * Departments that are one desk [server: config/modules.js DESK_GROUPS]: Quality, Assembly and
- * Printing are the same few people, so they are offered as one choice and shown as one screen —
- * each department's tasks under its own header.
+ * Departments that are one desk [server: config/modules.js DESK_GROUPS]: Quality, Printing and
+ * Assembly are the same few people, so they are offered as one choice and shown as one screen —
+ * each department a tab across the top [components/DeskTabs.jsx], in this order.
  */
 export const DESK_GROUPS = [
-  { key: 'finishing', label: 'Quality · Assembling · Printing', departments: ['quality', 'assembling', 'printing'] },
+  { key: 'finishing', label: 'Quality · Printing · Assembling', departments: ['quality', 'printing', 'assembling'] },
 ];
 
 export const deskOf = (key) => DESK_GROUPS.find((desk) => desk.key === key || desk.departments.includes(key)) || null;
