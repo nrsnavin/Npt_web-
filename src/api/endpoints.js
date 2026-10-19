@@ -573,6 +573,14 @@ export const orders = {
    * a line's deadline — the plant's own `expectedCompletion` is a forecast and deliberately
    * cannot, which is the whole point of this door existing.
    */
+  /** A line's print reference — words and, if given, the artwork — editable after release too. */
+  setPrintReference: ({ id, lineId, text, file, removeFile }) => {
+    const form = new FormData();
+    form.append('text', text || '');
+    if (file) form.append('file', file);
+    if (removeFile) form.append('removeFile', 'true');
+    return api.put(`/orders/${id}/lines/${lineId}/print-reference`, form).then(unwrap);
+  },
   rePromise: ({ id, lineId, ...payload }) =>
     api.post(`/orders/${id}/lines/${lineId}/promise`, payload).then(unwrap),
   /** An accepted quotation becoming an order. Nothing is retyped — see the controller. */

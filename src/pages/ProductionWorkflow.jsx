@@ -9,6 +9,7 @@ import TaskEdd from '../components/TaskEdd.jsx';
 import HandoffTaskActions from '../components/HandoffTaskActions.jsx';
 import { TaskFacts, TaskTimeline } from '../components/TaskHistory.jsx';
 import { BAND_TONE, WorkOrderChip } from '../components/ProductionQueueList.jsx';
+import { PartsList, PrintReferenceView } from '../components/OrderLineParts.jsx';
 import { ErrorState, PageHeader, Section, TableSkeleton } from '../components/ui.jsx';
 import { formatDate } from '../utils/format.js';
 import { departmentLabel } from '../utils/pipeline.js';
@@ -75,7 +76,10 @@ export default function ProductionWorkflow() {
   if (error) return <ErrorState error={error} onRetry={reload} />;
   if (loading && !data) return <div className="mx-auto max-w-6xl"><TableSkeleton rows={6} columns={5} /></div>;
 
-  const { task, enquiry, models = [], teams = {}, workOrders = [], floor = {}, summary, band } = data;
+  const { task, enquiry, models = [], teams = {}, workOrders = [], specs = [], floor = {}, summary, band } = data;
+  /* What each model is made with, from its sales order line: hook, clip, print and the print reference. */
+  const modelKey = (model) => String(model || '').toLowerCase().replace(/\s+/g, '');
+  const specOf = (model) => specs.find((spec) => modelKey(spec.model) === modelKey(model)) || null;
   const button = buttonFor(catalogue, task.kind);
   const tone = BAND_TONE[band] || BAND_TONE.later;
   const edd = enquiry.edd?.date || null;
@@ -124,6 +128,7 @@ export default function ProductionWorkflow() {
                   <th className="px-3 py-2">Assembly</th>
                   <th className="px-3 py-2">EDD</th>
                   <th className="px-3 py-2">Work order</th>
+                  <th className="px-3 py-2">Made with</th>
                 </tr>
               </thead>
               <tbody>
@@ -138,6 +143,15 @@ export default function ProductionWorkflow() {
                     <td className="px-3 py-2.5"><StatusCell status={row.assemblyStatus} received={row.assemblyReceived} needed={row.assembly} /></td>
                     <td className="whitespace-nowrap px-3 py-2.5 text-steel-200">{row.edd ? formatDate(row.edd) : <span className="text-xs text-steel-500">—</span>}</td>
                     <td className="px-3 py-2.5 text-xs text-steel-300">{row.workOrders.length ? row.workOrders.join(', ') : '—'}</td>
+                    <td className="min-w-[13rem] px-3 py-2.5">
+                      {specOf(row.model) ? (
+                        <>
+                          <PartsList parts={specOf(row.model).parts} />
+                          {specOf(row.model).printReference && <div className="mt-1.5"><PrintReferenceView reference={specOf(row.model).printReference} /></div>}
+                          <Link to={`/orders/${specOf(row.model).order._id}`} className="mt-1 inline-block text-xs text-steel-500 hover:text-accent">{specOf(row.model).order.number}</Link>
+                        </>
+                      ) : <span className="text-xs text-steel-500">No sales order line yet</span>}
+                    </td>
                   </tr>
                 ))}
               </tbody>

@@ -10,6 +10,7 @@ import HistoryPanel from '../components/HistoryPanel.jsx';
 import OrderQueries from '../components/OrderQueries.jsx';
 import OrderEscalations from '../components/OrderEscalations.jsx';
 import { MouldThumb } from '../components/MouldPhoto.jsx';
+import { PartsList, PrintReference } from '../components/OrderLineParts.jsx';
 import OrderForm from '../components/OrderForm.jsx';
 import OrderPriority from '../components/OrderPriority.jsx';
 import OrderQuality from '../components/OrderQuality.jsx';
@@ -563,7 +564,8 @@ export default function OrderDetail() {
   /* A settled order has nothing left to re-promise — the server says so too. */
   const closed = CLOSED_ORDER_STAGES.includes(order.status);
   /* The parts column earns its width only where something is actually fitted [§28]. */
-  const hasParts = order.lines.some((line) => line.hookRef || line.clipRef || line.printRef);
+  /* A print reference may be given while the order is open, released included — the plant prints from it. */
+  const mayGivePrint = !['closed', 'cancelled'].includes(order.status);
 
   /** A reply from a check or an action carries the whole order back; keep the checklist too. */
   const absorb = (next) => setData({ ...data, data: next.data ?? next, checks: next.checks ?? checks });
@@ -635,8 +637,8 @@ export default function OrderDetail() {
                   <tr>
                     <th className="px-3 py-2.5">Model</th>
                     <th className="px-3 py-2.5">Colour</th>
-                    {/* Only when something on this order actually carries one. */}
-                    {hasParts && <th className="px-3 py-2.5">Made with</th>}
+                    {/* Hook, clip and print on every line — the mould's default where the line names none. */}
+                    <th className="px-3 py-2.5">Hook · Clip · Print</th>
                     <th className="px-3 py-2.5 text-right">Ordered</th>
                     {/* The plant's answer sits beside what was asked for, once there is one. */}
                     {released && <th className="px-3 py-2.5 text-right">Made</th>}
@@ -683,17 +685,15 @@ export default function OrderDetail() {
                           </p>
                         )}
                       </td>
-                      {hasParts && (
-                        <td className="px-3 py-3 text-xs text-steel-400">
-                          {[line.hookRef, line.clipRef, line.printRef].filter(Boolean).length === 0
-                            ? <span className="text-steel-600">—</span>
-                            : [line.hookRef, line.clipRef, line.printRef]
-                                .filter(Boolean)
-                                .map((part) => (
-                                  <p key={part._id} title={part.code}>{part.name}</p>
-                                ))}
-                        </td>
-                      )}
+                      <td className="min-w-[13rem] px-3 py-3">
+                        <PartsList parts={line.parts || {
+                          hook: line.hookRef && { name: line.hookRef.name, from: 'line' },
+                          clip: line.clipRef && { name: line.clipRef.name, from: 'line' },
+                          print: (line.printRef || line.printing) && { name: line.printRef?.name || line.printing, from: 'line' },
+                        }}
+                        />
+                        <PrintReference order={order} line={line} mayEdit={mayGivePrint} onSaved={absorb} />
+                      </td>
                       <td className="px-3 py-3 text-right tabular-nums text-steel-200">
                         {formatNumber(line.quantity)}
                       </td>
