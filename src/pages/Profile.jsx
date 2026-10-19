@@ -319,7 +319,11 @@ function NotificationCheck() {
             </Notice>
           )}
           <ul className="mt-3 space-y-1.5 text-sm">
-            <CheckRow ok={status.push.configured} label="Push" detail={status.push.configured ? `set up · ${status.push.myDevices} of your devices switched on` : 'not set up on the server (WEB_PUSH_* keys)'} />
+            <CheckRow
+              ok={status.push.configured && !status.push.problem}
+              label="Push"
+              detail={!status.push.configured ? 'not set up on the server (WEB_PUSH_* keys)' : status.push.problem || `set up · ${status.push.myDevices} of your devices switched on`}
+            />
             <CheckRow ok={status.email.configured} label="Email" detail={status.email.configured ? `sent through ${status.email.host} as ${status.email.from}` : 'not set up on the server (SMTP_*) — emails are only written to its log'} />
             <CheckRow ok={status.whatsapp.configured} label="WhatsApp" detail={status.whatsapp.configured ? `sent through ${status.whatsapp.provider}` : 'not set up on the server — messages are only written to its log'} />
             {status.whatsapp.lastTest && (
