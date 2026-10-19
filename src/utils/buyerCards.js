@@ -159,17 +159,19 @@ export function nextStepOf(fields, models = []) {
       },
     };
   }
+  /* One row per model, each with its own colour and pieces, and the buyer's target price on each. */
   if (step.task === 'create_quotation') {
-    const total = named.reduce((sum, row) => sum + (Number(trimmed(row.quantity).replace(/,/g, '')) || 0), 0);
-    const colours = [...new Set(named.map((row) => trimmed(row.colour)).filter(Boolean))];
+    const pieces = (row) => Number(trimmed(row.quantity).replace(/,/g, '')) || 0;
     out.task = {
       kind: step.task,
       note,
       brief: {
-        models: codes.join(', ') || undefined,
-        material: colours.join(', ') || undefined,
-        quantity: total ? String(total) : undefined,
-        targetPrice: trimmed(fields.stepTargetPrice) || undefined,
+        items: named.map((row) => ({
+          model: modelName(row),
+          material: trimmed(row.colour) || undefined,
+          quantity: pieces(row) ? String(pieces(row)) : undefined,
+          targetPrice: trimmed(fields.stepTargetPrice) || undefined,
+        })),
       },
     };
   }
