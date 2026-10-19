@@ -135,3 +135,16 @@ test('Release to production: on the Sales orders list for confirmed orders, and 
   assert.match(desk, /Released to production \{formatDate\(order\.released\.at\)\}/);
   assert.match(desk, /\{order\.mayRelease && \(/);
 });
+
+test('one story: the journey and the mould running on the enquiry, the production queue and the machines', () => {
+  const read = (path) => readFileSync(new URL(`../src/${path}`, import.meta.url), 'utf8');
+  const desk = read('components/DepartmentDesk.jsx');
+  assert.match(desk, /<JourneyStrip journey=\{history\?\.journey\} floor=\{history\?\.floor\} \/>/);
+  assert.match(desk, /Moulding now/);
+  assert.match(desk, /sample: 'Sample — ends at the sample'/);
+  const queue = read('pages/ProductionQueue.jsx');
+  assert.match(queue, /<Moulding floor=\{row\.floor\} \/>/);
+  assert.match(queue, /key: 'moulding', label: 'Moulding now'/);
+  const machines = read('pages/Machines.jsx');
+  assert.match(machines, /machine\.running\.enquiry\.number/);
+});

@@ -113,6 +113,75 @@ function ViewToggle({ view, onChange }) {
   );
 }
 
+const STEP_TONE = {
+  done: 'border-success-500/50 bg-success-500/10 text-success-400',
+  open: 'border-accent/60 bg-accent/10 text-accent',
+  todo: 'border-line/[0.1] text-steel-500',
+};
+const JOURNEY_TITLE = {
+  order: 'Order journey — SO to LR',
+  production: 'Production journey — to dispatch',
+  sample: 'Sample — ends at the sample',
+  quotation: 'Quotation — ends at the quotation',
+};
+
+/**
+ * Where the enquiry is on its journey, from the tasks themselves [server: journey.service
+ * `journeyOf`], and what the floor is doing for it now — the mould running, what the runs made,
+ * the work orders — so the enquiry, the production queue and the machines tell one story.
+ */
+function JourneyStrip({ journey, floor }) {
+  const running = floor?.running || [];
+  const made = floor?.made || { good: 0, rejected: 0, runs: 0 };
+  const workOrders = floor?.workOrders || [];
+  if (!journey?.steps?.length && !running.length && !made.runs && !workOrders.length) return null;
+  return (
+    <div className="space-y-2 rounded-xl border border-line/[0.1] bg-line/[0.02] px-3 py-2.5" aria-label="Journey">
+      {journey?.steps?.length > 0 && (
+        <>
+          <p className="text-xs font-bold uppercase tracking-wide text-steel-400">{JOURNEY_TITLE[journey.kind] || 'Journey'}</p>
+          <ol className="flex flex-wrap items-center gap-1.5">
+            {journey.steps.map((step, index) => (
+              <li key={step.key} className="flex items-center gap-1.5">
+                {index > 0 && <span aria-hidden="true" className="text-steel-600">→</span>}
+                <span className={`rounded-lg border px-2 py-1 text-xs font-semibold ${STEP_TONE[step.state] || STEP_TONE.todo}`} title={step.live || step.status || ''}>
+                  {step.state === 'done' ? '✓ ' : ''}{step.label}{step.state === 'open' && step.status ? ` · ${step.status}` : ''}
+                </span>
+              </li>
+            ))}
+          </ol>
+        </>
+      )}
+      {running.map((run) => (
+        <p key={run._id} className="text-sm text-steel-100">
+          <span className="font-bold text-success-400"><span aria-hidden="true">● </span>Moulding now</span>
+          <span className="text-steel-300">
+            {' · '}{run.machine?.code || 'Press'} · {run.mould?.mouldCode || run.modelNumber || 'mould'}{run.colour ? ` · ${run.colour}` : ''}
+            {' · '}{run.number} since {formatDate(run.startedAt)}
+            {run.piecesSoFar != null ? ` · ${run.piecesSoFar.toLocaleString('en-IN')}${run.plannedQuantity ? ` / ${run.plannedQuantity.toLocaleString('en-IN')}` : ''} pcs` : run.plannedQuantity ? ` · ${run.plannedQuantity.toLocaleString('en-IN')} pcs to make` : ''}
+          </span>
+        </p>
+      ))}
+      {made.runs > 0 && (
+        <p className="text-xs text-steel-300">
+          Made so far: <span className="font-semibold text-steel-100">{made.good.toLocaleString('en-IN')} good</span>
+          {made.rejected ? ` · ${made.rejected.toLocaleString('en-IN')} rejected` : ''} in {made.runs} run{made.runs === 1 ? '' : 's'}
+        </p>
+      )}
+      {workOrders.length > 0 && (
+        <ul className="space-y-0.5 text-xs text-steel-300">
+          {workOrders.map((wo) => (
+            <li key={wo._id}>
+              {wo.number} · {wo.modelNumber || 'Line'} · {Number(wo.goodQty || 0).toLocaleString('en-IN')} / {Number(wo.quantity || 0).toLocaleString('en-IN')} made
+              {' · '}{wo.status}{wo.machine?.code ? ` on ${wo.machine.code}` : ''}{wo.plannedEnd ? ` · planned end ${formatDate(wo.plannedEnd)}` : ''}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 export default function DepartmentDesk({ enquiry, onChanged }) {
   const catalogue = useHandoffCatalogue();
   const { user, worksIn, canWrite, isManagement } = useAuth();
@@ -252,6 +321,7 @@ export default function DepartmentDesk({ enquiry, onChanged }) {
   return (
     <Section title="Departments" actions={work.length > 0 ? <ViewToggle view={view} onChange={setView} /> : undefined}>
       <div className="space-y-4">
+        <JourneyStrip journey={history?.journey} floor={history?.floor} />
         {showEdd && (
           <div className={`rounded-xl border px-3 py-2.5 ${production.edd ? 'border-accent/40 bg-accent/[0.07]' : 'border-warn-500/40 bg-warn-500/[0.07]'}`} aria-label="Expected delivery">
             <div className="flex flex-wrap items-start justify-between gap-2">

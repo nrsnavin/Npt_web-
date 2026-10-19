@@ -41,6 +41,27 @@ const BAND_CHIP = {
 };
 const BAND_LABEL = { late: 'Late', today: 'Today', week: 'This week', later: 'Later', none: 'No EDD' };
 
+/**
+ * What the floor is doing for the row now — the press and mould running, from the mould runs
+ * [server: productionQueue `floor`] — and what its finished runs made.
+ */
+function Moulding({ floor }) {
+  if (!floor) return null;
+  const running = floor.running || [];
+  const made = floor.made?.good || 0;
+  if (!running.length && !made) return null;
+  return (
+    <div className="mt-1 space-y-0.5 text-xs">
+      {running.map((run) => (
+        <p key={run._id} className="font-semibold text-success-400" title={`${run.number} since ${formatDate(run.startedAt)}`}>
+          <span aria-hidden="true">● </span>{run.machine || 'Press'} · {run.mould || 'mould'} running
+        </p>
+      ))}
+      {made > 0 && <p className="text-steel-400">{made.toLocaleString('en-IN')} made · {floor.made.runs} run{floor.made.runs === 1 ? '' : 's'}</p>}
+    </div>
+  );
+}
+
 /** The team filters beside the bands: who the row is waiting for. */
 const TEAM_FILTERS = [
   { key: 'route', label: 'Printing / assembly to decide', test: (row) => !row.routing },
@@ -48,6 +69,7 @@ const TEAM_FILTERS = [
   { key: 'quality', label: 'With Quality', test: (row) => row.teams.quality && !row.teams.quality.completed },
   { key: 'dispatch', label: 'Dispatch waiting', test: (row) => row.teams.despatch && !row.teams.despatch.completed },
   { key: 'issues', label: 'Problems', test: (row) => row.task.issue },
+  { key: 'moulding', label: 'Moulding now', test: (row) => Boolean(row.floor?.running?.length) },
   { key: 'unclaimed', label: 'Not picked up', test: (row) => !row.task.with },
 ];
 
@@ -143,6 +165,7 @@ function Board({ columns, statuses, mayWork, onMove, onOpen, onAssembly }) {
                 </div>
                 <p className="truncate text-xs text-steel-300">{row.enquiry.customer?.name || '—'}</p>
                 <p className="text-xs text-steel-400">{row.enquiry.model || '—'}{row.enquiry.quantity ? ` · ${Number(row.enquiry.quantity).toLocaleString('en-IN')} pcs` : ''}</p>
+                <Moulding floor={row.floor} />
                 {mayWork(row) ? (
                   <select
                     aria-label={`Production status of ${row.enquiry.number}`}
@@ -293,12 +316,13 @@ export default function ProductionQueue() {
         }
       />
 
-      <div className="grid grid-cols-2 gap-3 print:hidden md:grid-cols-4 xl:grid-cols-7">
+      <div className="grid grid-cols-2 gap-3 print:hidden md:grid-cols-4 xl:grid-cols-8">
         <Tile label="Late" value={bands.late || 0} tone={bands.late ? 'text-danger-400' : 'text-success-400'} hint="Past the EDD" active={band === 'late'} onClick={() => setFilter({ band: band === 'late' ? 'all' : 'late' })} />
         <Tile label="Due today" value={bands.today || 0} tone={bands.today ? 'text-warn-400' : 'text-steel-50'} hint="EDD is today" active={band === 'today'} onClick={() => setFilter({ band: band === 'today' ? 'all' : 'today' })} />
         <Tile label="Due tomorrow" value={teams.dueTomorrow || 0} hint="Ready for Dispatch by tonight" active={false} onClick={() => setFilter({ band: 'week' })} />
         <Tile label="No EDD yet" value={bands.none || 0} tone={bands.none ? 'text-warn-400' : 'text-success-400'} hint="Give the date on the task" active={band === 'none'} onClick={() => setFilter({ band: band === 'none' ? 'all' : 'none' })} />
         <Tile label="Printing / assembly?" value={teams.toRoute || 0} tone={teams.toRoute ? 'text-warn-400' : 'text-success-400'} hint="Not decided on the task yet" active={team === 'route'} onClick={() => setFilter({ team: team === 'route' ? 'all' : 'route' })} />
+        <Tile label="Moulding now" value={teams.moulding || 0} tone={teams.moulding ? 'text-success-400' : 'text-steel-50'} hint="A mould running on a press for it" active={team === 'moulding'} onClick={() => setFilter({ team: team === 'moulding' ? 'all' : 'moulding' })} />
         <Tile label="Problems" value={teams.issues || 0} tone={teams.issues ? 'text-danger-400' : 'text-success-400'} hint="Mould, machine, material" active={team === 'issues'} onClick={() => setFilter({ team: team === 'issues' ? 'all' : 'issues' })} />
         <Tile label="Not picked up" value={teams.unclaimed || 0} tone={teams.unclaimed ? 'text-warn-400' : 'text-steel-50'} hint="Nobody on it yet" active={team === 'unclaimed'} onClick={() => setFilter({ team: team === 'unclaimed' ? 'all' : 'unclaimed' })} />
       </div>
@@ -405,6 +429,7 @@ export default function ProductionQueue() {
                     <td className="px-2.5 py-3">
                       <p className="text-steel-100">{row.enquiry.model || '—'}</p>
                       <p className="text-xs text-steel-400">{[row.enquiry.quantity && `${Number(row.enquiry.quantity).toLocaleString('en-IN')} pcs`, row.enquiry.colour].filter(Boolean).join(' · ')}</p>
+                      <Moulding floor={row.floor} />
                     </td>
                     <td className="px-2.5 py-3">
                       {mayWork(row) ? (
