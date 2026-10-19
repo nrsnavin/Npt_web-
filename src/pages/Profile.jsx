@@ -322,10 +322,20 @@ function NotificationCheck() {
             <CheckRow ok label="Server mode" detail={status.mode === 'production' ? 'production — notifications go to the real people' : `${status.mode} — not production`} />
           </ul>
           {result && (
-            <p className="mt-3 text-sm text-steel-300">
-              Test sent. Push: {!result.push.pushConfigured ? 'not set up on the server.' : result.push.devices ? `sent to ${result.push.devices} device${result.push.devices === 1 ? '' : 's'} — it should appear in a few seconds.` : 'none of your devices is switched on — turn it on above.'}
-              {' '}Email: {result.email.sent ? 'sent — check your inbox (and spam).' : result.email.why}
-            </p>
+            <div className="mt-3 space-y-1.5 text-sm">
+              <p className="font-semibold text-steel-100">Test result</p>
+              {!result.push.devices && <CheckRow ok={false} label="Push" detail="none of your devices is switched on — press Turn on above, on this device" />}
+              {(result.push.delivered || []).map((row, index) => (
+                <CheckRow
+                  key={`${row.service}-${index}`}
+                  ok={row.ok}
+                  label={`Push · ${row.service} device`}
+                  detail={row.ok ? 'accepted by the push service — it should appear within a few seconds' : row.why}
+                />
+              ))}
+              <CheckRow ok={result.email.sent} label="Email" detail={result.email.sent ? 'sent — check your inbox (and spam)' : result.email.why} />
+              <CheckRow ok={false} label="WhatsApp" detail={result.whatsapp?.configured ? 'set up — not part of this test' : 'not set up yet — it needs the Meta WhatsApp Business registration; until then messages are only written to the server log'} />
+            </div>
           )}
         </>
       )}
