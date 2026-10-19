@@ -106,3 +106,26 @@ test('an order of several models: a date for each, one box fills them all; the e
   const desk = readFileSync(new URL('../src/components/DepartmentDesk.jsx', import.meta.url), 'utf8');
   assert.match(desk, /<ModelEdds rows=\{production\.byModel\}/);
 });
+
+test('a status move starts with the hand-over date already given; Handed to Printing / Assembly only where a model goes there', async () => {
+  const { givenDateOf, statusesFor } = await import('../src/utils/edd.js');
+  assert.equal(givenDateOf({ routing: { handsTo: ['printing'], handOverDate: '2026-11-04' } }), '2026-11-04');
+  assert.equal(givenDateOf({ modelDates: [{ model: 'A', date: '2026-11-02' }, { model: 'B', date: '2026-11-06' }] }), '2026-11-06');
+  assert.equal(givenDateOf({}), '');
+  const statuses = [{ key: 'completed' }, { key: 'handed_printing', handsTo: 'printing' }, { key: 'handed_assembly', handsTo: 'assembling' }];
+  assert.deepEqual(statusesFor({ routing: { handsTo: ['printing'] } }, statuses).map((step) => step.key), ['completed', 'handed_printing']);
+  assert.deepEqual(statusesFor({}, statuses).map((step) => step.key), ['completed']);
+  const workflow = readFileSync(new URL('../src/components/TaskWorkflow.jsx', import.meta.url), 'utf8');
+  assert.match(workflow, /const given = givenDateOf\(todo\);/);
+});
+
+test('the enquiry sets the final EDD per model and the dispatch plan, and shows which models are ready', () => {
+  const desk = readFileSync(new URL('../src/components/DepartmentDesk.jsx', import.meta.url), 'utf8');
+  assert.match(desk, /enquiriesApi\.setModelEdds\(\{ id: enquiry\._id, models: rows, note \}\)/);
+  assert.match(desk, /enquiriesApi\.setDispatchPlan\(\{ id: enquiry\._id, mode \}\)/);
+  assert.match(desk, /Dispatch each model as it is ready/);
+  assert.ok(desk.indexOf('const [settingFinal, setSettingFinal] = useState(false);') < desk.indexOf('if (!catalogue) return null;'), 'hooks before the early return');
+  const edd = readFileSync(new URL('../src/components/TaskEdd.jsx', import.meta.url), 'utf8');
+  assert.match(edd, /\(final, marketing\)/);
+  assert.match(edd, /teams say/);
+});

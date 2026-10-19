@@ -84,3 +84,19 @@ export const datesOfTask = (task) => Object.fromEntries((task?.modelDates || [])
 
 /** Each model's EDD on the enquiry — the latest its teams gave — or [] [server: Enquiry `eddByModel`]. */
 export const eddByModelOf = (enquiry) => (enquiry && typeof enquiry === 'object' && Array.isArray(enquiry.eddByModel) ? enquiry.eddByModel : []);
+
+/**
+ * The date this task already gave: its hand-over date while it hands on to Printing / Assembly,
+ * else the latest date it gave its models [server: Todo `modelDates`] — or '' when none.
+ */
+export function givenDateOf(task) {
+  if (handsOnOf(task).length && task?.routing?.handOverDate) return String(task.routing.handOverDate).slice(0, 10);
+  const dates = (task?.modelDates || []).map((row) => row.date).filter(Boolean).sort();
+  return dates.at(-1) || '';
+}
+
+/**
+ * The statuses a task may move to: "Handed to Printing / Assembly" only where Production (or
+ * Printing) routed a model there [server: handoff.service `setTaskStatus`].
+ */
+export const statusesFor = (task, statuses = []) => statuses.filter((step) => !step.handsTo || handsOnOf(task).includes(step.handsTo));

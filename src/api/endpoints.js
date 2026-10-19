@@ -511,6 +511,10 @@ export const enquiries = {
   check: ({ id, ...payload }) => api.post(`/enquiries/${id}/check`, payload).then(unwrap),
   /** The expected delivery date, set by marketing on the enquiry; the departments working to it hear it. */
   setEdd: ({ id, ...payload }) => api.post(`/enquiries/${id}/edd`, payload, { feedback: false }).then(unwrap),
+  /** Marketing's final EDD, model by model; every task working to it is told. */
+  setModelEdds: ({ id, ...payload }) => api.post(`/enquiries/${id}/edd/models`, payload, { feedback: false }).then(unwrap),
+  /** Each model as it is ready (`by_model`), or all together (`together`). */
+  setDispatchPlan: ({ id, ...payload }) => api.post(`/enquiries/${id}/dispatch-plan`, payload, { feedback: false }).then(unwrap),
   /** The picture the enquiry was read from, or null when it was typed in. */
   source: (id) => api.get(`/enquiries/${id}/source`).then(unwrap),
   /** That picture, as a blob — the route needs the session's token. */

@@ -116,7 +116,8 @@ export function ModelEdds({ todo, rows, className = '' }) {
       {list.map((row) => (
         <li key={row.model}>
           <span className="font-semibold text-steel-100">{row.model}</span>
-          {row.date ? ` · EDD ${formatDate(row.date)}${row.department ? ` (${departmentLabel(row.department)})` : ''}` : ' · EDD not complete yet'}
+          {row.date ? ` · EDD ${formatDate(row.date)}${row.final?.date ? ' (final, marketing)' : row.department ? ` (${departmentLabel(row.department)})` : ''}` : ' · EDD not complete yet'}
+          {row.final?.date && row.suggested && row.suggested !== row.final.date ? ` · teams say ${formatDate(row.suggested)}` : ''}
           {own[row.model] ? ` · this team: ${formatDate(own[row.model])}` : ''}
           {!own[row.model] && row.teams?.length ? ` · ${row.teams.map((team) => `${departmentLabel(team.department)} ${formatDate(team.date)}`).join(', ')}` : ''}
         </li>

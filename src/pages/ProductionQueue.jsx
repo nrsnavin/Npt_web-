@@ -8,7 +8,7 @@ import DepartmentTaskDialog from '../components/DepartmentTaskDialog.jsx';
 import { ErrorState, PageHeader, TableSkeleton } from '../components/ui.jsx';
 import { formatDate, formatRelative } from '../utils/format.js';
 import { departmentLabel } from '../utils/pipeline.js';
-import { pathOf } from '../utils/edd.js';
+import { pathOf, statusesFor } from '../utils/edd.js';
 import { todayInIndia } from '../utils/taskForm.js';
 import { EDD_BANDS, boardOf, capacityWords, dayGroups, dueWords, pressTimeTight, queueCsv } from '../utils/productionQueue.js';
 
@@ -174,7 +174,7 @@ function Board({ columns, statuses, mayWork, onMove, onOpen, onAssembly }) {
                     onChange={(event) => onMove(row, event.target.value)}
                   >
                     {!row.task.statusLabel && <option value="">Open</option>}
-                    {statuses.map((entry) => <option key={entry.key} value={entry.key}>{entry.label}</option>)}
+                    {statusesFor({ routing: row.routing }, statuses).map((entry) => <option key={entry.key} value={entry.key}>{entry.label}</option>)}
                   </select>
                 ) : (
                   <p className="mt-1 text-xs font-semibold text-steel-200">{row.task.statusLabel || 'Open'}</p>
@@ -440,7 +440,7 @@ export default function ProductionQueue() {
                           onChange={(event) => open(row, event.target.value)}
                         >
                           {!row.task.statusLabel && <option value="">Open</option>}
-                          {statuses.map((entry) => <option key={entry.key} value={entry.key}>{entry.label}</option>)}
+                          {statusesFor({ routing: row.routing }, statuses).map((entry) => <option key={entry.key} value={entry.key}>{entry.label}</option>)}
                         </select>
                       ) : (
                         <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${row.task.issue ? 'bg-danger-500/15 text-danger-400' : 'bg-line/[0.08] text-steel-200'}`}>{row.task.statusLabel || 'Open'}</span>

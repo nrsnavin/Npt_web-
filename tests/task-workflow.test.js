@@ -12,7 +12,7 @@ const read = (path) => readFileSync(new URL(`../src/${path}`, import.meta.url), 
 const workflow = read('components/TaskWorkflow.jsx');
 
 test('the statuses come from the server; a comment status asks, the PDF status uploads', () => {
-  assert.match(workflow, /const statuses = button\?\.form\?\.statuses \|\| \[\];/);
+  assert.match(workflow, /const statuses = statusesFor\(todo, button\?\.form\?\.statuses \|\| \[\]\);/);
   assert.match(workflow, /if \(step\.pdf\) return setUploading\(true\);/);
   assert.match(workflow, /if \(step\.comment\) return setAsking\(step\);/);
   assert.match(workflow, /workspace\.todos\.status\(\{ id: todo\._id, status: asking\.key, note \}\)/);
@@ -71,8 +71,8 @@ test('raising a task the department already has adds to it, and says so', () => 
 test('a workflow whose moves need a remark asks for it, with the ready date, before the move', () => {
   const workflow = read('components/TaskWorkflow.jsx');
   assert.match(workflow, /if \(button\.form\.remarkRequired \|\| button\.form\.statusDate \|\| step\.fields\?\.length \|\| step\.tellBuyer\) return setMoving/);
-  assert.match(workflow, /status: step\.key, note, \.\.\.\(date && !unrouted \? \{ date \} : \{\}\)/);
-  assert.match(workflow, /step\.date === 'tomorrow' \? tomorrowInIndia\(\) : ''/);
+  assert.match(workflow, /status: step\.key, note, \.\.\.\(date && !unrouted && \(date !== given \|\| step\.date\) \? \{ date \} : \{\}\)/);
+  assert.match(workflow, /step\.date === 'tomorrow' \? tomorrowInIndia\(\) : given && given >= todayInIndia\(\) \? given : ''/);
   assert.match(workflow, /disabled=\{busy \|\| dateNeeded \|\| remarkNeeded \|\| Boolean\(fieldMissing\) \|\| \(unrouted && Boolean\(step\.date\)\)\}/);
 });
 

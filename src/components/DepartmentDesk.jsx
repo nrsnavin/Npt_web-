@@ -192,6 +192,8 @@ export default function DepartmentDesk({ enquiry, onChanged }) {
   const [sending, setSending] = useState(null);
   /* Marketing's own EDD on the enquiry: the form open, or not. */
   const [settingEdd, setSettingEdd] = useState(false);
+  /* Marketing's final EDD per model: the form open, or not. */
+  const [settingFinal, setSettingFinal] = useState(false);
   const [view, setView] = useState('tasks');
   const [showDone, setShowDone] = useState(false);
   const [feedDepartment, setFeedDepartment] = useState('');
@@ -254,6 +256,26 @@ export default function DepartmentDesk({ enquiry, onChanged }) {
   const fromOrder = !['enquiry', 'sample', 'pricing_quote'].includes(stage);
   const maySetEdd = canWrite('enquiries') && !closed;
   const showEdd = !closed && production && (inProduction || fromOrder || Boolean(production.edd));
+  const setFinal = async ({ date, models, note }) => {
+    const rows = models || production.byModel.map((row) => ({ model: row.model, date }));
+    await enquiriesApi.setModelEdds({ id: enquiry._id, models: rows, note });
+    toast('Final EDD saved', 'Production, Printing, Assembly and Dispatch are told.');
+    setSettingFinal(false);
+    refresh();
+  };
+  /* How a several-model order goes out, and which models are ready [server: handoff.service `modelReadiness`]. */
+  const readiness = history?.readiness || { ready: [], waiting: [] };
+  const modelCount = readiness.ready.length + readiness.waiting.length;
+  const plan = history?.dispatchPlan?.mode || 'together';
+  const setPlan = async (mode) => {
+    try {
+      await enquiriesApi.setDispatchPlan({ id: enquiry._id, mode });
+      toast(mode === 'by_model' ? 'Each model goes as it is ready' : 'All models go together', 'Dispatch and the teams are told.');
+      refresh();
+    } catch (failure) {
+      warn('Dispatch plan not saved', failure.message);
+    }
+  };
   const setEdd = async ({ date, note }) => {
     await enquiriesApi.setEdd({ id: enquiry._id, date, note });
     toast(`EDD ${formatDate(date)}`, 'Production and Dispatch see it on their tasks.');
@@ -344,6 +366,20 @@ export default function DepartmentDesk({ enquiry, onChanged }) {
             {settingEdd && <EddForm onSave={setEdd} onCancel={() => setSettingEdd(false)} label={production.edd ? 'Change EDD' : 'Set EDD'} />}
             {/* Each model's EDD — the latest its teams gave — with each team's own date. */}
             {production.byModel?.length > 0 && <ModelEdds rows={production.byModel} className="mt-1.5" />}
+            {/* Marketing's final word per model: the latest by default, changed when the buyer is committed to another day. */}
+            {maySetEdd && production.byModel?.length > 0 && !settingFinal && (
+              <button type="button" className="row-action mt-1" onClick={() => setSettingFinal(true)}>Set final EDD per model</button>
+            )}
+            {settingFinal && (
+              <EddForm
+                onSave={setFinal}
+                onCancel={() => setSettingFinal(false)}
+                label="Save final EDD"
+                dateLabel="Final EDD"
+                models={production.byModel.map((row) => row.model)}
+                given={Object.fromEntries(production.byModel.map((row) => [row.model, row.date || row.suggested || '']))}
+              />
+            )}
             {production.asked?.status && (
               <p className="mt-0.5 text-xs text-steel-300">Production status: <span className="font-semibold text-steel-100">{production.asked.status}</span></p>
             )}
@@ -379,6 +415,24 @@ export default function DepartmentDesk({ enquiry, onChanged }) {
                 </div>
               );
             })}
+          </div>
+        )}
+        {modelCount > 1 && (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line/[0.1] bg-line/[0.02] px-3 py-2.5" aria-label="Dispatch plan">
+            <div className="text-sm text-steel-100">
+              <span className="font-bold">Dispatch plan</span>
+              <span className="text-steel-300"> · {plan === 'by_model' ? 'each model as it is ready' : 'all models together'}</span>
+              <p className="text-xs text-steel-400">
+                Ready: {readiness.ready.join(', ') || 'none yet'}
+                {readiness.waiting.length > 0 && ` · waiting: ${readiness.waiting.map((row) => `${row.model} (${row.team === 'assembling' ? 'Assembly' : row.team === 'printing' ? 'Printing' : 'Production'})`).join(', ')}`}
+              </p>
+            </div>
+            {canWrite('enquiries') && !closed && (
+              <select className="input w-auto py-1.5 text-sm" aria-label="Dispatch plan" value={plan} onChange={(event) => setPlan(event.target.value)}>
+                <option value="together">Dispatch all together</option>
+                <option value="by_model">Dispatch each model as it is ready</option>
+              </select>
+            )}
           </div>
         )}
         {orders.length > 0 && (
