@@ -95,7 +95,7 @@ export default function ProductionQueueList({ compact = false, onRows }) {
       if (band === 'problems' && !row.task.issue) return false;
       if (!['all', 'problems'].includes(band) && row.band !== band) return false;
       if (!term) return true;
-      return [row.enquiry.number, row.enquiry.customer?.name, row.order?.number, ...(row.models || []).map((entry) => entry.model)]
+      return [row.enquiry.number || 'Team task', row.enquiry.customer?.name, row.order?.number, ...(row.models || []).map((entry) => entry.model)]
         .filter(Boolean).some((text) => String(text).toLowerCase().includes(term));
     });
   }, [rows, band, search, stage]);
@@ -171,7 +171,10 @@ export default function ProductionQueueList({ compact = false, onRows }) {
                   </div>
                   {/* Whose it is, and what. */}
                   <div className="min-w-0">
-                    <Link to={`/enquiries/${row.enquiry._id}`} className="font-bold text-steel-50 hover:text-accent">{row.enquiry.number}</Link>
+                    {/* A Production task raised from the customer with no enquiry is its own job. */}
+                    {row.enquiry.team
+                      ? <p className="font-bold text-steel-50">Team task{row.task.raisedBy?.name ? <span className="font-normal text-steel-400"> · {row.task.raisedBy.name}</span> : null}</p>
+                      : <Link to={`/enquiries/${row.enquiry._id}`} className="font-bold text-steel-50 hover:text-accent">{row.enquiry.number}</Link>}
                     <p className="truncate text-sm text-steel-300">{row.enquiry.customer?.name || '—'}</p>
                     <p className="truncate text-xs text-steel-500">{models.join(', ') || '—'}{row.order?.number ? ` · ${row.order.number}` : ''}</p>
                     {row.production && (
@@ -209,7 +212,7 @@ export default function ProductionQueueList({ compact = false, onRows }) {
         <AddToProductionQueue
           open
           task={adding.task}
-          enquiryNumber={adding.enquiry.number}
+          enquiryNumber={adding.enquiry.number || 'this team task'}
           onClose={() => setAdding(null)}
           onAdded={() => load()}
         />

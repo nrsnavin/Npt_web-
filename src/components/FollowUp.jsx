@@ -134,6 +134,7 @@ export default function FollowUpForm({ receivable, onClose, onSaved }) {
               <Field label="How much?" hint="Leave it blank if they said the whole amount">
                 <input
                   type="number"
+                  step="any"
                   min="0"
                   className="input"
                   placeholder={receivable.balance}

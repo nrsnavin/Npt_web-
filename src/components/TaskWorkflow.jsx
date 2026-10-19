@@ -119,6 +119,7 @@ function MoveForm({ todo, form, step, onCancel, onMoved }) {
             ) : (
             <input
               type={field.type === 'number' ? 'number' : 'text'}
+              step={field.type === 'number' ? 'any' : undefined}
               min={field.type === 'number' ? 0 : undefined}
               className="input"
               required={field.required ? true : undefined}
@@ -280,6 +281,7 @@ function ContactDialog({ fields, todo, title = 'Edit contact details', onClose, 
           <Field key={field.key} label={field.label}>
             <input
               type={field.type === 'date' ? 'date' : field.type === 'number' ? 'number' : 'text'}
+              step={field.type === 'number' ? 'any' : undefined}
               className="input"
               value={values[field.key]}
               onChange={(event) => setValues((current) => ({ ...current, [field.key]: event.target.value }))}
@@ -336,6 +338,7 @@ export function DetailsDialog({ fields, todo, onClose, onSaved }) {
                 : (
                   <input
                     type={field.type === 'number' ? 'number' : 'text'}
+                    step={field.type === 'number' ? 'any' : undefined}
                     min={field.type === 'number' ? 0 : undefined}
                     className="input"
                     value={values[field.key]}

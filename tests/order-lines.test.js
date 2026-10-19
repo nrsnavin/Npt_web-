@@ -32,3 +32,13 @@ test('a print reference — words and artwork — is given on the line and read 
   assert.match(flow, /<PrintReferenceView reference=\{specOf\(row\.model\)\.printReference\} \/>/);
   assert.match(flow, /<PartsList parts=\{specOf\(row\.model\)\.parts\} \/>/);
 });
+
+test('a price, an amount or a percentage takes decimals — ₹4.40 is not refused by the browser', () => {
+  const dialog = read('src/components/DepartmentTaskDialog.jsx');
+  assert.match(dialog, /step=\{field\.type === 'number' \? 'any' : undefined\}/, 'the task form: prices, target prices');
+  const workflow = read('src/components/TaskWorkflow.jsx');
+  assert.equal((workflow.match(/step=\{field\.type === 'number' \? 'any' : undefined\}/g) || []).length, 3, 'every status field: the amount received');
+  for (const file of ['src/components/FollowUp.jsx', 'src/components/EnquiryFields.jsx', 'src/components/MaintenanceForm.jsx', 'src/pages/EnquiryDetail.jsx', 'src/components/OrderForm.jsx']) {
+    assert.match(read(file), /step="any"/, file);
+  }
+});

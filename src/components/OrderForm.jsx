@@ -396,6 +396,7 @@ export default function OrderForm({ order, onClose, onSaved, enquiry: forEnquiry
         <Field label="GST %">
           <input
             type="number"
+            step="any"
             className="input"
             value={terms.gstPercent}
             onChange={(event) => setTerms({ ...terms, gstPercent: event.target.value })}

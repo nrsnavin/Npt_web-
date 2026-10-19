@@ -92,23 +92,23 @@ export default function ProductionWorkflow() {
   return (
     <div className="mx-auto max-w-6xl space-y-5">
       <PageHeader
-        title={`Production workflow — ${enquiry.number}`}
+        title={`Production workflow — ${enquiry.team ? `Team task · ${enquiry.customer?.name || 'no customer named'}` : enquiry.number}`}
         subtitle={[enquiry.customer?.name, task.order?.number, enquiry.owner?.name && `${enquiry.owner.name}’s buyer`].filter(Boolean).join(' · ')}
         actions={
           <div className="flex flex-wrap gap-2">
             <Link to="/production/queue" className="btn-secondary">← Queue</Link>
-            <Link to={`/enquiries/${enquiry._id}`} className="btn-secondary">Enquiry</Link>
+            {!enquiry.team && <Link to={`/enquiries/${enquiry._id}`} className="btn-secondary">Enquiry</Link>}
             {works && !task.completed && !task.queuedAt && (
               <button type="button" className="btn-primary" onClick={() => setAdding(true)}>Add to production queue</button>
             )}
-            {canWrite('production') && (
+            {canWrite('production') && !enquiry.team && (
               <Link to={`/mould-runs?start=1&enquiry=${enquiry._id}${orderId ? `&order=${orderId}` : ''}`} className="btn-secondary">Start a run</Link>
             )}
           </div>
         }
       />
 
-      <AddToProductionQueue open={adding} task={task} enquiryNumber={enquiry.number} onClose={() => setAdding(false)} onAdded={changed} />
+      <AddToProductionQueue open={adding} task={task} enquiryNumber={enquiry.number || 'this team task'} onClose={() => setAdding(false)} onAdded={changed} />
 
       {/* Where it stands, as the queue says it. */}
       <div className={`card border-l-4 ${tone.edge} flex flex-wrap items-center gap-4 p-4`}>

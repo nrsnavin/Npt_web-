@@ -15,7 +15,7 @@ test('an open Production task on an enquiry needs routing until Production decid
   assert.equal(needsRouting({ kind: 'ask_edd', enquiry: 'e1' }), true);
   assert.equal(needsRouting({ kind: 'ask_edd', enquiry: 'e1', routing: { decidedAt: '2026-10-18' } }), false);
   assert.equal(needsRouting({ kind: 'ask_edd', enquiry: 'e1', completed: true }), false);
-  assert.equal(needsRouting({ kind: 'ask_edd' }), false, 'a team task has nothing to route');
+  assert.equal(needsRouting({ kind: 'ask_edd' }), true, 'a Production task raised from the customer is routed the same way');
   assert.equal(needsRouting({ kind: 'ask_printing', enquiry: 'e1' }), false);
 });
 

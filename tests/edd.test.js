@@ -9,7 +9,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-import { EDD_TASK_KINDS, SHOWS_EDD_KINDS, eddChipOf, eddOf, givesEdd, showsEdd } from '../src/utils/edd.js';
+import { EDD_TASK_KINDS, SHOWS_EDD_KINDS, eddChipOf, eddOf, eddOfTask, givesEdd, showsEdd } from '../src/utils/edd.js';
 
 const read = (path) => readFileSync(new URL(`../src/${path}`, import.meta.url), 'utf8');
 
@@ -24,8 +24,12 @@ test('the tasks that give the EDD are Production’s, Assembly’s and Printing�
   assert.equal(givesEdd({ kind: 'invoice_dispatch', enquiry: bare }), false);
   assert.equal(showsEdd({ kind: 'invoice_dispatch', enquiry: bare }), true);
   assert.equal(showsEdd({ kind: 'po_so', enquiry: bare }), false);
-  /* A team task has no enquiry to carry one. */
-  assert.equal(showsEdd({ kind: 'ask_edd', enquiry: null }), false);
+  /* A Production, Printing or Assembly task raised from the customer, with no enquiry, gives its own. */
+  assert.equal(showsEdd({ kind: 'ask_edd', enquiry: null }), true);
+  assert.equal(givesEdd({ kind: 'ask_printing', enquiry: null }), true);
+  assert.equal(showsEdd({ kind: 'invoice_dispatch', enquiry: null }), false, 'a team dispatch request has no EDD of its own');
+  assert.equal(eddOfTask({ kind: 'ask_edd', modelDates: [{ model: 'A', date: '2026-10-24' }, { model: 'B', date: '2026-10-26' }] }).date, '2026-10-26');
+  assert.equal(eddOfTask({ kind: 'ask_edd', enquiry: bare, modelDates: [{ model: 'A', date: '2026-10-24' }] }), null, 'an enquiry’s task reads the enquiry’s EDD');
 });
 
 test('the chip: the date when there is one; "EDD needed" on an open Production task; "not given yet" on Dispatch', () => {
@@ -55,7 +59,7 @@ test('the chip: the date when there is one; "EDD needed" on an open Production t
 test('the Production task asks for the EDD at the top until it is given, and gives it without a status move', () => {
   const taskEdd = read('components/TaskEdd.jsx');
   assert.match(taskEdd, /EDD needed/);
-  assert.match(taskEdd, /the enquiry has no expected delivery date yet/);
+  assert.match(taskEdd, /\{todo\.enquiry \? 'the enquiry has' : 'this job has'\} no expected delivery date yet/);
   assert.match(taskEdd, /workspace\.todos\.edd\(\{ id: todo\._id, date, models, note \}\)/);
   /* Wanted: the form is right there; given: a Change button. */
   assert.match(taskEdd, /\{gives && \(needed \|\| editing\) && \(/);

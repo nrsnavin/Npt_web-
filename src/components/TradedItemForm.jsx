@@ -177,7 +177,7 @@ export default function TradedItemForm({ item, onClose, onSaved }) {
           <input className="input" value={values.hsnCode} onChange={set('hsnCode')} />
         </Field>
         <Field label="GST %">
-          <input type="number" min="0" max="100" className="input" value={values.gstPercent} onChange={set('gstPercent')} />
+          <input type="number" step="any" min="0" max="100" className="input" value={values.gstPercent} onChange={set('gstPercent')} />
         </Field>
       </div>
       <Field label="Notes">

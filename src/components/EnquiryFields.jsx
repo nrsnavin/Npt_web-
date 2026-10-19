@@ -42,7 +42,7 @@ export default function EnquiryFields({
           <input type="date" className="input" {...register(name('requiredDeliveryDate'))} />
         </Field>
         <Field label="Estimated value (₹)">
-          <input type="number" className="input" {...register(name('estimatedValue'))} />
+          <input type="number" step="any" className="input" {...register(name('estimatedValue'))} />
         </Field>
       </div>
 

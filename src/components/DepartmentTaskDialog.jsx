@@ -74,6 +74,7 @@ function Answer({ field, value, prefill, onChange }) {
   return (
     <input
       type={field.type === 'date' ? 'date' : field.type === 'number' ? 'number' : 'text'}
+      step={field.type === 'number' ? 'any' : undefined}
       min={field.type === 'number' ? 0 : undefined}
       className="input"
       placeholder={field.placeholder || ''}
