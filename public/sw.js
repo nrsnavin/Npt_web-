@@ -7,7 +7,8 @@
  * are today's, and nothing a person may not see is left on the phone.
  *
  * It also shows the pushes the server sends — a tag, an urgent thread — and opens the thread
- * when the notification is pressed.
+ * when the notification is pressed; and when the browser replaces the device's subscription, it
+ * makes the new one and tells the server, so the phone does not go quiet until someone notices.
  *
  * And it takes pictures shared to the app from the phone's gallery ("Share → Navin Hangers",
  * manifest `share_target`): the share arrives as a POST no page can read, so the files are kept
@@ -17,6 +18,8 @@
 const SHELL = 'npt-shell-v1';
 const ASSETS = 'npt-assets-v1';
 const SHARED = 'npt-shared-photos';
+/* Where the API is and the server's push key, put here by the app [src/utils/push.js `tellWorker`]. */
+const PUSH_CONFIG = 'npt-push';
 const MOST_SHARED = 10;
 
 async function keepShared(request) {
@@ -45,7 +48,7 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((keys) => Promise.all(keys.filter((key) => ![SHELL, ASSETS, SHARED].includes(key)).map((key) => caches.delete(key))))
+      .then((keys) => Promise.all(keys.filter((key) => ![SHELL, ASSETS, SHARED, PUSH_CONFIG].includes(key)).map((key) => caches.delete(key))))
       .then(() => self.clients.claim())
   );
 });
@@ -132,4 +135,37 @@ self.addEventListener('notificationclick', (event) => {
       return self.clients.openWindow(link);
     })
   );
+});
+
+/*
+ * The browser replaced this device's subscription — it expired, or the push service rotated it.
+ * Pushes to the old one now fail, so a new one is made with the same key and the server moves
+ * every account's row on this device to it [server: push.controller `renewPush`]. The worker has
+ * no sign-in and needs none: the old endpoint, which only this device knows, is the proof. Where
+ * this cannot run, the app does the same the next time it opens [src/utils/push.js `syncPush`].
+ */
+function keyBytes(base64) {
+  const padded = `${base64}${'='.repeat((4 - (base64.length % 4)) % 4)}`.replace(/-/g, '+').replace(/_/g, '/');
+  return Uint8Array.from(atob(padded), (char) => char.charCodeAt(0));
+}
+
+async function renewSubscription(event) {
+  const kept = await caches.open(PUSH_CONFIG).then((cache) => cache.match('/push-config'));
+  const config = kept ? await kept.json() : null;
+  if (!config?.api) return;
+  const applicationServerKey = event.oldSubscription?.options?.applicationServerKey || (config.publicKey ? keyBytes(config.publicKey) : null);
+  if (!applicationServerKey) return;
+  const subscription = event.newSubscription || (await self.registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey }));
+  const { endpoint, keys } = subscription.toJSON();
+  const oldEndpoint = event.oldSubscription?.endpoint;
+  if (!oldEndpoint || oldEndpoint === endpoint) return;
+  await fetch(`${config.api}/workspace/push/renew`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ oldEndpoint, endpoint, keys }),
+  });
+}
+
+self.addEventListener('pushsubscriptionchange', (event) => {
+  event.waitUntil(renewSubscription(event).catch(() => {}));
 });

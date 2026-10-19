@@ -37,3 +37,22 @@ test('the profile says what the device is told about', () => {
   const profile = read('src/pages/Profile.jsx');
   assert.match(profile, /the moment a task is raised for your team/);
 });
+
+test('the device keeps ringing: renewed by the worker, re-checked by the app, and let go on sign-out', () => {
+  const sw = read('public/sw.js');
+  assert.match(sw, /addEventListener\('pushsubscriptionchange'/);
+  assert.match(sw, /\/workspace\/push\/renew/);
+  assert.match(sw, /\[SHELL, ASSETS, SHARED, PUSH_CONFIG\]/, 'the push settings survive an update of the worker');
+
+  const push = read('src/utils/push.js');
+  assert.match(push, /keyText\(madeWith\) === publicKey/, 'a subscription made with old keys is replaced');
+  assert.match(push, /pushApi\.renew\(\{ oldEndpoint, endpoint, keys \}\)/);
+  assert.match(push, /window\.Notification\.permission !== 'granted'/, 'never asks on its own');
+
+  const auth = read('src/context/AuthContext.jsx');
+  assert.match(auth, /syncPush\(\{ force: true \}\)/, 'checked when someone comes to the screen');
+  assert.match(auth, /document\.addEventListener\('visibilitychange', onVisible\)/);
+  assert.match(auth, /forgetPushForMe\(\)/, 'a signed-out account stops ringing here');
+  assert.doesNotMatch(auth, /resubscribePush/);
+  assert.match(read('src/api/endpoints.js'), /renew: \(payload\) => api\.post\('\/workspace\/push\/renew'/);
+});
