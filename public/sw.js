@@ -107,7 +107,12 @@ self.addEventListener('push', (event) => {
         icon: '/icons/icon-192.png',
         badge: '/icons/icon-192.png',
         data: { link: message.link || '/' },
-        tag: message.tag || message.taskId || message.link || undefined,
+        /*
+         * Each its own banner. Tagged by the task, a second move on the same task replaced the
+         * first without a sound or a banner — the phone looked silent while the app's bell had it.
+         * Only a sender that asks for one tag (a test) collapses, and it still rings again.
+         */
+        ...(message.tag ? { tag: message.tag, renotify: true } : {}),
       }),
       /* The app, where it is open, is told the same moment — a toast and the bell, no polling. */
       self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windows) => {

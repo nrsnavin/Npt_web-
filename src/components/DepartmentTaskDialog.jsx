@@ -102,7 +102,8 @@ function Answer({ field, value, prefill, onChange }) {
 /** A table of rows — a sample's models, each with its parts, colour rule and pieces. */
 function Rows({ field, rows, prefill, onChange }) {
   const set = (index, key, value) => onChange(rows.map((row, at) => (at === index ? { ...row, [key]: value } : row)));
-  const blank = Object.fromEntries(field.columns.map((column) => [column.key, column.key === 'quantity' ? '3' : '']));
+  /* A new row starts as the column says (a sample is three pieces), else empty. */
+  const blank = Object.fromEntries(field.columns.map((column) => [column.key, column.blank ?? '']));
   return (
     <div className="space-y-3 rounded-xl border border-line/[0.1] bg-line/[0.02] p-3 sm:col-span-2">
       <div className="flex items-start justify-between gap-3">

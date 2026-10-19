@@ -7,7 +7,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
-  briefToSend, departmentOptions, describeBrief, missingAnswer, noteNeeded, optionOf, startingAnswers,
+  briefToSend, cellText, departmentOptions, describeBrief, missingAnswer, noteNeeded, optionOf, startingAnswers,
 } from '../src/utils/taskForm.js';
 
 const SAMPLE = {
@@ -96,4 +96,27 @@ test('picking a customer on a team task fills only the blanks — what was typed
   const dialog = readFileSync(new URL('../src/components/DepartmentTaskDialog.jsx', import.meta.url), 'utf8');
   assert.match(dialog, /if \(startedFor\.current !== button\.key\) \{/);
   assert.match(dialog, /\[key, blank\(current\[key\]\) \? value : current\[key\]\]/);
+});
+
+test('an SO request’s rows read with their pieces, price and EDD', () => {
+  const button = {
+    asks: [{
+      key: 'items', label: 'Sales order details', type: 'items',
+      columns: [
+        { key: 'model', label: 'Model' }, { key: 'material', label: 'Material & colour' },
+        { key: 'quantity', label: 'Qty (pcs)', type: 'number' }, { key: 'price', label: 'Price (₹ / pc)', type: 'number' },
+        { key: 'edd', label: 'EDD', type: 'date' },
+      ],
+    }, { key: 'productionConfirmed', label: 'Production confirmed', type: 'check' }],
+  };
+  const lines = describeBrief(button, { items: [{ model: 'NH-400', material: 'PP Black', quantity: '5000', price: '2.4', edd: '2026-11-10' }], productionConfirmed: 'Yes' });
+  assert.ok(lines.includes('NH-400 · PP Black · 5000 pcs · ₹2.4 / pc · EDD 2026-11-10'), lines.join('\n'));
+  assert.equal(cellText({ key: 'quantity' }, '3'), '3 pcs');
+});
+
+test('the held order’s banner and Move to Production are drawn by the desk for Admin or its owner', () => {
+  const desk = readFileSync(new URL('../src/components/DepartmentDesk.jsx', import.meta.url), 'utf8');
+  assert.match(desk, /stage === 'production_hold'/);
+  assert.match(desk, /isManagement \|\| owner === me/);
+  assert.match(desk, /Move to Production/);
 });
