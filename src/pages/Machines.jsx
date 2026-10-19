@@ -120,7 +120,19 @@ export default function Machines() {
                       <Link to={`/machines/${machine._id}`} className="font-semibold text-steel-100 hover:text-accent">{machine.code}</Link>
                       {machine.name && <p className="text-xs text-steel-500">{machine.name}</p>}
                     </td>
-                    <td className="px-4 py-3.5"><Badge tone={toneOf(MACHINE_STATUSES, machine.status)}>{labelOf(MACHINE_STATUSES, machine.status)}</Badge></td>
+                    <td className="px-4 py-3.5">
+                      <Badge tone={toneOf(MACHINE_STATUSES, machine.status)}>{labelOf(MACHINE_STATUSES, machine.status)}</Badge>
+                      {/* Whose job is on the press — the same run the enquiry and the production queue show. */}
+                      {machine.running && (
+                        <p className="mt-1 text-xs text-steel-300">
+                          {machine.running.mould || 'Mould'}
+                          {machine.running.enquiry ? (
+                            <> · <Link to={`/enquiries/${machine.running.enquiry._id}`} className="font-semibold text-accent hover:underline">{machine.running.enquiry.number}</Link></>
+                          ) : ' · stock run'}
+                          {machine.running.customer ? ` · ${machine.running.customer}` : ''}
+                        </p>
+                      )}
+                    </td>
                     <td className="px-4 py-3.5 text-right tabular-nums text-steel-200">{machine.tonnage ? `${machine.tonnage}T` : '—'}</td>
                     <td className="px-4 py-3.5 text-steel-300">{machine.location || '—'}</td>
                     <td className="px-4 py-3.5 text-steel-300">{machine.lastServiceAt ? formatDate(machine.lastServiceAt) : 'Not recorded'}</td>

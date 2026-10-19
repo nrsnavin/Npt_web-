@@ -152,7 +152,7 @@ function CommentDialog({ step, target, onClose, onSave }) {
   );
 }
 
-function UploadDialog({ title, step, todo, form, onClose, onDone }) {
+function UploadDialog({ title, step, todo, form, reads = false, onClose, onDone }) {
   const [file, setFile] = useState(null);
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
@@ -201,7 +201,7 @@ function UploadDialog({ title, step, todo, form, onClose, onDone }) {
         {problem && <Notice tone="danger">{problem}</Notice>}
         <div className="flex justify-end gap-2">
           <button type="button" className="btn-ghost" onClick={onClose} disabled={busy}>Cancel</button>
-          <button type="submit" className="btn-primary" disabled={busy || !file || tooBig || notPdf}>{busy ? 'Uploading…' : form.sendResult ? 'Upload and send to buyer' : step.done ? 'Upload and finish' : 'Upload'}</button>
+          <button type="submit" className="btn-primary" disabled={busy || !file || tooBig || notPdf}>{busy ? (reads ? 'Reading the SO and drafting the order…' : 'Uploading…') : form.sendResult ? 'Upload and send to buyer' : step.done ? 'Upload and finish' : 'Upload'}</button>
         </div>
       </form>
     </Modal>
@@ -251,6 +251,9 @@ function ContactDialog({ fields, todo, title = 'Edit contact details', onClose, 
 const QC_KINDS = ['quality_check', 'quality_issue'];
 
 /** The status list and the workflow's actions, for a task whose department has a workflow. */
+/** What became of the sales order the SO request booked [server: soFromTask.service]. */
+const orderWords = (order) => (order?.said ? `Sales order ${order.said}.` : '');
+
 export default function TaskWorkflow({ todo, onChanged, startWith }) {
   const { canWrite } = useAuth();
   const catalogue = useHandoffCatalogue();
@@ -405,6 +408,8 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
           step={resultStep}
           todo={todo}
           form={button.form}
+          /* The SO is read and the order drafted from it while this waits [server: soRead.llm]. */
+          reads={Boolean(button.booksOrder)}
           onClose={() => setUploading(false)}
           onDone={(answer) => {
             /* Said per channel: which went, and why another did not. */
@@ -414,9 +419,11 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
             if (answer.sent) {
               if (went.length) toast(`${button.form.resultTitle || 'File'} sent to the buyer`, went.map((entry) => `${channel(entry)} to ${entry.recipient}`).join(' · '));
               if (missed.length) warn(`${missed.map(channel).join(' and ')} not sent`, missed.map((entry) => `${channel(entry)}: ${String(entry.reason || entry.status).replaceAll('_', ' ')}`).join(' · '));
-            } else if (answer.held) toast(`${resultStep.label} — held with marketing`, 'Production was not confirmed on the request: it is under Production Holded Orders until Admin or its marketing person moves it on.');
-            else if (answer.nextProblem) warn(`${resultStep.label} — but Production was not asked yet`, answer.nextProblem);
-            else toast(`${resultStep.label}`, 'The task is done and Production has its task.');
+            } else if (answer.held) toast(`${resultStep.label} — held with marketing`, ['Production was not confirmed on the request: it is under Production Holded Orders until Admin or its marketing person moves it on.', orderWords(answer.order)].filter(Boolean).join(' '));
+            else if (answer.nextProblem) warn(`${resultStep.label} — but Production was not asked yet`, [answer.nextProblem, orderWords(answer.order)].filter(Boolean).join(' '));
+            else toast(`${resultStep.label}`, ['The task is done and Production has its task.', orderWords(answer.order)].filter(Boolean).join(' '));
+            /* The request's lines could not become an order: said loudly, so the SO team books it by hand. */
+            if (answer.order?.problem) warn('Sales order not booked', `${answer.order.problem}. Book it on the Sales orders screen.`);
             onChanged?.(answer.data);
           }}
         />
