@@ -97,6 +97,8 @@ export const workspace = {
     ask: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/ask`, payload, { feedback: false }).then((response) => response.data),
     /** Correcting the contact details the task was given. */
     brief: ({ id, brief }) => api.post(`/workspace/todos/${id}/brief`, { brief }).then(unwrap),
+    /** The registers a task's hanger details are picked from — anyone working tasks may read them. */
+    registers: () => api.get('/workspace/registers').then(unwrap),
     /** The work as a PDF — the sales order — which finishes the task; keeps `next` / `nextProblem`. */
     result: ({ id, file, note }) => {
       const form = new FormData();

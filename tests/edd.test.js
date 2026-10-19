@@ -129,3 +129,23 @@ test('the enquiry sets the final EDD per model and the dispatch plan, and shows 
   assert.match(edd, /\(final, marketing\)/);
   assert.match(edd, /teams say/);
 });
+
+test('a task of several models moves model by model: the models ticked, each one’s status shown', async () => {
+  const { modelStatusesOf, modelsForStep, movesByModel } = await import('../src/utils/edd.js');
+  const task = {
+    kind: 'ask_edd', status: 'started',
+    routing: { models: [{ model: 'CRF25', printing: true }, { model: 'CRF30', assembly: true }, { model: 'CRF40' }] },
+    modelStatuses: [{ model: 'CRF25', status: 'part1_ready' }],
+  };
+  assert.equal(movesByModel(task), true);
+  assert.equal(movesByModel({ kind: 'ask_edd', brief: { model: 'CRF25' } }), false, 'one model: the task moves as one');
+  assert.equal(movesByModel({ ...task, kind: 'quality_check' }), false);
+  assert.deepEqual(modelStatusesOf(task).map((row) => [row.model, row.status]), [['CRF25', 'part1_ready'], ['CRF30', 'started'], ['CRF40', 'started']]);
+  assert.deepEqual(modelsForStep(task, { key: 'completed' }), ['CRF25', 'CRF30', 'CRF40']);
+  assert.deepEqual(modelsForStep(task, { key: 'handed_printing', handsTo: 'printing' }), ['CRF25']);
+  assert.deepEqual(modelsForStep(task, { key: 'handed_assembly', handsTo: 'assembling' }), ['CRF30']);
+  const workflow = readFileSync(new URL('../src/components/TaskWorkflow.jsx', import.meta.url), 'utf8');
+  assert.match(workflow, /\.\.\.\(byModel && picked\.length < allModels\.length \? \{ models: picked \} : \{\}\)/);
+  assert.match(workflow, /aria-label="Status by model"/);
+  assert.match(workflow, /The task stays open until every model is closed\./);
+});

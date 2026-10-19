@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { handoffs as handoffsApi, orders as ordersApi, workspace } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import { Field, Modal, Notice } from './ui.jsx';
 import { CustomerSelect } from './pickers.jsx';
-import Combobox from './Combobox.jsx';
+import RegisterPick from './RegisterPick.jsx';
 import { SAMPLE_HANDOVERS } from '../utils/pipeline.js';
 import {
   briefToSend, departmentOptions, missingAnswer, noteNeeded, optionOf, optionsOf, prefillValue, startingAnswers, todayInIndia,
@@ -29,40 +29,6 @@ import {
 
 const PDF_LIMIT = 1024 * 1024;
 const PRIORITIES = [['normal', 'Normal'], ['high', 'High'], ['low', 'Low']];
-
-/** What each register is called in a picker's words. */
-const REGISTER_WORDS = { moulds: 'model', materials: 'material', hooks: 'hook', clips: 'clip', prints: 'print' };
-
-/**
- * A model, material, hook, clip or print picked from its register — a dropdown that narrows as
- * you type [components/Combobox.jsx]. A name the register does not know yet is kept as typed:
- * a request is often about exactly the thing that is not on a register yet.
- */
-function RegisterPick({ field, register, value, onChange }) {
-  const word = REGISTER_WORDS[field.register] || field.register;
-  const loadOptions = useCallback(async (search) => {
-    const term = String(search || '').trim().toLowerCase();
-    const matches = term ? register.filter((name) => name.toLowerCase().includes(term)) : register;
-    return { data: matches.slice(0, 60), pagination: { total: matches.length } };
-  }, [register]);
-  const loadOne = useCallback(async (name) => name, []);
-  const toOption = useCallback((name) => ({ value: name, label: name }), []);
-  return (
-    <Combobox
-      value={value || ''}
-      onChange={(next) => onChange(next || '')}
-      loadOptions={loadOptions}
-      loadOne={loadOne}
-      toOption={toOption}
-      placeholder={register.length ? `Pick or type a ${word}…` : 'Type it in'}
-      emptyLabel="None"
-      noMatchLabel={`No ${word} on the register matches`}
-      onCreate={(typed) => { if (typed) onChange(typed); }}
-      createLabel="Use as typed"
-      aria-label={field.label}
-    />
-  );
-}
 
 function Answer({ field, value, prefill, onChange }) {
   const options = optionsOf(field, prefill);
