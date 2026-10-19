@@ -563,6 +563,7 @@ export default function EnquiryDetail() {
   const firstItem = {
     ...enquiry.requirement,
     mould: enquiry.mould,
+    mouldByCode: enquiry.mouldByCode,
     isNewDevelopment: enquiry.isNewDevelopment,
   };
 

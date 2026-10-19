@@ -1,6 +1,8 @@
+import { Link } from 'react-router-dom';
 import { Badge } from './ui.jsx';
 import { MouldThumb } from './MouldPhoto.jsx';
-import { HANGER_CATEGORIES, MATERIALS, optionLabel } from '../utils/pipeline.js';
+import { useAuth } from '../context/AuthContext.jsx';
+import { HANGER_CATEGORIES, HOOK_TYPES, MATERIALS, optionLabel } from '../utils/pipeline.js';
 
 /**
  * What was asked for, read back — every model as a peer.
@@ -32,18 +34,49 @@ function Fact({ label, children, wide }) {
   );
 }
 
+const count = (value) => Number(value).toLocaleString('en-IN');
+
+/** What the register says about the tool — the part, not its rates [server: getEnquiry `MOULD_FACTS`]. */
+export function mouldFacts(mould = {}, item = {}) {
+  return [
+    /* Category and size are the item's own facts when it has them; not said twice. */
+    !item.category && mould.category && optionLabel(HANGER_CATEGORIES, mould.category),
+    !item.sizeMm && mould.sizeMm && `${mould.sizeMm} mm`,
+    mould.material && optionLabel(MATERIALS, mould.material),
+    mould.partWeightGrams && `${mould.partWeightGrams} g a piece`,
+    mould.cavities && `${mould.cavities} cavit${mould.cavities === 1 ? 'y' : 'ies'}`,
+    mould.hookType && `${optionLabel(HOOK_TYPES, mould.hookType)} hook`,
+    mould.packingQty > 0 && `${count(mould.packingQty)} a carton`,
+    mould.moq > 0 && `MOQ ${count(mould.moq)}`,
+  ].filter((fact) => fact && fact !== '—');
+}
+
 /** What the item is made on, said the way each of the three cases deserves. */
 function Tool({ item, withMould }) {
+  const { canRead } = useAuth();
   if (!withMould) return null;
 
-  if (item.mould) {
+  if (item.mould?.mouldCode) {
+    const facts = mouldFacts(item.mould, item);
+    const title = <>{item.mould.mouldCode}{item.mould.name ? ` — ${item.mould.name}` : ''}</>;
     return (
       <Fact label="Mould" wide>
-        {/* The part beside its code: what the buyer described is a shape, and this is where
-            somebody can check the two agree. */}
-        <span className="flex items-center gap-2.5">
-          <MouldThumb mould={item.mould} />
-          <span>{item.mould.mouldCode} — {item.mould.name}</span>
+        {/* The part beside its code, large enough to see: what the buyer described is a shape,
+            and this is where somebody can check the two agree. */}
+        <span className="flex items-start gap-3">
+          <MouldThumb mould={item.mould} size="lg" />
+          <span className="min-w-0 space-y-1">
+            <span className="block font-medium text-steel-100">
+              {item.mould._id && canRead('moulds')
+                ? <Link to={`/moulds/${item.mould._id}`} className="hover:text-accent hover:underline">{title}</Link>
+                : title}
+            </span>
+            {facts.length > 0 && <span className="block text-xs text-steel-400">{facts.join(' · ')}</span>}
+            {item.mould.status && item.mould.status !== 'active' && (
+              <Badge tone="warn">{String(item.mould.status).replaceAll('_', ' ')}</Badge>
+            )}
+            {item.mouldByCode && <span className="block text-xs text-steel-500">Found on the mould register by its model number</span>}
+          </span>
         </span>
       </Fact>
     );
@@ -51,7 +84,7 @@ function Tool({ item, withMould }) {
 
   return (
     <Fact label="Mould">
-      {item.isNewDevelopment ? 'Not cut yet' : 'Bought in — no tool of ours'}
+      {item.isNewDevelopment ? 'Not cut yet' : item.mould ? 'On the mould register' : 'Bought in — no tool of ours'}
     </Fact>
   );
 }
