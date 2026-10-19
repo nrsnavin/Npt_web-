@@ -79,6 +79,25 @@ export function modelsOfTask(task) {
   return task?.brief?.model ? [String(task.brief.model).trim()] : [];
 }
 
+/** Several models on a Production, Printing or Assembly task: each moves on its own [server: Todo `modelStatuses`]. */
+export const movesByModel = (task) => Boolean(task?.kind && EDD_TASK_KINDS.includes(task.kind) && !task.completed && modelsOfTask(task).length > 1);
+
+/** Where each model is: its own status once it moved alone, else the task's [server: handoff.service `modelStatusesOf`]. */
+export function modelStatusesOf(task) {
+  const models = modelsOfTask(task);
+  if (models.length < 2) return [];
+  const kept = new Map((task?.modelStatuses || []).map((row) => [row.model, row]));
+  return models.map((model) => ({ model, status: kept.get(model)?.status || task?.status || '' }));
+}
+
+/** The models a move starts with ticked: on Production's task, a hand-over only the models routed to that team. */
+export function modelsForStep(task, step) {
+  const models = modelsOfTask(task);
+  const rows = (task?.routing?.models || []).filter((row) => row && typeof row === 'object' && row.model);
+  if (!step?.handsTo || task?.kind !== 'ask_edd' || !rows.length) return models;
+  return rows.filter((row) => (step.handsTo === 'printing' ? row.printing : row.assembly && !row.printing)).map((row) => row.model);
+}
+
 /** The date this task gave for each model [server: Todo `modelDates`], as `{ model: 'YYYY-MM-DD' }`. */
 export const datesOfTask = (task) => Object.fromEntries((task?.modelDates || []).map((row) => [row.model, row.date]));
 
