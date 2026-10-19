@@ -278,7 +278,11 @@ function NotificationCheck() {
   const [result, setResult] = useState(null);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState(null);
-  const load = () => pushApi.status().then(setStatus).catch((failure) => setProblem(failure.message));
+  /* An API older than this screen answers 404 here: say what to do, not the route. */
+  const explain = (failure) => (failure?.status === 404 || failure?.response?.status === 404
+    ? 'The server is older than this app — update it (git pull, npm install, restart the API), then reload.'
+    : failure.message);
+  const load = () => pushApi.status().then(setStatus).catch((failure) => setProblem(explain(failure)));
   useEffect(() => { load(); }, []);
   const test = async () => {
     setBusy(true);
@@ -287,7 +291,7 @@ function NotificationCheck() {
       setResult(await pushApi.test());
       load();
     } catch (failure) {
-      setProblem(failure.message);
+      setProblem(explain(failure));
     } finally {
       setBusy(false);
     }
