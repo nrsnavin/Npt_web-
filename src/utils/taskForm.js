@@ -13,6 +13,12 @@ export function prefillValue(prefill, path) {
   return path.split('.').reduce((value, key) => (value == null ? undefined : value[key]), prefill);
 }
 
+/** One cell of a row as it reads on the task: 5,000 pcs · ₹2.4 / pc · EDD 2026-11-10. */
+export const cellText = (column, value) => (column.key === 'quantity' ? `${value} pcs`
+  : column.key === 'price' ? `₹${value} / pc`
+    : column.type === 'date' ? `${column.label || column.key} ${value}`
+      : value);
+
 const blankRow = (columns) => Object.fromEntries(columns.map((column) => [column.key, '']));
 
 /** A starting answer for one question: from the enquiry when it knows, else empty. */
@@ -129,7 +135,7 @@ export function briefEntries(button, brief) {
       for (const row of value) {
         const cells = (field?.columns || Object.keys(row).map((column) => ({ key: column })))
           .filter((column) => row[column.key])
-          .map((column) => (column.key === 'quantity' ? `${row[column.key]} pcs` : row[column.key]));
+          .map((column) => cellText(column, row[column.key]));
         if (cells.length) entries.push({ key: `${key}-${entries.length}`, label: field?.label || key, value: cells.join(' · ') });
       }
     } else {
@@ -155,7 +161,7 @@ export function describeBrief(button, brief) {
       for (const row of value) {
         lines.push((field?.columns || Object.keys(row).map((column) => ({ key: column })))
           .filter((column) => row[column.key])
-          .map((column) => (column.key === 'quantity' ? `${row[column.key]} pcs` : row[column.key]))
+          .map((column) => cellText(column, row[column.key]))
           .join(' · '));
       }
     } else {

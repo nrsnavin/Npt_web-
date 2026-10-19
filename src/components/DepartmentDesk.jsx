@@ -114,7 +114,7 @@ function ViewToggle({ view, onChange }) {
 
 export default function DepartmentDesk({ enquiry, onChanged }) {
   const catalogue = useHandoffCatalogue();
-  const { user, worksIn, canWrite } = useAuth();
+  const { user, worksIn, canWrite, isManagement } = useAuth();
   const { toast } = useToast();
   const [history, setHistory] = useState(null);
   const [problem, setProblem] = useState(null);
@@ -189,6 +189,15 @@ export default function DepartmentDesk({ enquiry, onChanged }) {
     setSettingEdd(false);
     refresh();
   };
+
+  /*
+   * A Production Holded Order: the SO is prepared but Production was not confirmed on the
+   * request. Admin or the enquiry's marketing person (whoever it is delegated to now) sends it
+   * on to Production [server: handoff.service `mayReleaseHeld`].
+   */
+  const held = stage === 'production_hold';
+  const mayRelease = held && !awaitingCheck && (isManagement || owner === me);
+  const productionButton = catalogue.buttons.find((button) => button.key === 'ask_edd');
 
   /* The work itself — the holding task is the enquiry, said above, not a card. */
   const work = tasks.filter((task) => !task.holds);
@@ -278,6 +287,22 @@ export default function DepartmentDesk({ enquiry, onChanged }) {
                 </div>
               );
             })}
+          </div>
+        )}
+        {held && (
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-xl border border-warn-500/50 bg-warn-500/[0.08] px-3 py-2.5" aria-label="Production Holded Order">
+            <p className="text-sm text-steel-100">
+              <span className="font-bold text-warn-400">Production Holded Order</span>
+              <span className="text-steel-300">
+                {' · '}The SO is prepared, but Production was not confirmed.
+                {mayRelease ? ' Move it on once the buyer confirms.' : ` Waiting for Admin or ${enquiry.assignedTo?.name || 'its marketing person'} to move it to Production.`}
+              </span>
+            </p>
+            {mayRelease && productionButton && (
+              <button type="button" className="btn-primary px-3 py-1.5 text-sm" onClick={() => setSending({ ...productionButton, heading: 'Move to Production — Ask EDD' })}>
+                Move to Production
+              </button>
+            )}
           </div>
         )}
         {/*

@@ -14,7 +14,9 @@ test('the service worker shows the push and hands it to the open app the same mo
   const sw = read('public/sw.js');
   assert.match(sw, /self\.registration\.showNotification\(message\.title/);
   assert.match(sw, /client\.postMessage\(\{ type: 'push', message \}\)/);
-  assert.match(sw, /tag: message\.tag \|\| message\.taskId \|\| message\.link/);
+  /* Each push its own banner: tagged by the task, a second move replaced the first silently. */
+  assert.doesNotMatch(sw, /message\.taskId \|\| message\.link/);
+  assert.match(sw, /message\.tag \? \{ tag: message\.tag, renotify: true \}/);
 });
 
 test('the app listens for the push, polls for new tasks every twenty seconds, and offers to turn notifications on once', () => {

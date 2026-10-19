@@ -772,6 +772,8 @@ export const MARKETING_STATUSES = [
   { value: 'po_awaiting', label: 'PO awaiting' },
   { value: 'po_received', label: 'PO received' },
   { value: 'sales_order_sent', label: 'Sales order sent' },
+  /* The SO prepared without Production confirmed — Admin or the marketing person moves it on. */
+  { value: 'production_hold', label: 'Production Holded Orders' },
   /* With the plant — follows the department asked [server: config/marketingStatuses.js FROM_STAGE]. */
   { value: 'production', label: 'Production' },
   { value: 'mould', label: 'Mould' },
