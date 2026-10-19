@@ -152,7 +152,7 @@ function CommentDialog({ step, target, onClose, onSave }) {
   );
 }
 
-function UploadDialog({ title, step, todo, form, onClose, onDone }) {
+function UploadDialog({ title, step, todo, form, reads = false, onClose, onDone }) {
   const [file, setFile] = useState(null);
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
@@ -201,7 +201,7 @@ function UploadDialog({ title, step, todo, form, onClose, onDone }) {
         {problem && <Notice tone="danger">{problem}</Notice>}
         <div className="flex justify-end gap-2">
           <button type="button" className="btn-ghost" onClick={onClose} disabled={busy}>Cancel</button>
-          <button type="submit" className="btn-primary" disabled={busy || !file || tooBig || notPdf}>{busy ? 'Uploading…' : form.sendResult ? 'Upload and send to buyer' : step.done ? 'Upload and finish' : 'Upload'}</button>
+          <button type="submit" className="btn-primary" disabled={busy || !file || tooBig || notPdf}>{busy ? (reads ? 'Reading the SO and drafting the order…' : 'Uploading…') : form.sendResult ? 'Upload and send to buyer' : step.done ? 'Upload and finish' : 'Upload'}</button>
         </div>
       </form>
     </Modal>
@@ -408,6 +408,8 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
           step={resultStep}
           todo={todo}
           form={button.form}
+          /* The SO is read and the order drafted from it while this waits [server: soRead.llm]. */
+          reads={Boolean(button.booksOrder)}
           onClose={() => setUploading(false)}
           onDone={(answer) => {
             /* Said per channel: which went, and why another did not. */

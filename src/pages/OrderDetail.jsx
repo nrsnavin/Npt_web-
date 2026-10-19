@@ -562,6 +562,29 @@ export default function OrderDetail() {
         }
       />
 
+      {/*
+        How the draft was made [server: soFromTask.service]: read off the SO PDF the SO team uploaded,
+        or from the request's lines — and where the SO and the request disagree, said line by line,
+        for whoever checks it before release.
+      */}
+      {order.drafted?.from && (
+        <div className="mb-5">
+          <Notice tone={order.drafted.differences?.length ? 'warn' : 'info'}>
+            <p className="font-semibold">
+              {order.drafted.from === 'so_pdf'
+                ? `Drafted by reading the SO PDF${order.drafted.soNumber ? ` (${order.drafted.soNumber}${order.drafted.soDate ? `, ${order.drafted.soDate}` : ''})` : ''} — check the lines before release`
+                : 'Drafted from the SO request’s lines — check them before release'}
+            </p>
+            {order.drafted.readProblem && <p className="text-xs">The SO PDF was not used: {order.drafted.readProblem}.</p>}
+            {order.drafted.differences?.length > 0 && (
+              <ul className="mt-1 list-disc pl-5 text-xs">
+                {order.drafted.differences.map((line) => <li key={line}>{line}</li>)}
+              </ul>
+            )}
+          </Notice>
+        </div>
+      )}
+
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
         <div className="space-y-5">
           <Section title="What was ordered">

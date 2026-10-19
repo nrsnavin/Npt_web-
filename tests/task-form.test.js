@@ -148,3 +148,13 @@ test('one story: the journey and the mould running on the enquiry, the productio
   const machines = read('pages/Machines.jsx');
   assert.match(machines, /machine\.running\.enquiry\.number/);
 });
+
+test('the SO upload reads the PDF and drafts the order; the order says how it was drafted and what differs', () => {
+  const read = (path) => readFileSync(new URL(`../src/${path}`, import.meta.url), 'utf8');
+  const workflow = read('components/TaskWorkflow.jsx');
+  assert.match(workflow, /reads=\{Boolean\(button\.booksOrder\)\}/);
+  assert.match(workflow, /Reading the SO and drafting the order…/);
+  const order = read('pages/OrderDetail.jsx');
+  assert.match(order, /Drafted by reading the SO PDF/);
+  assert.match(order, /order\.drafted\.differences\.map/);
+});
