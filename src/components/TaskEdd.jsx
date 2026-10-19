@@ -5,7 +5,7 @@ import { useToast } from '../context/ToastContext.jsx';
 import { todayInIndia } from '../utils/taskForm.js';
 import { departmentLabel } from '../utils/pipeline.js';
 import { formatDate } from '../utils/format.js';
-import { dateLabelFor, eddOf, givesEdd, handsOnOf, incomingOf, needsRouting, showsEdd, teamWords } from '../utils/edd.js';
+import { dateLabelFor, datesOfTask, eddByModelOf, eddOf, givesEdd, handsOnOf, incomingOf, modelsOfTask, needsRouting, showsEdd, teamWords } from '../utils/edd.js';
 import TaskRouting from './TaskRouting.jsx';
 
 /**
@@ -17,18 +17,27 @@ import TaskRouting from './TaskRouting.jsx';
  * not given one yet. Marketing's own date, set on the enquiry, shows the same way, named as theirs.
  */
 
-/** The date and a remark, then Give EDD. */
-export function EddForm({ onSave, onCancel, initial = '', label = 'Give EDD', busyLabel = 'Saving…', dateLabel = 'EDD' }) {
+/**
+ * The date and a remark, then Give EDD. With several `models` (an order of three or four items)
+ * a date is asked for each model, with one box to fill them all at once; `given` is the date this
+ * task gave each model before [server: Todo `modelDates`].
+ */
+export function EddForm({ onSave, onCancel, initial = '', label = 'Give EDD', busyLabel = 'Saving…', dateLabel = 'EDD', models = [], given = {} }) {
   const [date, setDate] = useState(initial);
+  const [perModel, setPerModel] = useState(() => Object.fromEntries(models.map((model) => [model, given[model] || initial || ''])));
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState(null);
+  const several = models.length > 1;
+  const ready = several ? models.every((model) => perModel[model]) : Boolean(date);
   const save = async (event) => {
     event.preventDefault();
     setBusy(true);
     setProblem(null);
     try {
-      await onSave({ date, note: note.trim() || undefined });
+      await onSave(several
+        ? { models: models.map((model) => ({ model, date: perModel[model] })), note: note.trim() || undefined }
+        : { date, note: note.trim() || undefined });
     } catch (failure) {
       setProblem(failure.message);
       setBusy(false);
@@ -36,18 +45,38 @@ export function EddForm({ onSave, onCancel, initial = '', label = 'Give EDD', bu
   };
   return (
     <form onSubmit={save} aria-label={dateLabel === 'EDD' ? 'Expected delivery date' : dateLabel} className="mt-2 space-y-2">
+      {several ? (
+        <div className="space-y-1.5" aria-label={`${dateLabel} for each model`}>
+          <div className="flex flex-wrap items-end gap-2">
+            <Field label={`${dateLabel} — same for all`}>
+              <input type="date" className="input" min={todayInIndia()} value={date} onChange={(event) => { setDate(event.target.value); setPerModel(Object.fromEntries(models.map((model) => [model, event.target.value]))); }} />
+            </Field>
+            <p className="pb-2 text-xs text-steel-400">or one date for each model:</p>
+          </div>
+          {models.map((model) => (
+            <label key={model} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 text-sm text-steel-200">
+              <span className="truncate font-semibold">{model}</span>
+              <input type="date" aria-label={`${dateLabel} for ${model}`} className="input py-1.5" min={todayInIndia()} value={perModel[model] || ''} onChange={(event) => setPerModel({ ...perModel, [model]: event.target.value })} />
+            </label>
+          ))}
+          <Field label="Remark">
+            <input className="input" placeholder="Optional — what the dates rest on" value={note} onChange={(event) => setNote(event.target.value)} />
+          </Field>
+        </div>
+      ) : (
       <div className="grid gap-2 sm:grid-cols-[auto_1fr]">
         <Field label={dateLabel} required>
-          <input type="date" className="input" min={todayInIndia()} value={date} onChange={(event) => setDate(event.target.value)} autoFocus />
+          <input type="date" className="input" min={todayInIndia()} value={date} onChange={(event) => setDate(event.target.value)} autoFocus required />
         </Field>
         <Field label="Remark">
           <input className="input" placeholder="Optional — what the date rests on" value={note} onChange={(event) => setNote(event.target.value)} />
         </Field>
       </div>
+      )}
       {problem && <Notice tone="danger">{problem}</Notice>}
       <div className="flex justify-end gap-2">
         {onCancel && <button type="button" className="btn-ghost px-3 py-1.5 text-xs" onClick={onCancel} disabled={busy}>Cancel</button>}
-        <button type="submit" className="btn-primary px-3 py-1.5 text-xs" disabled={busy || !date}>{busy ? busyLabel : label}</button>
+        <button type="submit" className="btn-primary px-3 py-1.5 text-xs" disabled={busy || !ready}>{busy ? busyLabel : label}</button>
       </div>
     </form>
   );
@@ -67,6 +96,33 @@ export function EddLine({ edd, className = '' }) {
         {edd.note ? ` — ${edd.note}` : ''}
       </span>
     </p>
+  );
+}
+
+/**
+ * Each model's EDD — the latest date its teams gave — and this task's own date for it, so a team
+ * sees where its date stands beside the others' [server: handoff.service `refreshModelEdds`].
+ */
+export function ModelEdds({ todo, rows, className = '' }) {
+  const own = datesOfTask(todo);
+  const models = todo ? modelsOfTask(todo) : [];
+  const all = rows || eddByModelOf(todo?.enquiry);
+  const shown = models.length ? all.filter((row) => models.includes(row.model)) : all;
+  const extra = models.filter((model) => own[model] && !shown.some((row) => row.model === model)).map((model) => ({ model }));
+  const list = [...shown, ...extra];
+  if (!list.length || (list.length === 1 && !Object.keys(own).length && !rows)) return null;
+  return (
+    <ul className={`space-y-0.5 text-xs text-steel-300 ${className}`} aria-label="EDD by model">
+      {list.map((row) => (
+        <li key={row.model}>
+          <span className="font-semibold text-steel-100">{row.model}</span>
+          {row.date ? ` · EDD ${formatDate(row.date)}${row.final?.date ? ' (final, marketing)' : row.department ? ` (${departmentLabel(row.department)})` : ''}` : ' · EDD not complete yet'}
+          {row.final?.date && row.suggested && row.suggested !== row.final.date ? ` · teams say ${formatDate(row.suggested)}` : ''}
+          {own[row.model] ? ` · this team: ${formatDate(own[row.model])}` : ''}
+          {!own[row.model] && row.teams?.length ? ` · ${row.teams.map((team) => `${departmentLabel(team.department)} ${formatDate(team.date)}`).join(', ')}` : ''}
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -95,9 +151,10 @@ function HandOverDate({ todo, mayAct, onChanged }) {
   const day = todo.routing?.handOverDate;
   const gives = mayAct && !todo.completed;
   const label = dateLabelFor(todo);
-  const save = async ({ date, note }) => {
-    const saved = await workspace.todos.edd({ id: todo._id, date, note });
-    toast(`Hand-over ${formatDate(date)}`, `${teamWords(teams)} ${teams.length > 1 ? 'are' : 'is'} told when the goods come.`);
+  const save = async ({ date, note, models }) => {
+    const saved = await workspace.todos.edd({ id: todo._id, date, models, note });
+    const latest = date || (models || []).map((row) => row.date).sort().at(-1);
+    toast(`Hand-over ${formatDate(latest)}`, `${teamWords(teams)} ${teams.length > 1 ? 'are' : 'is'} told when the goods come.`);
     setEditing(false);
     onChanged?.(saved);
   };
@@ -113,9 +170,10 @@ function HandOverDate({ todo, mayAct, onChanged }) {
       )}
       <Incoming todo={todo} />
       <EddReadOnly todo={todo} />
+      <ModelEdds todo={todo} className="mt-1" />
       {gives && day && !editing && <button type="button" className="row-action mt-1" onClick={() => setEditing(true)}>Change hand-over date</button>}
       {gives && (!day || editing) && (
-        <EddForm onSave={save} onCancel={editing ? () => setEditing(false) : undefined} dateLabel={label} label={day ? 'Change hand-over date' : 'Give hand-over date'} />
+        <EddForm onSave={save} onCancel={editing ? () => setEditing(false) : undefined} dateLabel={label} label={day ? 'Change hand-over date' : 'Give hand-over date'} models={modelsOfTask(todo)} given={datesOfTask(todo)} />
       )}
     </div>
   );
@@ -152,9 +210,10 @@ function EddBox({ todo, mayAct, onChanged, toast, editing, setEditing }) {
   const gives = givesEdd(todo) && mayAct && !todo.completed;
   const needed = !edd && !todo.completed;
 
-  const save = async ({ date, note }) => {
-    const saved = await workspace.todos.edd({ id: todo._id, date, note });
-    toast(`EDD ${formatDate(date)}`, 'The enquiry’s marketing person and Admin are told.');
+  const save = async ({ date, note, models }) => {
+    const saved = await workspace.todos.edd({ id: todo._id, date, models, note });
+    const latest = date || (models || []).map((row) => row.date).sort().at(-1);
+    toast(models?.length ? `EDD given for ${models.length} models` : `EDD ${formatDate(latest)}`, 'Each model’s EDD is the latest its teams give; marketing and Admin are told.');
     setEditing(false);
     onChanged?.(saved);
   };
@@ -180,8 +239,9 @@ function EddBox({ todo, mayAct, onChanged, toast, editing, setEditing }) {
         <button type="button" className="row-action mt-1" onClick={() => setEditing(true)}>Change EDD</button>
       )}
       <Incoming todo={todo} />
+      <ModelEdds todo={todo} className="mt-1" />
       {gives && (needed || editing) && (
-        <EddForm onSave={save} onCancel={editing ? () => setEditing(false) : undefined} label={edd ? 'Change EDD' : 'Give EDD'} />
+        <EddForm onSave={save} onCancel={editing ? () => setEditing(false) : undefined} label={edd ? 'Change EDD' : 'Give EDD'} models={modelsOfTask(todo)} given={datesOfTask(todo)} />
       )}
     </div>
   );

@@ -56,7 +56,7 @@ test('the Production task asks for the EDD at the top until it is given, and giv
   const taskEdd = read('components/TaskEdd.jsx');
   assert.match(taskEdd, /EDD needed/);
   assert.match(taskEdd, /the enquiry has no expected delivery date yet/);
-  assert.match(taskEdd, /workspace\.todos\.edd\(\{ id: todo\._id, date, note \}\)/);
+  assert.match(taskEdd, /workspace\.todos\.edd\(\{ id: todo\._id, date, models, note \}\)/);
   /* Wanted: the form is right there; given: a Change button. */
   assert.match(taskEdd, /\{gives && \(needed \|\| editing\) && \(/);
   assert.match(taskEdd, /Change EDD/);
@@ -91,4 +91,41 @@ test('marketing sets it on the enquiry page from the order on; the list shows it
   const list = read('pages/Enquiries.jsx');
   assert.match(list, /title="Expected delivery date — set by marketing on the enquiry, or given by Production">EDD<\/th>/);
   assert.match(list, /enquiry\.progress\?\.edd \? formatDate\(enquiry\.progress\.edd\.date\) : '—'/);
+});
+
+test('an order of several models: a date for each, one box fills them all; the enquiry shows each model’s EDD', async () => {
+  const { modelsOfTask, datesOfTask } = await import('../src/utils/edd.js');
+  assert.deepEqual(modelsOfTask({ routing: { models: [{ model: 'CRF25', printing: true }, { model: 'CRF30' }] } }), ['CRF25', 'CRF30']);
+  assert.deepEqual(modelsOfTask({ routing: { models: ['CRF25'] } }), ['CRF25'], 'Printing and Assembly keep their models as names');
+  assert.deepEqual(modelsOfTask({ brief: { models: 'A-1, B-2' } }), ['A-1', 'B-2']);
+  assert.deepEqual(datesOfTask({ modelDates: [{ model: 'CRF25', date: '2026-11-05' }] }), { CRF25: '2026-11-05' });
+  const taskEdd = readFileSync(new URL('../src/components/TaskEdd.jsx', import.meta.url), 'utf8');
+  assert.match(taskEdd, /models=\{modelsOfTask\(todo\)\} given=\{datesOfTask\(todo\)\}/);
+  assert.match(taskEdd, /aria-label=\{`\$\{dateLabel\} for \$\{model\}`\}/);
+  assert.match(taskEdd, /same for all/);
+  const desk = readFileSync(new URL('../src/components/DepartmentDesk.jsx', import.meta.url), 'utf8');
+  assert.match(desk, /<ModelEdds rows=\{production\.byModel\}/);
+});
+
+test('a status move starts with the hand-over date already given; Handed to Printing / Assembly only where a model goes there', async () => {
+  const { givenDateOf, statusesFor } = await import('../src/utils/edd.js');
+  assert.equal(givenDateOf({ routing: { handsTo: ['printing'], handOverDate: '2026-11-04' } }), '2026-11-04');
+  assert.equal(givenDateOf({ modelDates: [{ model: 'A', date: '2026-11-02' }, { model: 'B', date: '2026-11-06' }] }), '2026-11-06');
+  assert.equal(givenDateOf({}), '');
+  const statuses = [{ key: 'completed' }, { key: 'handed_printing', handsTo: 'printing' }, { key: 'handed_assembly', handsTo: 'assembling' }];
+  assert.deepEqual(statusesFor({ routing: { handsTo: ['printing'] } }, statuses).map((step) => step.key), ['completed', 'handed_printing']);
+  assert.deepEqual(statusesFor({}, statuses).map((step) => step.key), ['completed']);
+  const workflow = readFileSync(new URL('../src/components/TaskWorkflow.jsx', import.meta.url), 'utf8');
+  assert.match(workflow, /const given = givenDateOf\(todo\);/);
+});
+
+test('the enquiry sets the final EDD per model and the dispatch plan, and shows which models are ready', () => {
+  const desk = readFileSync(new URL('../src/components/DepartmentDesk.jsx', import.meta.url), 'utf8');
+  assert.match(desk, /enquiriesApi\.setModelEdds\(\{ id: enquiry\._id, models: rows, note \}\)/);
+  assert.match(desk, /enquiriesApi\.setDispatchPlan\(\{ id: enquiry\._id, mode \}\)/);
+  assert.match(desk, /Dispatch each model as it is ready/);
+  assert.ok(desk.indexOf('const [settingFinal, setSettingFinal] = useState(false);') < desk.indexOf('if (!catalogue) return null;'), 'hooks before the early return');
+  const edd = readFileSync(new URL('../src/components/TaskEdd.jsx', import.meta.url), 'utf8');
+  assert.match(edd, /\(final, marketing\)/);
+  assert.match(edd, /teams say/);
 });

@@ -11,7 +11,7 @@ import { useToast } from '../context/ToastContext.jsx';
 import { todayInIndia } from '../utils/taskForm.js';
 import { ladderOf } from '../utils/taskState.js';
 import { departmentLabel } from '../utils/pipeline.js';
-import { dateLabelFor, needsRouting } from '../utils/edd.js';
+import { dateLabelFor, givenDateOf, needsRouting, statusesFor } from '../utils/edd.js';
 
 /**
  * A department's own workflow on its task [server: config/departmentTaskForms.js `statuses`]:
@@ -34,7 +34,14 @@ const tomorrowInIndia = () => todayInIndia(new Date(Date.now() + 24 * 60 * 60 * 
  * [server: handoff.service `setTaskStatus`].
  */
 function MoveForm({ todo, form, step, onCancel, onMoved }) {
-  const [date, setDate] = useState(step.date === 'tomorrow' ? tomorrowInIndia() : '');
+  /*
+   * The date already given starts the box: the hand-over date to Printing / Assembly while this
+   * team hands on, else the date it gave its models — if it is not past. Sent again only when
+   * changed, so a status move does not re-tell the next team a date it already has.
+   */
+  const given = givenDateOf(todo);
+  const initialDate = step.date === 'tomorrow' ? tomorrowInIndia() : given && given >= todayInIndia() ? given : '';
+  const [date, setDate] = useState(initialDate);
   const [note, setNote] = useState('');
   /* What this move records [server: departmentTaskForms `statuses[].fields`] — who collected a sample, say. */
   const asks = step.fields || [];
@@ -56,7 +63,7 @@ function MoveForm({ todo, form, step, onCancel, onMoved }) {
       .map((field) => [field.key, field.type === 'number' ? Number(answers[field.key]) : String(answers[field.key]).trim()]));
     try {
       onMoved(await workspace.todos.status({
-        id: todo._id, status: step.key, note, ...(date && !unrouted ? { date } : {}), ...(asks.length ? { fields } : {}),
+        id: todo._id, status: step.key, note, ...(date && !unrouted && (date !== given || step.date) ? { date } : {}), ...(asks.length ? { fields } : {}),
       }));
     } catch (failure) {
       setProblem(failure.message);
@@ -258,7 +265,8 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
   const { canWrite } = useAuth();
   const catalogue = useHandoffCatalogue();
   const button = buttonFor(catalogue, todo?.kind);
-  const statuses = button?.form?.statuses || [];
+  /* Handed to Printing / Assembly only where a model goes there. */
+  const statuses = statusesFor(todo, button?.form?.statuses || []);
   const [asking, setAsking] = useState(null);
   const [moving, setMoving] = useState(null);
   /* Dispatch's "Ask Production": the other department's form, filled from the enquiry. */
