@@ -36,6 +36,8 @@ function StatusCell({ status, received, needed }) {
   return (
     <span className="block">
       <span className={`text-sm font-semibold ${STATUS_TONE(status)}`}>{status.label}</span>
+      {/* The hand-over date this team gave the next one, or its EDD where it is the last. */}
+      {status.given && <span className="block text-xs font-semibold text-steel-200">{status.given.label} {formatDate(status.given.date)}</span>}
       {received && <span className="block text-xs text-steel-500">goods came {formatDate(received)}</span>}
     </span>
   );

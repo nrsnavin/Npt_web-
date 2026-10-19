@@ -47,6 +47,7 @@ test('the workflow page: the model table, Production’s updates, Printing and A
   assert.match(workflow, /productionApi\.workflow\(taskId\)/);
   for (const head of ['Model', 'After moulding', 'Production', 'Printing', 'Assembly', 'EDD', 'Work order']) assert.ok(workflow.includes(`>${head}</th>`), head);
   assert.match(workflow, /goods came \{formatDate\(received\)\}/);
+  assert.match(workflow, /\{status\.given\.label\} \{formatDate\(status\.given\.date\)\}/, 'each team’s hand-over date or EDD under its status');
   assert.match(workflow, /<TaskEdd todo=\{task\} mayAct onChanged=\{changed\} \/>/, 'printing / assembly decided and the dates given');
   assert.match(workflow, /<TaskWorkflow todo=\{task\} onChanged=\{changed\} \/>/, 'each model’s status and hand-over');
   assert.match(workflow, /<TeamCard title="Printing" task=\{teams\.printing\}/);
