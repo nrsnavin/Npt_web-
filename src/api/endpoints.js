@@ -93,6 +93,8 @@ export const workspace = {
     /* Production's call, model by model: printing, assembly, both or neither [server: `decideRouting`]. */
     routing: (id) => api.get(`/workspace/todos/${id}/routing`).then(unwrap),
     route: ({ id, models }) => api.post(`/workspace/todos/${id}/routing`, { models }, { feedback: false }).then(unwrap),
+    /** Production adds its task to the production queue: printing and assembly per model, the EDD, a remark. */
+    addToQueue: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/production-queue`, payload, { feedback: false }).then(unwrap),
     /** "Got it" on an answer that came back to the department — it leaves the top of the dashboard. */
     seen: (id) => api.post(`/workspace/todos/${id}/seen`, {}, { feedback: false }).then(unwrap),
     /** Another department asked from this task — Dispatch's "Ask Production"; keeps `raised` / `addedTo`. */

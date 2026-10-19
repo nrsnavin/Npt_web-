@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { production as productionApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -10,6 +10,7 @@ import HandoffTaskActions from '../components/HandoffTaskActions.jsx';
 import { TaskFacts, TaskTimeline } from '../components/TaskHistory.jsx';
 import { BAND_TONE, WorkOrderChip } from '../components/ProductionQueueList.jsx';
 import { PartsList, PrintReferenceView } from '../components/OrderLineParts.jsx';
+import AddToProductionQueue from '../components/AddToProductionQueue.jsx';
 import { ErrorState, PageHeader, Section, TableSkeleton } from '../components/ui.jsx';
 import { formatDate } from '../utils/format.js';
 import { departmentLabel } from '../utils/pipeline.js';
@@ -68,6 +69,7 @@ export default function ProductionWorkflow() {
   const { taskId } = useParams();
   const { isAdmin, departments = [], user, canWrite } = useAuth();
   const catalogue = useHandoffCatalogue();
+  const [adding, setAdding] = useState(false);
   const fetch = useCallback(() => productionApi.workflow(taskId), [taskId]);
   const { data, loading, error, reload } = useRecord(fetch, `production-workflow-${taskId}`);
   const me = String(user?.id || user?._id || '');
@@ -96,12 +98,17 @@ export default function ProductionWorkflow() {
           <div className="flex flex-wrap gap-2">
             <Link to="/production/queue" className="btn-secondary">← Queue</Link>
             <Link to={`/enquiries/${enquiry._id}`} className="btn-secondary">Enquiry</Link>
+            {works && !task.completed && !task.queuedAt && (
+              <button type="button" className="btn-primary" onClick={() => setAdding(true)}>Add to production queue</button>
+            )}
             {canWrite('production') && (
               <Link to={`/mould-runs?start=1&enquiry=${enquiry._id}${orderId ? `&order=${orderId}` : ''}`} className="btn-secondary">Start a run</Link>
             )}
           </div>
         }
       />
+
+      <AddToProductionQueue open={adding} task={task} enquiryNumber={enquiry.number} onClose={() => setAdding(false)} onAdded={changed} />
 
       {/* Where it stands, as the queue says it. */}
       <div className={`card border-l-4 ${tone.edge} flex flex-wrap items-center gap-4 p-4`}>

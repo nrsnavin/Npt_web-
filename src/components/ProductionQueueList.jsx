@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { production as productionApi } from '../api/endpoints.js';
+import { useAuth } from '../context/AuthContext.jsx';
+import AddToProductionQueue from './AddToProductionQueue.jsx';
 import { ErrorState, TableSkeleton } from './ui.jsx';
 import { formatDate, formatRelative } from '../utils/format.js';
 import { EDD_BANDS, dueWords } from '../utils/productionQueue.js';
@@ -16,13 +18,14 @@ import { WORK_ORDER_STATUS } from '../utils/workOrders.js';
 const REFRESH_MS = 60 * 1000;
 
 /*
- * Taken for production yet [server: productionSummary.service `productionTaken`] — a work order,
- * a press moulding it, or Production Started. The desk opens on what is still to be taken, so
- * assigning the next job is one look; the queue page opens on everything. The choice is kept.
+ * In the production queue yet [server: productionSummary.service `productionTaken`] — Production
+ * added it (planned, printing and assembly decided), or, for work begun before that step, a work
+ * order, a press moulding it, or Production Started. The desk opens on what is still to be added,
+ * so planning the next job is one look; the queue page opens on what is in it. The choice is kept.
  */
 const STAGES = [
-  { key: 'not_taken', label: 'Not taken for production', count: (meta) => meta?.teams?.notTaken },
-  { key: 'in_production', label: 'In production', count: (meta) => meta?.teams?.inProduction },
+  { key: 'not_taken', label: 'Not in the production queue', count: (meta) => meta?.teams?.notTaken },
+  { key: 'in_production', label: 'In the production queue', count: (meta) => meta?.teams?.inProduction },
   { key: 'all', label: 'Both', count: (meta, rows) => rows.length },
 ];
 const stageKey = (compact) => `npt.productionStage.${compact ? 'desk' : 'queue'}`;
@@ -31,7 +34,7 @@ const keptStage = (compact) => {
     const kept = window.localStorage.getItem(stageKey(compact));
     if (STAGES.some((entry) => entry.key === kept)) return kept;
   } catch { /* a private window */ }
-  return compact ? 'not_taken' : 'all';
+  return compact ? 'not_taken' : 'in_production';
 };
 
 export const BAND_TONE = {
@@ -66,6 +69,10 @@ export default function ProductionQueueList({ compact = false, onRows }) {
   const [band, setBand] = useState('all');
   const [search, setSearch] = useState('');
   const [stage, setStageState] = useState(() => keptStage(compact));
+  const [adding, setAdding] = useState(null);
+  const { isAdmin, departments = [] } = useAuth();
+  /* Production plans its own press; Admin may too. */
+  const mayPlan = isAdmin || departments.includes('production');
   const setStage = (next) => {
     setStageState(next);
     try { window.localStorage.setItem(stageKey(compact), next); } catch { /* a private window */ }
@@ -144,7 +151,7 @@ export default function ProductionQueueList({ compact = false, onRows }) {
         <div className="card px-6 py-10 text-center">
           <p className="text-base font-semibold text-steel-200">
             {!rows.length ? 'Nothing on the press right now.'
-              : stage === 'not_taken' && !search && band === 'all' ? 'Every Production task is taken for production.'
+              : stage === 'not_taken' && !search && band === 'all' ? 'Every Production task is in the production queue.'
                 : 'Nothing matches this filter.'}
           </p>
           <p className="mt-1 text-sm text-steel-500">{rows.length ? 'Pick another, or clear the search.' : 'A Production task raised on an enquiry appears here, in EDD order.'}</p>
@@ -170,9 +177,9 @@ export default function ProductionQueueList({ compact = false, onRows }) {
                     {row.production && (
                       <span
                         className={`mt-1 inline-block max-w-full truncate rounded-full px-2 py-0.5 text-xs font-semibold ${row.production.taken ? 'bg-success-500/15 text-success-400' : 'bg-warn-500/15 text-warn-400'}`}
-                        title={row.production.why || 'No work order, run or Production Started yet'}
+                        title={row.production.why || 'Not planned yet — add it to the production queue'}
                       >
-                        {row.production.taken ? `In production${row.production.why ? ` · ${row.production.why}` : ''}` : 'Not taken yet'}
+                        {row.production.taken ? `In the queue${row.production.why && row.production.why !== 'Added to the production queue' ? ` · ${row.production.why}` : ''}` : 'Not in the queue yet'}
                       </span>
                     )}
                   </div>
@@ -185,12 +192,27 @@ export default function ProductionQueueList({ compact = false, onRows }) {
                       </div>
                     )}
                   </div>
-                  <Link to={row.link} className="btn-primary justify-center px-3 py-2 text-sm print:hidden">Workflow →</Link>
+                  <div className="flex flex-col gap-2 print:hidden">
+                    {mayPlan && row.production && !row.production.taken && (
+                      <button type="button" className="btn-primary justify-center px-3 py-2 text-sm" onClick={() => setAdding(row)}>Add to production queue</button>
+                    )}
+                    <Link to={row.link} className={`${mayPlan && row.production && !row.production.taken ? 'btn-secondary' : 'btn-primary'} justify-center px-3 py-2 text-sm`}>Workflow →</Link>
+                  </div>
                 </div>
               </li>
             );
           })}
         </ol>
+      )}
+
+      {adding && (
+        <AddToProductionQueue
+          open
+          task={adding.task}
+          enquiryNumber={adding.enquiry.number}
+          onClose={() => setAdding(null)}
+          onAdded={() => load()}
+        />
       )}
 
       {!compact && (
