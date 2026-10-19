@@ -304,7 +304,10 @@ function NotificationCheck() {
           <h2 className="text-base font-bold tracking-tight text-steel-50">Notifications check</h2>
           <p className="mt-1 text-sm text-steel-400">What the server can send, and a test to yourself.</p>
         </div>
-        <button type="button" className="btn-secondary" disabled={busy || !status} onClick={test}>{busy ? 'Sending…' : 'Send me a test'}</button>
+        <div className="flex gap-2">
+          <button type="button" className="btn-ghost" disabled={busy} onClick={load}>Refresh</button>
+          <button type="button" className="btn-secondary" disabled={busy || !status} onClick={test}>{busy ? 'Sending…' : 'Send me a test'}</button>
+        </div>
       </div>
       {problem && <p role="alert" className="mt-2 text-sm text-danger-400">{problem}</p>}
       {status && (
@@ -319,12 +322,25 @@ function NotificationCheck() {
             <CheckRow ok={status.push.configured} label="Push" detail={status.push.configured ? `set up · ${status.push.myDevices} of your devices switched on` : 'not set up on the server (WEB_PUSH_* keys)'} />
             <CheckRow ok={status.email.configured} label="Email" detail={status.email.configured ? `sent through ${status.email.host} as ${status.email.from}` : 'not set up on the server (SMTP_*) — emails are only written to its log'} />
             <CheckRow ok={status.whatsapp.configured} label="WhatsApp" detail={status.whatsapp.configured ? `sent through ${status.whatsapp.provider}` : 'not set up on the server — messages are only written to its log'} />
+            {status.whatsapp.lastTest && (
+              <CheckRow
+                ok={['delivered', 'read', 'sent'].includes(status.whatsapp.lastTest.status)}
+                label="Last WhatsApp test"
+                detail={status.whatsapp.lastTest.status === 'failed'
+                  ? `refused by WhatsApp — ${status.whatsapp.lastTest.error || 'no reason given'}${status.whatsapp.lastTest.template ? '' : '. Outside 24 hours of your last message to the business number, WhatsApp needs an approved template (WHATSAPP_TEMPLATE_TASK) — or send any message to the business number first, then test again'}`
+                  : status.whatsapp.lastTest.status === 'accepted'
+                    ? 'accepted by Meta, no delivery report yet — press Refresh in a few seconds (needs the webhook set up)'
+                    : status.whatsapp.lastTest.status}
+              />
+            )}
             <CheckRow ok label="Server mode" detail={status.mode === 'production' ? 'production — notifications go to the real people' : `${status.mode} — not production`} />
           </ul>
           {result && (
             <div className="mt-3 space-y-1.5 text-sm">
               <p className="font-semibold text-steel-100">Test result</p>
-              {!result.push.devices && <CheckRow ok={false} label="Push" detail="none of your devices is switched on — press Turn on above, on this device" />}
+              {result.redirect && <p className="text-xs text-warn-400">Development server: the test went to {result.redirect}’s devices and phone, not yours.</p>}
+              {!result.redirect && !result.push.devices && <CheckRow ok={false} label="Push" detail="none of your devices is switched on — press Turn on above, on this device" />}
+              {result.redirect && !(result.push.delivered || []).length && <CheckRow ok={false} label="Push" detail={`${result.redirect} has no device switched on — sign in as them and press Turn on`} />}
               {(result.push.delivered || []).map((row, index) => (
                 <CheckRow
                   key={`${row.service}-${index}`}
@@ -334,7 +350,13 @@ function NotificationCheck() {
                 />
               ))}
               <CheckRow ok={result.email.sent} label="Email" detail={result.email.sent ? 'sent — check your inbox (and spam)' : result.email.why} />
-              <CheckRow ok={false} label="WhatsApp" detail={result.whatsapp?.configured ? 'set up — not part of this test' : 'not set up yet — it needs the Meta WhatsApp Business registration; until then messages are only written to the server log'} />
+              <CheckRow
+                ok={Boolean(result.whatsapp?.sent)}
+                label="WhatsApp"
+                detail={result.whatsapp?.sent
+                  ? `accepted by Meta${result.whatsapp.template ? ' (template)' : ''} — delivery shows below in a moment`
+                  : result.whatsapp?.why || 'not set up on the server'}
+              />
             </div>
           )}
         </>
