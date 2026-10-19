@@ -376,7 +376,7 @@ export function QuotationForm({ quotation, onClose, onSaved }) {
 
       {!values.isExport && (
         <Field label="GST (%)">
-          <input type="number" min="0" max="100" className="input max-w-[8rem]" value={values.gstPercent} onChange={set('gstPercent')} />
+          <input type="number" step="any" min="0" max="100" className="input max-w-[8rem]" value={values.gstPercent} onChange={set('gstPercent')} />
         </Field>
       )}
 

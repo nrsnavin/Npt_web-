@@ -140,6 +140,7 @@ function StageForm({ enquiry, onClose, onSaved }) {
         <Field label="Confirmed value (₹)" hint="Required — this is the figure the month is counted in" required>
           <input
             type="number"
+            step="any"
             className="input"
             required
             min="0"

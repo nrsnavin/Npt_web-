@@ -81,7 +81,7 @@ export default function MaintenanceForm({ open, asset, machine, mould, onClose, 
             <div key={index} className="grid grid-cols-[1fr_5rem_7rem_auto] items-center gap-2">
               <input className="input" value={part.name} onChange={(event) => setPart(index, 'name', event.target.value)} placeholder="Heater band" aria-label="Spare name" maxLength={120} />
               <input type="number" min={0} className="input" value={part.quantity} onChange={(event) => setPart(index, 'quantity', event.target.value)} aria-label="Spare quantity" placeholder="Qty" />
-              <input type="number" min={0} className="input" value={part.cost} onChange={(event) => setPart(index, 'cost', event.target.value)} aria-label="Spare cost" placeholder="₹" />
+              <input type="number" step="any" min={0} className="input" value={part.cost} onChange={(event) => setPart(index, 'cost', event.target.value)} aria-label="Spare cost" placeholder="₹" />
               <button type="button" className="btn-ghost text-xs" onClick={() => setValues((current) => ({ ...current, parts: current.parts.filter((_, at) => at !== index) }))}>Remove</button>
             </div>
           ))}
