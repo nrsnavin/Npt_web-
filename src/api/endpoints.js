@@ -93,6 +93,8 @@ export const workspace = {
     /* Production's call, model by model: printing, assembly, both or neither [server: `decideRouting`]. */
     routing: (id) => api.get(`/workspace/todos/${id}/routing`).then(unwrap),
     route: ({ id, models }) => api.post(`/workspace/todos/${id}/routing`, { models }, { feedback: false }).then(unwrap),
+    /** Production adds its task to the production queue: printing and assembly per model, the EDD, a remark. */
+    addToQueue: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/production-queue`, payload, { feedback: false }).then(unwrap),
     /** "Got it" on an answer that came back to the department — it leaves the top of the dashboard. */
     seen: (id) => api.post(`/workspace/todos/${id}/seen`, {}, { feedback: false }).then(unwrap),
     /** Another department asked from this task — Dispatch's "Ask Production"; keeps `raised` / `addedTo`. */
@@ -573,6 +575,14 @@ export const orders = {
    * a line's deadline — the plant's own `expectedCompletion` is a forecast and deliberately
    * cannot, which is the whole point of this door existing.
    */
+  /** A line's print reference — words and, if given, the artwork — editable after release too. */
+  setPrintReference: ({ id, lineId, text, file, removeFile }) => {
+    const form = new FormData();
+    form.append('text', text || '');
+    if (file) form.append('file', file);
+    if (removeFile) form.append('removeFile', 'true');
+    return api.put(`/orders/${id}/lines/${lineId}/print-reference`, form).then(unwrap);
+  },
   rePromise: ({ id, lineId, ...payload }) =>
     api.post(`/orders/${id}/lines/${lineId}/promise`, payload).then(unwrap),
   /** An accepted quotation becoming an order. Nothing is retyped — see the controller. */

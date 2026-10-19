@@ -16,6 +16,7 @@ export function prefillValue(prefill, path) {
 /** One cell of a row as it reads on the task: 5,000 pcs · ₹2.4 / pc · EDD 2026-11-10. */
 export const cellText = (column, value) => (column.key === 'quantity' ? `${value} pcs`
   : column.key === 'price' ? `₹${value} / pc`
+    : column.key === 'targetPrice' ? `target ₹${value} / pc`
     : column.type === 'date' ? `${column.label || column.key} ${value}`
       : value);
 
@@ -122,6 +123,18 @@ export const todayInIndia = (now = new Date()) =>
  * The same, as label / value pairs for a facts table — a row of a table becomes one entry under
  * the table's label ("Items: NH-400 · PP · Black · 5 pcs"), a plain answer one entry of its own.
  */
+/*
+ * What a task's answers were called on a form since changed — a quotation request was one line
+ * ("Hanger model(s)", one material, one target price) before it took a row per model.
+ */
+const EARLIER_LABELS = {
+  models: 'Hanger model(s)',
+  material: 'Material / colour',
+  quantity: 'Quantity',
+  targetPrice: 'Buyer’s target price (₹ per piece)',
+};
+const labelOf = (field, key) => field?.label || EARLIER_LABELS[key] || key;
+
 export function briefEntries(button, brief) {
   if (!brief) return [];
   const asks = button?.asks || [];
@@ -136,14 +149,14 @@ export function briefEntries(button, brief) {
         const cells = (field?.columns || Object.keys(row).map((column) => ({ key: column })))
           .filter((column) => row[column.key])
           .map((column) => cellText(column, row[column.key]));
-        if (cells.length) entries.push({ key: `${key}-${entries.length}`, label: field?.label || key, value: cells.join(' · ') });
+        if (cells.length) entries.push({ key: `${key}-${entries.length}`, label: labelOf(field, key), value: cells.join(' · ') });
       }
     } else {
       /* A number reads as one: 10,000 pieces, not 10000. */
       const shown = value === true ? 'Yes'
         : (field?.type === 'number' || key === 'quantity') && Number.isFinite(Number(value)) && String(value).trim() !== '' ? Number(value).toLocaleString('en-IN')
           : String(value);
-      entries.push({ key, label: field?.label || key, value: shown });
+      entries.push({ key, label: labelOf(field, key), value: shown });
     }
   }
   return entries;
@@ -165,7 +178,7 @@ export function describeBrief(button, brief) {
           .join(' · '));
       }
     } else {
-      plain.push(`${field?.label || key}: ${value === true ? 'Yes' : value}`);
+      plain.push(`${labelOf(field, key)}: ${value === true ? 'Yes' : value}`);
     }
   }
   if (plain.length) lines.unshift(plain.join(' · '));

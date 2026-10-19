@@ -22,7 +22,7 @@ test('the queue is one line per enquiry: EDD, whose it is, the thirty-word summa
   assert.match(list, /setInterval\(load, REFRESH_MS\)/, 'it keeps itself fresh');
   assert.match(list, /\{row\.summary\}/);
   assert.match(list, /<WorkOrderChip key=\{wo\._id\} wo=\{wo\} orderId=\{row\.order\?\._id\} \/>/);
-  assert.match(list, /<Link to=\{row\.link\} className="btn-primary[^"]*">Workflow →<\/Link>/);
+  assert.match(list, /<Link to=\{row\.link\} className=\{`\$\{mayPlan && row\.production && !row\.production\.taken \? 'btn-secondary' : 'btn-primary'\} [^`]*`\}>Workflow →<\/Link>/, 'the main button, unless adding to the queue is');
   assert.match(list, /\{row\.edd \? dueWords\(row\.edd\.date\) : 'give the date'\}/);
   assert.doesNotMatch(list, /<select/, 'no status is changed from the queue');
   assert.match(page, /<ProductionQueueList onRows=\{onRows\} \/>/);
@@ -115,4 +115,31 @@ test('press time reads from the mould, and is flagged when it runs past the EDD'
   assert.equal(capacityWords(null), null);
   assert.equal(pressTimeTight({ capacity: { finish: '2026-11-05T00:00:00Z' }, edd: { date: '2026-11-03' } }), true);
   assert.equal(pressTimeTight({ capacity: { finish: '2026-11-02T00:00:00Z' }, edd: { date: '2026-11-03' } }), false);
+});
+
+test('the Production desk opens on what is not in the production queue; the queue page on what is; the choice is kept', () => {
+  const list = readFileSync(new URL('../src/components/ProductionQueueList.jsx', import.meta.url), 'utf8');
+  assert.match(list, /label: 'Not in the production queue', count: \(meta\) => meta\?\.teams\?\.notTaken/);
+  assert.match(list, /label: 'In the production queue', count: \(meta\) => meta\?\.teams\?\.inProduction/);
+  assert.match(list, /return compact \? 'not_taken' : 'in_production';/, 'the desk starts on what is still to be added; the queue page on the queue');
+  assert.match(list, /if \(stage === 'not_taken' && row\.production\?\.taken\) return false;/);
+  assert.match(list, /if \(stage === 'in_production' && !row\.production\?\.taken\) return false;/);
+  assert.match(list, /window\.localStorage\.setItem\(stageKey\(compact\), next\)/);
+  assert.match(list, /'Not in the queue yet'/, 'each line says which it is');
+});
+
+test('Production adds a task to the queue from the desk or the workflow page: routing, EDD, remark in one step', () => {
+  const list = readFileSync(new URL('../src/components/ProductionQueueList.jsx', import.meta.url), 'utf8');
+  assert.match(list, /const mayPlan = isAdmin \|\| departments\.includes\('production'\);/);
+  assert.match(list, /mayPlan && row\.production && !row\.production\.taken && \(/, 'offered only on a line not yet in the queue');
+  assert.match(list, /<AddToProductionQueue/);
+  const dialog = readFileSync(new URL('../src/components/AddToProductionQueue.jsx', import.meta.url), 'utf8');
+  assert.match(dialog, /workspace\.todos\.addToQueue\(\{/);
+  assert.match(dialog, /aria-label=\{`Printing for \$\{row\.model\}`\}/);
+  assert.match(dialog, /aria-label=\{`Assembly for \$\{row\.model\}`\}/);
+  assert.match(dialog, /\{pathOf\(row\)\} → Dispatch/, 'the cycle it will follow, said per model');
+  assert.match(dialog, /type="date"/);
+  const flow = readFileSync(new URL('../src/pages/ProductionWorkflow.jsx', import.meta.url), 'utf8');
+  assert.match(flow, /works && !task\.completed && !task\.queuedAt && \(/);
+  assert.match(readFileSync(new URL('../src/api/endpoints.js', import.meta.url), 'utf8'), /api\.post\(`\/workspace\/todos\/\$\{id\}\/production-queue`, payload/);
 });

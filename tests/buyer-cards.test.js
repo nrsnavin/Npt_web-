@@ -92,7 +92,10 @@ test('the models read become rows; the rows become the enquiry’s models and th
   assert.equal(sample.task.brief.items.length, 3, 'one sample row per model');
 
   const quote = nextStepOf({ nextStep: 'quote', stepTargetPrice: '4.5', stepNote: 'Pack 200 a carton' }, [{ ...rows[0] }, { ...rows[1], quantity: '2,000', colour: 'Brown' }]);
-  assert.deepEqual(quote.task.brief, { models: 'NCP-25, MAU-35 WB', material: 'Black, Brown', quantity: '7000', targetPrice: '4.5' });
+  assert.deepEqual(quote.task.brief.items, [
+    { model: 'NCP-25', material: 'Black', quantity: '5000', targetPrice: '4.5' },
+    { model: 'MAU-35 WB', material: 'Brown', quantity: '2000', targetPrice: '4.5' },
+  ], 'a row per model, each with its own colour and pieces');
   assert.equal(quote.task.note, 'Pack 200 a carton');
   assert.deepEqual(nextStepOf({ nextStep: 'photos' }, []), { nextAction: 'Send photos', nextActionType: 'whatsapp' });
   assert.deepEqual(nextStepOf({ nextStep: 'other', nextAction: ' Call the owner ' }), { nextAction: 'Call the owner', nextActionType: 'other' });

@@ -59,8 +59,18 @@ test('what was asked becomes label / value rows, a table row under its table’s
   const button = { asks: [{ key: 'contact', label: 'Contact person / WhatsApp' }, { key: 'vigorous', label: 'Vigorous follow-up required', type: 'check' }, { key: 'items', label: 'Items', columns: [{ key: 'model' }, { key: 'colour' }, { key: 'quantity' }] }] };
   const rows = briefEntries(button, { contact: '+917550005370', vigorous: true, callOn: '', quantity: '10000', items: [{ model: 'NH-400', colour: 'Black', quantity: 500 }] });
   assert.deepEqual(rows.map((row) => [row.label, row.value]), [
-    ['Contact person / WhatsApp', '+917550005370'], ['Vigorous follow-up required', 'Yes'], ['quantity', '10,000'], ['Items', 'NH-400 · Black · 500 pcs'],
+    ['Contact person / WhatsApp', '+917550005370'], ['Vigorous follow-up required', 'Yes'], ['Quantity', '10,000'], ['Items', 'NH-400 · Black · 500 pcs'],
   ]);
+});
+
+test('a quotation request reads a line per model; one from before the rows still reads in words', () => {
+  const button = { asks: [{ key: 'items', label: 'Models to quote', columns: [{ key: 'model' }, { key: 'material' }, { key: 'hook' }, { key: 'quantity' }, { key: 'targetPrice' }] }] };
+  const rows = briefEntries(button, { items: [
+    { model: 'CRF-40', material: 'PP Black', hook: 'Chrome 3 mm', quantity: '5000', targetPrice: '4.5' },
+    { model: '4028-24 CM', material: 'PP Natural', quantity: '2000' },
+  ] });
+  assert.deepEqual(rows.map((row) => row.value), ['CRF-40 · PP Black · Chrome 3 mm · 5000 pcs · target ₹4.5 / pc', '4028-24 CM · PP Natural · 2000 pcs']);
+  assert.deepEqual(briefEntries(button, { models: 'CRF-40', targetPrice: '4.5' }).map((row) => row.label), ['Hanger model(s)', 'Buyer’s target price (₹ per piece)']);
 });
 
 test('the enquiry’s task cards, the task panel and the desk lists draw the same facts and timeline', () => {
