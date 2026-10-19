@@ -5,6 +5,7 @@ import TaskPdfLink from './TaskPdfLink.jsx';
 import { EddForm, EddLine, ModelEdds } from './TaskEdd.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import TaskCard from './TaskCard.jsx';
+import EnquiryPayments from './EnquiryPayments.jsx';
 import Menu from './Menu.jsx';
 import DepartmentTaskDialog from './DepartmentTaskDialog.jsx';
 import HandoffTaskActions from './HandoffTaskActions.jsx';
@@ -471,6 +472,8 @@ export default function DepartmentDesk({ enquiry, onChanged }) {
             ))}
           </div>
         )}
+        {/* The money on it: the advance and each invoice, and every payment logged on them. */}
+        <EnquiryPayments payments={history?.payments} />
         {held && (
           <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-xl border border-warn-500/50 bg-warn-500/[0.08] px-3 py-2.5" aria-label="Production Holded Order">
             <p className="text-sm text-steel-100">

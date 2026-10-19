@@ -312,6 +312,14 @@ export default function PaymentDetail() {
                 </Link>
               </>
             ) : null}
+            {receivable.enquiry?.number ? (
+              <>
+                {' · '}
+                <Link to={`/enquiries/${receivable.enquiry._id}`} className="hover:text-accent">
+                  {receivable.enquiry.number}
+                </Link>
+              </>
+            ) : null}
             {receivable.kind === 'advance' ? ' · advance' : ''}
           </>
         }
