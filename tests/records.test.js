@@ -270,9 +270,9 @@ test('audit: one form for Quality, a run from the Production task, and Admin\'s 
 
 test('a team task types its model and material, needs no instruction, and a coster lands on the quotation raised', () => {
   const dialog = read('components/DepartmentTaskDialog.jsx');
-  /* The register narrows as you type, and a model or material it does not know is kept as typed. */
-  assert.match(dialog, /<input\s+className="input"\s+list=\{listId\}/);
-  assert.match(dialog, /<datalist id=\{listId\}>/);
+  /* A dropdown from the register that narrows as you type; a model or material it does not know is kept as typed. */
+  assert.match(dialog, /<RegisterPick field=\{field\} register=\{register\}/);
+  assert.match(dialog, /onCreate=\{\(typed\) => \{ if \(typed\) onChange\(typed\); \}\}/);
   assert.doesNotMatch(dialog, /Choose from the \$\{field\.register/, 'the fixed dropdown is gone');
   /* The instruction is optional on a team task; the answers say what to do. */
   assert.match(dialog, /const mustExplain = \(noteNeeded\(button, answers\) \|\| Boolean\(fromTask\)\) && note\.trim\(\)\.length < 3;/);

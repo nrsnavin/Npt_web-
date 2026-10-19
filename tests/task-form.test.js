@@ -82,12 +82,14 @@ test('a member question picks a person of its department — the PRT member to v
   assert.match(dialog, /<option key=\{person\._id\} value=\{person\._id\}>\{person\.name\}<\/option>/);
 });
 
-test('with no enquiry to fill from, register questions are typed against the register — sample rows too', () => {
+test('register questions are a dropdown from the register — on an enquiry or a team task, SO and sample rows too', () => {
   const dialog = readFileSync(new URL('../src/components/DepartmentTaskDialog.jsx', import.meta.url), 'utf8');
   assert.match(dialog, /const register = field\.register && prefill\?\.registers\?\.\[field\.register\];/);
-  /* Typed, narrowing as you go, and a model or material the register does not know is kept as typed. */
-  assert.match(dialog, /Type to search the \$\{field\.register === 'moulds' \? 'mould' : field\.register\} register, or enter a new one/);
-  assert.match(dialog, /<datalist id=\{listId\}>/);
+  /* The enquiry's own models stay the choices where a question offers them. */
+  assert.match(dialog, /if \(register && !\(field\.optionsFrom && options\.length\)\)/);
+  /* Narrowing as you go, and a model or material the register does not know is kept as typed. */
+  assert.match(dialog, /<Combobox/);
+  assert.match(dialog, /createLabel="Use as typed"/);
   assert.match(dialog, /<Answer field=\{column\} value=\{row\[column\.key\]\} prefill=\{prefill\}/);
   assert.match(dialog, /<Rows field=\{field\} rows=\{answers\[field\.key\] \|\| \[\]\} prefill=\{prefill\}/);
 });

@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { handoffs as handoffsApi, orders as ordersApi, workspace } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import { Field, Modal, Notice } from './ui.jsx';
 import { CustomerSelect } from './pickers.jsx';
+import Combobox from './Combobox.jsx';
 import { SAMPLE_HANDOVERS } from '../utils/pipeline.js';
 import {
   briefToSend, departmentOptions, missingAnswer, noteNeeded, optionOf, optionsOf, prefillValue, startingAnswers, todayInIndia,
@@ -29,32 +30,49 @@ import {
 const PDF_LIMIT = 1024 * 1024;
 const PRIORITIES = [['normal', 'Normal'], ['high', 'High'], ['low', 'Low']];
 
+/** What each register is called in a picker's words. */
+const REGISTER_WORDS = { moulds: 'model', materials: 'material', hooks: 'hook', clips: 'clip', prints: 'print' };
+
+/**
+ * A model, material, hook, clip or print picked from its register — a dropdown that narrows as
+ * you type [components/Combobox.jsx]. A name the register does not know yet is kept as typed:
+ * a request is often about exactly the thing that is not on a register yet.
+ */
+function RegisterPick({ field, register, value, onChange }) {
+  const word = REGISTER_WORDS[field.register] || field.register;
+  const loadOptions = useCallback(async (search) => {
+    const term = String(search || '').trim().toLowerCase();
+    const matches = term ? register.filter((name) => name.toLowerCase().includes(term)) : register;
+    return { data: matches.slice(0, 60), pagination: { total: matches.length } };
+  }, [register]);
+  const loadOne = useCallback(async (name) => name, []);
+  const toOption = useCallback((name) => ({ value: name, label: name }), []);
+  return (
+    <Combobox
+      value={value || ''}
+      onChange={(next) => onChange(next || '')}
+      loadOptions={loadOptions}
+      loadOne={loadOne}
+      toOption={toOption}
+      placeholder={register.length ? `Pick or type a ${word}…` : 'Type it in'}
+      emptyLabel="None"
+      noMatchLabel={`No ${word} on the register matches`}
+      onCreate={(typed) => { if (typed) onChange(typed); }}
+      createLabel="Use as typed"
+      aria-label={field.label}
+    />
+  );
+}
+
 function Answer({ field, value, prefill, onChange }) {
   const options = optionsOf(field, prefill);
-  /* No enquiry to fill it from (a team task): the register's list — moulds, materials, parts. */
+  /*
+   * The register's list — moulds, materials, parts — as a dropdown. A question whose choices
+   * are the enquiry's own models (Production's "which model") keeps those instead.
+   */
   const register = field.register && prefill?.registers?.[field.register];
-  if (register) {
-    /*
-     * Typed, not picked from a list: the register narrows as you type, and a model or a
-     * material the register does not know yet is kept as the words typed — a team task is
-     * often about exactly the thing that is not on a register yet.
-     */
-    const listId = `register-${field.register}-${field.key}`;
-    return (
-      <>
-        <input
-          className="input"
-          list={listId}
-          value={value || ''}
-          onChange={(event) => onChange(event.target.value)}
-          placeholder={register.length ? `Type to search the ${field.register === 'moulds' ? 'mould' : field.register} register, or enter a new one…` : 'Type it in'}
-          autoComplete="off"
-        />
-        <datalist id={listId}>
-          {register.map((option) => <option key={option} value={option} />)}
-        </datalist>
-      </>
-    );
+  if (register && !(field.optionsFrom && options.length)) {
+    return <RegisterPick field={field} register={register} value={value} onChange={onChange} />;
   }
   /* A person of a department — the PRT member who visits; the task becomes theirs by name. */
   if (field.type === 'member') {
