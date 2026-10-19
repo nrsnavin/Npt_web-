@@ -8,6 +8,10 @@ export const pushApi = {
   key: () => api.get('/workspace/push/key').then(unwrap),
   subscribe: (payload) => api.post('/workspace/push/subscribe', payload, { feedback: false }).then(unwrap),
   unsubscribe: (payload) => api.post('/workspace/push/unsubscribe', payload, { feedback: false }).then(unwrap),
+  /** What is set up — push, email, WhatsApp — and, on a development server, where it is all redirected. */
+  status: () => api.get('/workspace/notifications/status').then(unwrap),
+  /** A push to my devices and an email to me, by the same path real notifications take. */
+  test: () => api.post('/workspace/notifications/test', {}, { feedback: false }).then(unwrap),
 };
 
 /** Everything waiting on me — the bell. Read quietly: nobody pressed anything. */

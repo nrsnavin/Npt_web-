@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { auth } from '../api/endpoints.js';
+import { auth, pushApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { Badge, Field, Modal, Notice, PageHeader } from '../components/ui.jsx';
 import { formatDate, humanise } from '../utils/format.js';
@@ -259,6 +259,112 @@ function DeviceNotifications() {
   );
 }
 
+/** One line of the check: a tick or a cross, what it is, and what it means. */
+function CheckRow({ ok, label, detail }) {
+  return (
+    <li className="flex items-start gap-2">
+      <span aria-hidden className={ok ? 'text-success-400' : 'text-warn-400'}>{ok ? '✓' : '✗'}</span>
+      <span><span className="font-semibold text-steel-100">{label}</span><span className="text-steel-400"> — {detail}</span></span>
+    </li>
+  );
+}
+
+/**
+ * Are notifications working? What the server has set up — push, email, WhatsApp — how many of my
+ * devices are switched on, where a development server is sending everything, and a test to myself.
+ */
+function NotificationCheck() {
+  const [status, setStatus] = useState(null);
+  const [result, setResult] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState(null);
+  /* An API older than this screen answers 404 here: say what to do, not the route. */
+  const explain = (failure) => (failure?.status === 404 || failure?.response?.status === 404
+    ? 'The server is older than this app — update it (git pull, npm install, restart the API), then reload.'
+    : failure.message);
+  const load = () => pushApi.status().then(setStatus).catch((failure) => setProblem(explain(failure)));
+  useEffect(() => { load(); }, []);
+  const test = async () => {
+    setBusy(true);
+    setProblem(null);
+    try {
+      setResult(await pushApi.test());
+      load();
+    } catch (failure) {
+      setProblem(explain(failure));
+    } finally {
+      setBusy(false);
+    }
+  };
+  if (!status && !problem) return null;
+  return (
+    <section className="card mt-5 p-6">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h2 className="text-base font-bold tracking-tight text-steel-50">Notifications check</h2>
+          <p className="mt-1 text-sm text-steel-400">What the server can send, and a test to yourself.</p>
+        </div>
+        <div className="flex gap-2">
+          <button type="button" className="btn-ghost" disabled={busy} onClick={load}>Refresh</button>
+          <button type="button" className="btn-secondary" disabled={busy || !status} onClick={test}>{busy ? 'Sending…' : 'Send me a test'}</button>
+        </div>
+      </div>
+      {problem && <p role="alert" className="mt-2 text-sm text-danger-400">{problem}</p>}
+      {status && (
+        <>
+          {status.redirect && (
+            <Notice tone="warn">
+              Development server: every email goes to {status.redirect.email}
+              {status.redirect.phone ? ` and every WhatsApp to ${status.redirect.phone}` : ''}, marked with who it was meant for. Sign-in codes still go to their owner.
+            </Notice>
+          )}
+          <ul className="mt-3 space-y-1.5 text-sm">
+            <CheckRow ok={status.push.configured} label="Push" detail={status.push.configured ? `set up · ${status.push.myDevices} of your devices switched on` : 'not set up on the server (WEB_PUSH_* keys)'} />
+            <CheckRow ok={status.email.configured} label="Email" detail={status.email.configured ? `sent through ${status.email.host} as ${status.email.from}` : 'not set up on the server (SMTP_*) — emails are only written to its log'} />
+            <CheckRow ok={status.whatsapp.configured} label="WhatsApp" detail={status.whatsapp.configured ? `sent through ${status.whatsapp.provider}` : 'not set up on the server — messages are only written to its log'} />
+            {status.whatsapp.lastTest && (
+              <CheckRow
+                ok={['delivered', 'read', 'sent'].includes(status.whatsapp.lastTest.status)}
+                label="Last WhatsApp test"
+                detail={status.whatsapp.lastTest.status === 'failed'
+                  ? `refused by WhatsApp — ${status.whatsapp.lastTest.error || 'no reason given'}${status.whatsapp.lastTest.template ? '' : '. Outside 24 hours of your last message to the business number, WhatsApp needs an approved template (WHATSAPP_TEMPLATE_TASK) — or send any message to the business number first, then test again'}`
+                  : status.whatsapp.lastTest.status === 'accepted'
+                    ? 'accepted by Meta, no delivery report yet — press Refresh in a few seconds (needs the webhook set up)'
+                    : status.whatsapp.lastTest.status}
+              />
+            )}
+            <CheckRow ok label="Server mode" detail={status.mode === 'production' ? 'production — notifications go to the real people' : `${status.mode} — not production`} />
+          </ul>
+          {result && (
+            <div className="mt-3 space-y-1.5 text-sm">
+              <p className="font-semibold text-steel-100">Test result</p>
+              {result.redirect && <p className="text-xs text-warn-400">Development server: the test went to {result.redirect}’s devices and phone, not yours.</p>}
+              {!result.redirect && !result.push.devices && <CheckRow ok={false} label="Push" detail="none of your devices is switched on — press Turn on above, on this device" />}
+              {result.redirect && !(result.push.delivered || []).length && <CheckRow ok={false} label="Push" detail={`${result.redirect} has no device switched on — sign in as them and press Turn on`} />}
+              {(result.push.delivered || []).map((row, index) => (
+                <CheckRow
+                  key={`${row.service}-${index}`}
+                  ok={row.ok}
+                  label={`Push · ${row.service} device`}
+                  detail={row.ok ? 'accepted by the push service — it should appear within a few seconds' : row.why}
+                />
+              ))}
+              <CheckRow ok={result.email.sent} label="Email" detail={result.email.sent ? 'sent — check your inbox (and spam)' : result.email.why} />
+              <CheckRow
+                ok={Boolean(result.whatsapp?.sent)}
+                label="WhatsApp"
+                detail={result.whatsapp?.sent
+                  ? `accepted by Meta${result.whatsapp.template ? ' (template)' : ''} — delivery shows below in a moment`
+                  : result.whatsapp?.why || 'not set up on the server'}
+              />
+            </div>
+          )}
+        </>
+      )}
+    </section>
+  );
+}
+
 /** Where the app opens for this person: their home, the query list, or Today. Kept on this device. */
 function StartPageChoice() {
   const [page, setPage] = useState(startPage);
@@ -504,6 +610,7 @@ export default function Profile() {
 
       <StartPageChoice />
       <DeviceNotifications />
+      <NotificationCheck />
       <DevicePin />
       <DeviceAccounts />
       <SecurityPolicy />
