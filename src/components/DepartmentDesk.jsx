@@ -456,10 +456,12 @@ export default function DepartmentDesk({ enquiry, onChanged }) {
                       Released to production {formatDate(order.released.at)}{order.released.by ? ` · ${order.released.by}` : ''}
                     </span>
                   ) : order.waiting ? (
-                    <span className={`block text-xs ${order.checksShort.length ? 'text-warn-400' : 'font-semibold text-accent'}`}>
-                      {order.checksShort.length
-                        ? `Not released — still needs ${order.checksShort.join(', ').toLowerCase()}`
-                        : 'Confirmed — ready to release to production'}
+                    <span className={`block text-xs ${order.checksShort.length || order.advanceShort ? 'text-warn-400' : 'font-semibold text-accent'}`}>
+                      {[
+                        order.checksShort.length > 0 && `still needs ${order.checksShort.join(', ').toLowerCase()}`,
+                        /* The advance its terms ask for: logged by Payment Collection, confirmed by Accounts [server: paymentGates]. */
+                        order.advanceShort > 0 && `waiting for the advance — ₹${Math.round(order.advanceShort).toLocaleString('en-IN')} not yet confirmed by Accounts`,
+                      ].filter(Boolean).join(' · ').replace(/^./, (first) => `Not released — ${first}`) || 'Confirmed — ready to release to production'}
                     </span>
                   ) : null}
                 </p>

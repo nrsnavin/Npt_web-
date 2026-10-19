@@ -142,7 +142,7 @@ function MoveForm({ todo, form, step, onCancel, onMoved }) {
       {fieldMissing && <p className="text-xs text-warn-400">Fill in {fieldMissing.label.toLowerCase()} for {step.label}</p>}
       {noModel && <p className="text-xs text-warn-400">Tick at least one model</p>}
       {step.tellBuyer && <p className="text-xs text-steel-400">This sends the buyer a WhatsApp and email from the company number.</p>}
-      {step.confirmsInward && <p className="text-xs text-steel-400">Recorded as a confirmed receipt on the sales order. Once the advance is covered this task closes, and marketing and Admin are told to release the order to production.</p>}
+      {step.confirmsInward && <p className="text-xs text-steel-400">Logged on the sales order’s RCV, and Accounts gets a task to confirm it in the bank. Once Accounts confirms the advance, this task closes and the SO team and marketing are told to release the order to production.</p>}
       {step.done && step.fields?.length > 0 && form.documents?.length > 0 && (
         <p className="text-xs text-steel-400">Attach the {form.documents.map((doc) => doc.label.toLowerCase()).join(' or ')} under Documents, now or afterwards; it is kept on the record.</p>
       )}
