@@ -11,7 +11,8 @@ import { useToast } from '../context/ToastContext.jsx';
 import { todayInIndia } from '../utils/taskForm.js';
 import { ladderOf } from '../utils/taskState.js';
 import { departmentLabel } from '../utils/pipeline.js';
-import { dateLabelFor, needsRouting } from '../utils/edd.js';
+import { dateLabelFor, handsOnOf, needsRouting } from '../utils/edd.js';
+import { isoDay } from '../utils/format.js';
 
 /**
  * A department's own workflow on its task [server: config/departmentTaskForms.js `statuses`]:
@@ -34,7 +35,10 @@ const tomorrowInIndia = () => todayInIndia(new Date(Date.now() + 24 * 60 * 60 * 
  * [server: handoff.service `setTaskStatus`].
  */
 function MoveForm({ todo, form, step, onCancel, onMoved }) {
-  const [date, setDate] = useState(step.date === 'tomorrow' ? tomorrowInIndia() : '');
+  /* A hand-over date already given is offered again, unless it has passed — the input would refuse it. */
+  const givenHandOver = handsOnOf(todo).length && todo.routing?.handOverDate ? isoDay(todo.routing.handOverDate) : '';
+  const handOver = givenHandOver >= todayInIndia() ? givenHandOver : '';
+  const [date, setDate] = useState(handOver || (step.date === 'tomorrow' ? tomorrowInIndia() : ''));
   const [note, setNote] = useState('');
   /* What this move records [server: departmentTaskForms `statuses[].fields`] — who collected a sample, say. */
   const asks = step.fields || [];
