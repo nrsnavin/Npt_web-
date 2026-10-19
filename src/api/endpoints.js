@@ -545,6 +545,8 @@ export const orders = {
   /** What can be done from here, and doing one — verbs rather than a ladder of fourteen. */
   actions: (id) => api.get(`/orders/${id}/actions`).then(unwrap),
   act: ({ id, ...payload }) => api.post(`/orders/${id}/actions`, payload).then(unwrap),
+  /* One click: the checks still open confirmed, and the order released — with its checklist back [server: applyOrderAction `confirmAll`]. */
+  release: ({ id, ...payload }) => api.post(`/orders/${id}/actions`, { ...payload, action: 'release', confirmAll: true }).then((r) => r.data),
   /** Where the order stands against its payment terms, before production and before dispatch. */
   payment: (id) => api.get(`/orders/${id}/payment`).then(unwrap),
   /** Admin lets production or dispatch go on before the money is in: `{ stage, reason }`. */
