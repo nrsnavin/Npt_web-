@@ -116,3 +116,14 @@ test('press time reads from the mould, and is flagged when it runs past the EDD'
   assert.equal(pressTimeTight({ capacity: { finish: '2026-11-05T00:00:00Z' }, edd: { date: '2026-11-03' } }), true);
   assert.equal(pressTimeTight({ capacity: { finish: '2026-11-02T00:00:00Z' }, edd: { date: '2026-11-03' } }), false);
 });
+
+test('the Production desk opens on what is not taken for production yet; the queue on both; the choice is kept', () => {
+  const list = readFileSync(new URL('../src/components/ProductionQueueList.jsx', import.meta.url), 'utf8');
+  assert.match(list, /label: 'Not taken for production', count: \(meta\) => meta\?\.teams\?\.notTaken/);
+  assert.match(list, /label: 'In production', count: \(meta\) => meta\?\.teams\?\.inProduction/);
+  assert.match(list, /return compact \? 'not_taken' : 'all';/, 'the desk starts on not taken; the queue page on both');
+  assert.match(list, /if \(stage === 'not_taken' && row\.production\?\.taken\) return false;/);
+  assert.match(list, /if \(stage === 'in_production' && !row\.production\?\.taken\) return false;/);
+  assert.match(list, /window\.localStorage\.setItem\(stageKey\(compact\), next\)/);
+  assert.match(list, /'Not taken yet'/, 'each line says which it is');
+});
