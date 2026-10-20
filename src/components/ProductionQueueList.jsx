@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { production as productionApi } from '../api/endpoints.js';
+import { production as productionApi, workspace } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import AddToProductionQueue from './AddToProductionQueue.jsx';
-import { ErrorState, TableSkeleton } from './ui.jsx';
+import { ErrorState, Field, Modal, Notice, TableSkeleton } from './ui.jsx';
 import { formatDate, formatRelative } from '../utils/format.js';
 import { EDD_BANDS, dueWords } from '../utils/productionQueue.js';
 import { WORK_ORDER_STATUS } from '../utils/workOrders.js';
@@ -16,6 +16,51 @@ import { WORK_ORDER_STATUS } from '../utils/workOrders.js';
  */
 
 const REFRESH_MS = 60 * 1000;
+
+/**
+ * Admin takes a Production task off the desk — in the production queue or not yet: raised twice,
+ * raised by mistake, an order the buyer dropped. It is closed with the reason [server:
+ * handoff.service `closeByAdmin`], so it leaves the queue and the desk while the record and its
+ * history stay; nothing goes on to Printing, Assembly or Dispatch.
+ */
+function DeleteTaskDialog({ row, onClose, onDeleted }) {
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState(null);
+  const submit = async (event) => {
+    event.preventDefault();
+    setBusy(true);
+    setProblem(null);
+    try {
+      await workspace.todos.adminClose({ id: row.task._id, reason });
+      onDeleted();
+      onClose();
+    } catch (failure) {
+      setProblem(failure.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const what = [row.enquiry.number || 'Team task', row.enquiry.customer?.name, row.enquiry.model].filter(Boolean).join(' · ');
+  return (
+    <Modal open title="Delete this Production task?" description={what} onClose={onClose}>
+      <form onSubmit={submit} className="space-y-4">
+        <p className="text-sm text-steel-300">
+          It leaves the production queue and the Production desk{row.production?.taken ? ', though it was in the queue' : ''}. Nothing goes on to
+          Printing, Assembly or Dispatch, and the enquiry stays where it is. Production is told why; the record and its history are kept.
+        </p>
+        <Field label="Why it is being deleted" required hint="For example: raised twice, raised by mistake, the buyer dropped the order">
+          <textarea rows={3} className="input" value={reason} onChange={(event) => setReason(event.target.value)} autoFocus />
+        </Field>
+        {problem && <Notice tone="danger">{problem}</Notice>}
+        <div className="flex justify-end gap-2">
+          <button type="button" className="btn-ghost" onClick={onClose} disabled={busy}>Cancel</button>
+          <button type="submit" className="btn-danger" disabled={busy || reason.trim().length < 5}>{busy ? 'Deleting…' : 'Delete task'}</button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
 
 /*
  * In the production queue yet [server: productionSummary.service `productionTaken`] — Production
@@ -70,6 +115,7 @@ export default function ProductionQueueList({ compact = false, onRows }) {
   const [search, setSearch] = useState('');
   const [stage, setStageState] = useState(() => keptStage(compact));
   const [adding, setAdding] = useState(null);
+  const [deleting, setDeleting] = useState(null);
   const { isAdmin, departments = [] } = useAuth();
   /* Production plans its own press; Admin may too. */
   const mayPlan = isAdmin || departments.includes('production');
@@ -200,6 +246,10 @@ export default function ProductionQueueList({ compact = false, onRows }) {
                       <button type="button" className="btn-primary justify-center px-3 py-2 text-sm" onClick={() => setAdding(row)}>Add to production queue</button>
                     )}
                     <Link to={row.link} className={`${mayPlan && row.production && !row.production.taken ? 'btn-secondary' : 'btn-primary'} justify-center px-3 py-2 text-sm`}>Workflow →</Link>
+                    {/* Admin only, in the queue or not: closed with a reason, never wiped. */}
+                    {isAdmin && (
+                      <button type="button" className="btn-ghost justify-center px-3 py-1.5 text-xs text-danger-400" onClick={() => setDeleting(row)}>Delete task</button>
+                    )}
                   </div>
                 </div>
               </li>
@@ -217,6 +267,8 @@ export default function ProductionQueueList({ compact = false, onRows }) {
           onAdded={() => load()}
         />
       )}
+
+      {deleting && <DeleteTaskDialog row={deleting} onClose={() => setDeleting(null)} onDeleted={() => load()} />}
 
       {!compact && (
         <p className="text-xs text-steel-500">

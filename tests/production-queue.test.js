@@ -154,3 +154,11 @@ test('a Production task raised from the customer, with no enquiry, is a job of i
   const routing = readFileSync(new URL('../src/components/TaskRouting.jsx', import.meta.url), 'utf8');
   assert.match(routing, /if \(todo\.kind !== 'ask_edd'\) return null;/, 'printing and assembly decided on a team task too');
 });
+
+test('Admin deletes a Production task from the desk, in the queue or not — closed with a reason', () => {
+  const list = readFileSync(new URL('../src/components/ProductionQueueList.jsx', import.meta.url), 'utf8');
+  assert.match(list, /\{isAdmin && \(\s*<button type="button" className="btn-ghost[^"]*" onClick=\{\(\) => setDeleting\(row\)\}>Delete task<\/button>/, 'on every row, for Admin only');
+  assert.match(list, /await workspace\.todos\.adminClose\(\{ id: row\.task\._id, reason \}\)/, 'closed on the server, never wiped');
+  assert.match(list, /disabled=\{busy \|\| reason\.trim\(\)\.length < 5\}/, 'a reason first');
+  assert.match(list, /onDeleted=\{\(\) => load\(\)\}/, 'the desk reloads without it');
+});

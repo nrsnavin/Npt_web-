@@ -6,6 +6,7 @@ import Menu from './Menu.jsx';
 import { describeBrief } from '../utils/taskForm.js';
 import { isoDay } from '../utils/format.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import DeliveryUrgencyDialog from './DeliveryUrgencyDialog.jsx';
 
 /**
  * What a department does with its task [server: services/handoff.service.js]:
@@ -159,11 +160,19 @@ export function HandoffDialog({ todo, mode, onClose, onChanged }) {
  */
 export default function HandoffTaskActions({ todo, onChanged, layout = 'row', primary }) {
   const catalogue = useHandoffCatalogue();
-  const { isAdmin } = useAuth();
+  const { isAdmin, departments = [] } = useAuth();
   const [mode, setMode] = useState(null);
+  const [urgencyOpen, setUrgencyOpen] = useState(false);
   if (!todo?.kind || todo.completed) return null;
   /* Admin may close any department task outright — never the enquiry itself, which closes with Task Closed. */
   const adminClose = isAdmin ? [{ key: 'admin', label: 'Close task (Admin)', hint: 'Ends it here, with a reason — nothing follows', onSelect: () => setMode('admin') }] : [];
+  /* A Dispatch request: marketing or Admin says how soon the buyer needs it [DeliveryUrgencyDialog]. */
+  const urgency = todo.kind === 'invoice_dispatch' && (isAdmin || departments.includes('marketing'))
+    ? [{ key: 'urgency', label: todo.delivery?.urgency ? `Delivery: ${todo.delivery.label} — change` : 'Set delivery urgency', hint: 'How soon the buyer needs it — orders the Dispatch queue', onSelect: () => setUrgencyOpen(true) }]
+    : [];
+  const urgencyDialog = urgencyOpen && (
+    <DeliveryUrgencyDialog taskId={todo._id} current={todo.delivery?.urgency} about={todo.title} onClose={() => setUrgencyOpen(false)} onSaved={onChanged} />
+  );
   if (layout === 'menu' && !isTheEnquiry(todo, buttonFor(catalogue, todo.kind))) {
     const byUpload = (buttonFor(catalogue, todo.kind)?.form?.statuses || []).some((entry) => entry.pdf && entry.done);
     const choices = [
@@ -171,6 +180,7 @@ export default function HandoffTaskActions({ todo, onChanged, layout = 'row', pr
       ...(byUpload ? [] : [{ key: 'done', label: todo.holds ? 'Back to marketing' : 'Done', hint: 'Finished — back to whoever asked', onSelect: () => setMode('done') }]),
       { key: 'back', label: 'Send back', hint: 'With a reason, to whoever asked', onSelect: () => setMode('back') },
       { key: 'date', label: 'Change date', hint: 'Move the due date, with a reason', onSelect: () => setMode('date') },
+      ...urgency,
       ...adminClose,
     ];
     const lead = choices.find((choice) => choice.key === primary);
@@ -185,6 +195,7 @@ export default function HandoffTaskActions({ todo, onChanged, layout = 'row', pr
           buttonClassName="btn-secondary min-w-9 px-2.5 py-1.5 text-sm leading-none"
         />
         <HandoffDialog todo={todo} mode={mode} onClose={() => setMode(null)} onChanged={onChanged} />
+        {urgencyDialog}
       </>
     );
   }
@@ -205,8 +216,10 @@ export default function HandoffTaskActions({ todo, onChanged, layout = 'row', pr
       {!byUpload && <button type="button" className="row-action" onClick={() => setMode('done')}>{todo.holds ? 'Back to marketing' : 'Done'}</button>}
       <button type="button" className="row-action" onClick={() => setMode('back')}>Send back</button>
       <button type="button" className="row-action" onClick={() => setMode('date')}>Change date</button>
+      {urgency.length > 0 && <button type="button" className="row-action" onClick={() => setUrgencyOpen(true)}>{todo.delivery?.urgency ? `Urgency: ${todo.delivery.label}` : 'Set urgency'}</button>}
       {isAdmin && <button type="button" className="row-action" onClick={() => setMode('admin')}>Close task</button>}
       <HandoffDialog todo={todo} mode={mode} onClose={() => setMode(null)} onChanged={onChanged} />
+      {urgencyDialog}
     </>
   );
 }
