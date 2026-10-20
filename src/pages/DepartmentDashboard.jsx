@@ -12,6 +12,7 @@ import TaskEdd from '../components/TaskEdd.jsx';
 import AttentionPanel from '../components/AttentionPanel.jsx';
 import DepartmentTaskDialog from '../components/DepartmentTaskDialog.jsx';
 import TripPlanner from '../components/TripPlanner.jsx';
+import DeliveryQueue from '../components/DeliveryQueue.jsx';
 import { buttonFor, useHandoffCatalogue } from '../hooks/useHandoffCatalogue.js';
 import SamplingWorkQueue from '../components/SamplingWorkQueue.jsx';
 import Enquiries from './Enquiries.jsx';
@@ -275,6 +276,8 @@ function DepartmentDesk() {
       ? [{ key: 'all', label: everyone ? 'All enquiries' : figures.department === 'marketing' ? 'My enquiries' : 'All enquiries', count: null }]
       : []),
     { key: 'enquiries', label: isProduction ? 'Production queue' : 'Department tasks', count: enquiries.length },
+    /* Dispatch's delivery queue: every open request by the urgency marketing gave [DeliveryQueue]. */
+    ...(data.baskets ? [{ key: 'delivery', label: 'Delivery queue', count: null }] : []),
     /* Dispatch plans its trips here: ready requests grouped by transporter, route and place [TripPlanner]. */
     ...(data.baskets ? [{ key: 'baskets', label: 'Plan trips', count: null }] : []),
     { key: 'requests', label: 'Requests', count: requests.length },
@@ -416,6 +419,16 @@ function DepartmentDesk() {
               </p>
             </div>
           )}
+        </section>
+      )}
+
+      {tab === 'delivery' && (
+        <section className="card space-y-3 p-5">
+          <p className="text-sm text-steel-300">
+            Every open request in the order it has to go: late first, then Top Most Urgent, Today Morning (by noon), Today Evening and Today (by 7 PM),
+            Tomorrow — and last, those whose urgency marketing has not given yet. Nothing here holds a dispatch.
+          </p>
+          <DeliveryQueue />
         </section>
       )}
 

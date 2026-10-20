@@ -87,6 +87,8 @@ export const workspace = {
     sendBack: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/send-back`, payload).then(unwrap),
     /* Admin only: ends the task where it stands, with a reason; nothing follows from it. */
     adminClose: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/admin-close`, payload).then(unwrap),
+    /* Marketing or Admin: how soon the buyer needs a Dispatch request's goods. */
+    setDelivery: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/delivery`, payload).then(unwrap),
     reschedule: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/reschedule`, payload).then(unwrap),
     /** The department's own status on its task — SO Waiting, Preparing, Needs Clarification. */
     status: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/status`, payload).then(unwrap),
@@ -1109,6 +1111,8 @@ export const auth = {
  */
 export const dispatchPlanning = {
   plan: () => api.get('/dispatch-planning/plan').then(unwrap),
+  /** The delivery queue: every open request by delivery urgency, the most pressing first. */
+  queue: () => api.get('/dispatch-planning/queue').then(unwrap),
   schedule: (payload) => api.post('/dispatch-planning/schedule', payload).then(unwrap),
   customerDelivery: (payload) => api.post('/dispatch-planning/customer-delivery', payload).then(unwrap),
   /** A draft of trips for the ready groups — nothing saved until confirmed. */
