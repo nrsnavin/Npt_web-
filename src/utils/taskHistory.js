@@ -47,7 +47,7 @@ export function readUpdate(update, statuses = []) {
   return { ...base, kind: 'note', text: note };
 }
 
-const OUTCOME = { done: 'Done', returned: 'Sent back', moved: 'Moved on' };
+const OUTCOME = { done: 'Done', returned: 'Sent back', moved: 'Moved on', closed_by_admin: 'Closed by Admin' };
 
 /**
  * Everything that happened on a task, oldest first: raised, every update, every date change,

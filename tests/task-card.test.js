@@ -125,3 +125,16 @@ test('the enquiry’s departments: three bands, done folded, one menu to raise a
   assert.match(history, /initialsOf\(nameOf\(entry\)\)/, 'a marker per person');
   assert.match(history, /sameAuthor \? 'invisible'/, 'the same person again is not named again');
 });
+
+test('Admin can close any department task with a reason — closed, never deleted', () => {
+  const actions = readFileSync(new URL('../src/components/HandoffTaskActions.jsx', import.meta.url), 'utf8');
+  const endpoints = readFileSync(new URL('../src/api/endpoints.js', import.meta.url), 'utf8');
+  assert.match(endpoints, /adminClose: \(\{ id, \.\.\.payload \}\) => api\.post\(`\/workspace\/todos\/\$\{id\}\/admin-close`/);
+  assert.match(actions, /const \{ isAdmin \} = useAuth\(\)/);
+  assert.match(actions, /isAdmin \? \[\{ key: 'admin', label: 'Close task \(Admin\)'/, 'in the card’s ⋯ menu, for Admin only');
+  assert.match(actions, /\{isAdmin && <button type="button" className="row-action" onClick=\{\(\) => setMode\('admin'\)\}>Close task<\/button>\}/);
+  assert.match(actions, /if \(mode === 'admin'\) updated = await workspace\.todos\.adminClose\(\{ id: todo\._id, reason: note \}\)/);
+  assert.match(actions, /admin: 'Why it is being closed'/);
+  const state = readFileSync(new URL('../src/utils/taskState.js', import.meta.url), 'utf8');
+  assert.match(state, /closed_by_admin'\) return \{ label: 'Closed by Admin'/);
+});

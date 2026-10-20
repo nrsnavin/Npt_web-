@@ -112,7 +112,7 @@ export function TodoRow({ todo, onToggle, onDelete, onClaim, onEscalate, readOnl
         )}
         {handoff && todo.outcome?.note && (
           <p className="mt-0.5 text-xs text-steel-400">
-            {todo.outcome.result === 'returned' ? 'Sent back: ' : 'Done: '}{todo.outcome.note}
+            {{ returned: 'Sent back: ', closed_by_admin: 'Closed by Admin: ' }[todo.outcome.result] || 'Done: '}{todo.outcome.note}
           </p>
         )}
 

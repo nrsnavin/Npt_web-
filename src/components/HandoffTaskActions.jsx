@@ -5,6 +5,7 @@ import { Field, Modal, Notice } from './ui.jsx';
 import Menu from './Menu.jsx';
 import { describeBrief } from '../utils/taskForm.js';
 import { isoDay } from '../utils/format.js';
+import { useAuth } from '../context/AuthContext.jsx';
 
 /**
  * What a department does with its task [server: services/handoff.service.js]:
@@ -14,6 +15,8 @@ import { isoDay } from '../utils/format.js';
  *                asked, who takes the next step
  *   Send back    with a reason — back to whoever asked
  *   Change date  with a reason — every task starts due at the end of the day it was raised
+ *   Close task   Admin only, with a reason — it ends where it stands: no next team, the enquiry
+ *                does not move, and the team that had it is told. Closed, never deleted.
  *
  * The enquiry itself stays with its marketing person, whose holding task only moves its
  * follow-up date. A department that still holds an enquiry from before department tasks gives
@@ -46,6 +49,7 @@ export function HandoffDialog({ todo, mode, onClose, onChanged }) {
     update: `Update — ${name}`,
     back: `Send back — ${name}`,
     date: `Change the due date — ${name}`,
+    admin: `Close task — ${name}`,
   };
 
   const submit = async (event) => {
@@ -58,6 +62,7 @@ export function HandoffDialog({ todo, mode, onClose, onChanged }) {
       if (mode === 'update') updated = await workspace.todos.progress({ id: todo._id, note, fields });
       if (mode === 'back') updated = await workspace.todos.sendBack({ id: todo._id, reason: note });
       if (mode === 'date') updated = await workspace.todos.reschedule({ id: todo._id, dueDate, reason: note });
+      if (mode === 'admin') updated = await workspace.todos.adminClose({ id: todo._id, reason: note });
       onChanged?.(updated);
       onClose();
     } catch (failure) {
@@ -73,14 +78,16 @@ export function HandoffDialog({ todo, mode, onClose, onChanged }) {
     update: 'How it is going',
     back: 'Why it is going back',
     date: 'Why the date is moving',
+    admin: 'Why it is being closed',
   }[mode];
   const noteHint = {
     done: holds ? 'The enquiry goes back to its marketing person, with this' : 'Goes back to whoever asked, with the details below',
     update: 'The marketing person sees this; the task stays with you',
     back: holds ? 'The enquiry goes back to its marketing person, with this' : 'It goes back to whoever asked, with this',
     date: 'Whoever asked sees this',
+    admin: 'It ends here: no next team is asked and the enquiry does not move. The team that had it is told, with this.',
   }[mode];
-  const ready = note.trim().length >= 2 && !(mode === 'date' && !dueDate);
+  const ready = note.trim().length >= (mode === 'admin' || mode === 'back' || mode === 'date' ? 5 : 2) && !(mode === 'date' && !dueDate);
 
   return (
     <Modal open title={titles[mode]} description={todo.title} onClose={onClose}>
@@ -134,7 +141,7 @@ export function HandoffDialog({ todo, mode, onClose, onChanged }) {
           <button type="button" className="btn-ghost" onClick={onClose} disabled={busy}>Cancel</button>
           <button type="submit" className="btn-primary" disabled={busy || !ready}>
             {busy ? 'Saving…' : {
-              done: holds ? 'Back to marketing' : 'Mark done', update: 'Save update', back: 'Send back', date: 'Change date',
+              done: holds ? 'Back to marketing' : 'Mark done', update: 'Save update', back: 'Send back', date: 'Change date', admin: 'Close task',
             }[mode]}
           </button>
         </div>
@@ -152,8 +159,11 @@ export function HandoffDialog({ todo, mode, onClose, onChanged }) {
  */
 export default function HandoffTaskActions({ todo, onChanged, layout = 'row', primary }) {
   const catalogue = useHandoffCatalogue();
+  const { isAdmin } = useAuth();
   const [mode, setMode] = useState(null);
   if (!todo?.kind || todo.completed) return null;
+  /* Admin may close any department task outright — never the enquiry itself, which closes with Task Closed. */
+  const adminClose = isAdmin ? [{ key: 'admin', label: 'Close task (Admin)', hint: 'Ends it here, with a reason — nothing follows', onSelect: () => setMode('admin') }] : [];
   if (layout === 'menu' && !isTheEnquiry(todo, buttonFor(catalogue, todo.kind))) {
     const byUpload = (buttonFor(catalogue, todo.kind)?.form?.statuses || []).some((entry) => entry.pdf && entry.done);
     const choices = [
@@ -161,6 +171,7 @@ export default function HandoffTaskActions({ todo, onChanged, layout = 'row', pr
       ...(byUpload ? [] : [{ key: 'done', label: todo.holds ? 'Back to marketing' : 'Done', hint: 'Finished — back to whoever asked', onSelect: () => setMode('done') }]),
       { key: 'back', label: 'Send back', hint: 'With a reason, to whoever asked', onSelect: () => setMode('back') },
       { key: 'date', label: 'Change date', hint: 'Move the due date, with a reason', onSelect: () => setMode('date') },
+      ...adminClose,
     ];
     const lead = choices.find((choice) => choice.key === primary);
     return (
@@ -194,6 +205,7 @@ export default function HandoffTaskActions({ todo, onChanged, layout = 'row', pr
       {!byUpload && <button type="button" className="row-action" onClick={() => setMode('done')}>{todo.holds ? 'Back to marketing' : 'Done'}</button>}
       <button type="button" className="row-action" onClick={() => setMode('back')}>Send back</button>
       <button type="button" className="row-action" onClick={() => setMode('date')}>Change date</button>
+      {isAdmin && <button type="button" className="row-action" onClick={() => setMode('admin')}>Close task</button>}
       <HandoffDialog todo={todo} mode={mode} onClose={() => setMode(null)} onChanged={onChanged} />
     </>
   );

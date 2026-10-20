@@ -85,6 +85,8 @@ export const workspace = {
     /** Progress on the enquiry's task without moving it on. */
     progress: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/update`, payload).then(unwrap),
     sendBack: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/send-back`, payload).then(unwrap),
+    /* Admin only: ends the task where it stands, with a reason; nothing follows from it. */
+    adminClose: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/admin-close`, payload).then(unwrap),
     reschedule: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/reschedule`, payload).then(unwrap),
     /** The department's own status on its task — SO Waiting, Preparing, Needs Clarification. */
     status: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/status`, payload).then(unwrap),
