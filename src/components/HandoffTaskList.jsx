@@ -18,6 +18,7 @@ import { formatDate } from '../utils/format.js';
 function stateOf(task) {
   if (task.outcome?.result === 'returned') return { text: 'Sent back', tone: 'text-warn-400' };
   if (task.outcome?.result === 'moved') return { text: 'Moved on', tone: 'text-steel-400' };
+  if (task.outcome?.result === 'closed_by_admin') return { text: 'Closed by Admin', tone: 'text-steel-400' };
   if (task.completed) return { text: 'Done', tone: 'text-success-400' };
   if (task.dueDate && new Date(task.dueDate) < new Date()) {
     return { text: `Late — was due ${formatDate(task.dueDate)}`, tone: 'text-danger-400' };

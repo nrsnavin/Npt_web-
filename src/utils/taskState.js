@@ -60,6 +60,7 @@ export function ladderOf(button, task) {
 export function stateOf(task, button) {
   if (task.outcome?.result === 'returned') return { label: 'Sent back', tone: 'blocked' };
   if (task.outcome?.result === 'moved') return { label: 'Moved on', tone: 'done' };
+  if (task.outcome?.result === 'closed_by_admin') return { label: 'Closed by Admin', tone: 'done' };
   const statuses = button?.form?.statuses || [];
   const index = statuses.findIndex((entry) => entry.key === task.status);
   const step = index >= 0 ? statuses[index] : null;
