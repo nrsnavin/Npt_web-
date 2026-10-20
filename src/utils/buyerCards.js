@@ -18,7 +18,7 @@ export const CARD_FIELDS = [
 ];
 
 /** What the picture was, in the list and above the photo. */
-export const KIND_LABEL = { card: 'Card', chat: 'Chat screenshot', other: 'Not a card or chat' };
+export const KIND_LABEL = { card: 'Card', chat: 'Chat screenshot', email: 'Email', screenshot: 'Screenshot', other: 'Not about a buyer' };
 
 /** "5000" → 5000; "" → null. Anything else is not a quantity. */
 export const quantityOf = (text) => {

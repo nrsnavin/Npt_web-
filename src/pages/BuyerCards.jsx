@@ -17,8 +17,8 @@ import {
 /**
  * Draft enquiries.
  *
- * A salesperson screenshots a WhatsApp chat with a buyer, or photographs a visiting card or an
- * enquiry slip, and sends it to the plant's WhatsApp number — or uploads it here — and the model
+ * A salesperson screenshots a WhatsApp chat or an email with a buyer (or an IndiaMART lead, an
+ * order list), or photographs a visiting card or an enquiry slip, and sends it to the plant's WhatsApp number — or uploads it here — and the model
  * reads it into a draft holding only what the picture shows. The draft waits here beside the
  * picture; the salesperson checks what was recognised, fills in the rest — the next step, when to
  * follow up, how they met the buyer — and saves it, which makes the customer and the enquiry.
@@ -624,7 +624,7 @@ export default function BuyerCards() {
     <div className="mx-auto max-w-6xl space-y-5">
       <PageHeader
         title="Draft enquiries"
-        subtitle="Started from WhatsApp chat screenshots and visiting cards. For a chat, type the buyer’s number into the message box before taking the screenshot — it is read as their number. Check what was recognised, fill in the rest, and save it — that makes the customer and the enquiry."
+        subtitle="Started from visiting cards, emails, WhatsApp chats and other screenshots — the buyer and every model they ask for are read from each. For a chat, type the buyer’s number into the message box before taking the screenshot — it is read as their number. Check what was recognised, fill in the rest, and save it — that makes the customer and the enquiry."
         actions={
           <div className="flex items-center gap-2">
             <Link to="/enquiries" className="btn-secondary">All enquiries</Link>
@@ -637,7 +637,7 @@ export default function BuyerCards() {
       />
 
       <p className="text-sm text-steel-400">
-        On the road? Send a photo of the card, or screenshots of your chat with the buyer, to the plant’s WhatsApp number from your
+        On the road? Send a photo of the card, or screenshots of your chat or email with the buyer, to the plant’s WhatsApp number from your
         own phone. What it shows is saved here as a draft — finish it with the next step, when to follow up, and how you met them.
         {' '}On the phone, <span className="font-semibold text-steel-200">+ Photos or screenshots</span> picks from the gallery or the
         camera, several at once; with the app installed on Android, a screenshot can also be sent straight from the gallery with
@@ -669,7 +669,7 @@ export default function BuyerCards() {
       {state && !state.data.length && !selected && (
         <EmptyState
           title={view === 'waiting' ? 'No drafts' : 'Nothing finished yet'}
-          description="Send a photo of a visiting card or a screenshot of a chat with a buyer to the WhatsApp number, or add one here."
+          description="Send a photo of a visiting card, or a screenshot of an email, a WhatsApp chat or an IndiaMART lead, to the WhatsApp number — or add one here."
           icon="▭"
         />
       )}
