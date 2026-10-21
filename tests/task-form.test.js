@@ -7,7 +7,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
-  briefToSend, cellText, departmentOptions, describeBrief, missingAnswer, noteNeeded, optionOf, startingAnswers,
+  briefSections, briefToSend, cellText, departmentOptions, describeBrief, missingAnswer, noteNeeded, optionOf, startingAnswers,
 } from '../src/utils/taskForm.js';
 
 const SAMPLE = {
@@ -179,4 +179,39 @@ test('a task raised without the hanger details offers to fill them, from the reg
     const fields = [{ key: 'model' }, { key: 'material' }, { key: 'quantity' }, { key: 'hook' }];
     assert.deepEqual(missingDetails({ brief: { model: 'CRF25' } }, fields), ['material', 'quantity']);
   }
+});
+
+test('an SO request reads as it was entered: answers by name, a block per model with pcs × price, the total, the box', () => {
+  const button = {
+    asks: [
+      { key: 'contactPerson', label: 'Contact person' }, { key: 'mobile', label: 'Mobile number' },
+      { key: 'items', label: 'Sales order details', type: 'items', columns: [
+        { key: 'model', label: 'Model' }, { key: 'material', label: 'Material & colour' }, { key: 'hook', label: 'Hook' },
+        { key: 'clip', label: 'Clip' }, { key: 'print', label: 'Print' }, { key: 'quantity', label: 'Qty (pcs)', type: 'number' },
+        { key: 'price', label: 'Price (₹ / pc)', type: 'number' }, { key: 'edd', label: 'EDD', type: 'date' },
+      ] },
+      { key: 'paymentTerms', label: 'Payment terms' }, { key: 'poNumber', label: 'Customer PO number' },
+      { key: 'productionConfirmed', label: 'Production confirmed', type: 'check', checked: true },
+    ],
+  };
+  const brief = {
+    poNumber: 'PO-7781', paymentTerms: '50% advance, 50% before dispatch', contactPerson: 'Sasikumar', mobile: '9876543210', productionConfirmed: 'Yes',
+    items: [
+      { model: 'NPT-400S', material: 'PP Black', hook: 'Chrome swivel', clip: 'Metal clip', print: 'Logo', quantity: '10000', price: '2.4', edd: '2026-11-10' },
+      { model: 'NPT-410V', material: 'HIPS Clear', quantity: '5000', price: '3.1' },
+    ],
+  };
+  const { facts, checks, tables } = briefSections(button, brief);
+  assert.deepEqual(facts.map((fact) => fact.label), ['Contact person', 'Mobile number', 'Payment terms', 'Customer PO number'], 'in the form’s order');
+  assert.equal(tables[0].label, 'Sales order details');
+  const [first, second] = tables[0].rows;
+  assert.equal(first.title, 'NPT-400S');
+  assert.deepEqual(first.parts.map((part) => `${part.label} ${part.value}`), ['Material & colour PP Black', 'Hook Chrome swivel', 'Clip Metal clip', 'Print Logo']);
+  assert.match(first.amount, /^10,000 pcs × ₹2\.4 = ₹24,000 · EDD /);
+  assert.equal(second.amount, '5,000 pcs × ₹3.1 = ₹15,500');
+  assert.equal(tables[0].total, '2 models · 15,000 pcs · ₹39,500');
+  assert.deepEqual(checks, [{ key: 'productionConfirmed', label: 'Production confirmed', ticked: true }]);
+  /* Unticked, the box the form starts ticked still shows — the order is held. */
+  assert.equal(briefSections(button, { ...brief, productionConfirmed: '' }).checks[0].ticked, false);
+  assert.deepEqual(briefSections(button, undefined), { facts: [], checks: [], tables: [] });
 });

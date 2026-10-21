@@ -6,6 +6,7 @@
  * turn that, and the enquiry's prefill, into the form's starting answers — and back into what
  * is sent. Kept out of the component so they can be tested without a browser.
  */
+import { formatDate } from './format.js';
 
 /** A value from the prefill by its path: "customer.contactPerson", "models", "items". */
 export function prefillValue(prefill, path) {
@@ -161,6 +162,83 @@ export function briefEntries(button, brief) {
     }
   }
   return entries;
+}
+
+const MONEY_KEYS = ['price', 'targetPrice'];
+const pieces = (value) => Number(value).toLocaleString('en-IN');
+const rupees = (value) => `₹${Number(value).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+const ticked = (value) => value === true || value === 'Yes' || value === 'true';
+const titleCase = (key) => key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1').toLowerCase();
+
+/** One row of a table as a model block: what it is, its parts by name, and how many at what price. */
+function rowBlock(row, columns) {
+  const [first, ...rest] = columns;
+  const parts = [];
+  const sums = [];
+  const dates = [];
+  for (const column of rest) {
+    const value = row[column.key];
+    if (value == null || String(value).trim() === '') continue;
+    if (column.key === 'quantity' || MONEY_KEYS.includes(column.key)) continue;
+    if (column.type === 'date') dates.push(`${column.label || 'Date'} ${formatDate(value)}`);
+    else parts.push({ label: column.label || titleCase(column.key), value: String(value) });
+  }
+  const quantity = Number(row.quantity);
+  const price = Number(row.price);
+  const hasQuantity = row.quantity != null && String(row.quantity).trim() !== '' && Number.isFinite(quantity);
+  const hasPrice = row.price != null && String(row.price).trim() !== '' && Number.isFinite(price);
+  const value = hasQuantity && hasPrice ? quantity * price : null;
+  if (hasQuantity) sums.push(`${pieces(quantity)} pcs`);
+  if (hasPrice) sums.push(hasQuantity ? `× ${rupees(price)} = ${rupees(value)}` : `${rupees(price)} / pc`);
+  if (row.targetPrice) sums.push(`target ${rupees(row.targetPrice)} / pc`);
+  const amount = [sums.join(' '), ...dates].filter(Boolean).join(' · ');
+  return { title: String(row[first.key] || '—'), parts, amount: amount || null, quantity: hasQuantity ? quantity : 0, value };
+}
+
+/**
+ * What a task was asked, laid out as the form asked it [components/TaskHistory.jsx `TaskFacts`] —
+ * so the team reads the request as it was entered, not as one run-on line:
+ *
+ *   facts   label / value, in the form's order; answers from an earlier form after them
+ *   checks  each box ticked — and a box the form starts ticked that was unticked (the SO request's
+ *           Production confirmed: unticked, the order is held)
+ *   tables  a table's rows, one block per model: its parts by name, pieces × price = value and the
+ *           EDD, and the total over every row
+ */
+export function briefSections(button, brief) {
+  const sections = { facts: [], checks: [], tables: [] };
+  if (!brief) return sections;
+  const asks = button?.asks || [];
+  const known = asks.filter((field) => field.key in brief || (field.type === 'check' && field.checked));
+  const earlier = Object.keys(brief).filter((key) => !asks.some((field) => field.key === key)).map((key) => ({ key }));
+  for (const field of [...known, ...earlier]) {
+    if (field.hidden || field.type === 'kind' || field.type === 'info') continue;
+    const value = brief[field.key];
+    if (field.type === 'check') {
+      if (ticked(value)) sections.checks.push({ key: field.key, label: field.label, ticked: true });
+      else if (field.checked) sections.checks.push({ key: field.key, label: field.label, ticked: false });
+      continue;
+    }
+    if (value === undefined || value === null || value === '' || value === false) continue;
+    if (Array.isArray(value)) {
+      const rows = value.filter((row) => row && Object.values(row).some((cell) => String(cell ?? '').trim()));
+      if (!rows.length) continue;
+      const columns = field.columns || Object.keys(rows[0]).map((key) => ({ key }));
+      const blocks = rows.map((row) => rowBlock(row, columns));
+      const quantity = blocks.reduce((sum, block) => sum + block.quantity, 0);
+      const priced = blocks.filter((block) => block.value != null);
+      const total = blocks.length > 1 && quantity
+        ? [`${blocks.length} models`, `${pieces(quantity)} pcs`, priced.length ? rupees(priced.reduce((sum, block) => sum + block.value, 0)) : null].filter(Boolean).join(' · ')
+        : null;
+      sections.tables.push({ key: field.key, label: labelOf(field, field.key), rows: blocks, total });
+      continue;
+    }
+    const shown = value === true ? 'Yes'
+      : (field.type === 'number' || field.key === 'quantity') && Number.isFinite(Number(value)) ? pieces(value)
+        : String(value);
+    sections.facts.push({ key: field.key, label: labelOf(field, field.key), value: shown });
+  }
+  return sections;
 }
 
 export function describeBrief(button, brief) {

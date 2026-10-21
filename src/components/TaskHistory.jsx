@@ -1,6 +1,6 @@
 import { Fragment } from 'react';
 import { useHandoffCatalogue } from '../hooks/useHandoffCatalogue.js';
-import { briefEntries } from '../utils/taskForm.js';
+import { briefSections } from '../utils/taskForm.js';
 import { timelineOf } from '../utils/taskHistory.js';
 import { toneOfKind, toneOfStep } from '../utils/taskState.js';
 import { formatDate, formatDateTime, formatRelative, initialsOf, isoDay } from '../utils/format.js';
@@ -40,19 +40,53 @@ const dayHeading = (at, now = new Date()) => {
   return formatDate(at);
 };
 
-/** What the task was asked, as label / value rows. */
+/**
+ * What the task was asked, as it was entered [utils/taskForm.js `briefSections`]: the answers as
+ * label / value rows, the boxes ticked (or left unticked where that matters), and each model of a
+ * table as its own block — parts by name, pieces × price, EDD — with the total under them.
+ */
 export function TaskFacts({ button, task, className = '' }) {
-  const entries = briefEntries(button, task.brief);
-  if (!entries.length) return null;
+  const { facts, checks, tables } = briefSections(button, task.brief);
+  if (!facts.length && !checks.length && !tables.length) return null;
   return (
-    <dl className={`grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-xs ${className}`}>
-      {entries.map((entry) => (
-        <div key={entry.key} className="contents">
-          <dt className="text-steel-500">{entry.label}</dt>
-          <dd className="min-w-0 break-words text-steel-200">{entry.value}</dd>
+    <div className={`space-y-2 text-xs ${className}`}>
+      {facts.length > 0 && (
+        <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
+          {facts.map((entry) => (
+            <div key={entry.key} className="contents">
+              <dt className="text-steel-500">{entry.label}</dt>
+              <dd className="min-w-0 break-words text-steel-200">{entry.value}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      {tables.map((table) => (
+        <div key={table.key} className="space-y-1">
+          <p className="font-semibold text-steel-400">{table.label}</p>
+          <ol className="space-y-1">
+            {table.rows.map((row, index) => (
+              <li key={`${row.title}-${index}`} className="rounded-md border border-line/[0.06] bg-line/[0.03] px-2 py-1.5">
+                <p className="text-sm font-semibold text-steel-50">{row.title}</p>
+                {row.parts.length > 0 && (
+                  <p className="text-steel-300">
+                    {row.parts.map((part, at) => (
+                      <span key={part.label}>{at > 0 && ' · '}<span className="text-steel-500">{part.label}</span> {part.value}</span>
+                    ))}
+                  </p>
+                )}
+                {row.amount && <p className="font-semibold text-steel-100">{row.amount}</p>}
+              </li>
+            ))}
+          </ol>
+          {table.total && <p className="text-right font-semibold text-steel-200">Total: {table.total}</p>}
         </div>
       ))}
-    </dl>
+      {checks.map((check) => (
+        <p key={check.key} className={`font-semibold ${check.ticked ? 'text-success-400' : 'text-warn-400'}`}>
+          {check.ticked ? `✓ ${check.label}` : `✗ Not ticked — ${check.label}`}
+        </p>
+      ))}
+    </div>
   );
 }
 

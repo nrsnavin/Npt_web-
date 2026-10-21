@@ -3,7 +3,7 @@ import { workspace } from '../api/endpoints.js';
 import { buttonFor, useHandoffCatalogue } from '../hooks/useHandoffCatalogue.js';
 import { Field, Modal, Notice } from './ui.jsx';
 import Menu from './Menu.jsx';
-import { describeBrief } from '../utils/taskForm.js';
+import { TaskFacts } from './TaskHistory.jsx';
 import { isoDay } from '../utils/format.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import DeliveryUrgencyDialog from './DeliveryUrgencyDialog.jsx';
@@ -43,7 +43,6 @@ export function HandoffDialog({ todo, mode, onClose, onChanged }) {
 
   const holds = Boolean(todo.holds);
   const name = button?.label || 'task';
-  const asked = describeBrief(button, todo.brief);
 
   const titles = {
     done: holds ? `Done — back to marketing — ${name}` : `Done — ${name}`,
@@ -93,9 +92,9 @@ export function HandoffDialog({ todo, mode, onClose, onChanged }) {
   return (
     <Modal open title={titles[mode]} description={todo.title} onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
-        {(todo.notes || asked.length > 0) && (
-          <div className="space-y-1 rounded-lg border border-line/[0.06] bg-ink-800/40 p-3 text-sm text-steel-300">
-            {asked.map((line) => <p key={line}>{line}</p>)}
+        {(todo.notes || todo.brief) && (
+          <div className="space-y-2 rounded-lg border border-line/[0.06] bg-ink-800/40 p-3 text-sm text-steel-300">
+            <TaskFacts button={button} task={todo} />
             {todo.notes && <p><span className="text-steel-500">Asked: </span>{todo.notes}</p>}
           </div>
         )}

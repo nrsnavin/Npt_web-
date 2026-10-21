@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { useRecord } from '../hooks/useRecords.js';
 import HandoffTaskList from '../components/HandoffTaskList.jsx';
 import HandoffTaskActions from '../components/HandoffTaskActions.jsx';
-import { describeBrief } from '../utils/taskForm.js';
+import { TaskFacts } from '../components/TaskHistory.jsx';
 import TaskPdfLink from '../components/TaskPdfLink.jsx';
 import TaskWorkflow from '../components/TaskWorkflow.jsx';
 import TaskEdd from '../components/TaskEdd.jsx';
@@ -78,7 +78,6 @@ function EnquiryCard({ row, department, me, onChanged }) {
   const { enquiry, task } = row;
   const catalogue = useHandoffCatalogue();
   const button = buttonFor(catalogue, task.kind);
-  const asked = describeBrief(button, task.brief);
   const holder = task.user?._id ? task.user : null;
   const lastUpdate = (task.updates || []).at(-1);
   /* A team task raised without an enquiry has no enquiry screens to open. */
@@ -121,7 +120,8 @@ function EnquiryCard({ row, department, me, onChanged }) {
       </header>
 
       <p className="text-sm font-semibold text-steel-100">{button?.label || task.title}</p>
-      {asked.map((line) => <p key={line} className="-mt-2 text-xs text-steel-300">{line}</p>)}
+      {/* What was asked, as it was entered on the form — every answer, each model in its own block. */}
+      <TaskFacts button={button} task={task} className="-mt-1" />
       <TaskPdfLink file={task.attachment} className="-mt-2 self-start" />
 
       <div className="flex flex-wrap gap-1.5">
