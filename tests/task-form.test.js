@@ -117,6 +117,15 @@ test('an SO request’s rows read with their pieces, price and EDD', () => {
   assert.equal(cellText({ key: 'quantity' }, '3'), '3 pcs');
 });
 
+test('an SO request starts with Production confirmed ticked; unticked, nothing is sent and the order is held', () => {
+  const button = { asks: [{ key: 'productionConfirmed', label: 'Production confirmed', type: 'check', checked: true }, { key: 'vigorous', label: 'Vigorous', type: 'check' }] };
+  const answers = startingAnswers(button, {});
+  assert.equal(answers.productionConfirmed, true, 'ticked by default');
+  assert.equal(answers.vigorous, false, 'other boxes still start blank');
+  assert.deepEqual(briefToSend(button, answers), { productionConfirmed: true });
+  assert.deepEqual(briefToSend(button, { ...answers, productionConfirmed: false }), {}, 'unticked: held under Production Holded Orders');
+});
+
 test('the held order’s banner and Move to Production are drawn by the desk for Admin or its owner', () => {
   const desk = readFileSync(new URL('../src/components/DepartmentDesk.jsx', import.meta.url), 'utf8');
   assert.match(desk, /stage === 'production_hold'/);

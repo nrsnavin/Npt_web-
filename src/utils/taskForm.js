@@ -29,7 +29,8 @@ function startingAnswer(field, prefill) {
     const rows = Array.isArray(known) && known.length ? known : [{}];
     return rows.map((row) => ({ ...blankRow(field.columns), ...pick(row, field.columns) }));
   }
-  if (field.type === 'check') return Boolean(known);
+  /* A box the form starts ticked (`checked`: the SO request's Production confirmed) unless the enquiry says otherwise. */
+  if (field.type === 'check') return known == null ? Boolean(field.checked) : Boolean(known);
   if (field.type === 'choice' && field.options && !field.options.includes(known)) return '';
   return known == null ? '' : String(known);
 }
