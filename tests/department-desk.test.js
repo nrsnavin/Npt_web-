@@ -46,7 +46,7 @@ test('the dashboard lists department tasks as cards, with what was asked, their 
   assert.match(page, /deskActionsFor\(department, row\)/);
   assert.match(page, /<HandoffTaskActions todo=\{task\}/);
   assert.match(page, /data\?\.enquiries/);
-  assert.match(page, /describeBrief\(button, task\.brief\)/);
+  assert.match(page, /<TaskFacts button=\{button\} task=\{task\}/);
   for (const tab of ['Department tasks', 'Requests', 'Waiting on others', 'Came back', 'Done this week']) {
     assert.ok(page.includes(`'${tab}'`), `no ${tab} tab`);
   }

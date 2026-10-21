@@ -87,6 +87,7 @@ test('the enquiry’s task cards, the task panel and the desk lists draw the sam
   const history = read('components/TaskHistory.jsx');
   assert.match(history, /title=\{formatDateTime\(entry\.at\)\}/, 'the exact time of day on hover, on every line');
   assert.match(history, /formatRelative\(entry\.at\)/, 'how long ago, as read');
-  assert.match(history, /<dl className=\{`grid grid-cols-\[auto_1fr\]/, 'facts as a table');
+  assert.match(history, /<dl className="grid grid-cols-\[auto_1fr\]/, 'answers as a label / value table');
+  assert.match(history, /briefSections\(button, task\.brief\)/, 'a block per model, the boxes, the total');
   assert.match(read('utils/format.js'), /export const formatDateTime/);
 });
