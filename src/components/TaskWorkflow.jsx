@@ -34,7 +34,7 @@ const tomorrowInIndia = () => todayInIndia(new Date(Date.now() + 24 * 60 * 60 * 
  * The move itself, beside the list: the ready date and the remark, then Update status
  * [server: handoff.service `setTaskStatus`].
  */
-function MoveForm({ todo, form, step, onCancel, onMoved }) {
+function MoveForm({ todo, form, step, onCancel, onMoved, noDates = false }) {
   /*
    * The date already given starts the box: the hand-over date to Printing / Assembly while this
    * team hands on, else the date it gave its models — if it is not past. Sent again only when
@@ -57,6 +57,8 @@ function MoveForm({ todo, form, step, onCancel, onMoved }) {
   const [problem, setProblem] = useState(null);
   /* Production gives no date until it has said what follows moulding [TaskRouting]; a team that hands on gives a hand-over date. */
   const unrouted = needsRouting(todo) && Boolean(form.statusDate);
+  /* On Production's task only the Production in charge gives a date [server: `assertPlansProduction`]. */
+  const dated = Boolean(form.statusDate) && !unrouted && !noDates;
   const dateLabel = dateLabelFor(todo, form.statusDate?.label || 'Ready date');
   const dateNeeded = step.date === 'required' && !date;
   const remarkNeeded = form.remarkRequired && note.trim().length < 3;
@@ -70,7 +72,7 @@ function MoveForm({ todo, form, step, onCancel, onMoved }) {
       .map((field) => [field.key, field.type === 'number' ? Number(answers[field.key]) : String(answers[field.key]).trim()]));
     try {
       onMoved(await workspace.todos.status({
-        id: todo._id, status: step.key, note, ...(date && !unrouted && (date !== given || step.date) ? { date } : {}), ...(asks.length ? { fields } : {}),
+        id: todo._id, status: step.key, note, ...(date && dated && (date !== given || step.date) ? { date } : {}), ...(asks.length ? { fields } : {}),
         ...(byModel && picked.length < allModels.length ? { models: picked } : {}),
       }));
     } catch (failure) {
@@ -129,7 +131,7 @@ function MoveForm({ todo, form, step, onCancel, onMoved }) {
             )}
           </Field>
         ))}
-        {form.statusDate && !unrouted && (
+        {dated && (
           <Field label={dateLabel} required={step.date === 'required'}>
             <input type="date" className="input" min={todayInIndia()} value={date} onChange={(event) => setDate(event.target.value)} />
           </Field>
@@ -370,8 +372,13 @@ const QC_KINDS = ['quality_check', 'quality_issue'];
 const orderWords = (order) => (order?.said ? `Sales order ${order.said}.` : '');
 
 export default function TaskWorkflow({ todo, onChanged, startWith }) {
-  const { canWrite } = useAuth();
+  const { canWrite, mayPlanProduction } = useAuth();
   const catalogue = useHandoffCatalogue();
+  /*
+   * Production's dates are the Production in charge's: the rest of Production is not offered a
+   * status that sets one (Ready Tomorrow, Ready on Selected Date), nor a date box with a move.
+   */
+  const noDates = todo?.kind === 'ask_edd' && !mayPlanProduction;
   const button = buttonFor(catalogue, todo?.kind);
   /* Handed to Printing / Assembly only where a model goes there. */
   const statuses = statusesFor(todo, button?.form?.statuses || []);
@@ -404,7 +411,9 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
   const missing = missingDetails(todo, details);
   /* The obvious move — the rung after the one the task stands on — as the one big button. */
   const next = ladderOf(button, todo)?.next;
-  const nextIsButton = next && !next.pdf && !waiting.length;
+  const nextIsButton = next && !next.pdf && !waiting.length && !(noDates && next.date);
+  /* The statuses this person may pick — where the task stands is always listed, so the list reads it. */
+  const offered = noDates ? statuses.filter((entry) => !entry.date || entry.key === todo.status) : statuses;
 
   if (todo.completed) {
     return (
@@ -451,7 +460,7 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
           aria-describedby={waiting.length ? `waiting-${todo._id}` : undefined}
           onChange={(event) => choose(event.target.value)}
         >
-          {statuses.map((entry) => <option key={entry.key} value={entry.key}>{entry.label}</option>)}
+          {offered.map((entry) => <option key={entry.key} value={entry.key}>{entry.label}</option>)}
         </select>
       </div>
       {/* Each model where it is, once one moved on its own; the task reads its slowest [server: `modelStatusesOf`]. */}
@@ -530,6 +539,7 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
           todo={todo}
           form={button.form}
           step={moving}
+          noDates={noDates}
           onCancel={() => setMoving(null)}
           onMoved={(saved) => {
             setMoving(null);

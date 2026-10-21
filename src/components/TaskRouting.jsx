@@ -118,7 +118,7 @@ export default function TaskRouting({ todo, mayAct = false, onChanged }) {
       ) : (
         <p className="text-sm text-steel-100">
           <span className="font-bold text-warn-400">Printing or assembly?</span>
-          <span className="text-steel-300"> Decide for each model before you give a date.{mayAct ? '' : ' Production decides this.'}</span>
+          <span className="text-steel-300"> Decide for each model before you give a date.{mayAct ? '' : ' The Production in charge decides this.'}</span>
         </p>
       )}
       {open && mayAct && (!routing || editing) && (

@@ -7,6 +7,7 @@ import { departmentLabel } from '../utils/pipeline.js';
 import { formatDate } from '../utils/format.js';
 import { dateLabelFor, datesOfTask, eddByModelOf, eddOfTask, givesEdd, handsOnOf, incomingOf, modelsOfTask, needsRouting, showsEdd, teamWords } from '../utils/edd.js';
 import TaskRouting from './TaskRouting.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 
 /**
  * The expected delivery date on a department task [server: handoff.service `setTaskEdd`].
@@ -188,16 +189,22 @@ function EddReadOnly({ todo }) {
 
 export default function TaskEdd({ todo, mayAct = false, onChanged }) {
   const { toast } = useToast();
+  const { mayPlanProduction } = useAuth();
   const [editing, setEditing] = useState(false);
   if (!showsEdd(todo)) return null;
   /* Production decides printing and assembly first, then gives a date. */
   if (todo.kind === 'ask_edd') {
     const routed = !needsRouting(todo);
+    /* The Production in charge (or Admin) plans; the rest of Production reads it and moves the statuses. */
+    const plans = mayAct && mayPlanProduction;
     return (
       <div className="space-y-2">
-        <TaskRouting todo={todo} mayAct={mayAct} onChanged={onChanged} />
-        {routed && handsOnOf(todo).length > 0 && <HandOverDate todo={todo} mayAct={mayAct} onChanged={onChanged} />}
-        {routed && !handsOnOf(todo).length && <EddBox todo={todo} mayAct={mayAct} onChanged={onChanged} toast={toast} editing={editing} setEditing={setEditing} />}
+        <TaskRouting todo={todo} mayAct={plans} onChanged={onChanged} />
+        {routed && handsOnOf(todo).length > 0 && <HandOverDate todo={todo} mayAct={plans} onChanged={onChanged} />}
+        {routed && !handsOnOf(todo).length && <EddBox todo={todo} mayAct={plans} onChanged={onChanged} toast={toast} editing={editing} setEditing={setEditing} />}
+        {mayAct && !plans && !todo.completed && (
+          <p className="text-xs text-steel-400">The Production in charge gives the EDD and decides printing and assembly — you update the status.</p>
+        )}
       </div>
     );
   }

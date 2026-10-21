@@ -131,7 +131,7 @@ test('the Production desk opens on what is not in the production queue; the queu
 
 test('Production adds a task to the queue from the desk or the workflow page: routing, EDD, remark in one step', () => {
   const list = readFileSync(new URL('../src/components/ProductionQueueList.jsx', import.meta.url), 'utf8');
-  assert.match(list, /const mayPlan = isAdmin \|\| departments\.includes\('production'\);/);
+  assert.match(list, /const mayPlan = mayPlanProduction;/, 'the Production in charge (or Admin) adds to the queue');
   assert.match(list, /mayPlan && row\.production && !row\.production\.taken && \(/, 'offered only on a line not yet in the queue');
   assert.match(list, /<AddToProductionQueue/);
   const dialog = readFileSync(new URL('../src/components/AddToProductionQueue.jsx', import.meta.url), 'utf8');
@@ -141,7 +141,7 @@ test('Production adds a task to the queue from the desk or the workflow page: ro
   assert.match(dialog, /\{pathOf\(row\)\} → Dispatch/, 'the cycle it will follow, said per model');
   assert.match(dialog, /type="date"/);
   const flow = readFileSync(new URL('../src/pages/ProductionWorkflow.jsx', import.meta.url), 'utf8');
-  assert.match(flow, /works && !task\.completed && !task\.queuedAt && \(/);
+  assert.match(flow, /works && mayPlanProduction && !task\.completed && !task\.queuedAt && \(/);
   assert.match(readFileSync(new URL('../src/api/endpoints.js', import.meta.url), 'utf8'), /api\.post\(`\/workspace\/todos\/\$\{id\}\/production-queue`, payload/);
 });
 

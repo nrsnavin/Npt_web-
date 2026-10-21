@@ -69,7 +69,7 @@ function TeamCard({ title, task, mayWork, onChanged }) {
 
 export default function ProductionWorkflow() {
   const { taskId } = useParams();
-  const { isAdmin, departments = [], user, canWrite } = useAuth();
+  const { isAdmin, departments = [], user, canWrite, mayPlanProduction } = useAuth();
   const catalogue = useHandoffCatalogue();
   const [adding, setAdding] = useState(false);
   const fetch = useCallback(() => productionApi.workflow(taskId), [taskId]);
@@ -100,7 +100,8 @@ export default function ProductionWorkflow() {
           <div className="flex flex-wrap gap-2">
             <Link to="/production/queue" className="btn-secondary">← Queue</Link>
             {!enquiry.team && <Link to={`/enquiries/${enquiry._id}`} className="btn-secondary">Enquiry</Link>}
-            {works && !task.completed && !task.queuedAt && (
+            {/* Routed, planned and dated by the Production in charge (or Admin) — the rest of Production reads it. */}
+            {works && mayPlanProduction && !task.completed && !task.queuedAt && (
               <button type="button" className="btn-primary" onClick={() => setAdding(true)}>Add to production queue</button>
             )}
             {canWrite('production') && !enquiry.team && (
@@ -116,7 +117,7 @@ export default function ProductionWorkflow() {
       <div className={`card border-l-4 ${tone.edge} flex flex-wrap items-center gap-4 p-4`}>
         <div>
           <p className={`text-lg font-bold tabular-nums ${band === 'late' ? 'text-danger-400' : 'text-steel-50'}`}>{edd ? formatDate(edd) : 'No EDD yet'}</p>
-          <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${tone.chip}`}>{edd ? dueWords(edd) : 'give the date below'}</span>
+          <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${tone.chip}`}>{edd ? dueWords(edd) : mayPlanProduction ? 'give the date below' : 'the Production in charge gives it'}</span>
         </div>
         <p className="min-w-0 flex-1 text-sm leading-snug text-steel-200">{summary}</p>
       </div>

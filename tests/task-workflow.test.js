@@ -71,7 +71,7 @@ test('raising a task the department already has adds to it, and says so', () => 
 test('a workflow whose moves need a remark asks for it, with the ready date, before the move', () => {
   const workflow = read('components/TaskWorkflow.jsx');
   assert.match(workflow, /if \(button\.form\.remarkRequired \|\| button\.form\.statusDate \|\| step\.fields\?\.length \|\| step\.tellBuyer \|\| movesByModel\(todo\)\) return setMoving/);
-  assert.match(workflow, /status: step\.key, note, \.\.\.\(date && !unrouted && \(date !== given \|\| step\.date\) \? \{ date \} : \{\}\)/);
+  assert.match(workflow, /status: step\.key, note, \.\.\.\(date && dated && \(date !== given \|\| step\.date\) \? \{ date \} : \{\}\)/);
   assert.match(workflow, /step\.date === 'tomorrow' \? tomorrowInIndia\(\) : given && given >= todayInIndia\(\) \? given : ''/);
   assert.match(workflow, /disabled=\{busy \|\| dateNeeded \|\| remarkNeeded \|\| noModel \|\| Boolean\(fieldMissing\) \|\| \(unrouted && Boolean\(step\.date\)\)\}/);
 });
