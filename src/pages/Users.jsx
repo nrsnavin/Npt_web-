@@ -152,9 +152,9 @@ function AccessPicker({ modules, value, onChange, disabled }) {
 }
 
 /**
- * Production in charge [server: models/User.js `productionInCharge`]: offered for someone who
- * works in Production. They give the EDD and decide printing / assembly; the rest of Production
- * moves the statuses.
+ * Production in charge [server: models/User.js `productionInCharge`]: anyone, from any department
+ * — a marketing person too. Ticked, Production joins their departments with its full access. They
+ * give the EDD and decide printing / assembly; the rest of Production moves the statuses.
  */
 function ProductionInCharge({ checked, onChange, disabled }) {
   return (
@@ -164,7 +164,7 @@ function ProductionInCharge({ checked, onChange, disabled }) {
         <span className="font-semibold text-steel-100">Production in charge</span>
         <span className="block text-xs text-steel-400">
           Sets the EDD on Production’s tasks, decides which models go to printing or assembly, and adds work to the production queue.
-          Others in Production see everything and update the statuses.
+          Any department can hold it — Production is added to theirs, with Production’s full access. Others in Production see everything and update the statuses.
         </span>
       </span>
     </label>
@@ -185,7 +185,11 @@ function UserForm({ catalogue, onClose, onSaved }) {
 
   const department = watch('department');
   const role = watch('role');
-  const inProduction = [department, ...extras].includes('production');
+  /* Ticked, Production joins their departments, so its access is proposed with the rest. */
+  const markInCharge = (value) => {
+    setInCharge(value);
+    if (value && department !== 'production') setExtras((current) => (current.includes('production') ? current : [...current, 'production']));
+  };
 
   // Choosing departments proposes their templates together; the admin can still adjust every row.
   useEffect(() => {
@@ -199,7 +203,7 @@ function UserForm({ catalogue, onClose, onSaved }) {
         ...values,
         phone: values.phone || undefined,
         extraDepartments: extras.filter((key) => key !== values.department),
-        productionInCharge: inProduction && values.role !== 'admin' ? inCharge : false,
+        productionInCharge: values.role !== 'admin' ? inCharge : false,
         moduleAccess: values.role === 'admin' ? [] : mapToGrants(grants),
       });
       onSaved(data, invitation);
@@ -244,7 +248,7 @@ function UserForm({ catalogue, onClose, onSaved }) {
 
       <AlsoWorksIn catalogue={catalogue} main={department} value={extras} onChange={setExtras} />
 
-      {inProduction && role !== 'admin' && <ProductionInCharge checked={inCharge} onChange={setInCharge} />}
+      {role !== 'admin' && <ProductionInCharge checked={inCharge} onChange={markInCharge} />}
 
       {role === 'admin' ? (
         <Notice tone="info">
@@ -288,15 +292,16 @@ function AccessForm({ user, catalogue, onClose, onSaved }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
-  /* Production in charge: saved as it is ticked, for someone who works in Production as last saved. */
+  /* Production in charge: saved as it is ticked. Ticked, Production joins their departments and access. */
   const [saved, setSaved] = useState(user);
-  const savedInProduction = (saved.departments || [saved.department]).includes('production');
   const setInCharge = async (value) => {
     setBusy(true);
     setError(null);
     try {
       const updated = await usersApi.update({ id: user.id, productionInCharge: value });
       setSaved(updated);
+      setExtras(updated.extraDepartments || []);
+      setGrants(grantsToMap(updated.moduleAccess));
       onSaved(updated);
     } catch (saveError) {
       setError(saveError.message);
@@ -380,7 +385,7 @@ function AccessForm({ user, catalogue, onClose, onSaved }) {
         )}
       </div>
 
-      {savedInProduction && <ProductionInCharge checked={Boolean(saved.productionInCharge)} onChange={setInCharge} disabled={busy} />}
+      <ProductionInCharge checked={Boolean(saved.productionInCharge)} onChange={setInCharge} disabled={busy} />
 
       <AccessPicker modules={catalogue.modules} value={grants} onChange={setGrants} disabled={busy} />
 

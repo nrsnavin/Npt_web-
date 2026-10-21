@@ -32,6 +32,7 @@ const isTheEnquiry = (todo, button) => Boolean(todo?.holds && button?.department
 
 export function HandoffDialog({ todo, mode, onClose, onChanged }) {
   const catalogue = useHandoffCatalogue();
+  const { mayPlanProduction } = useAuth();
   const button = buttonFor(catalogue, todo?.kind);
   const [note, setNote] = useState('');
   const [fields, setFields] = useState({});
@@ -72,7 +73,9 @@ export function HandoffDialog({ todo, mode, onClose, onChanged }) {
     }
   };
 
-  const recordsDetails = (mode === 'done' || mode === 'update') && button?.records?.length > 0;
+  /* Production's "Expected date" is its EDD: only the Production in charge (or Admin) gives it [server: `assertPlansProduction`]. */
+  const records = (button?.records || []).filter((record) => !(todo.kind === 'ask_edd' && record.type === 'date' && !mayPlanProduction));
+  const recordsDetails = (mode === 'done' || mode === 'update') && records.length > 0;
   const noteLabel = {
     done: 'What was done',
     update: 'How it is going',
@@ -111,7 +114,7 @@ export function HandoffDialog({ todo, mode, onClose, onChanged }) {
 
         {recordsDetails && (
           <div className="grid gap-3 sm:grid-cols-2">
-            {button.records.map((record) => (
+            {records.map((record) => (
               <Field key={record.key} label={record.label}>
                 {/* A choice (Quality's Passed / Failed) is picked, never typed — the server checks it. */}
                 {record.type === 'choice' ? (
