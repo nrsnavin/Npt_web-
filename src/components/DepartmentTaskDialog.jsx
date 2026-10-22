@@ -266,6 +266,12 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
           </Field>
 
           {!prefill && <p className="text-sm text-steel-400 sm:col-span-2">Filling the form from the enquiry…</p>}
+          {/* A team task for a buyer: the rows come from their latest enquiry [server: `teamTaskPrefill`]. */}
+          {team && prefill?.from?.enquiry && (
+            <p className="text-xs text-steel-400 sm:col-span-2">
+              Filled from <span className="font-semibold text-steel-200">{prefill.from.enquiry.number}</span>, this buyer’s latest enquiry — change anything that differs.
+            </p>
+          )}
 
           {prefill && (button.asks || []).map((field) => {
             const heading = field.section && field.section !== section ? field.section : null;
