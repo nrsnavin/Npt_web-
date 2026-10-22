@@ -782,6 +782,8 @@ export const MARKETING_STATUSES = [
   { value: 'assembling', label: 'Assembling' },
   { value: 'qc', label: 'QC' },
   { value: 'dispatch', label: 'Dispatch' },
+  /* Part of the order gone — a model sent on its own under a dispatch plan of each model as it is ready. */
+  { value: 'part_sent', label: 'Part sent' },
   { value: 'lr_copy', label: 'LR Copy' },
   /* The LR uploaded and on its way — the enquiry closes at this [server: config/handoffs.js whenResult]. */
   { value: 'lr_sent', label: 'LR Sent' },

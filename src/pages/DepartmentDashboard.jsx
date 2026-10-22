@@ -122,6 +122,15 @@ function EnquiryCard({ row, department, me, onChanged }) {
       </header>
 
       <p className="text-sm font-semibold text-steel-100">{button?.label || task.title}</p>
+      {/* An order going out model by model [server: handoff.controller `withReadiness`]: what may go now, what has gone, what is still being made. */}
+      {row.readiness?.plan === 'by_model' && (
+        <p className="-mt-1 rounded-lg bg-line/[0.04] px-2.5 py-1.5 text-xs text-steel-200" aria-label="Models to dispatch">
+          <span className="font-semibold text-success-400">Ready to go: {row.readiness.ready.filter((model) => !(row.readiness.sent || []).includes(model)).join(', ') || 'none yet'}</span>
+          {row.readiness.sent?.length > 0 && <span className="text-steel-400"> · Sent: {row.readiness.sent.join(', ')}</span>}
+          {row.readiness.waiting?.length > 0 && <span className="text-warn-400"> · Still being made: {row.readiness.waiting.map((entry) => `${entry.model} (${entry.team === 'assembling' ? 'Assembly' : entry.team === 'printing' ? 'Printing' : 'Production'})`).join(', ')}</span>}
+          <span className="block text-steel-500">Dispatch plan: each model as it is ready — mark Part Quantity Dispatched with the models sent.</span>
+        </p>
+      )}
       {/* What was asked, as it was entered on the form — every answer, each model in its own block. */}
       <TaskFacts button={button} task={task} className="-mt-1" />
       <TaskPdfLink file={task.attachment} className="-mt-2 self-start" />
