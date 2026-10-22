@@ -46,7 +46,8 @@ export default function ForgotPassword() {
     setError(null);
     try {
       const response = await auth.forgotPassword(email.trim());
-      setSent(response.message);
+      /* Email to staff switched off [server: STAFF_EMAIL]: no link can go, and the page says what to do instead. */
+      setSent({ message: response.message, emailOff: Boolean(response.data?.emailOff) });
     } catch (submitError) {
       setError(submitError.message);
     }
@@ -58,7 +59,10 @@ export default function ForgotPassword() {
       subtitle="Enter the email you sign in with. We will send a link to choose a new password."
     >
       {sent ? (
-        <Notice tone="success">{sent}</Notice>
+        <div className="space-y-3">
+          <Notice tone={sent.emailOff ? 'info' : 'success'}>{sent.message}</Notice>
+          {sent.emailOff && <Link to="/login" className="btn-primary block w-full text-center">Sign in with a one-time code</Link>}
+        </div>
       ) : (
         <form onSubmit={handleSubmit(submit)} className="space-y-4">
           <Field label="Email" error={errors.email} required>

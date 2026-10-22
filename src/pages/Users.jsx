@@ -724,7 +724,7 @@ export default function Users() {
 
       <Modal
         open={Boolean(invited)}
-        title={invited?.invitation?.delivered ? 'Invitation sent' : 'The email could not be sent'}
+        title={invited?.invitation?.delivered ? 'Invitation sent' : invited?.invitation?.emailOff ? 'Pass on the sign-in link' : 'The email could not be sent'}
         size="sm"
         onClose={() => setInvited(null)}
       >
@@ -784,9 +784,10 @@ function InvitationResult({ user, invitation, onClose }) {
         </p>
       ) : (
         <>
-          <Notice tone="warn">
-            {user.name}’s account is ready, but the welcome email did not go. Send them this link
-            another way — it lets them set their password{until ? ` until ${until}` : ''}, once.
+          <Notice tone={invitation?.emailOff ? 'info' : 'warn'}>
+            {invitation?.emailOff
+              ? `${user.name}’s account is ready. Email to staff is switched off for now, so nothing was sent — give them this link on WhatsApp or in person. It lets them set their password${until ? ` until ${until}` : ''}, once.`
+              : `${user.name}’s account is ready, but the welcome email did not go. Send them this link another way — it lets them set their password${until ? ` until ${until}` : ''}, once.`}
           </Notice>
           <input className="input font-mono text-xs" readOnly value={invitation?.link || ''} onFocus={(event) => event.target.select()} />
           <button type="button" className="btn-secondary w-full" onClick={copy}>
@@ -893,8 +894,12 @@ function DeleteUser({ user, admin, onClose, onDeleted }) {
           <p className="text-xs text-steel-400">A code goes to your own email first. Enter it below to confirm the deletion.</p>
           {sent ? (
             <>
-              <p className="text-xs text-steel-300">Code sent to {sent.sentTo}. It expires in {sent.expiresInMinutes} minutes.{sent.devCode ? ` (dev: ${sent.devCode})` : ''}</p>
-              <Field label="Code from the email" required>
+              {sent.onScreen ? (
+                <p className="text-xs text-steel-300">Email is switched off for now, so the code is shown here: <span className="font-mono text-sm font-bold tracking-widest text-steel-50">{sent.code}</span>. It expires in {sent.expiresInMinutes} minutes.</p>
+              ) : (
+                <p className="text-xs text-steel-300">Code sent to {sent.sentTo}. It expires in {sent.expiresInMinutes} minutes.{sent.devCode ? ` (dev: ${sent.devCode})` : ''}</p>
+              )}
+              <Field label={sent.onScreen ? 'The code' : 'Code from the email'} required>
                 <input className="input" inputMode="numeric" autoComplete="one-time-code" maxLength={8} value={code} onChange={(event) => setCode(event.target.value)} placeholder="6-digit code" />
               </Field>
               <button type="button" className="row-action" onClick={sendCode} disabled={busy}>Send a new code</button>

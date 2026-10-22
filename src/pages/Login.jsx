@@ -152,7 +152,7 @@ function OtpForm({ onError }) {
       <form onSubmit={send} className="space-y-4">
         <Field
           label="Email or phone number"
-          hint="We'll text or email you a code — no password needed"
+          hint="A one-time code — no password needed"
         required>
           <input
             className="input"
@@ -173,10 +173,19 @@ function OtpForm({ onError }) {
 
   return (
     <form onSubmit={verify} className="space-y-4">
-      <p className="text-sm leading-relaxed text-steel-300">
-        Enter the {sent?.channel === 'sms' ? 'code we texted to' : 'code we emailed to'}{' '}
-        <span className="font-semibold text-steel-50">{sent?.maskedIdentifier || identifier}</span>.
-      </p>
+      {sent?.onScreen ? (
+        /* Email is switched off for now [server: STAFF_EMAIL]: the code is shown here, not sent anywhere. */
+        <Notice tone="info">
+          <span className="block text-xs">Email is switched off for now, so your sign-in code is shown here instead of sent.</span>
+          <span className="mt-1 block font-mono text-2xl font-bold tracking-[0.4em] text-steel-50" aria-label="Your sign-in code">{sent.code}</span>
+          <span className="block text-xs">It expires in {sent.expiresInMinutes || 5} minutes.</span>
+        </Notice>
+      ) : (
+        <p className="text-sm leading-relaxed text-steel-300">
+          Enter the {sent?.channel === 'sms' ? 'code we texted to' : 'code we emailed to'}{' '}
+          <span className="font-semibold text-steel-50">{sent?.maskedIdentifier || identifier}</span>.
+        </p>
+      )}
 
       <Field label="Verification code" required>
         <input
@@ -192,7 +201,7 @@ function OtpForm({ onError }) {
         />
       </Field>
 
-      {sent?.devCode && (
+      {sent?.devCode && !sent?.onScreen && (
         <Notice tone="warn">
           <span className="text-xs">
             Development mode — no email or SMS provider is configured. Your code is{' '}
