@@ -50,6 +50,20 @@ export default function FinishingDeskList({ rows = [], onChanged }) {
                     <p className="font-bold text-steel-50">Team task</p>
                   )}
                   <p className="truncate text-sm text-steel-300">{row.enquiry?.customer?.name || row.task.customer?.name || '—'}</p>
+                  {/* What the task is about [server: deskSummary.service `modelsOfBrief`]: each model with its pieces and complaint, and the complaint received. */}
+                  {row.models?.length > 0 && (
+                    <p className="text-xs text-steel-200" aria-label="Models">
+                      {row.models.map((entry, at) => (
+                        <span key={entry.model}>
+                          {at > 0 && ' · '}
+                          <span className="font-semibold">{entry.model}</span>
+                          {entry.quantity ? ` ${entry.quantity.toLocaleString('en-IN')} pcs` : ''}
+                          {entry.complaint ? <span className="text-danger-400"> — {entry.complaint}</span> : null}
+                        </span>
+                      ))}
+                    </p>
+                  )}
+                  {row.complaint && <p className="text-xs font-semibold text-danger-400">Complaint: {row.complaint}</p>}
                 </div>
                 <p className="text-sm leading-snug text-steel-200">
                   {row.summary || row.task.title}
