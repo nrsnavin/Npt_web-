@@ -213,9 +213,22 @@ export default function TaskEdd({ todo, mayAct = false, onChanged }) {
 }
 
 function EddBox({ todo, mayAct, onChanged, toast, editing, setEditing }) {
+  const { mayPlanProduction } = useAuth();
   const edd = eddOfTask(todo);
-  const gives = givesEdd(todo) && mayAct && !todo.completed;
+  /*
+   * Printing's or Assembly's EDD, last in a chain Production routed: the Production in charge
+   * confirms it or gives their own [server: handoff.service `confirmTaskEdd`].
+   */
+  const inChain = todo.kind !== 'ask_edd' && Boolean(todo.routing?.byProduction);
+  const confirms = inChain && mayPlanProduction && !todo.completed;
+  const gives = givesEdd(todo) && (mayAct || confirms) && !todo.completed;
   const needed = !edd && !todo.completed;
+  const givenHere = (todo.modelDates || []).map((row) => row.date).filter(Boolean).sort().at(-1);
+  const confirm = async () => {
+    const saved = await workspace.todos.confirmEdd(todo._id);
+    toast(`EDD ${formatDate(saved.eddConfirmed?.date)} confirmed`, 'The team that gave it sees your confirmation on its task.');
+    onChanged?.(saved);
+  };
 
   const save = async ({ date, note, models }) => {
     const saved = await workspace.todos.edd({ id: todo._id, date, models, note });
@@ -240,6 +253,14 @@ function EddBox({ todo, mayAct, onChanged, toast, editing, setEditing }) {
           <span className="font-bold">EDD not given yet</span>
           <span className="text-steel-400"> — Production has not said when the goods will be ready.</span>
         </p>
+      )}
+      {inChain && givenHere && (
+        todo.eddConfirmed
+          ? <p className="mt-1 text-xs font-semibold text-success-400">✓ Confirmed by the Production in charge — {formatDate(todo.eddConfirmed.date)}</p>
+          : <p className="mt-1 text-xs font-semibold text-warn-400">Waiting for the Production in charge to confirm</p>
+      )}
+      {confirms && givenHere && !todo.eddConfirmed && !editing && (
+        <button type="button" className="btn-primary mt-1 px-3 py-1.5 text-xs" onClick={confirm}>Confirm EDD</button>
       )}
       {/* Wanted: the form is right there. Given: a Change button, and the form on request. */}
       {gives && edd && !editing && (

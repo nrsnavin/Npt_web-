@@ -375,8 +375,9 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
   const { canWrite, mayPlanProduction } = useAuth();
   const catalogue = useHandoffCatalogue();
   /*
-   * Production's dates are the Production in charge's: the rest of Production is not offered a
-   * status that sets one (Ready Tomorrow, Ready on Selected Date), nor a date box with a move.
+   * Production's plan is the Production in charge's: the rest of Production is not offered a
+   * status that plans (EDD Accepted, Planning) or sets a date (Ready Tomorrow, Ready on Selected
+   * Date), nor a date box with a move.
    */
   const noDates = todo?.kind === 'ask_edd' && !mayPlanProduction;
   const button = buttonFor(catalogue, todo?.kind);
@@ -411,9 +412,9 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
   const missing = missingDetails(todo, details);
   /* The obvious move — the rung after the one the task stands on — as the one big button. */
   const next = ladderOf(button, todo)?.next;
-  const nextIsButton = next && !next.pdf && !waiting.length && !(noDates && next.date);
+  const nextIsButton = next && !next.pdf && !waiting.length && !(noDates && (next.date || next.plans));
   /* The statuses this person may pick — where the task stands is always listed, so the list reads it. */
-  const offered = noDates ? statuses.filter((entry) => !entry.date || entry.key === todo.status) : statuses;
+  const offered = noDates ? statuses.filter((entry) => (!entry.date && !entry.plans) || entry.key === todo.status) : statuses;
 
   if (todo.completed) {
     return (

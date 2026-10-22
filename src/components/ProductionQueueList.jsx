@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { production as productionApi, workspace } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import AddToProductionQueue from './AddToProductionQueue.jsx';
+import ProductionInChargeLine from './ProductionInChargeLine.jsx';
 import { ErrorState, Field, Modal, Notice, TableSkeleton } from './ui.jsx';
 import { formatDate, formatRelative } from '../utils/format.js';
 import { EDD_BANDS, dueWords } from '../utils/productionQueue.js';
@@ -159,6 +160,8 @@ export default function ProductionQueueList({ compact = false, onRows }) {
 
   return (
     <section className="space-y-3" aria-label="Production queue">
+      {/* Who plans the queue — a warning when nobody does. */}
+      <ProductionInChargeLine className="print:hidden" />
       <div className="flex flex-wrap gap-1 rounded-xl border border-line/[0.06] bg-line/[0.02] p-1 print:hidden" role="group" aria-label="Taken for production">
         {STAGES.map((entry) => (
           <button

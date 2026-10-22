@@ -31,9 +31,9 @@ test('on Production’s task the routing, the hand-over date and the EDD are the
 test('a Production member is not offered a dated status, the date box, or Add to production queue', () => {
   const workflow = read('components/TaskWorkflow.jsx');
   assert.match(workflow, /const noDates = todo\?\.kind === 'ask_edd' && !mayPlanProduction;/);
-  assert.match(workflow, /const offered = noDates \? statuses\.filter\(\(entry\) => !entry\.date \|\| entry\.key === todo\.status\) : statuses;/);
+  assert.match(workflow, /const offered = noDates \? statuses\.filter\(\(entry\) => \(!entry\.date && !entry\.plans\) \|\| entry\.key === todo\.status\) : statuses;/, 'nor EDD Accepted / Planning');
   assert.match(workflow, /\{offered\.map\(\(entry\) => <option/);
-  assert.match(workflow, /!\(noDates && next\.date\)/, 'Ready Tomorrow is not the one-press next step for them');
+  assert.match(workflow, /!\(noDates && \(next\.date \|\| next\.plans\)\)/, 'EDD Accepted or Ready Tomorrow is not the one-press next step for them');
   assert.match(workflow, /const dated = Boolean\(form\.statusDate\) && !unrouted && !noDates;/);
   assert.match(workflow, /\{dated && \(\s*<Field label=\{dateLabel\}/);
   assert.match(read('components/ProductionQueueList.jsx'), /const mayPlan = mayPlanProduction;/);
@@ -55,4 +55,36 @@ test('the Expected date on Production’s Done / Update is the EDD: not offered 
   const actions = read('components/HandoffTaskActions.jsx');
   assert.match(actions, /const records = \(button\?\.records \|\| \[\]\)\.filter\(\(record\) => !\(todo\.kind === 'ask_edd' && record\.type === 'date' && !mayPlanProduction\)\);/);
   assert.match(actions, /\{records\.map\(\(record\) => \(/);
+});
+
+test('the planning board, work orders, schedule and machines are planned by the in charge; the floor still runs them', () => {
+  const board = read('pages/PlanningBoard.jsx');
+  assert.match(board, /const mayRun = canWrite\('production'\);\s*const mayPlan = mayRun && mayPlanProduction;/);
+  assert.match(board, /\{mayPlan && <button type="button" className="btn-secondary" disabled=\{busy \|\| job\.sequence <= 1\}/);
+  const orders = read('pages/WorkOrders.jsx');
+  assert.match(orders, /const mayPlan = mayRun && mayPlanProduction;/);
+  assert.match(orders, /\{mayRun && \['planned', 'released', 'paused'\]\.includes\(wo\.status\) && \(/, 'starting a run stays the floor’s');
+  assert.match(read('pages/ProductionInsights.jsx'), /<SchedulePanel mayPlan=\{canWrite\('production'\) && mayPlanProduction\} \/>/);
+  assert.match(read('pages/Machines.jsx'), /const mayAddMachine = mayEdit && mayPlanProduction;/);
+  assert.match(read('pages/MachineDetail.jsx'), /canWrite\('production'\) && mayPlanProduction && <button/);
+});
+
+test('the Production desks name who is in charge, or warn that nobody is', () => {
+  const line = read('components/ProductionInChargeLine.jsx');
+  assert.match(line, /workspace\.productionInCharge\(\)/);
+  assert.match(line, /Nobody is Production in charge\./);
+  assert.match(line, /Mark someone in Masters &amp; Access/);
+  assert.match(read('components/ProductionQueueList.jsx'), /<ProductionInChargeLine className="print:hidden" \/>/);
+  assert.match(read('pages/ProductionWorkflow.jsx'), /<ProductionInChargeLine \/>/);
+  assert.match(read('api/endpoints.js'), /productionInCharge: \(\) => api\.get\('\/workspace\/production-in-charge'\)/);
+});
+
+test('the EDD Printing or Assembly gives is confirmed by the in charge, who may also give their own', () => {
+  const edd = read('components/TaskEdd.jsx');
+  assert.match(edd, /const inChain = todo\.kind !== 'ask_edd' && Boolean\(todo\.routing\?\.byProduction\);/);
+  assert.match(edd, /const gives = givesEdd\(todo\) && \(mayAct \|\| confirms\) && !todo\.completed;/);
+  assert.match(edd, /workspace\.todos\.confirmEdd\(todo\._id\)/);
+  assert.match(edd, />Confirm EDD<\/button>/);
+  assert.match(edd, /Waiting for the Production in charge to confirm/);
+  assert.match(read('api/endpoints.js'), /confirmEdd: \(id\) => api\.post\(`\/workspace\/todos\/\$\{id\}\/edd\/confirm`/);
 });

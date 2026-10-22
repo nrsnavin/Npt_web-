@@ -17,7 +17,7 @@ import { MACHINE_STATUSES, labelOf, toneOf } from '../utils/records.js';
  */
 export default function MachineDetail() {
   const { id } = useParams();
-  const { canWrite } = useAuth();
+  const { canWrite, mayPlanProduction } = useAuth();
   const fetch = useCallback((machineId) => machinesApi.get(machineId), []);
   const { data, loading, error, reload } = useRecord(fetch, id);
   const [recording, setRecording] = useState(false);
@@ -39,7 +39,7 @@ export default function MachineDetail() {
         actions={(
           <>
             <Link to="/machines" className="btn-secondary">All machines</Link>
-            {canWrite('production') && <button type="button" className="btn-secondary" onClick={() => setEditing(true)}>Edit</button>}
+            {canWrite('production') && mayPlanProduction && <button type="button" className="btn-secondary" onClick={() => setEditing(true)}>Edit</button>}
             {mayRecord && <button type="button" className="btn-primary" onClick={() => setRecording(true)}>Record maintenance</button>}
             <Badge tone={toneOf(MACHINE_STATUSES, machine.status)}>{labelOf(MACHINE_STATUSES, machine.status)}</Badge>
           </>

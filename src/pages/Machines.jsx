@@ -67,8 +67,10 @@ export function MachineEditor({ machine, onClose, onSaved }) {
 }
 
 export default function Machines() {
-  const { canWrite } = useAuth();
+  const { canWrite, mayPlanProduction } = useAuth();
   const mayEdit = canWrite('production');
+  /* The machine register is the Production in charge's (or Admin's) to add to and change [server: requireProductionInCharge]. */
+  const mayAddMachine = mayEdit && mayPlanProduction;
   const [machines, setMachines] = useState(null);
   const [error, setError] = useState(null);
   const [adding, setAdding] = useState(false);
@@ -85,7 +87,7 @@ export default function Machines() {
         actions={(
           <>
             <Link to="/mould-runs" className="btn-secondary">Mould runs</Link>
-            {mayEdit && <button type="button" className="btn-primary" onClick={() => setAdding(true)}>Add a machine</button>}
+            {mayAddMachine && <button type="button" className="btn-primary" onClick={() => setAdding(true)}>Add a machine</button>}
           </>
         )}
       />
@@ -98,7 +100,7 @@ export default function Machines() {
       <PlantCalendarCard mayEdit={mayEdit} />
       {error && <ErrorState error={error} onRetry={load} />}
       {!machines && !error && <TableSkeleton rows={5} columns={6} />}
-      {machines && !machines.length && <EmptyState title="No machines yet" description={mayEdit ? 'Add each press once — its maintenance and runs are kept against it.' : 'Production adds the machines.'} />}
+      {machines && !machines.length && <EmptyState title="No machines yet" description={mayAddMachine ? 'Add each press once — its maintenance and runs are kept against it.' : 'The Production in charge adds the machines.'} />}
       {machines?.length > 0 && (
         <div className="card overflow-hidden">
           <div className="overflow-x-auto">
