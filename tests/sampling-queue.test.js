@@ -79,6 +79,11 @@ test('the handover form: direct or courier, either a contact or a phone, and it 
   assert.match(page, /status: 'dispatched',\s*deliveryMethod: values\.method/);
   assert.match(page, /tells the buyer on WhatsApp and email/);
   assert.match(page, /collection: 'samples'/, 'the courier copy is kept on the sample');
+  /* Sample Sent closes the bench task in the same move: ticked by default, untick to keep the row. */
+  assert.match(page, /const \[closeTask, setCloseTask\] = useState\(true\);/, 'ticked by default');
+  assert.match(page, /checked=\{closeTask\} onChange=\{\(event\) => setCloseTask\(event\.target\.checked\)\}/);
+  assert.match(page, /Close the task on the bench/);
+  assert.match(page, /dispatchedColour: values\.colour\.trim\(\) \|\| undefined,\s*closeTask,/, 'sent with the move');
 });
 
 test('sampling’s desk opens on the work queue', () => {

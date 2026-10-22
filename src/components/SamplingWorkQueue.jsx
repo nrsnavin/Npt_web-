@@ -173,6 +173,8 @@ export function HandoverForm({ row, onClose, onDone }) {
     colour: row.colour || '',
   });
   const [copy, setCopy] = useState(null);
+  /* Sent is the end of the bench's work: the task closes with the move unless the bench unticks it. */
+  const [closeTask, setCloseTask] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const set = (key) => (event) => setValues({ ...values, [key]: event.target.value });
@@ -198,6 +200,7 @@ export function HandoverForm({ row, onClose, onDone }) {
           : { courier: courierName, awbNumber: values.awbNumber.trim() }),
         dispatchedQuantity: Number(values.quantity) || undefined,
         dispatchedColour: values.colour.trim() || undefined,
+        closeTask,
       });
       if (!direct && copy) {
         await documentsApi.add({ collection: 'samples', id: row._id, file: copy, title: `Courier copy — ${values.awbNumber.trim()}` });
@@ -284,9 +287,17 @@ export function HandoverForm({ row, onClose, onDone }) {
         )}
       </div>
 
+      <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-line/[0.08] px-3 py-2.5 text-sm">
+        <input type="checkbox" className="mt-0.5 h-4 w-4 accent-flame-500" checked={closeTask} onChange={(event) => setCloseTask(event.target.checked)} />
+        <span>
+          <span className="font-semibold text-steel-100">Close the task on the bench</span>
+          <span className="block text-xs text-steel-400">The sample has left; it comes off the work queue. Untick to keep it here, for example to send a second bag.</span>
+        </span>
+      </label>
+
       <p className="rounded-lg bg-aqua-300/10 px-3 py-2 text-xs text-aqua-300">
         Saving tells the buyer on WhatsApp and email, moves the enquiry to feedback, and tells
-        {' '}{row.requestedBy || 'marketing'} to chase the feedback.
+        {' '}{row.requestedBy || 'marketing'} to chase the feedback{closeTask ? '; the task closes here' : ''}.
       </p>
 
       <FormError error={error} />
