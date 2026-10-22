@@ -52,6 +52,9 @@ function StageForm({ sample, to, onClose, onSaved }) {
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  /* The exact colour stepped past, out loud: ticked, with a reason; marketing is told [server: assertColourAllowed]. */
+  const [anyway, setAnyway] = useState(false);
+  const [anywayReason, setAnywayReason] = useState('');
 
   const dispatching = to === 'dispatched';
   const goingBack = isBackwardSampleMove(sample.status, to);
@@ -81,6 +84,9 @@ function StageForm({ sample, to, onClose, onSaved }) {
           awbNumber: dispatching ? awbNumber : undefined,
           dispatchedQuantity: dispatching ? numeric(dispatchedQuantity) : undefined,
           dispatchedColour: dispatching ? text(dispatchedColour) : undefined,
+          ...(dispatching && substituting && sample.colourMandatory && anyway
+            ? { colourOverride: true, colourOverrideReason: anywayReason.trim() }
+            : {}),
         })
       );
       onClose();
@@ -162,12 +168,22 @@ function StageForm({ sample, to, onClose, onSaved }) {
             <div className="mt-3">
               <Notice tone={sample.colourMandatory ? 'danger' : 'warn'}>
                 {sample.colourMandatory ? (
-                  <p>
-                    <span className="font-bold">{sample.colour} exactly</span> was a condition of
-                    this request, so it cannot go out in {dispatchedColour.trim()}. Send it in{' '}
-                    {sample.colour}, or ask {sample.requestedBy?.name || 'whoever raised it'} to
-                    drop the exact-colour condition first.
-                  </p>
+                  <div>
+                    <p>
+                      <span className="font-bold">{sample.colour} exactly</span> was a condition of
+                      this request, and {dispatchedColour.trim()} is not it. Send it in{' '}
+                      {sample.colour}, ask {sample.requestedBy?.name || 'whoever raised it'} to
+                      drop the exact-colour condition — or send it anyway and say why. Marketing is
+                      told the moment it goes.
+                    </p>
+                    <label className="mt-2 flex cursor-pointer items-start gap-2 text-sm">
+                      <input type="checkbox" className="mt-0.5 h-4 w-4 accent-flame-500" checked={anyway} onChange={(event) => setAnyway(event.target.checked)} />
+                      <span className="font-semibold text-steel-100">Send it anyway — marketing is told</span>
+                    </label>
+                    {anyway && (
+                      <input className="input mt-2" placeholder="Why" aria-label="Why send it anyway" value={anywayReason} onChange={(event) => setAnywayReason(event.target.value)} />
+                    )}
+                  </div>
                 ) : (
                   <p>
                     Going out in {dispatchedColour.trim()} rather than the {sample.colour} asked
@@ -219,7 +235,7 @@ function StageForm({ sample, to, onClose, onSaved }) {
         <button
           type="submit"
           className={cancelling ? 'btn-danger' : 'btn-primary'}
-          disabled={busy || reasonShort || (dispatching && substituting && sample.colourMandatory)}
+          disabled={busy || reasonShort || (dispatching && substituting && sample.colourMandatory && !(anyway && anywayReason.trim().length >= 5))}
         >
           {busy
             ? 'Saving…'
@@ -466,6 +482,84 @@ function StagePanel({ sample, mayMove, onSaved, onAsk }) {
               <Notice tone="danger">{error}</Notice>
             </div>
           )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+/**
+ * Marketing's answer to Not available [server: decideNotAvailable; the sampling audit, item 7].
+ * The bench said it cannot supply the piece; the request parks until whoever spoke to the buyer
+ * says what happens: wait for a run, change the spec (the edit form, then back to the bench), or
+ * cancel. The bench is told on its queue whichever way it goes.
+ */
+function NotAvailableDecision({ sample, onSaved, onEdit }) {
+  const [choice, setChoice] = useState(null);
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const reason = [...(sample.statusHistory || [])].reverse().find((entry) => entry.to === 'not_available')?.note;
+  const needsNote = choice !== 'wait';
+  const short = needsNote && note.trim().length < 5;
+
+  const decide = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      onSaved(await samplesApi.decideNotAvailable({ id: sample._id, choice, note: text(note) }));
+      setChoice(null);
+      setNote('');
+    } catch (decideError) {
+      setError(decideError.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="card mb-5 border-danger-500/30 p-5" aria-label="Not available — your decision">
+      <p className="eyebrow text-danger-400">The bench cannot supply it — your decision</p>
+      {reason && <p className="mt-1 text-sm text-steel-200">“{reason}”</p>}
+      <p className="mt-2 text-xs text-steel-400">Tell the buyer, then say what happens. The bench hears your answer on its queue.</p>
+      <div className="mt-3 grid gap-2 sm:grid-cols-3">
+        {[
+          ['wait', 'Wait for a run', 'Back to the bench; made when it can be'],
+          ['change', 'Change the spec', 'Another shade, model or date — correct the request first'],
+          ['cancel', 'Cancel the request', 'The buyer will not wait'],
+        ].map(([key, label, hint]) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setChoice(key)}
+            className={`rounded-lg border p-3 text-left text-sm transition-colors ${choice === key ? 'border-flame-500/50 bg-flame-500/[0.08]' : 'border-line/10 hover:border-line/20'}`}
+          >
+            <span className="block font-semibold text-steel-100">{label}</span>
+            <span className="mt-0.5 block text-xs text-steel-400">{hint}</span>
+          </button>
+        ))}
+      </div>
+      {choice && (
+        <div className="mt-3 space-y-3">
+          {choice === 'change' && (
+            <Notice tone="info">
+              Correct the request first — <button type="button" className="font-semibold underline" onClick={onEdit}>edit the request</button> — then say what changed and send it back.
+            </Notice>
+          )}
+          <Field
+            label={choice === 'cancel' ? 'Why is it being cancelled?' : choice === 'change' ? 'What changed?' : 'Note for the bench'}
+            required={needsNote}
+            hint={needsNote ? 'Required — the bench and the stage history read it' : 'Optional'}
+          >
+            <input className="input" value={note} onChange={(event) => setNote(event.target.value)} aria-label="Decision note" />
+          </Field>
+          {error && <Notice tone="danger">{error}</Notice>}
+          <div className="flex justify-end gap-2">
+            <button type="button" className="btn-secondary" onClick={() => setChoice(null)} disabled={busy}>Back</button>
+            <button type="button" className={choice === 'cancel' ? 'btn-danger' : 'btn-primary'} onClick={decide} disabled={busy || short}>
+              {busy ? 'Saving…' : choice === 'wait' ? 'Wait — send it back to the bench' : choice === 'change' ? 'Spec changed — send it back' : 'Cancel the request'}
+            </button>
+          </div>
         </div>
       )}
     </section>
@@ -1523,6 +1617,10 @@ export default function SampleDetail() {
             moved on to pricing.
           </Notice>
         </div>
+      )}
+
+      {sample.status === 'not_available' && (canWrite('enquiries') || (!sample.customer && maySample)) && (
+        <NotAvailableDecision sample={sample} onSaved={setData} onEdit={() => setEditing(true)} />
       )}
 
       <StagePanel

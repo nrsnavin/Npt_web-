@@ -74,7 +74,7 @@ function ApprovedSampleCard({ approvedSample }) {
             <span className="h-14 w-16 shrink-0 overflow-hidden rounded-md border border-line/[0.08] bg-line/[0.03]">
               {row.photo
                 ? <AuthedImage attachmentKey={row.photo} alt={`Approved ${row.model || 'piece'}`} className="h-full w-full object-cover" />
-                : <span className="grid h-full w-full place-items-center text-[0.7rem] text-steel-500">No photo</span>}
+                : <span className="grid h-full w-full place-items-center text-[0.75rem] text-steel-500">No photo</span>}
             </span>
             <span className="min-w-0 text-sm">
               <span className="block font-semibold text-steel-100">{row.model || 'Model'}</span>

@@ -881,6 +881,8 @@ export const samples = {
   /** What the customer said. On marketing's grant, not the sample team's. */
   recordFeedback: ({ id, ...payload }) => api.post(`/samples/${id}/feedback`, payload).then(unwrap),
   resample: ({ id, ...payload }) => api.post(`/samples/${id}/resample`, payload).then(unwrap),
+  /** Marketing's answer to Not available: wait, change the spec, or cancel [server: decideNotAvailable]. */
+  decideNotAvailable: ({ id, ...payload }) => api.post(`/samples/${id}/not-available`, payload).then(unwrap),
   /** Attaches a request raised before its enquiry existed. */
   linkEnquiry: ({ id, enquiry }) => api.post(`/samples/${id}/link-enquiry`, { enquiry }).then(unwrap),
   /** Names the buyer on a request raised for nobody — a counter job, or a trial gone real. */
