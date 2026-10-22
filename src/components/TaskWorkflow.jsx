@@ -13,7 +13,7 @@ import { useToast } from '../context/ToastContext.jsx';
 import { todayInIndia } from '../utils/taskForm.js';
 import { ladderOf } from '../utils/taskState.js';
 import { departmentLabel } from '../utils/pipeline.js';
-import { dateLabelFor, datesOfTask, givenDateOf, modelStatusesOf, modelThrough, modelsForStep, modelsOfTask, movesByModel, needsRouting, nextStepForModel, pathOf, routeOf, statusesFor, statusesForModel } from '../utils/edd.js';
+import { ROUTE_LABELS, dateLabelFor, datesOfTask, givenDateOf, modelStatusesOf, modelThrough, modelsForStep, modelsOfTask, movesByModel, needsRouting, nextStepForModel, pathOf, routeOf, statusesFor, statusesForModel } from '../utils/edd.js';
 import { formatDate } from '../utils/format.js';
 
 /**
@@ -381,6 +381,13 @@ function ModelWorkflows({ todo, form, statuses, offered, noDates, onMoved }) {
   const [moving, setMoving] = useState(null);
   const dates = datesOfTask(todo);
   const rows = modelStatusesOf(todo);
+  /* Printing's and Assembly's goods come from the team before: the day each model came, or when it is due [server: handoff.service `handOn`]. */
+  const after = todo.kind !== 'ask_edd';
+  const received = todo.routing?.receivedModels || {};
+  const incoming = todo.routing?.incoming || {};
+  const fromOf = (route) => (todo.kind === 'ask_assembling_edd' && route?.printing ? 'printing' : 'production');
+  /* The enquiry's dispatch plan: each model goes as soon as it is ready, or all go together [server: Enquiry `dispatchPlan`]. */
+  const eachAsReady = todo.enquiry?.dispatchPlan?.mode === 'by_model';
   return (
     <ul className="space-y-2" aria-label="Workflow by model">
       {rows.map((row) => {
@@ -404,6 +411,20 @@ function ModelWorkflows({ todo, form, statuses, offered, noDates, onMoved }) {
               {date && <span className="text-xs text-steel-300">{dateLabelFor(todo, form.statusDate?.label || 'Ready date')} {formatDate(date)}</span>}
               {through && !closed && <span className="text-xs text-success-400">done here for this model</span>}
             </div>
+            {/* Where the goods are for this model: came on a day, or still with the team before. */}
+            {after && !closed && (
+              <p className="mt-1 text-xs text-steel-400">
+                {received[row.model]
+                  ? `Goods came ${formatDate(received[row.model])} from ${ROUTE_LABELS[fromOf(route)]}`
+                  : `Still with ${ROUTE_LABELS[fromOf(route)]}${incoming[fromOf(route)] ? `, due ${formatDate(incoming[fromOf(route)])}` : ''}`}
+              </p>
+            )}
+            {/* Ready here: whether it goes to Dispatch on its own, or waits for the rest — marketing's plan on the enquiry. */}
+            {current?.readyForDispatch && !closed && todo.enquiry && (
+              <p className={`mt-1 text-xs ${eachAsReady ? 'text-success-400' : 'text-warn-400'}`}>
+                {eachAsReady ? 'Goes to Dispatch as soon as it is ready — dispatch plan: each model as it is ready.' : 'Waits for the other models — dispatch plan: all together. Marketing or Admin can change it on the enquiry.'}
+              </p>
+            )}
             {!closed && (
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 {nextIsButton && (

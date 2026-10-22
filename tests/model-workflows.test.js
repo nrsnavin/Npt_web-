@@ -64,3 +64,17 @@ test('the workflow draws one strip per model, each moving on its own; every mode
   assert.match(workflow, /\{allAtOnce \? 'Hide the move for every model' : 'Move every model together'\}/);
   assert.match(workflow, /done here for this model/);
 });
+
+test('Printing’s and Assembly’s strips say where each model’s goods are, and whether a ready model goes on its own', () => {
+  const workflow = read('components/TaskWorkflow.jsx');
+  assert.match(workflow, /const after = todo\.kind !== 'ask_edd';/);
+  assert.match(workflow, /const received = todo\.routing\?\.receivedModels \|\| \{\};/);
+  assert.match(workflow, /`Goods came \$\{formatDate\(received\[row\.model\]\)\} from \$\{ROUTE_LABELS\[fromOf\(route\)\]\}`/);
+  assert.match(workflow, /`Still with \$\{ROUTE_LABELS\[fromOf\(route\)\]\}/);
+  /* Assembly takes a printed model from Printing, an unprinted one from Production. */
+  assert.match(workflow, /const fromOf = \(route\) => \(todo\.kind === 'ask_assembling_edd' && route\?\.printing \? 'printing' : 'production'\);/);
+  assert.match(workflow, /const eachAsReady = todo\.enquiry\?\.dispatchPlan\?\.mode === 'by_model';/);
+  assert.match(workflow, /\{current\?\.readyForDispatch && !closed && todo\.enquiry && \(/);
+  assert.match(workflow, /Goes to Dispatch as soon as it is ready — dispatch plan: each model as it is ready\./);
+  assert.match(workflow, /Waits for the other models — dispatch plan: all together\. Marketing or Admin can change it on the enquiry\./);
+});
