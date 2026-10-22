@@ -152,6 +152,8 @@ export const MESSAGE_CHANNELS = [
 export const MESSAGE_EVENTS = [
   { value: 'sample_ready', label: 'Sample ready' },
   { value: 'sample_dispatched', label: 'Sample dispatched' },
+  /* Days after the sample reached the buyer with no answer: a chase, drafted on the sample, sent by a person. */
+  { value: 'sample_feedback_chase', label: 'Feedback chase' },
 ];
 
 /** Why a channel produced no message. Silence always has a reason on the record. */

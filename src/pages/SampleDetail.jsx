@@ -1213,6 +1213,25 @@ function HandOverForm({ sample, onClose, onSaved }) {
   const [values, setValues] = useState({
     receivedBy: '', phone: '', pieces: String(sample.quantity ?? ''), handedAt: todayInIndia(), note: '',
   });
+  /* What the rack holds of this model, so the last piece is not taken unknowingly [components/SampleRack.jsx]. */
+  const [rack, setRack] = useState(null);
+  useEffect(() => {
+    if (sample.handover !== 'in_person') return undefined;
+    let cancelled = false;
+    samplesApi.rack()
+      .then((response) => {
+        if (cancelled) return;
+        const key = (value) => String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const rows = sample.items?.length ? sample.items : [sample];
+        setRack(rows.map((row) => {
+          const line = (response.data || []).find((entry) => key(entry.modelNumber) === key(row.modelNumber) && key(entry.colour) === key(row.colour))
+            || (response.data || []).find((entry) => key(entry.modelNumber) === key(row.modelNumber));
+          return { model: row.modelNumber, pieces: line ? line.pieces : null };
+        }).filter((entry) => entry.model));
+      })
+      .catch(() => !cancelled && setRack([]));
+    return () => { cancelled = true; };
+  }, [sample]);
   const [photo, setPhoto] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -1265,6 +1284,12 @@ function HandOverForm({ sample, onClose, onSaved }) {
         </Field>
       </div>
       {tooBig && <Notice tone="warn">That file is over 8 MB — take a smaller photo.</Notice>}
+      {rack?.length > 0 && (
+        <p className="text-xs text-steel-400" aria-label="On the rack">
+          On the rack: {rack.map((entry) => `${entry.model} ${entry.pieces === null ? 'not listed' : `${entry.pieces} pc`}`).join(' · ')}
+          {rack.some((entry) => entry.pieces === 0) ? ' — the rack is empty for one of these; the bench will need to top it up' : ' — the pieces handed over come off it'}
+        </p>
+      )}
       <Notice tone="info">The sample is marked Delivered, the enquiry moves to feedback, and you record what the buyer says next.</Notice>
       {error && <Notice tone="danger">{error}</Notice>}
       <div className="flex justify-end gap-2">
@@ -1393,6 +1418,8 @@ export default function SampleDetail() {
   const [givingFeedback, setGivingFeedback] = useState(false);
   const [handingOver, setHandingOver] = useState(false);
   const [messaging, setMessaging] = useState(false);
+  /* The chase, days after the sample reached the buyer: drafted on the sample, sent by a person. */
+  const [chasing, setChasing] = useState(false);
   const [editingDispatch, setEditingDispatch] = useState(false);
   const [editing, setEditing] = useState(false);
   const [linking, setLinking] = useState(false);
@@ -1552,6 +1579,12 @@ export default function SampleDetail() {
               </button>
             )}
 
+            {mayMessage && withCustomer && sample.customer && (
+              <button type="button" className={sample.chaseDraft?.body ? 'btn-primary' : 'btn-secondary'} onClick={() => setChasing(true)}>
+                {sample.chaseDraft?.body ? 'Chase the buyer — draft ready' : 'Chase the buyer'}
+              </button>
+            )}
+
             {mayHandOver && (
               <button type="button" className={sample.handover === 'in_person' ? 'btn-primary' : 'btn-secondary'} onClick={() => setHandingOver(true)}>
                 Hand over to the buyer
@@ -1573,6 +1606,15 @@ export default function SampleDetail() {
       {actionError && (
         <div className="mb-5">
           <Notice tone="danger">{actionError}</Notice>
+        </div>
+      )}
+
+      {sample.problem?.words && (
+        <div className="mb-5">
+          <Notice tone="danger">
+            The bench flagged a problem — <span className="font-bold">{sample.problem.words}</span>: {sample.problem.note}
+            {sample.problem.at ? ` (${formatDate(sample.problem.at)})` : ''}. It clears with the next move.
+          </Notice>
         </div>
       )}
 
@@ -1896,6 +1938,23 @@ export default function SampleDetail() {
             sample={sample}
             event={notifiable}
             onClose={() => setMessaging(false)}
+            onSent={() => setMessagesKey((key) => key + 1)}
+          />
+        )}
+      </Modal>
+
+      <Modal
+        open={chasing}
+        title="Chase the buyer"
+        description={sample.chaseDraft?.body ? 'Drafted when the reminder went — read it, change what you like, then send' : 'A short ask for their answer — edit before sending'}
+        size="lg"
+        onClose={() => setChasing(false)}
+      >
+        {chasing && (
+          <CustomerMessageForm
+            sample={sample}
+            event="sample_feedback_chase"
+            onClose={() => setChasing(false)}
             onSent={() => setMessagesKey((key) => key + 1)}
           />
         )}

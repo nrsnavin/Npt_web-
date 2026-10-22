@@ -40,7 +40,7 @@ test('the sample page shows reference beside finished piece per row; the bench r
 test('Sample Ready opens the photo step from the page and the queue; No photo needs a reason', () => {
   const form = read('components/SampleReadyForm.jsx');
   assert.match(form, /const missing = rows\.filter\(\(row\) => !row\.photo\?\.key\);/);
-  assert.match(form, /const blocked = missing\.length > 0 && \(!noPhoto \|\| reasonShort\);/);
+  assert.match(form, /const blocked = \(missing\.length > 0 && \(!noPhoto \|\| reasonShort\)\)/);
   assert.match(form, /status: 'sample_ready'/);
   assert.match(form, /noPhoto: true, noPhotoReason: reason\.trim\(\)/);
   assert.match(form, /samplesApi\.get\(sampleId\)/, 'the queue hands it only the id');

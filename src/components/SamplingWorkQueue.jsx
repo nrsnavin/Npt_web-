@@ -72,6 +72,11 @@ function CustomerCell({ row }) {
           ))}
         </ul>
       )}
+      {row.problem && (
+        <p className="mt-1 text-[0.75rem] font-semibold text-danger-400">Problem flagged: {row.problem.words} — {row.problem.note}</p>
+      )}
+      {row.nudge && <p className="mt-1 text-[0.75rem] font-semibold text-warn-400">{row.nudge}</p>}
+      {row.chaseDrafted && <p className="mt-1 text-[0.75rem] text-aqua-300">A chase to the buyer is drafted on the sample</p>}
       {row.photos && row.queueStatus === 'ready' && row.photos.taken < row.photos.of && (
         <p className="mt-1 text-[0.75rem] font-semibold text-warn-400">Ready without a photo of every piece ({row.photos.taken} of {row.photos.of})</p>
       )}

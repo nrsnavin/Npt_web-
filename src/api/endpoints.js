@@ -970,6 +970,10 @@ export const samples = {
   matchItemPhoto: ({ id, itemId, fresh }) => api.post(`/samples/${id}/items/${itemId}/match${fresh ? '?fresh=true' : ''}`).then(unwrap),
   pickMatchedModel: ({ id, itemId, ref }) => api.post(`/samples/${id}/items/${itemId}/pick-model`, { ref }).then(unwrap),
   checkItemPhoto: ({ id, itemId }) => api.post(`/samples/${id}/items/${itemId}/check`).then(unwrap),
+  /** The sample rack as a stock list [server: sampleRack.controller]. */
+  rack: () => api.get('/samples/rack').then((response) => response.data),
+  setRack: (rows) => api.put('/samples/rack', { rows }).then(unwrap),
+  removeRackLine: (lineId) => api.delete(`/samples/rack/${lineId}`).then(unwrap),
 };
 
 /** Per-department dashboards [§21-24]. */
