@@ -408,6 +408,14 @@ export function AuthProvider({ children }) {
         if (!salesperson || !owner) return true;
         return String(owner) === String(user?._id || user?.id);
       },
+      /**
+       * Plans Production's work [server: utils/departments.js `isProductionInCharge`]: gives the
+       * EDD and hand-over dates, decides printing / assembly per model, adds to the production
+       * queue. The Production in charge — anyone Admin marks, from any department — or Admin;
+       * the rest of Production moves the statuses.
+       */
+      mayPlanProduction: user?.role === 'admin' || (user?.departments || [user?.department]).includes('management')
+        || user?.productionInCharge === true,
       /** Every department this person works in, their main one first [server: utils/departments.js]. */
       departments: user?.departments || (user?.department ? [user.department] : []),
       /** True when they work in that department, as their main one or an extra one. */

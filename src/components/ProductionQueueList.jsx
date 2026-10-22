@@ -116,9 +116,10 @@ export default function ProductionQueueList({ compact = false, onRows }) {
   const [stage, setStageState] = useState(() => keptStage(compact));
   const [adding, setAdding] = useState(null);
   const [deleting, setDeleting] = useState(null);
-  const { isAdmin, departments = [] } = useAuth();
+  const { isAdmin, mayPlanProduction } = useAuth();
   /* Production plans its own press; Admin may too. */
-  const mayPlan = isAdmin || departments.includes('production');
+  /* Adding to the queue routes, plans and dates the task: the Production in charge's (or Admin's) to do. */
+  const mayPlan = mayPlanProduction;
   const setStage = (next) => {
     setStageState(next);
     try { window.localStorage.setItem(stageKey(compact), next); } catch { /* a private window */ }
