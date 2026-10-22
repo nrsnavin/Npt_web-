@@ -10,6 +10,7 @@ import {
 import ExportButton from '../components/ExportButton.jsx';
 import { SortHeader, useSort } from '../components/SortHeader.jsx';
 import OrderForm from '../components/OrderForm.jsx';
+import TaskPdfLink from '../components/TaskPdfLink.jsx';
 import { PriorityForm, PRIORITY_TONE, isRaised, priorityLabel } from '../components/OrderPriority.jsx';
 import { formatCurrency, formatDate, formatNumber } from '../utils/format.js';
 import { ORDER_STAGES, orderStageLabel, numeric, text } from '../utils/pipeline.js';
@@ -232,6 +233,8 @@ export default function Orders() {
                           {order.customerPo?.number && (
                             <p className="text-xs text-steel-400">{order.customerPo.number}</p>
                           )}
+                          {/* The sales order PDF the SO team uploaded on the enquiry's SO request. */}
+                          <TaskPdfLink file={order.soDocument} className="block" />
                         </td>
                         <td className="px-4 py-3.5 text-steel-300">{order.customer?.name}</td>
                         <td className="px-4 py-3.5 text-xs text-steel-300">

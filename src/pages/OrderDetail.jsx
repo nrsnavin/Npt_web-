@@ -18,6 +18,7 @@ import OrderPayment from '../components/OrderPayment.jsx';
 import DispatchTracker from '../components/DispatchTracker.jsx';
 import OrderDispatchDetails from '../components/OrderDispatchDetails.jsx';
 import OrderQcRecords from '../components/OrderQcRecords.jsx';
+import TaskPdfLink from '../components/TaskPdfLink.jsx';
 import { ProductionLineDialog, ProductionStatusPicker } from '../components/ProductionLine.jsx';
 import { formatCurrency, formatDate, formatNumber, isoDay } from '../utils/format.js';
 import {
@@ -439,6 +440,34 @@ function RePromiseDialog({ order, line, onClose, onSaved }) {
         </form>
       )}
     </Modal>
+  );
+}
+
+/**
+ * The sales order as sent to the buyer — the PDF the SO team uploaded to finish the enquiry's SO
+ * request [server: handoff.service `finishWithResult`; order.controller `withSoDocument`].
+ */
+function SoDocument({ order }) {
+  const file = order.soDocument;
+  return (
+    <Section title="The sales order PDF">
+      {file?.key ? (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+          <TaskPdfLink file={file} className="text-sm" />
+          {file.createdAt && <span className="text-steel-500">uploaded {formatDate(file.createdAt)}</span>}
+          {order.enquiry?._id && (
+            <Link to={`/enquiries/${order.enquiry._id}`} className="text-xs text-steel-400 hover:text-accent">
+              on the SO request of {order.enquiry.number || 'the enquiry'}
+            </Link>
+          )}
+        </div>
+      ) : (
+        <p className="text-sm text-steel-400">
+          Not uploaded yet — the SO team uploads it to finish
+          {order.enquiry?._id ? <> the SO request on <Link to={`/enquiries/${order.enquiry._id}`} className="font-semibold text-accent hover:underline">{order.enquiry.number || 'the enquiry'}</Link></> : ' the enquiry’s SO request'}.
+        </p>
+      )}
+    </Section>
   );
 }
 
@@ -868,6 +897,7 @@ export default function OrderDetail() {
           {/* What must be in before production and dispatch, and whether it is. */}
           <OrderPayment order={order} />
 
+          <SoDocument order={order} />
           <PurchaseOrder order={order} onSaved={(next) => absorb({ data: next })} mayWrite={mayWrite} />
 
           <Section title="Where it came from">
