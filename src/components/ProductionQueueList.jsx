@@ -80,7 +80,8 @@ const keptStage = (compact) => {
     const kept = window.localStorage.getItem(stageKey(compact));
     if (STAGES.some((entry) => entry.key === kept)) return kept;
   } catch { /* a private window */ }
-  return compact ? 'not_taken' : 'in_production';
+  /* Both, until a choice is made: a task just sent to Production is not in the queue yet, and must still be seen. */
+  return 'all';
 };
 
 export const BAND_TONE = {
@@ -152,6 +153,8 @@ export default function ProductionQueueList({ compact = false, onRows }) {
   if (!rows) return <TableSkeleton rows={6} columns={4} />;
 
   const bands = meta?.bands || {};
+  const hiddenByStage = stage === 'in_production' ? (rows || []).filter((row) => !row.production?.taken).length
+    : stage === 'not_taken' ? (rows || []).filter((row) => row.production?.taken).length : 0;
   const chips = [
     { key: 'all', label: 'All', count: rows.length },
     ...EDD_BANDS.map((entry) => ({ key: entry.key, label: BAND_TONE[entry.key]?.label || entry.label, count: bands[entry.key] || 0 })),
@@ -175,6 +178,14 @@ export default function ProductionQueueList({ compact = false, onRows }) {
           </button>
         ))}
       </div>
+      {/* A kept choice that hides tasks says so — a new task sent to Production is in "Not in the production queue". */}
+      {stage !== 'all' && hiddenByStage > 0 && (
+        <p className="flex flex-wrap items-center gap-2 rounded-lg border border-warn-500/40 bg-warn-500/[0.07] px-3 py-2 text-sm text-steel-100 print:hidden" role="status">
+          <span className="font-semibold text-warn-400">{hiddenByStage} task{hiddenByStage > 1 ? 's are' : ' is'} not shown by this filter</span>
+          <span className="text-steel-300">— {stage === 'in_production' ? 'sent to Production but not added to the production queue yet' : 'already in the production queue'}.</span>
+          <button type="button" className="row-action" onClick={() => setStage('all')}>Show all</button>
+        </p>
+      )}
       <div className="flex flex-wrap items-center gap-2 print:hidden">
         {chips.map((entry) => (
           <button
