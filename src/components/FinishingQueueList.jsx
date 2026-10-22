@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { production as productionApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import TaskPanel from './TaskPanel.jsx';
-import { BAND_TONE } from './ProductionQueueList.jsx';
+import { BAND_TONE, QcChip, RISK_TONE, RiskChips } from './ProductionQueueList.jsx';
 import { ErrorState, TableSkeleton } from './ui.jsx';
 import { formatDate, formatRelative } from '../utils/format.js';
 import { EDD_BANDS, dueWords } from '../utils/productionQueue.js';
@@ -74,6 +74,7 @@ export default function FinishingQueueList({ team, compact = false, onRows, onCh
   const [error, setError] = useState(null);
   const [asOf, setAsOf] = useState(null);
   const [band, setBand] = useState('all');
+  const [risk, setRisk] = useState('all');
   const [search, setSearch] = useState('');
   const [stage, setStageState] = useState(() => keptStage(team, compact));
   const [opened, setOpened] = useState(null);
@@ -99,11 +100,12 @@ export default function FinishingQueueList({ team, compact = false, onRows, onCh
       if (stage === 'waiting' && row.goods?.inHand) return false;
       if (band === 'problems' && !row.task.issue) return false;
       if (!['all', 'problems'].includes(band) && row.band !== band) return false;
+      if (risk !== 'all' && row.risk?.level !== risk) return false;
       if (!term) return true;
       return [row.enquiry.number || 'Team task', row.enquiry.customer?.name, row.order?.number, ...(row.models || []).map((entry) => entry.model)]
         .filter(Boolean).some((text) => String(text).toLowerCase().includes(term));
     });
-  }, [rows, band, search, stage]);
+  }, [rows, band, risk, search, stage]);
 
   if (error && !rows) return <ErrorState error={error} onRetry={load} />;
   if (!rows) return <TableSkeleton rows={6} columns={4} />;
@@ -161,6 +163,8 @@ export default function FinishingQueueList({ team, compact = false, onRows, onCh
           onChange={(event) => setSearch(event.target.value)}
         />
       </div>
+      {/* The same four colours as the production queue, against the date this team works to. */}
+      <RiskChips value={risk} onChange={setRisk} counts={meta?.risk} />
 
       {shown.length === 0 ? (
         <div className="card px-6 py-10 text-center">
@@ -177,9 +181,10 @@ export default function FinishingQueueList({ team, compact = false, onRows, onCh
         <ol className="space-y-2">
           {shown.map((row) => {
             const tone = BAND_TONE[row.band] || BAND_TONE.later;
+            const riskTone = RISK_TONE[row.risk?.level] || null;
             const goods = row.goods || {};
             return (
-              <li key={row.task._id} className={`card border-l-4 ${tone.edge} p-3 sm:p-4`}>
+              <li key={row.task._id} className={`card border-l-4 ${riskTone ? riskTone.edge : tone.edge} p-3 sm:p-4`}>
                 <div className="grid gap-3 md:grid-cols-[8.5rem_minmax(0,14rem)_minmax(0,1fr)_auto] md:items-center">
                   {/* The date the team works to. */}
                   <div className="flex items-center gap-2 md:block">
@@ -205,6 +210,13 @@ export default function FinishingQueueList({ team, compact = false, onRows, onCh
                   </div>
                   {/* Where it stands: the thirty words, then each model. */}
                   <div className="min-w-0 space-y-1.5">
+                    {(riskTone && row.risk?.why) || row.qc?.required ? (
+                      <p className="flex flex-wrap items-center gap-1.5 text-xs">
+                        {riskTone && row.risk?.why && <span className={`rounded-full px-2 py-0.5 font-semibold ${riskTone.chip}`}>{riskTone.label}</span>}
+                        {riskTone && row.risk?.why && <span className="text-steel-300">{row.risk.why}</span>}
+                        <QcChip qc={row.qc} />
+                      </p>
+                    ) : null}
                     <p className={`text-sm leading-snug ${row.task.issue ? 'font-semibold text-danger-400' : 'text-steel-200'}`}>{row.summary}</p>
                     {row.models?.length > 0 && (
                       <ul className="space-y-0.5" aria-label="Models">

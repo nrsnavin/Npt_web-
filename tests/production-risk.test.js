@@ -22,9 +22,9 @@ test('four colours: red, orange, yellow, green — on the edge, the chip and the
   assert.match(list, /export const RISK_ORDER = \['late', 'at_risk', 'close', 'on_track'\];/);
   assert.match(list, /const riskTone = RISK_TONE\[row\.risk\?\.level\] \|\| null;/);
   assert.match(list, /\$\{riskTone \? riskTone\.edge : tone\.edge\}/, 'the reading colours the edge; the band does where there is none');
-  assert.match(list, /\{riskTone\.label\}<\/span>\s*<span className="text-steel-300">\{row\.risk\.why\}<\/span>/, 'the chip says why');
+  assert.match(list, /\{riskTone\.label\}<\/span>\}\s*\{riskTone && row\.risk\?\.why && <span className="text-steel-300">\{row\.risk\.why\}<\/span>\}/, 'the chip says why');
   assert.match(list, /aria-label="Against the EDD"/);
-  assert.match(list, /\{meta\?\.risk\?\.\[level\] \|\| 0\}/, 'counted from the server');
+  assert.match(list, /<RiskChips value=\{risk\} onChange=\{setRisk\} counts=\{meta\?\.risk\} \/>/, 'counted from the server');
   assert.match(list, /if \(risk !== 'all' && row\.risk\?\.level !== risk\) return false;/);
 });
 
@@ -33,4 +33,16 @@ test('the CSV carries the reading beside the EDD', () => {
   const [header, line] = csv.replace('﻿', '').trim().split('\r\n');
   assert.equal(header, 'EDD,Due,Against the EDD,Enquiry,Buyer,Models,SO,Status,Work orders');
   assert.match(line, /^2026-10-24,in 2 days,"May miss the EDD — 5 days on the press for 30,000 pcs, 2 days left",ENQ-1,Aruna Knits/);
+});
+
+test('Printing and Assembly queues carry the same four colours and the QC chip', () => {
+  const finishing = read('components/FinishingQueueList.jsx');
+  assert.match(finishing, /import \{ BAND_TONE, QcChip, RISK_TONE, RiskChips \} from '\.\/ProductionQueueList\.jsx';/);
+  assert.match(finishing, /<RiskChips value=\{risk\} onChange=\{setRisk\} counts=\{meta\?\.risk\} \/>/);
+  assert.match(finishing, /\$\{riskTone \? riskTone\.edge : tone\.edge\}/);
+  assert.match(finishing, /<QcChip qc=\{row\.qc\} \/>/);
+  assert.match(finishing, /if \(risk !== 'all' && row\.risk\?\.level !== risk\) return false;/);
+  assert.match(list, /export function RiskChips\(/);
+  assert.match(list, /export function QcChip\(/);
+  assert.match(list, /\{qc\.cleared \? 'QC passed' : 'QC compulsory'\}/);
 });
