@@ -73,6 +73,10 @@ export default function TaskCard({ task, mayAct = false, open: openAtFirst = fal
             </span>
             <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${CHIP[state.tone]}`}>{state.label}</span>
             {edd && <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${EDD_CHIP[edd.tone]}`}>{edd.label}</span>}
+            {/* Nothing left to do on it [server: taskClosable.service] — the workflow below offers to close it. */}
+            {!task.completed && task.closable?.why && (
+              <span className="rounded-full bg-success-500/15 px-2 py-0.5 text-xs font-semibold text-success-400" title={task.closable.why}>Can be closed</span>
+            )}
             {/* With Admin: escalated and not yet answered [HandoffTaskActions]. */}
             {task.adminEscalation?.at && !task.adminEscalation.resolvedAt && !task.completed && (
               <span className="rounded-full bg-danger-500/15 px-2 py-0.5 text-xs font-semibold text-danger-400" title={task.adminEscalation.reason}>With Admin</span>
