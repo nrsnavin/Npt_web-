@@ -130,3 +130,38 @@ export function givenDateOf(task) {
  * Printing) routed a model there [server: handoff.service `setTaskStatus`].
  */
 export const statusesFor = (task, statuses = []) => statuses.filter((step) => !step.handsTo || handsOnOf(task).includes(step.handsTo));
+
+/** Production's decision for one model — printing, assembly — or null when it has none [server: Todo `routing.models`]. */
+export const routeOf = (task, model) => (task?.routing?.models || []).find((row) => row && typeof row === 'object' && row.model === model) || null;
+
+/**
+ * The statuses one model may move to on its own workflow: Handed to Printing only for a model
+ * Production routed to Printing, Handed to Assembly only for one that is assembled after this
+ * team — Production's model with no printing, Printing's with assembly [server: handoff.service
+ * `goesTo`]. A model with no decision yet keeps the task's own list.
+ */
+export function statusesForModel(task, statuses = [], model) {
+  const route = routeOf(task, model);
+  if (!route) return statusesFor(task, statuses);
+  return statuses.filter((step) => {
+    if (!step.handsTo) return true;
+    if (step.handsTo === 'printing') return task?.kind === 'ask_edd' && Boolean(route.printing);
+    if (step.handsTo === 'assembling') return Boolean(route.assembly) && (task?.kind === 'ask_printing' || !route.printing);
+    return false;
+  });
+}
+
+/** The rung after a model's status on its own ladder — issues and hand-overs it cannot take left out; null at the end. */
+export function nextStepForModel(task, statuses = [], model, status) {
+  const own = statusesForModel(task, statuses, model).filter((step) => !step.issue);
+  const at = own.findIndex((step) => step.key === status);
+  const current = statuses.find((step) => step.key === status);
+  if (current?.done) return null;
+  return own[at + 1] || null;
+}
+
+/** Where one model stands on its team's ladder: handed on, ready for dispatch or closed is through. */
+export const modelThrough = (statuses = [], status) => {
+  const step = statuses.find((entry) => entry.key === status);
+  return Boolean(step?.handsTo || step?.readyForDispatch || step?.done);
+};

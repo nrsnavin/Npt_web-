@@ -13,7 +13,8 @@ import { useToast } from '../context/ToastContext.jsx';
 import { todayInIndia } from '../utils/taskForm.js';
 import { ladderOf } from '../utils/taskState.js';
 import { departmentLabel } from '../utils/pipeline.js';
-import { dateLabelFor, givenDateOf, modelStatusesOf, modelsForStep, modelsOfTask, movesByModel, needsRouting, statusesFor } from '../utils/edd.js';
+import { ROUTE_LABELS, dateLabelFor, datesOfTask, givenDateOf, modelStatusesOf, modelThrough, modelsForStep, modelsOfTask, movesByModel, needsRouting, nextStepForModel, pathOf, routeOf, statusesFor, statusesForModel } from '../utils/edd.js';
+import { formatDate } from '../utils/format.js';
 
 /**
  * A department's own workflow on its task [server: config/departmentTaskForms.js `statuses`]:
@@ -35,23 +36,24 @@ const tomorrowInIndia = () => todayInIndia(new Date(Date.now() + 24 * 60 * 60 * 
  * The move itself, beside the list: the ready date and the remark, then Update status
  * [server: handoff.service `setTaskStatus`].
  */
-function MoveForm({ todo, form, step, onCancel, onMoved, noDates = false }) {
+function MoveForm({ todo, form, step, onCancel, onMoved, noDates = false, fixedModels = null }) {
   /*
    * The date already given starts the box: the hand-over date to Printing / Assembly while this
    * team hands on, else the date it gave its models — if it is not past. Sent again only when
    * changed, so a status move does not re-tell the next team a date it already has.
    */
-  const given = givenDateOf(todo);
+  const given = fixedModels?.length === 1 ? datesOfTask(todo)[fixedModels[0]] || givenDateOf(todo) : givenDateOf(todo);
   const initialDate = step.date === 'tomorrow' ? tomorrowInIndia() : given && given >= todayInIndia() ? given : '';
   const [date, setDate] = useState(initialDate);
   const [note, setNote] = useState('');
   /* What this move records [server: departmentTaskForms `statuses[].fields`] — who collected a sample, say. */
   const asks = step.fields || [];
   const [answers, setAnswers] = useState(() => Object.fromEntries(asks.map((field) => [field.key, ''])));
-  /* Several models: the move is for the ones ticked — every one by default, a hand-over only those routed there. */
+  /* Several models: the move is for the ones ticked — every one by default, a hand-over only those routed there.
+     On one model's own workflow [ModelWorkflows] the models are fixed and no boxes are drawn. */
   const byModel = movesByModel(todo);
   const allModels = byModel ? modelsOfTask(todo) : [];
-  const [picked, setPicked] = useState(() => (byModel ? modelsForStep(todo, step) : []));
+  const [picked, setPicked] = useState(() => (fixedModels || (byModel ? modelsForStep(todo, step) : [])));
   const whereNow = Object.fromEntries(modelStatusesOf(todo).map((row) => [row.model, form.statuses?.find((entry) => entry.key === row.status)?.label || row.status]));
   const noModel = byModel && !picked.length;
   const [busy, setBusy] = useState(false);
@@ -74,7 +76,7 @@ function MoveForm({ todo, form, step, onCancel, onMoved, noDates = false }) {
     try {
       onMoved(await workspace.todos.status({
         id: todo._id, status: step.key, note, ...(date && dated && (date !== given || step.date) ? { date } : {}), ...(asks.length ? { fields } : {}),
-        ...(byModel && picked.length < allModels.length ? { models: picked } : {}),
+        ...(fixedModels || (byModel && picked.length < allModels.length) ? { models: picked } : {}),
       }));
     } catch (failure) {
       setProblem(failure.message);
@@ -82,13 +84,13 @@ function MoveForm({ todo, form, step, onCancel, onMoved, noDates = false }) {
     }
   };
   return (
-    <form onSubmit={save} aria-label={`Move to ${step.label}`} className="space-y-2 rounded-xl border border-accent/30 bg-accent/[0.05] p-3">
+    <form onSubmit={save} aria-label={`Move ${fixedModels ? `${fixedModels.join(', ')} ` : ''}to ${step.label}`} className="space-y-2 rounded-xl border border-accent/30 bg-accent/[0.05] p-3">
       <p className="text-xs font-semibold text-steel-200">
-        Move to {step.label}
+        Move {fixedModels ? <span className="text-steel-50">{fixedModels.join(', ')}</span> : null}{fixedModels ? ' to ' : 'to '}{step.label}
         {form.notifyStatus && <span className="font-normal text-steel-400"> · the enquiry’s marketing person and Admin are told</span>}
       </p>
       <div className="grid gap-2">
-        {byModel && (
+        {byModel && !fixedModels && (
           <fieldset className="rounded-lg border border-steel-700/60 px-3 py-2">
             <legend className="px-1 text-xs font-medium text-steel-300">Models moving to {step.label}</legend>
             <div className="grid gap-1 sm:grid-cols-2">
@@ -368,6 +370,104 @@ export const missingDetails = (todo, fields = []) => (fields.length
 
 const QC_KINDS = ['quality_check', 'quality_issue'];
 
+/**
+ * One workflow per model on a Production, Printing or Assembly task of several models
+ * [server: handoff.service `setTaskStatus` with `models`; Todo `modelStatuses`]: each model has
+ * its own status, its own next step and its own list of moves — Handed to Printing only where
+ * that model goes to Printing — so one model can be moulded and handed on while another has not
+ * started. A move here is sent for that model alone; the task reads its slowest model.
+ */
+function ModelWorkflows({ todo, form, statuses, offered, noDates, onMoved }) {
+  const [moving, setMoving] = useState(null);
+  const dates = datesOfTask(todo);
+  const rows = modelStatusesOf(todo);
+  /* Printing's and Assembly's goods come from the team before: the day each model came, or when it is due [server: handoff.service `handOn`]. */
+  const after = todo.kind !== 'ask_edd';
+  const received = todo.routing?.receivedModels || {};
+  const incoming = todo.routing?.incoming || {};
+  const fromOf = (route) => (todo.kind === 'ask_assembling_edd' && route?.printing ? 'printing' : 'production');
+  /* The enquiry's dispatch plan: each model goes as soon as it is ready, or all go together [server: Enquiry `dispatchPlan`]. */
+  const eachAsReady = todo.enquiry?.dispatchPlan?.mode === 'by_model';
+  return (
+    <ul className="space-y-2" aria-label="Workflow by model">
+      {rows.map((row) => {
+        const own = statusesForModel(todo, offered, row.model);
+        const current = statuses.find((entry) => entry.key === row.status) || null;
+        const through = modelThrough(statuses, row.status);
+        const closed = Boolean(current?.done);
+        const next = nextStepForModel(todo, statuses, row.model, row.status);
+        const nextIsButton = next && own.some((entry) => entry.key === next.key) && !next.pdf && !(noDates && (next.date || next.plans));
+        const route = routeOf(todo, row.model);
+        const date = dates[row.model];
+        const open = moving?.model === row.model ? moving.step : null;
+        return (
+          <li key={row.model} className={`rounded-xl border p-3 ${closed ? 'border-line/[0.06] opacity-80' : through ? 'border-success-500/30 bg-success-500/[0.04]' : current?.issue ? 'border-danger-500/40 bg-danger-500/[0.04]' : 'border-line/[0.08] bg-line/[0.02]'}`}>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <span className="text-sm font-bold text-steel-50">{row.model}</span>
+              <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${closed || through ? 'bg-success-500/15 text-success-400' : current?.issue ? 'bg-danger-500/15 text-danger-400' : 'bg-warn-500/10 text-warn-400'}`}>
+                {current?.label || 'Not started'}
+              </span>
+              {route && <span className="text-xs text-steel-400">{pathOf(route)}</span>}
+              {date && <span className="text-xs text-steel-300">{dateLabelFor(todo, form.statusDate?.label || 'Ready date')} {formatDate(date)}</span>}
+              {through && !closed && <span className="text-xs text-success-400">done here for this model</span>}
+            </div>
+            {/* Where the goods are for this model: came on a day, or still with the team before. */}
+            {after && !closed && (
+              <p className="mt-1 text-xs text-steel-400">
+                {received[row.model]
+                  ? `Goods came ${formatDate(received[row.model])} from ${ROUTE_LABELS[fromOf(route)]}`
+                  : `Still with ${ROUTE_LABELS[fromOf(route)]}${incoming[fromOf(route)] ? `, due ${formatDate(incoming[fromOf(route)])}` : ''}`}
+              </p>
+            )}
+            {/* Ready here: whether it goes to Dispatch on its own, or waits for the rest — marketing's plan on the enquiry. */}
+            {current?.readyForDispatch && !closed && todo.enquiry && (
+              <p className={`mt-1 text-xs ${eachAsReady ? 'text-success-400' : 'text-warn-400'}`}>
+                {eachAsReady ? 'Goes to Dispatch as soon as it is ready — dispatch plan: each model as it is ready.' : 'Waits for the other models — dispatch plan: all together. Marketing or Admin can change it on the enquiry.'}
+              </p>
+            )}
+            {!closed && (
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                {nextIsButton && (
+                  <button type="button" className="btn-primary px-3 py-1 text-xs" onClick={() => setMoving({ model: row.model, step: next })}>
+                    {next.label} →
+                  </button>
+                )}
+                <label className="sr-only" htmlFor={`status-${todo._id}-${row.model}`}>Status of {row.model}</label>
+                <select
+                  id={`status-${todo._id}-${row.model}`}
+                  aria-label={`Change status of ${row.model}`}
+                  className="input w-auto min-w-[11rem] py-1 text-xs"
+                  value={open?.key || row.status || ''}
+                  onChange={(event) => {
+                    const step = own.find((entry) => entry.key === event.target.value);
+                    setMoving(step && step.key !== row.status ? { model: row.model, step } : null);
+                  }}
+                >
+                  {own.map((entry) => <option key={entry.key} value={entry.key}>{entry.label}</option>)}
+                </select>
+              </div>
+            )}
+            {open && (
+              <div className="mt-2">
+                <MoveForm
+                  key={`${row.model}-${open.key}`}
+                  todo={todo}
+                  form={form}
+                  step={open}
+                  noDates={noDates}
+                  fixedModels={[row.model]}
+                  onCancel={() => setMoving(null)}
+                  onMoved={(saved) => { setMoving(null); onMoved(saved, open); }}
+                />
+              </div>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
 /** The status list and the workflow's actions, for a task whose department has a workflow. */
 /** What became of the sales order the SO request booked [server: soFromTask.service]. */
 const orderWords = (order) => (order?.said ? `Sales order ${order.said}.` : '');
@@ -390,6 +490,8 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
   const [askingDepartment, setAskingDepartment] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [editing, setEditing] = useState(false);
+  /* Several models: each has its own workflow [ModelWorkflows]; moving every model at once is opened on request. */
+  const [allAtOnce, setAllAtOnce] = useState(false);
   const [fillingDetails, setFillingDetails] = useState(false);
   const [problem, setProblem] = useState(null);
   /* The task as a move left it with nothing more to do: the offer to close it [CloseTaskPrompt]. */
@@ -460,34 +562,45 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
           <button type="button" className="btn-primary px-3 py-1 text-xs" onClick={() => setOffer(todo)}>Close the task</button>
         </div>
       )}
-      <div className="flex flex-wrap items-center gap-2">
-        {nextIsButton && (
-          <button type="button" className="btn-primary px-3 py-1.5 text-xs" onClick={() => choose(next.key)}>
-            {next.label} →
+      {/* Several models: one workflow each — a model moulded and handed to Printing while another has not started. */}
+      {movesByModel(todo) && !waiting.length && (
+        <>
+          <ModelWorkflows
+            todo={todo}
+            form={button.form}
+            statuses={statuses}
+            offered={offered}
+            noDates={noDates}
+            onMoved={(saved, step) => {
+              if (saved?.completed) toast(step.label, 'The task is finished.');
+              moved(saved);
+            }}
+          />
+          <button type="button" className="link-muted text-xs" onClick={() => setAllAtOnce((value) => !value)} aria-expanded={allAtOnce}>
+            {allAtOnce ? 'Hide the move for every model' : 'Move every model together'}
           </button>
-        )}
-        <label className="sr-only" htmlFor={`status-${todo._id}`}>Status update</label>
-        <select
-          id={`status-${todo._id}`}
-          aria-label="Change status"
-          className="input w-auto min-w-[11rem] py-1.5 text-xs disabled:cursor-not-allowed disabled:opacity-80"
-          value={moving?.key || todo.status || ''}
-          disabled={waiting.length > 0}
-          aria-describedby={waiting.length ? `waiting-${todo._id}` : undefined}
-          onChange={(event) => choose(event.target.value)}
-        >
-          {offered.map((entry) => <option key={entry.key} value={entry.key}>{entry.label}</option>)}
-        </select>
-      </div>
-      {/* Each model where it is, once one moved on its own; the task reads its slowest [server: `modelStatusesOf`]. */}
-      {todo.modelStatuses?.length > 0 && (
-        <ul aria-label="Status by model" className="flex flex-wrap gap-1.5">
-          {modelStatusesOf(todo).map((row) => (
-            <li key={row.model} className={`rounded-full px-2.5 py-0.5 text-xs ring-1 ${row.status === todo.status ? 'bg-warn-500/10 text-warn-400 ring-warn-500/20' : 'bg-steel-800/60 text-steel-200 ring-steel-700/60'}`}>
-              <span className="font-semibold">{row.model}</span> · {(button.form.statuses || []).find((entry) => entry.key === row.status)?.label || row.status}
-            </li>
-          ))}
-        </ul>
+        </>
+      )}
+      {(!movesByModel(todo) || allAtOnce || waiting.length > 0) && (
+        <div className="flex flex-wrap items-center gap-2">
+          {nextIsButton && !movesByModel(todo) && (
+            <button type="button" className="btn-primary px-3 py-1.5 text-xs" onClick={() => choose(next.key)}>
+              {next.label} →
+            </button>
+          )}
+          <label className="sr-only" htmlFor={`status-${todo._id}`}>{movesByModel(todo) ? 'Status of every model' : 'Status update'}</label>
+          <select
+            id={`status-${todo._id}`}
+            aria-label={movesByModel(todo) ? 'Change status of every model' : 'Change status'}
+            className="input w-auto min-w-[11rem] py-1.5 text-xs disabled:cursor-not-allowed disabled:opacity-80"
+            value={moving?.key || todo.status || ''}
+            disabled={waiting.length > 0}
+            aria-describedby={waiting.length ? `waiting-${todo._id}` : undefined}
+            onChange={(event) => choose(event.target.value)}
+          >
+            {offered.map((entry) => <option key={entry.key} value={entry.key}>{entry.label}</option>)}
+          </select>
+        </div>
       )}
       {/* Asked Production / Assembly for readiness: theirs to answer, so the status waits on it [server: `assertNotWaiting`]. */}
       {waiting.length > 0 && (
