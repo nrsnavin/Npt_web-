@@ -120,7 +120,8 @@ test('a status move starts with the hand-over date already given; Handed to Prin
   assert.deepEqual(statusesFor({ routing: { handsTo: ['printing'] } }, statuses).map((step) => step.key), ['completed', 'handed_printing']);
   assert.deepEqual(statusesFor({}, statuses).map((step) => step.key), ['completed']);
   const workflow = readFileSync(new URL('../src/components/TaskWorkflow.jsx', import.meta.url), 'utf8');
-  assert.match(workflow, /const given = givenDateOf\(todo\);/);
+  /* One model's own form starts with that model's date; the whole-task form with the task's. */
+  assert.match(workflow, /const given = fixedModels\?\.length === 1 \? datesOfTask\(todo\)\[fixedModels\[0\]\] \|\| givenDateOf\(todo\) : givenDateOf\(todo\);/);
 });
 
 test('the enquiry sets the final EDD per model and the dispatch plan, and shows which models are ready', () => {
@@ -149,7 +150,8 @@ test('a task of several models moves model by model: the models ticked, each one
   assert.deepEqual(modelsForStep(task, { key: 'handed_printing', handsTo: 'printing' }), ['CRF25']);
   assert.deepEqual(modelsForStep(task, { key: 'handed_assembly', handsTo: 'assembling' }), ['CRF30']);
   const workflow = readFileSync(new URL('../src/components/TaskWorkflow.jsx', import.meta.url), 'utf8');
-  assert.match(workflow, /\.\.\.\(byModel && picked\.length < allModels\.length \? \{ models: picked \} : \{\}\)/);
-  assert.match(workflow, /aria-label="Status by model"/);
+  assert.match(workflow, /\.\.\.\(fixedModels \|\| \(byModel && picked\.length < allModels\.length\) \? \{ models: picked \} : \{\}\)/);
+  /* Each model has its own workflow strip now [tests/model-workflows.test.js]. */
+  assert.match(workflow, /aria-label="Workflow by model"/);
   assert.match(workflow, /The task stays open until every model is closed\./);
 });
