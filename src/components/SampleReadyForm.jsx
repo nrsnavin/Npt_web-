@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { samples as samplesApi } from '../api/endpoints.js';
 import { Field, Notice, Spinner } from './ui.jsx';
-import { PhotoSlot } from './SamplePhotos.jsx';
+import { CheckLine, PhotoSlot } from './SamplePhotos.jsx';
 import { shrinkImage } from '../utils/shrinkImage.js';
 import { text } from '../utils/pipeline.js';
 
@@ -24,6 +24,9 @@ export default function SampleReadyForm({ sample: given, sampleId, onClose, onSa
   const [note, setNote] = useState('');
   const [noPhoto, setNoPhoto] = useState(false);
   const [reason, setReason] = useState('');
+  /* A difference the check found: stepped past out loud, with a reason on the move [server: checkOverride]. */
+  const [checked, setChecked] = useState(false);
+  const [checkReason, setCheckReason] = useState('');
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -41,7 +44,9 @@ export default function SampleReadyForm({ sample: given, sampleId, onClose, onSa
   const rows = sample.items?.length ? sample.items : [];
   const missing = rows.filter((row) => !row.photo?.key);
   const reasonShort = noPhoto && reason.trim().length < REASON_MIN;
-  const blocked = missing.length > 0 && (!noPhoto || reasonShort);
+  const flagged = rows.filter((row) => row.check?.verdict === 'differs' && !row.checkAccepted?.reason);
+  const checkShort = checked && checkReason.trim().length < REASON_MIN;
+  const blocked = (missing.length > 0 && (!noPhoto || reasonShort)) || (flagged.length > 0 && (!checked || checkShort));
 
   const photo = async (row, file) => {
     setBusy(row._id);
@@ -79,6 +84,7 @@ export default function SampleReadyForm({ sample: given, sampleId, onClose, onSa
         status: 'sample_ready',
         note: text(note),
         ...(missing.length ? { noPhoto: true, noPhotoReason: reason.trim() } : {}),
+        ...(flagged.length ? { checkOverride: true, checkOverrideReason: checkReason.trim() } : {}),
       }));
       onClose();
     } catch (moveError) {
@@ -116,6 +122,7 @@ export default function SampleReadyForm({ sample: given, sampleId, onClose, onSa
                 onClear={() => clear(row)}
                 onOpen={() => {}}
               />
+              <CheckLine row={row} />
             </li>
           ))}
         </ol>
@@ -136,6 +143,25 @@ export default function SampleReadyForm({ sample: given, sampleId, onClose, onSa
             <div className="mt-2">
               <Field label="Why no photo?" required hint={`At least ${REASON_MIN} characters`}>
                 <input className="input" value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Pieces already bagged and sealed" aria-label="Why no photo" />
+              </Field>
+            </div>
+          )}
+        </div>
+      )}
+
+      {flagged.length > 0 && (
+        <div className="rounded-lg border border-warn-500/30 bg-warn-500/[0.06] p-3">
+          <label className="flex cursor-pointer items-start gap-2 text-sm">
+            <input type="checkbox" className="mt-0.5 h-4 w-4 accent-flame-500" checked={checked} onChange={(event) => setChecked(event.target.checked)} />
+            <span>
+              <span className="font-semibold text-steel-100">Checked — {flagged.map((row) => row.modelNumber || 'a piece').join(', ')} goes as it is</span>
+              <span className="block text-xs text-steel-400">The check found a difference. Retake the piece, or say why it goes anyway; marketing sees the note on the dispatch draft.</span>
+            </span>
+          </label>
+          {checked && (
+            <div className="mt-2">
+              <Field label="Why it goes as it is" required hint={`At least ${REASON_MIN} characters`}>
+                <input className="input" value={checkReason} onChange={(event) => setCheckReason(event.target.value)} placeholder="Buyer agreed the darker shade on the phone" aria-label="Why it goes as it is" />
               </Field>
             </div>
           )}

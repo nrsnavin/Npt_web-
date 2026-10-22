@@ -958,6 +958,18 @@ export const samples = {
     return api.put(`/samples/${id}/items/${itemId}/reference-photo`, form).then(unwrap);
   },
   clearItemReferencePhoto: ({ id, itemId }) => api.delete(`/samples/${id}/items/${itemId}/reference-photo`).then(unwrap),
+  /*
+   * The model's readings of those pictures, suggest only [server: sampleVision.llm.js]: the courier
+   * slip into the dispatch fields, a buyer's photo matched to the register, the finished piece checked.
+   */
+  readCourierCopy: (photo) => {
+    const form = new FormData();
+    form.append('photo', photo);
+    return api.post('/samples/read-courier-copy', form).then(unwrap);
+  },
+  matchItemPhoto: ({ id, itemId, fresh }) => api.post(`/samples/${id}/items/${itemId}/match${fresh ? '?fresh=true' : ''}`).then(unwrap),
+  pickMatchedModel: ({ id, itemId, ref }) => api.post(`/samples/${id}/items/${itemId}/pick-model`, { ref }).then(unwrap),
+  checkItemPhoto: ({ id, itemId }) => api.post(`/samples/${id}/items/${itemId}/check`).then(unwrap),
 };
 
 /** Per-department dashboards [§21-24]. */

@@ -188,6 +188,8 @@ export function HandoverForm({ row, onClose, onDone }) {
     colour: row.colour || '',
   });
   const [copy, setCopy] = useState(null);
+  /* What the model read off the courier copy — a suggestion the bench checks, into the fields [server: readCourierCopy]. */
+  const [reading, setReading] = useState(null);
   /* Sent is the end of the bench's work: the task closes with the move unless the bench unticks it. */
   const [closeTask, setCloseTask] = useState(true);
   /* Another shade against an exact-colour condition: allowed out loud — ticked, with a reason, marketing told. */
@@ -196,6 +198,27 @@ export function HandoverForm({ row, onClose, onDone }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const set = (key) => (event) => setValues({ ...values, [key]: event.target.value });
+
+  /* The courier copy chosen: read it, and offer what it says where the fields are still empty. */
+  const pickCopy = async (file) => {
+    setCopy(file);
+    setReading(null);
+    if (!file || !file.type.startsWith('image/')) return;
+    setReading({ busy: true });
+    try {
+      const read = await samplesApi.readCourierCopy(file);
+      setReading(read);
+      if (read.problem) return;
+      setValues((current) => ({
+        ...current,
+        courier: current.courier || (SAMPLE_COURIERS.includes(read.courier) ? read.courier : read.courier ? 'Other' : ''),
+        otherCourier: current.otherCourier || (read.courier && !SAMPLE_COURIERS.includes(read.courier) ? read.courier : ''),
+        awbNumber: current.awbNumber.trim() || read.awbNumber,
+      }));
+    } catch (readError) {
+      setReading({ problem: readError.message });
+    }
+  };
 
   const direct = values.method === 'direct';
   const phoneOk = !values.recipientPhone || /^\d{10}$/.test(values.recipientPhone);
@@ -293,9 +316,14 @@ export function HandoverForm({ row, onClose, onDone }) {
               <input className="input" value={values.awbNumber} onChange={set('awbNumber')} />
             </Field>
           </div>
-          <Field label="Courier copy" hint="Optional — a photo or PDF of the receipt">
-            <input type="file" accept="image/*,application/pdf" className="input" onChange={(event) => setCopy(event.target.files?.[0] || null)} />
+          <Field label="Courier copy" hint="Optional — a photo or PDF of the receipt. A photo is read: the courier and AWB are offered above, for you to check.">
+            <input type="file" accept="image/*,application/pdf" className="input" onChange={(event) => pickCopy(event.target.files?.[0] || null)} />
           </Field>
+          {reading && (
+            <p className={`-mt-2 text-xs ${reading.problem ? 'text-steel-400' : 'text-aqua-300'}`} aria-live="polite">
+              {reading.busy ? 'Reading the slip…' : reading.problem ? reading.problem : `Read from the slip: ${[reading.courier, reading.awbNumber].filter(Boolean).join(' · ')} — check it against the receipt before saving.`}
+            </p>
+          )}
         </>
       )}
 
