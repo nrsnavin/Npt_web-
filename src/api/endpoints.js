@@ -460,6 +460,8 @@ export const handoffs = {
 /** Department dashboards: one department's (`mine` for your own), and Admin's view of all ten. */
 export const departments = {
   dashboard: (key = 'mine') => api.get(`/departments/${key}/dashboard`).then(unwrap),
+  /** The SO team's desk at a glance: readiness, size, buyer, duplicates, clarifications, the week's bookings [components/SoDesk.jsx]. */
+  soDesk: () => api.get('/departments/order_confirmation/so-desk').then(unwrap),
   overview: () => api.get('/departments/overview').then(unwrap),
 };
 

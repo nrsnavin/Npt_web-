@@ -25,6 +25,7 @@ import { formatDate } from '../utils/format.js';
 import { departmentLabel, deskOf } from '../utils/pipeline.js';
 import DeskTabs, { firstDeskTab } from '../components/DeskTabs.jsx';
 import ProductionQueueList from '../components/ProductionQueueList.jsx';
+import SoDesk from '../components/SoDesk.jsx';
 import FinishingDeskList from '../components/FinishingDeskList.jsx';
 import { EDD_CHIP, eddChipOf } from '../utils/edd.js';
 import { EDD_BANDS, PRODUCTION_FILTERS, eddBandOf, eddBands } from '../utils/productionQueue.js';
@@ -228,6 +229,8 @@ function DepartmentDesk() {
    * rather than every enquiry in the plant [utils/productionQueue.js]. Its filters are the bands.
    */
   const isProduction = data?.figures?.department === 'production';
+  /* The SO team's desk reads its requests ready-first, sized and with the buyer beside each [components/SoDesk.jsx]. */
+  const isSoTeam = data?.figures?.department === 'order_confirmation';
   const shown = useMemo(() => {
     const term = search.trim().toLowerCase();
     return enquiries.filter((row) => {
@@ -368,7 +371,9 @@ function DepartmentDesk() {
       {/* Production's queue: one line per enquiry in EDD order; each is worked on its workflow page. */}
       {tab === 'enquiries' && isProduction && <ProductionQueueList compact />}
 
-      {tab === 'enquiries' && !isProduction && (
+      {tab === 'enquiries' && isSoTeam && <SoDesk me={me} onChanged={reload} />}
+
+      {tab === 'enquiries' && !isProduction && !isSoTeam && (
         <section className="space-y-4">
           <div className="flex flex-wrap items-center gap-2">
             {filters.map((entry) => (
