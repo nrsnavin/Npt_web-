@@ -122,7 +122,9 @@ test('the Production desk opens on what is not in the production queue; the queu
   const list = readFileSync(new URL('../src/components/ProductionQueueList.jsx', import.meta.url), 'utf8');
   assert.match(list, /label: 'Not in the production queue', count: \(meta\) => meta\?\.teams\?\.notTaken/);
   assert.match(list, /label: 'In the production queue', count: \(meta\) => meta\?\.teams\?\.inProduction/);
-  assert.match(list, /return compact \? 'not_taken' : 'in_production';/, 'the desk starts on what is still to be added; the queue page on the queue');
+  assert.match(list, /return 'all';/, 'both, until a choice is made — a task just sent to Production is not in the queue yet');
+  assert.match(list, /not shown by this filter/, 'a kept choice that hides tasks says so');
+  assert.match(list, /onClick=\{\(\) => setStage\('all'\)\}>Show all<\/button>/);
   assert.match(list, /if \(stage === 'not_taken' && row\.production\?\.taken\) return false;/);
   assert.match(list, /if \(stage === 'in_production' && !row\.production\?\.taken\) return false;/);
   assert.match(list, /window\.localStorage\.setItem\(stageKey\(compact\), next\)/);

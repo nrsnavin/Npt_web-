@@ -215,3 +215,9 @@ test('an SO request reads as it was entered: answers by name, a block per model 
   assert.equal(briefSections(button, { ...brief, productionConfirmed: '' }).checks[0].ticked, false);
   assert.deepEqual(briefSections(button, undefined), { facts: [], checks: [], tables: [] });
 });
+
+test('a team task raised for a buyer says which enquiry filled its rows', () => {
+  const dialog = readFileSync(new URL('../src/components/DepartmentTaskDialog.jsx', import.meta.url), 'utf8');
+  assert.match(dialog, /\{team && prefill\?\.from\?\.enquiry && \(/);
+  assert.match(dialog, /Filled from <span className="font-semibold text-steel-200">\{prefill\.from\.enquiry\.number\}<\/span>, this buyer’s latest enquiry/);
+});
