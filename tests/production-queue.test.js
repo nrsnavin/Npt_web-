@@ -105,8 +105,8 @@ test('the sheet for the floor: one line a row — the models, the summary, the w
   row.workOrders = [{ number: 'WO-1', status: 'running' }];
   const csv = queueCsv([row], now);
   const [head, line] = csv.replace(/^﻿/, '').split('\r\n');
-  assert.equal(head, 'EDD,Due,Enquiry,Buyer,Models,SO,Status,Work orders');
-  assert.equal(line, '2026-10-17,today,ENQ-1,SCM,"CRF25, CRF30",,CRF25 Handed to Printing; CRF30 Production Started. No EDD yet,WO-1 running');
+  assert.equal(head, 'EDD,Due,Against the EDD,Enquiry,Buyer,Models,SO,Status,Work orders');
+  assert.equal(line, '2026-10-17,today,,ENQ-1,SCM,"CRF25, CRF30",,CRF25 Handed to Printing; CRF30 Production Started. No EDD yet,WO-1 running');
 });
 
 test('press time reads from the mould, and is flagged when it runs past the EDD', async () => {

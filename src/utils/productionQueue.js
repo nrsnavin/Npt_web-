@@ -135,14 +135,36 @@ export function queueCsv(rows, now = new Date()) {
     return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
   };
   /* The queue as the screen reads it: when, whose, the models, and the state in at most thirty words. */
-  const lines = [['EDD', 'Due', 'Enquiry', 'Buyer', 'Models', 'SO', 'Status', 'Work orders']];
+  const lines = [['EDD', 'Due', 'Against the EDD', 'Enquiry', 'Buyer', 'Models', 'SO', 'Status', 'Work orders']];
   for (const row of rows) {
     const edd = row.enquiry?.edd?.date || row.edd?.date || '';
     lines.push([
-      edd, dueWords(edd, now), row.enquiry?.number, row.enquiry?.customer?.name,
+      edd, dueWords(edd, now), row.risk?.why || '', row.enquiry?.number, row.enquiry?.customer?.name,
       (row.models || []).map((entry) => entry.model).join(', ') || row.enquiry?.model, row.order?.number,
       row.summary || row.task?.statusLabel || 'Open',
       (row.workOrders || []).map((wo) => `${wo.number} ${wo.status}`).join('; '),
+    ]);
+  }
+  return `﻿${lines.map((line) => line.map(cell).join(',')).join('\r\n')}\r\n`;
+}
+
+/**
+ * Printing's or Assembly's queue as a sheet [components/FinishingQueueList.jsx]: when, whose,
+ * each model with where its goods are, and the state in at most thirty words.
+ */
+export function finishingCsv(rows, now = new Date()) {
+  const cell = (value) => {
+    const text = value == null ? '' : String(value);
+    return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+  };
+  const lines = [['Date', 'Due', 'Enquiry', 'Buyer', 'Models', 'SO', 'Goods', 'Status']];
+  for (const row of rows) {
+    const date = row.edd?.date || '';
+    const goods = (row.models || []).map((entry) => `${entry.model}: ${entry.received ? `from ${entry.fromLabel} ${entry.received}` : `with ${entry.fromLabel}${entry.expected ? ` due ${entry.expected}` : ''}`}`).join('; ');
+    lines.push([
+      date, dueWords(date, now), row.enquiry?.number || 'Team task', row.enquiry?.customer?.name,
+      (row.models || []).map((entry) => entry.model).join(', ') || row.enquiry?.model, row.order?.number,
+      goods, row.summary || row.task?.statusLabel || 'Open',
     ]);
   }
   return `﻿${lines.map((line) => line.map(cell).join(',')).join('\r\n')}\r\n`;

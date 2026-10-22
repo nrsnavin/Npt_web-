@@ -4,6 +4,7 @@ import { orders as ordersApi, qcRecordsApi } from '../api/endpoints.js';
 import { Badge, Field, FormError, PageHeader, Section } from '../components/ui.jsx';
 import { EnquirySelect, MaterialSelect, MouldSelect } from '../components/pickers.jsx';
 import MachineSelect from '../components/MachineSelect.jsx';
+import CloseTaskPrompt from '../components/CloseTaskPrompt.jsx';
 import useQualityOptions from '../hooks/useQualityOptions.js';
 import {
   AQL_LEVELS, MOULDING_TYPES, PRINT_TYPES, QC_STAGES, QC_VERDICTS, RESULT, SHIFTS, fillFrom, workOut,
@@ -118,6 +119,8 @@ export default function QcRecordForm() {
   const [sheet, setSheet] = useState(() => blank(params));
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState(null);
+  /* The sheet saved against a Quality task with nothing left on it: the offer to close that task, then the record [CloseTaskPrompt]. */
+  const [saved, setSaved] = useState(null);
 
   /** set('resin.batch')(value) */
   const set = (path) => (value) => setSheet((current) => {
@@ -234,12 +237,24 @@ export default function QcRecordForm() {
     });
     try {
       const made = await qcRecordsApi.create(payload);
-      navigate(`/qc-records/${made._id}`, { replace: true });
+      /* Entered against a Quality task: the task may be closed now — asked here, before the record opens. */
+      if (made.closeTask) setSaved(made);
+      else navigate(`/qc-records/${made._id}`, { replace: true });
     } catch (failure) {
       setProblem(failure);
       setBusy(false);
     }
   };
+
+  if (saved?.closeTask) {
+    return (
+      <CloseTaskPrompt
+        task={{ _id: saved.closeTask._id, title: saved.closeTask.title }}
+        why={saved.closeTask.why}
+        onClose={() => navigate(`/qc-records/${saved._id}`, { replace: true })}
+      />
+    );
+  }
 
   return (
     <form onSubmit={save} className="mx-auto max-w-5xl space-y-5" noValidate>

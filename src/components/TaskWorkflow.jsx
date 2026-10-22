@@ -7,6 +7,7 @@ import TaskPdfLink from './TaskPdfLink.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import TaskDocuments from './TaskDocuments.jsx';
 import DepartmentTaskDialog from './DepartmentTaskDialog.jsx';
+import CloseTaskPrompt, { offersClose } from './CloseTaskPrompt.jsx';
 import RegisterPick from './RegisterPick.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import { todayInIndia } from '../utils/taskForm.js';
@@ -391,8 +392,15 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
   const [editing, setEditing] = useState(false);
   const [fillingDetails, setFillingDetails] = useState(false);
   const [problem, setProblem] = useState(null);
+  /* The task as a move left it with nothing more to do: the offer to close it [CloseTaskPrompt]. */
+  const [offer, setOffer] = useState(null);
   /* Said as a toast: the finished task leaves the list it was on. */
   const { toast, warn } = useToast();
+  /* After a move: the screen takes the task as saved; if nothing is left on it, the dialog to close it. */
+  const moved = (saved) => {
+    onChanged?.(saved);
+    if (offersClose(saved)) setOffer(saved);
+  };
   /* Opened from a status picked elsewhere (the Department Tasks table): go straight to that move. */
   const started = useRef(false);
   useEffect(() => {
@@ -436,7 +444,7 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
     /* Several models: always the form, to say which models move. */
     if (button.form.remarkRequired || button.form.statusDate || step.fields?.length || step.tellBuyer || movesByModel(todo)) return setMoving(key === todo.status && !movesByModel(todo) ? null : step);
     try {
-      onChanged?.(await workspace.todos.status({ id: todo._id, status: key }));
+      moved(await workspace.todos.status({ id: todo._id, status: key }));
     } catch (failure) {
       setProblem(failure.message);
     }
@@ -445,6 +453,13 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
 
   return (
     <div className="space-y-2">
+      {/* Nothing left to do here [server: taskClosable.service]: the task says so until somebody closes it. */}
+      {offersClose(todo) && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-success-500/10 px-3 py-2 ring-1 ring-success-500/20" role="status">
+          <p className="text-xs text-success-400"><span className="font-semibold">Nothing left to do</span> — {todo.closable.why}</p>
+          <button type="button" className="btn-primary px-3 py-1 text-xs" onClick={() => setOffer(todo)}>Close the task</button>
+        </div>
+      )}
       <div className="flex flex-wrap items-center gap-2">
         {nextIsButton && (
           <button type="button" className="btn-primary px-3 py-1.5 text-xs" onClick={() => choose(next.key)}>
@@ -545,7 +560,7 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
           onMoved={(saved) => {
             setMoving(null);
             if (saved?.completed) toast(moving.label, 'The task is finished.');
-            onChanged?.(saved);
+            moved(saved);
           }}
         />
       )}
@@ -555,7 +570,18 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
           step={asking}
           target={asking.raises ? buttonFor(catalogue, asking.raises) : null}
           onClose={() => setAsking(null)}
-          onSave={async (note) => onChanged?.(await workspace.todos.status({ id: todo._id, status: asking.key, note }))}
+          onSave={async (note) => moved(await workspace.todos.status({ id: todo._id, status: asking.key, note }))}
+        />
+      )}
+      {offer && (
+        <CloseTaskPrompt
+          task={offer}
+          why={offer.closable?.why}
+          onClose={() => setOffer(null)}
+          onClosed={(saved) => {
+            toast('Task closed', offer.closable?.why || 'Nothing was left to do.');
+            onChanged?.(saved);
+          }}
         />
       )}
       {uploading && (

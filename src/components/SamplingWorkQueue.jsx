@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { documents as documentsApi, samples as samplesApi } from '../api/endpoints.js';
 import { useRecord } from '../hooks/useRecords.js';
 import { DashboardSkeleton, ErrorState, Field, FormError, Modal } from './ui.jsx';
+import AuthedImage from './AuthedImage.jsx';
+import SampleReadyForm from './SampleReadyForm.jsx';
 import { formatDate } from '../utils/format.js';
 import {
   CHIPS, SAMPLE_COURIERS, SETS, TILE_FILTERS, UNSENT, filterFor, needsReason, optionsFor,
@@ -60,6 +62,24 @@ function CustomerCell({ row }) {
       <p className="mt-0.5 text-xs text-steel-300">
         {row.models.map((item) => `${item.model || 'New model'}: ${item.quantity} pcs`).join(' · ')}
       </p>
+      {/* The finished pieces, as thumbnails: marketing sees the piece without opening the request. */}
+      {row.models.some((item) => item.photo) && (
+        <ul className="mt-1.5 flex flex-wrap gap-1.5" aria-label={`Finished pieces on ${row.number}`}>
+          {row.models.filter((item) => item.photo).map((item) => (
+            <li key={item._id || item.photo} className="h-12 w-12 overflow-hidden rounded-md border border-line/[0.08]" title={item.model || ''}>
+              <AuthedImage attachmentKey={item.photo} alt={`Finished ${item.model || 'piece'}`} className="h-full w-full object-cover" />
+            </li>
+          ))}
+        </ul>
+      )}
+      {row.problem && (
+        <p className="mt-1 text-[0.75rem] font-semibold text-danger-400">Problem flagged: {row.problem.words} — {row.problem.note}</p>
+      )}
+      {row.nudge && <p className="mt-1 text-[0.75rem] font-semibold text-warn-400">{row.nudge}</p>}
+      {row.chaseDrafted && <p className="mt-1 text-[0.75rem] text-aqua-300">A chase to the buyer is drafted on the sample</p>}
+      {row.photos && row.queueStatus === 'ready' && row.photos.taken < row.photos.of && (
+        <p className="mt-1 text-[0.75rem] font-semibold text-warn-400">Ready without a photo of every piece ({row.photos.taken} of {row.photos.of})</p>
+      )}
       <Link to={row.link} className="mt-0.5 inline-block text-[0.75rem] text-steel-500 hover:text-accent">{row.number}</Link>
     </div>
   );
@@ -173,16 +193,48 @@ export function HandoverForm({ row, onClose, onDone }) {
     colour: row.colour || '',
   });
   const [copy, setCopy] = useState(null);
+  /* What the model read off the courier copy — a suggestion the bench checks, into the fields [server: readCourierCopy]. */
+  const [reading, setReading] = useState(null);
+  /* Sent is the end of the bench's work: the task closes with the move unless the bench unticks it. */
+  const [closeTask, setCloseTask] = useState(true);
+  /* Another shade against an exact-colour condition: allowed out loud — ticked, with a reason, marketing told. */
+  const [anyway, setAnyway] = useState(false);
+  const [anywayReason, setAnywayReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const set = (key) => (event) => setValues({ ...values, [key]: event.target.value });
 
+  /* The courier copy chosen: read it, and offer what it says where the fields are still empty. */
+  const pickCopy = async (file) => {
+    setCopy(file);
+    setReading(null);
+    if (!file || !file.type.startsWith('image/')) return;
+    setReading({ busy: true });
+    try {
+      const read = await samplesApi.readCourierCopy(file);
+      setReading(read);
+      if (read.problem) return;
+      setValues((current) => ({
+        ...current,
+        courier: current.courier || (SAMPLE_COURIERS.includes(read.courier) ? read.courier : read.courier ? 'Other' : ''),
+        otherCourier: current.otherCourier || (read.courier && !SAMPLE_COURIERS.includes(read.courier) ? read.courier : ''),
+        awbNumber: current.awbNumber.trim() || read.awbNumber,
+      }));
+    } catch (readError) {
+      setReading({ problem: readError.message });
+    }
+  };
+
   const direct = values.method === 'direct';
   const phoneOk = !values.recipientPhone || /^\d{10}$/.test(values.recipientPhone);
   const courierName = values.courier === 'Other' ? values.otherCourier.trim() : values.courier;
-  const ready = direct
+  const sameShade = (a, b) => String(a || '').trim().toLowerCase().replace(/\s+/g, ' ') === String(b || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  const substituting = Boolean(row.colour) && Boolean(values.colour.trim()) && !sameShade(row.colour, values.colour);
+  const exactBroken = substituting && row.models?.some((item) => item.colourMandatory);
+  const stepOk = !exactBroken || (anyway && anywayReason.trim().length >= 5);
+  const ready = (direct
     ? (values.handedTo.trim() || values.recipientPhone) && phoneOk
-    : courierName && values.awbNumber.trim();
+    : courierName && values.awbNumber.trim()) && stepOk;
 
   const submit = async (event) => {
     event.preventDefault();
@@ -198,6 +250,8 @@ export function HandoverForm({ row, onClose, onDone }) {
           : { courier: courierName, awbNumber: values.awbNumber.trim() }),
         dispatchedQuantity: Number(values.quantity) || undefined,
         dispatchedColour: values.colour.trim() || undefined,
+        closeTask,
+        ...(exactBroken && anyway ? { colourOverride: true, colourOverrideReason: anywayReason.trim() } : {}),
       });
       if (!direct && copy) {
         await documentsApi.add({ collection: 'samples', id: row._id, file: copy, title: `Courier copy — ${values.awbNumber.trim()}` });
@@ -267,9 +321,14 @@ export function HandoverForm({ row, onClose, onDone }) {
               <input className="input" value={values.awbNumber} onChange={set('awbNumber')} />
             </Field>
           </div>
-          <Field label="Courier copy" hint="Optional — a photo or PDF of the receipt">
-            <input type="file" accept="image/*,application/pdf" className="input" onChange={(event) => setCopy(event.target.files?.[0] || null)} />
+          <Field label="Courier copy" hint="Optional — a photo or PDF of the receipt. A photo is read: the courier and AWB are offered above, for you to check.">
+            <input type="file" accept="image/*,application/pdf" className="input" onChange={(event) => pickCopy(event.target.files?.[0] || null)} />
           </Field>
+          {reading && (
+            <p className={`-mt-2 text-xs ${reading.problem ? 'text-steel-400' : 'text-aqua-300'}`} aria-live="polite">
+              {reading.busy ? 'Reading the slip…' : reading.problem ? reading.problem : `Read from the slip: ${[reading.courier, reading.awbNumber].filter(Boolean).join(' · ')} — check it against the receipt before saving.`}
+            </p>
+          )}
         </>
       )}
 
@@ -278,15 +337,39 @@ export function HandoverForm({ row, onClose, onDone }) {
           <input type="number" min={1} className="input" value={values.quantity} onChange={set('quantity')} />
         </Field>
         {row.colour && (
-          <Field label="Colour sent" hint={`Asked for ${row.colour}`}>
+          <Field label="Colour sent" hint={`Asked for ${row.colour}${row.models?.some((item) => item.colourMandatory) ? ' — exactly, as a condition' : ''}`}>
             <input className="input" value={values.colour} onChange={set('colour')} />
           </Field>
         )}
       </div>
 
+      {exactBroken && (
+        <div className="rounded-lg border border-danger-500/40 bg-danger-500/[0.06] p-3 text-sm" role="alert">
+          <p className="font-semibold text-danger-400">
+            {row.colour} exactly was a condition of this request, and {values.colour.trim()} is not it.
+          </p>
+          <p className="mt-1 text-xs text-steel-300">Send it in {row.colour}, ask {row.requestedBy || 'marketing'} to drop the condition — or send it anyway and say why. Marketing is told the moment it goes.</p>
+          <label className="mt-2 flex cursor-pointer items-start gap-2">
+            <input type="checkbox" className="mt-0.5 h-4 w-4 accent-flame-500" checked={anyway} onChange={(event) => setAnyway(event.target.checked)} />
+            <span className="font-semibold text-steel-100">Send it anyway — marketing is told</span>
+          </label>
+          {anyway && (
+            <input className="input mt-2" placeholder="Why — the buyer said so on the phone, the fit is what matters…" aria-label="Why send it anyway" value={anywayReason} onChange={(event) => setAnywayReason(event.target.value)} />
+          )}
+        </div>
+      )}
+
+      <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-line/[0.08] px-3 py-2.5 text-sm">
+        <input type="checkbox" className="mt-0.5 h-4 w-4 accent-flame-500" checked={closeTask} onChange={(event) => setCloseTask(event.target.checked)} />
+        <span>
+          <span className="font-semibold text-steel-100">Close the task on the bench</span>
+          <span className="block text-xs text-steel-400">The sample has left; it comes off the work queue. Untick to keep it here, for example to send a second bag.</span>
+        </span>
+      </label>
+
       <p className="rounded-lg bg-aqua-300/10 px-3 py-2 text-xs text-aqua-300">
         Saving tells the buyer on WhatsApp and email, moves the enquiry to feedback, and tells
-        {' '}{row.requestedBy || 'marketing'} to chase the feedback.
+        {' '}{row.requestedBy || 'marketing'} to chase the feedback{closeTask ? '; the task closes here' : ''}.
       </p>
 
       <FormError error={error} />
@@ -309,6 +392,8 @@ export default function SamplingWorkQueue() {
   const [problem, setProblem] = useState(null);
   const [reasoning, setReasoning] = useState(null);
   const [handing, setHanding] = useState(null);
+  /* Sample Ready asks for the photos first [SampleReadyForm]. */
+  const [readying, setReadying] = useState(null);
 
   const rows = data?.rows || [];
   const statuses = data?.statuses || [];
@@ -329,6 +414,7 @@ export default function SamplingWorkQueue() {
     if (to === row.queueStatus) return;
     setProblem(null);
     if (to === 'sent') return setHanding(row);
+    if (to === 'ready') return setReadying(row);
     if (needsReason(row, to)) return setReasoning({ row, to });
     setBusyId(row._id);
     try {
@@ -345,6 +431,7 @@ export default function SamplingWorkQueue() {
   const done = async () => {
     setReasoning(null);
     setHanding(null);
+    setReadying(null);
     await reload();
   };
 
@@ -489,6 +576,16 @@ export default function SamplingWorkQueue() {
         onClose={() => setHanding(null)}
       >
         {handing && <HandoverForm row={handing} onClose={() => setHanding(null)} onDone={done} />}
+      </Modal>
+
+      <Modal
+        open={Boolean(readying)}
+        title="Sample ready — photograph each piece"
+        description={readying ? `${readying.number} · ${readying.customer?.name || ''}` : ''}
+        size="lg"
+        onClose={() => setReadying(null)}
+      >
+        {readying && <SampleReadyForm sampleId={readying._id} onClose={() => setReadying(null)} onSaved={done} />}
       </Modal>
 
       <Modal

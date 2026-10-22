@@ -40,6 +40,8 @@ function StatusCell({ status, received, needed }) {
       {/* The hand-over date this team gave the next one, or its EDD where it is the last. */}
       {status.given && <span className="block text-xs font-semibold text-steel-200">{status.given.label} {formatDate(status.given.date)}</span>}
       {received && <span className="block text-xs text-steel-500">goods came {formatDate(received)}</span>}
+      {/* Handed on or ready: this team is done with the model, though its task stays open for the others [server: productionSummary `statusFor`]. */}
+      {status.through && <span className="block text-xs text-success-400">closed for this model</span>}
     </span>
   );
 }

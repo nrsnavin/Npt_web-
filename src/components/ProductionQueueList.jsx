@@ -92,6 +92,56 @@ export const BAND_TONE = {
   none: { edge: 'border-l-warn-500/60', chip: 'bg-warn-500/15 text-warn-400', label: 'No EDD' },
 };
 
+/*
+ * Will it make the EDD, from the quantity [server: eddRisk.service]: red past the EDD,
+ * orange when the pieces left take more press days than the days left, yellow close to the EDD,
+ * green on track. The row's edge and a chip carry it; the filter picks one reading.
+ */
+export const RISK_TONE = {
+  late: { edge: 'border-l-danger-500', chip: 'bg-danger-500/15 text-danger-400', dot: 'bg-danger-500', label: 'Past EDD', hint: 'The EDD has passed and the goods are not ready' },
+  at_risk: { edge: 'border-l-orange-500', chip: 'bg-orange-500/15 text-orange-400', dot: 'bg-orange-500', label: 'May miss EDD', hint: 'The pieces left take more press days than the days left' },
+  close: { edge: 'border-l-warn-500', chip: 'bg-warn-500/15 text-warn-400', dot: 'bg-warn-500', label: 'Close to EDD', hint: 'Within three days of the EDD, or a day or less to spare' },
+  on_track: { edge: 'border-l-success-500', chip: 'bg-success-500/15 text-success-400', dot: 'bg-success-500', label: 'On track', hint: 'The press days fit the days left' },
+};
+export const RISK_ORDER = ['late', 'at_risk', 'close', 'on_track'];
+
+/** The "Against the EDD" filter: one chip a reading, counted, the same on every queue. */
+export function RiskChips({ value, onChange, counts = {} }) {
+  const chip = (active) => `rounded-full border px-3 py-1 text-xs font-semibold transition ${active ? 'border-flame-500 bg-flame-500/10 text-flame-400' : 'border-line/[0.1] text-steel-400 hover:text-steel-200'}`;
+  return (
+    <div className="flex flex-wrap items-center gap-2 print:hidden" role="group" aria-label="Against the EDD">
+      <span className="text-xs font-semibold uppercase tracking-wide text-steel-500">Against the EDD</span>
+      <button type="button" aria-pressed={value === 'all'} onClick={() => onChange('all')} className={chip(value === 'all')}>All</button>
+      {RISK_ORDER.map((level) => (
+        <button
+          key={level}
+          type="button"
+          aria-pressed={value === level}
+          title={RISK_TONE[level].hint}
+          onClick={() => onChange(value === level ? 'all' : level)}
+          className={`inline-flex items-center gap-1.5 ${chip(value === level)}`}
+        >
+          <span className={`h-2 w-2 rounded-full ${RISK_TONE[level].dot}`} aria-hidden="true" />
+          {RISK_TONE[level].label} <span className="tabular-nums opacity-75">{counts[level] || 0}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** QC compulsory before dispatch [server: qcGate.service]: pending until Quality passes it. */
+export function QcChip({ qc }) {
+  if (!qc?.required) return null;
+  return (
+    <span
+      className={`rounded-full px-2 py-0.5 text-xs font-semibold ${qc.cleared ? 'bg-success-500/15 text-success-400' : 'bg-accent/15 text-accent'}`}
+      title={qc.cleared ? 'Quality passed it — Dispatch may send it' : 'Dispatch waits for Quality’s pass'}
+    >
+      {qc.cleared ? 'QC passed' : 'QC compulsory'}
+    </span>
+  );
+}
+
 /** A work order as a small chip: its number, status and how much is made. */
 export function WorkOrderChip({ wo, orderId }) {
   const status = WORK_ORDER_STATUS[wo.status] || { label: wo.status };
@@ -114,6 +164,7 @@ export default function ProductionQueueList({ compact = false, onRows }) {
   const [error, setError] = useState(null);
   const [asOf, setAsOf] = useState(null);
   const [band, setBand] = useState('all');
+  const [risk, setRisk] = useState('all');
   const [search, setSearch] = useState('');
   const [stage, setStageState] = useState(() => keptStage(compact));
   const [adding, setAdding] = useState(null);
@@ -143,11 +194,12 @@ export default function ProductionQueueList({ compact = false, onRows }) {
       if (stage === 'in_production' && !row.production?.taken) return false;
       if (band === 'problems' && !row.task.issue) return false;
       if (!['all', 'problems'].includes(band) && row.band !== band) return false;
+      if (risk !== 'all' && row.risk?.level !== risk) return false;
       if (!term) return true;
       return [row.enquiry.number || 'Team task', row.enquiry.customer?.name, row.order?.number, ...(row.models || []).map((entry) => entry.model)]
         .filter(Boolean).some((text) => String(text).toLowerCase().includes(term));
     });
-  }, [rows, band, search, stage]);
+  }, [rows, band, risk, search, stage]);
 
   if (error && !rows) return <ErrorState error={error} onRetry={load} />;
   if (!rows) return <TableSkeleton rows={6} columns={4} />;
@@ -207,6 +259,8 @@ export default function ProductionQueueList({ compact = false, onRows }) {
           onChange={(event) => setSearch(event.target.value)}
         />
       </div>
+      {/* Will it make the EDD, from the quantity: one reading per row, the four counted here. */}
+      <RiskChips value={risk} onChange={setRisk} counts={meta?.risk} />
 
       {shown.length === 0 ? (
         <div className="card px-6 py-10 text-center">
@@ -221,9 +275,10 @@ export default function ProductionQueueList({ compact = false, onRows }) {
         <ol className="space-y-2">
           {shown.map((row) => {
             const tone = BAND_TONE[row.band] || BAND_TONE.later;
+            const riskTone = RISK_TONE[row.risk?.level] || null;
             const models = row.models?.length ? row.models.map((entry) => entry.model) : [row.enquiry.model].filter(Boolean);
             return (
-              <li key={row.task._id} className={`card border-l-4 ${tone.edge} p-3 sm:p-4`}>
+              <li key={row.task._id} className={`card border-l-4 ${riskTone ? riskTone.edge : tone.edge} p-3 sm:p-4`}>
                 <div className="grid gap-3 md:grid-cols-[8.5rem_minmax(0,14rem)_minmax(0,1fr)_auto] md:items-center">
                   {/* When it is due. */}
                   <div className="flex items-center gap-2 md:block">
@@ -249,6 +304,13 @@ export default function ProductionQueueList({ compact = false, onRows }) {
                   </div>
                   {/* Where it stands, in at most thirty words, and its work orders. */}
                   <div className="min-w-0 space-y-1.5">
+                    {(riskTone && row.risk?.why) || row.qc?.required ? (
+                      <p className="flex flex-wrap items-center gap-1.5 text-xs">
+                        {riskTone && row.risk?.why && <span className={`rounded-full px-2 py-0.5 font-semibold ${riskTone.chip}`}>{riskTone.label}</span>}
+                        {riskTone && row.risk?.why && <span className="text-steel-300">{row.risk.why}</span>}
+                        <QcChip qc={row.qc} />
+                      </p>
+                    ) : null}
                     <p className={`text-sm leading-snug ${row.task.issue ? 'font-semibold text-danger-400' : 'text-steel-200'}`}>{row.summary}</p>
                     {row.workOrders?.length > 0 && (
                       <div className="flex flex-wrap gap-1.5">

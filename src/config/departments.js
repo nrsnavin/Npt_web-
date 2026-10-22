@@ -126,6 +126,8 @@ export const DEPARTMENT_WORKSPACES = {
     purpose: 'Makes the order and keeps everyone told of what is done and what is pending.',
     pages: [
       { label: 'Production queue', to: '/production/queue', module: 'production', hint: 'In EDD order, with Assembly, Quality and Dispatch beside each row' },
+      { label: 'Printing queue', to: '/production/queue/printing', module: 'production', hint: 'What Printing has in hand and what is still on the press, in EDD order' },
+      { label: 'Assembly queue', to: '/production/queue/assembling', module: 'production', hint: 'What Assembly has in hand and what is still with Production or Printing' },
       { label: 'Production status', to: '/production', module: 'production', hint: 'By customer and model' },
       { label: 'Floor', to: '/floor', module: 'production', hint: 'The tablet at the presses: log, finish, start the next job, call a breakdown' },
       { label: 'Shift handover', to: '/production/shift', module: 'production', hint: 'What the shift made, what stopped the presses, what the next shift picks up' },
@@ -175,6 +177,8 @@ export const DEPARTMENT_WORKSPACES = {
       { label: 'Quality check queue', to: '/quality', module: 'quality' },
       { label: 'Quality report', to: '/quality/report', module: 'quality' },
       { label: 'Production queue', to: '/production/queue', module: 'production' },
+      { label: 'Printing queue', to: '/production/queue/printing', module: 'production' },
+      { label: 'Assembly queue', to: '/production/queue/assembling', module: 'production' },
       { label: 'Production status', to: '/production', module: 'production' },
     ],
     jobs: [
@@ -188,6 +192,8 @@ export const DEPARTMENT_WORKSPACES = {
   assembling: {
     purpose: 'Assembles to instruction and reports what is done and what is pending.',
     pages: [
+      { label: 'Assembly queue', to: '/production/queue/assembling', module: 'production', hint: 'In EDD order — what is in hand to assemble, what is still with Production or Printing' },
+      { label: 'Printing queue', to: '/production/queue/printing', module: 'production' },
       { label: 'Enquiries at Assembly', to: '/enquiries?stage=assembling', module: 'enquiries' },
       { label: 'Order / model details', to: '/orders', module: 'orders' },
       { label: 'Production queue', to: '/production/queue', module: 'production' },
@@ -207,6 +213,8 @@ export const DEPARTMENT_WORKSPACES = {
   printing: {
     purpose: 'Prints the hanger to the buyer’s artwork and reports what is done and what is pending.',
     pages: [
+      { label: 'Printing queue', to: '/production/queue/printing', module: 'production', hint: 'In EDD order — what is in hand to print, what is still on the press' },
+      { label: 'Assembly queue', to: '/production/queue/assembling', module: 'production' },
       { label: 'Enquiries at Assembly / Printing', to: '/enquiries?stage=assembling', module: 'enquiries' },
       { label: 'Order / model details', to: '/orders', module: 'orders' },
       { label: 'Production queue', to: '/production/queue', module: 'production' },
@@ -227,6 +235,7 @@ export const DEPARTMENT_WORKSPACES = {
     pages: [
       { label: 'Plan trips', to: '/dispatch/plan', module: 'dispatch' },
       { label: 'Production queue', to: '/production/queue', module: 'dispatch', hint: 'What is still on the press, in EDD order' },
+      { label: 'Assembly queue', to: '/production/queue/assembling', module: 'dispatch', hint: 'What Assembly has in hand and when it is due' },
       { label: 'Ready / pending dispatch', to: '/dispatches', module: 'dispatch' },
       { label: 'Enquiries to invoice', to: '/enquiries?stage=invoice_dispatch,lr_copy', module: 'enquiries' },
       { label: 'Orders', to: '/orders', module: 'orders' },

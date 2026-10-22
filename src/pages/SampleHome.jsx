@@ -4,6 +4,7 @@ import { samples as samplesApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { ErrorState, PageHeader, DashboardSkeleton } from '../components/ui.jsx';
 import { formatDate } from '../utils/format.js';
+import SampleRack from '../components/SampleRack.jsx';
 
 /**
  * The sample bench's front page.
@@ -97,6 +98,14 @@ function Job({ sample, urgent }) {
         {/* The whole point of the card. A sentence, not a status word to be decoded. */}
         {sample.nextStep && (
           <p className="mt-3 text-base font-bold text-accent">→ {sample.nextStep}</p>
+        )}
+
+        {/* A problem the bench wrote in the log, until the next move; and a nudge when it has sat past the usual time. */}
+        {sample.problem && (
+          <p className="mt-2 text-sm font-bold text-danger-400">Problem flagged: {sample.problem.words} — {sample.problem.note}</p>
+        )}
+        {sample.nudge && (
+          <p className="mt-2 text-sm font-semibold text-warn-400">{sample.nudge}</p>
         )}
 
         <p className="mt-3 border-t border-line/[0.06] pt-2 text-sm text-steel-400">
@@ -199,6 +208,15 @@ export default function SampleHome() {
         }
       />
 
+      {/* The bench in under sixty words, from the same facts the rows show [server: samplingSummary.llm.js]. */}
+      {meta.summary?.text && (
+        <div className="card mb-4 border-l-4 border-l-flame-500 px-5 py-4" aria-label="This morning on the bench">
+          <p className="eyebrow">This morning on the bench</p>
+          <p className="mt-1 text-base leading-relaxed text-steel-100">{meta.summary.text}</p>
+          {meta.summary.byModel && <p className="mt-1 text-xs text-steel-500">Read by the assistant from the queue — the rows below are the record.</p>}
+        </div>
+      )}
+
       <div className="grid gap-3 sm:grid-cols-3">
         <Count
           label="Late"
@@ -248,6 +266,11 @@ export default function SampleHome() {
           />
         </>
       )}
+
+      {/* What is on the rack for a visit, kept by the bench [components/SampleRack.jsx]. */}
+      <div className="mt-7">
+        <SampleRack />
+      </div>
     </div>
   );
 }

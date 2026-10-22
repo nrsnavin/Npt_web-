@@ -12,6 +12,8 @@ import BuyerContactCard from '../components/BuyerContactCard.jsx';
 import { CustomerSelect, EnquirySelect } from '../components/pickers.jsx';
 import SampleLog from '../components/SampleLog.jsx';
 import SampleRequestForm from '../components/SampleRequestForm.jsx';
+import SamplePhotos from '../components/SamplePhotos.jsx';
+import SampleReadyForm from '../components/SampleReadyForm.jsx';
 import ItemList from '../components/ItemList.jsx';
 import { formatDate, formatNumber } from '../utils/format.js';
 import { todayInIndia } from '../utils/taskForm.js';
@@ -50,6 +52,9 @@ function StageForm({ sample, to, onClose, onSaved }) {
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  /* The exact colour stepped past, out loud: ticked, with a reason; marketing is told [server: assertColourAllowed]. */
+  const [anyway, setAnyway] = useState(false);
+  const [anywayReason, setAnywayReason] = useState('');
 
   const dispatching = to === 'dispatched';
   const goingBack = isBackwardSampleMove(sample.status, to);
@@ -79,6 +84,9 @@ function StageForm({ sample, to, onClose, onSaved }) {
           awbNumber: dispatching ? awbNumber : undefined,
           dispatchedQuantity: dispatching ? numeric(dispatchedQuantity) : undefined,
           dispatchedColour: dispatching ? text(dispatchedColour) : undefined,
+          ...(dispatching && substituting && sample.colourMandatory && anyway
+            ? { colourOverride: true, colourOverrideReason: anywayReason.trim() }
+            : {}),
         })
       );
       onClose();
@@ -160,12 +168,22 @@ function StageForm({ sample, to, onClose, onSaved }) {
             <div className="mt-3">
               <Notice tone={sample.colourMandatory ? 'danger' : 'warn'}>
                 {sample.colourMandatory ? (
-                  <p>
-                    <span className="font-bold">{sample.colour} exactly</span> was a condition of
-                    this request, so it cannot go out in {dispatchedColour.trim()}. Send it in{' '}
-                    {sample.colour}, or ask {sample.requestedBy?.name || 'whoever raised it'} to
-                    drop the exact-colour condition first.
-                  </p>
+                  <div>
+                    <p>
+                      <span className="font-bold">{sample.colour} exactly</span> was a condition of
+                      this request, and {dispatchedColour.trim()} is not it. Send it in{' '}
+                      {sample.colour}, ask {sample.requestedBy?.name || 'whoever raised it'} to
+                      drop the exact-colour condition — or send it anyway and say why. Marketing is
+                      told the moment it goes.
+                    </p>
+                    <label className="mt-2 flex cursor-pointer items-start gap-2 text-sm">
+                      <input type="checkbox" className="mt-0.5 h-4 w-4 accent-flame-500" checked={anyway} onChange={(event) => setAnyway(event.target.checked)} />
+                      <span className="font-semibold text-steel-100">Send it anyway — marketing is told</span>
+                    </label>
+                    {anyway && (
+                      <input className="input mt-2" placeholder="Why" aria-label="Why send it anyway" value={anywayReason} onChange={(event) => setAnywayReason(event.target.value)} />
+                    )}
+                  </div>
                 ) : (
                   <p>
                     Going out in {dispatchedColour.trim()} rather than the {sample.colour} asked
@@ -217,7 +235,7 @@ function StageForm({ sample, to, onClose, onSaved }) {
         <button
           type="submit"
           className={cancelling ? 'btn-danger' : 'btn-primary'}
-          disabled={busy || reasonShort || (dispatching && substituting && sample.colourMandatory)}
+          disabled={busy || reasonShort || (dispatching && substituting && sample.colourMandatory && !(anyway && anywayReason.trim().length >= 5))}
         >
           {busy
             ? 'Saving…'
@@ -356,7 +374,8 @@ function StagePanel({ sample, mayMove, onSaved, onAsk }) {
   const showMoves = mayMove && (onward.length > 0 || back.length > 0 || cancel);
 
   const go = async (to) => {
-    if (to === 'dispatched') {
+    /* Dispatch asks for the courier; Sample Ready asks for the photos [SampleReadyForm]. */
+    if (to === 'dispatched' || to === 'sample_ready') {
       onAsk(to);
       return;
     }
@@ -463,6 +482,84 @@ function StagePanel({ sample, mayMove, onSaved, onAsk }) {
               <Notice tone="danger">{error}</Notice>
             </div>
           )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+/**
+ * Marketing's answer to Not available [server: decideNotAvailable; the sampling audit, item 7].
+ * The bench said it cannot supply the piece; the request parks until whoever spoke to the buyer
+ * says what happens: wait for a run, change the spec (the edit form, then back to the bench), or
+ * cancel. The bench is told on its queue whichever way it goes.
+ */
+function NotAvailableDecision({ sample, onSaved, onEdit }) {
+  const [choice, setChoice] = useState(null);
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const reason = [...(sample.statusHistory || [])].reverse().find((entry) => entry.to === 'not_available')?.note;
+  const needsNote = choice !== 'wait';
+  const short = needsNote && note.trim().length < 5;
+
+  const decide = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      onSaved(await samplesApi.decideNotAvailable({ id: sample._id, choice, note: text(note) }));
+      setChoice(null);
+      setNote('');
+    } catch (decideError) {
+      setError(decideError.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="card mb-5 border-danger-500/30 p-5" aria-label="Not available — your decision">
+      <p className="eyebrow text-danger-400">The bench cannot supply it — your decision</p>
+      {reason && <p className="mt-1 text-sm text-steel-200">“{reason}”</p>}
+      <p className="mt-2 text-xs text-steel-400">Tell the buyer, then say what happens. The bench hears your answer on its queue.</p>
+      <div className="mt-3 grid gap-2 sm:grid-cols-3">
+        {[
+          ['wait', 'Wait for a run', 'Back to the bench; made when it can be'],
+          ['change', 'Change the spec', 'Another shade, model or date — correct the request first'],
+          ['cancel', 'Cancel the request', 'The buyer will not wait'],
+        ].map(([key, label, hint]) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setChoice(key)}
+            className={`rounded-lg border p-3 text-left text-sm transition-colors ${choice === key ? 'border-flame-500/50 bg-flame-500/[0.08]' : 'border-line/10 hover:border-line/20'}`}
+          >
+            <span className="block font-semibold text-steel-100">{label}</span>
+            <span className="mt-0.5 block text-xs text-steel-400">{hint}</span>
+          </button>
+        ))}
+      </div>
+      {choice && (
+        <div className="mt-3 space-y-3">
+          {choice === 'change' && (
+            <Notice tone="info">
+              Correct the request first — <button type="button" className="font-semibold underline" onClick={onEdit}>edit the request</button> — then say what changed and send it back.
+            </Notice>
+          )}
+          <Field
+            label={choice === 'cancel' ? 'Why is it being cancelled?' : choice === 'change' ? 'What changed?' : 'Note for the bench'}
+            required={needsNote}
+            hint={needsNote ? 'Required — the bench and the stage history read it' : 'Optional'}
+          >
+            <input className="input" value={note} onChange={(event) => setNote(event.target.value)} aria-label="Decision note" />
+          </Field>
+          {error && <Notice tone="danger">{error}</Notice>}
+          <div className="flex justify-end gap-2">
+            <button type="button" className="btn-secondary" onClick={() => setChoice(null)} disabled={busy}>Back</button>
+            <button type="button" className={choice === 'cancel' ? 'btn-danger' : 'btn-primary'} onClick={decide} disabled={busy || short}>
+              {busy ? 'Saving…' : choice === 'wait' ? 'Wait — send it back to the bench' : choice === 'change' ? 'Spec changed — send it back' : 'Cancel the request'}
+            </button>
+          </div>
         </div>
       )}
     </section>
@@ -1116,6 +1213,25 @@ function HandOverForm({ sample, onClose, onSaved }) {
   const [values, setValues] = useState({
     receivedBy: '', phone: '', pieces: String(sample.quantity ?? ''), handedAt: todayInIndia(), note: '',
   });
+  /* What the rack holds of this model, so the last piece is not taken unknowingly [components/SampleRack.jsx]. */
+  const [rack, setRack] = useState(null);
+  useEffect(() => {
+    if (sample.handover !== 'in_person') return undefined;
+    let cancelled = false;
+    samplesApi.rack()
+      .then((response) => {
+        if (cancelled) return;
+        const key = (value) => String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const rows = sample.items?.length ? sample.items : [sample];
+        setRack(rows.map((row) => {
+          const line = (response.data || []).find((entry) => key(entry.modelNumber) === key(row.modelNumber) && key(entry.colour) === key(row.colour))
+            || (response.data || []).find((entry) => key(entry.modelNumber) === key(row.modelNumber));
+          return { model: row.modelNumber, pieces: line ? line.pieces : null };
+        }).filter((entry) => entry.model));
+      })
+      .catch(() => !cancelled && setRack([]));
+    return () => { cancelled = true; };
+  }, [sample]);
   const [photo, setPhoto] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -1168,6 +1284,12 @@ function HandOverForm({ sample, onClose, onSaved }) {
         </Field>
       </div>
       {tooBig && <Notice tone="warn">That file is over 8 MB — take a smaller photo.</Notice>}
+      {rack?.length > 0 && (
+        <p className="text-xs text-steel-400" aria-label="On the rack">
+          On the rack: {rack.map((entry) => `${entry.model} ${entry.pieces === null ? 'not listed' : `${entry.pieces} pc`}`).join(' · ')}
+          {rack.some((entry) => entry.pieces === 0) ? ' — the rack is empty for one of these; the bench will need to top it up' : ' — the pieces handed over come off it'}
+        </p>
+      )}
       <Notice tone="info">The sample is marked Delivered, the enquiry moves to feedback, and you record what the buyer says next.</Notice>
       {error && <Notice tone="danger">{error}</Notice>}
       <div className="flex justify-end gap-2">
@@ -1296,6 +1418,8 @@ export default function SampleDetail() {
   const [givingFeedback, setGivingFeedback] = useState(false);
   const [handingOver, setHandingOver] = useState(false);
   const [messaging, setMessaging] = useState(false);
+  /* The chase, days after the sample reached the buyer: drafted on the sample, sent by a person. */
+  const [chasing, setChasing] = useState(false);
   const [editingDispatch, setEditingDispatch] = useState(false);
   const [editing, setEditing] = useState(false);
   const [linking, setLinking] = useState(false);
@@ -1455,6 +1579,12 @@ export default function SampleDetail() {
               </button>
             )}
 
+            {mayMessage && withCustomer && sample.customer && (
+              <button type="button" className={sample.chaseDraft?.body ? 'btn-primary' : 'btn-secondary'} onClick={() => setChasing(true)}>
+                {sample.chaseDraft?.body ? 'Chase the buyer — draft ready' : 'Chase the buyer'}
+              </button>
+            )}
+
             {mayHandOver && (
               <button type="button" className={sample.handover === 'in_person' ? 'btn-primary' : 'btn-secondary'} onClick={() => setHandingOver(true)}>
                 Hand over to the buyer
@@ -1476,6 +1606,15 @@ export default function SampleDetail() {
       {actionError && (
         <div className="mb-5">
           <Notice tone="danger">{actionError}</Notice>
+        </div>
+      )}
+
+      {sample.problem?.words && (
+        <div className="mb-5">
+          <Notice tone="danger">
+            The bench flagged a problem — <span className="font-bold">{sample.problem.words}</span>: {sample.problem.note}
+            {sample.problem.at ? ` (${formatDate(sample.problem.at)})` : ''}. It clears with the next move.
+          </Notice>
         </div>
       )}
 
@@ -1522,6 +1661,10 @@ export default function SampleDetail() {
         </div>
       )}
 
+      {sample.status === 'not_available' && (canWrite('enquiries') || (!sample.customer && maySample)) && (
+        <NotAvailableDecision sample={sample} onSaved={setData} onEdit={() => setEditing(true)} />
+      )}
+
       <StagePanel
         sample={sample}
         mayMove={maySample && !closed}
@@ -1557,7 +1700,15 @@ export default function SampleDetail() {
             </div>
           </Section>
 
-          <ReferencePhoto sample={sample} mayEdit={maySample && !closed} onSaved={setData} />
+          {/* The buyer's reference beside the finished piece, model by model [the sampling audit, items 1 and 2]. */}
+          <SamplePhotos
+            sample={sample}
+            mayBench={maySample && !closed}
+            mayReference={(maySample || canWrite('enquiries')) && !closed}
+            onSaved={setData}
+          />
+
+          <ReferencePhoto sample={sample} mayEdit={(maySample || canWrite('enquiries')) && !closed} onSaved={setData} />
 
           <SampleLog sampleId={sample._id} />
 
@@ -1716,14 +1867,20 @@ export default function SampleDetail() {
             ? 'Cancel this request'
             : movingStage === 'dispatched'
               ? 'Dispatch the sample'
-              : isBackwardSampleMove(sample.status, movingStage)
-                ? 'Send the sample back'
-                : 'Move stage'
+              : movingStage === 'sample_ready'
+                ? 'Sample ready — photograph each piece'
+                : isBackwardSampleMove(sample.status, movingStage)
+                  ? 'Send the sample back'
+                  : 'Move stage'
         }
         description={sample.number}
         onClose={() => setMovingStage(null)}
+        size={movingStage === 'sample_ready' ? 'lg' : 'md'}
       >
-        {movingStage && (
+        {movingStage === 'sample_ready' && (
+          <SampleReadyForm sample={sample} onClose={() => setMovingStage(null)} onSaved={setData} />
+        )}
+        {movingStage && movingStage !== 'sample_ready' && (
           <StageForm
             key={movingStage}
             sample={sample}
@@ -1781,6 +1938,23 @@ export default function SampleDetail() {
             sample={sample}
             event={notifiable}
             onClose={() => setMessaging(false)}
+            onSent={() => setMessagesKey((key) => key + 1)}
+          />
+        )}
+      </Modal>
+
+      <Modal
+        open={chasing}
+        title="Chase the buyer"
+        description={sample.chaseDraft?.body ? 'Drafted when the reminder went — read it, change what you like, then send' : 'A short ask for their answer — edit before sending'}
+        size="lg"
+        onClose={() => setChasing(false)}
+      >
+        {chasing && (
+          <CustomerMessageForm
+            sample={sample}
+            event="sample_feedback_chase"
+            onClose={() => setChasing(false)}
             onSent={() => setMessagesKey((key) => key + 1)}
           />
         )}

@@ -164,6 +164,42 @@ function Trend({ months }) {
   );
 }
 
+/** What the buyer said, by a key: answered, approved (with the rate), sent back, rejected. */
+function ApprovalTable({ rows, labelOf = (row) => row.label, empty }) {
+  if (!rows?.length) return <p className="py-4 text-center text-sm text-steel-500">{empty}</p>;
+  return (
+    <div className="overflow-x-auto">
+      <table className="min-w-full text-sm">
+        <thead className="table-head">
+          <tr>
+            <th className="px-3 py-2.5">Segment</th>
+            <th className="px-3 py-2.5 text-right">Answered</th>
+            <th className="px-3 py-2.5 text-right">Approved</th>
+            <th className="px-3 py-2.5 text-right">Sent back</th>
+            <th className="px-3 py-2.5 text-right">Rejected</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-line/[0.04]">
+          {rows.map((row) => (
+            <tr key={row.label} className={`row-hover ${row.reliable ? '' : 'opacity-60'}`}>
+              <td className="px-3 py-3">
+                <p className="font-medium text-steel-100">{labelOf(row)}{row.reliable ? '' : <span className="ml-2 text-xs uppercase text-steel-500">thin</span>}</p>
+                <div className="mt-1.5 h-1.5 w-32 overflow-hidden rounded-full bg-line/[0.06]">
+                  <div className={`h-full rounded-full ${row.approvedPercent >= 70 ? 'bg-success-500' : row.approvedPercent >= 40 ? 'bg-warn-500' : 'bg-danger-500'}`} style={{ width: `${row.approvedPercent}%` }} />
+                </div>
+              </td>
+              <td className="px-3 py-3 text-right tabular-nums">{row.answered}</td>
+              <td className="px-3 py-3 text-right tabular-nums text-steel-100">{row.approved} <span className="text-xs text-steel-500">({row.approvedPercent}%)</span></td>
+              <td className="px-3 py-3 text-right tabular-nums">{row.modified}</td>
+              <td className="px-3 py-3 text-right tabular-nums">{row.rejected}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export default function SampleAnalytics() {
   const [months, setMonths] = useState(1);
 
@@ -174,7 +210,7 @@ export default function SampleAnalytics() {
   if (error) return <ErrorState error={error} onRetry={reload} />;
   if (!data) return null;
 
-  const { headline, trend, timeInStage, byPurpose, byPrinting, byHookType, byMaterial, byCategory, byQuantity } = data;
+  const { headline, trend, timeInStage, byPurpose, byPrinting, byHookType, byMaterial, byCategory, byQuantity, approval, colourMisses } = data;
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -314,6 +350,46 @@ export default function SampleAnalytics() {
           <SegmentTable rows={byQuantity} empty="Nothing fulfilled in this period." />
         </Section>
       </div>
+
+      {/* What the buyer said, and the compulsory colours missed [the sampling audit, item 10]. */}
+      <h2 className="mt-8 text-lg font-bold tracking-tight text-steel-50">What the buyer said{approval ? <span className="text-steel-400"> ({approval.answered} answered)</span> : null}</h2>
+      <div className="mt-3 grid gap-5 lg:grid-cols-3">
+        <Section title="Approval by model">
+          <ApprovalTable rows={approval?.byModel} empty="Nothing answered in this period." />
+        </Section>
+        <Section title="Approval by purpose">
+          <ApprovalTable rows={approval?.byPurpose} labelOf={(row) => optionLabel(SAMPLE_PURPOSES, row.label)} empty="Nothing answered in this period." />
+        </Section>
+        <Section title="Approval by bench member">
+          <ApprovalTable rows={approval?.byBench} empty="Nothing answered in this period." />
+        </Section>
+      </div>
+
+      {colourMisses && (
+        <div className="mt-5">
+          <Section title="Compulsory colours missed">
+            <div className="grid gap-2 sm:grid-cols-4">
+              <Headline label="Sent in a colour" value={colourMisses.sent} hint="With a shade on the request" />
+              <Headline label="Exact-colour conditions" value={colourMisses.compulsory} hint="Where the shade was a condition" />
+              <Headline label="Stepped past" value={colourMisses.steppedPast} hint={colourMisses.steppedPastPercent === null ? 'no conditions' : `${colourMisses.steppedPastPercent}% of the conditions`} tone={colourMisses.steppedPast ? 'danger' : 'neutral'} />
+              <Headline label="Preferences substituted" value={colourMisses.substituted} hint="Allowed, and marketing was told" />
+            </div>
+            {colourMisses.rows?.length > 0 && (
+              <ul className="mt-3 divide-y divide-line/[0.05] text-sm">
+                {colourMisses.rows.map((row) => (
+                  <li key={`${row.number}-${row.sent}`} className="flex flex-wrap items-baseline gap-x-3 py-2">
+                    <span className="font-semibold text-steel-100">{row.number}</span>
+                    <span className="text-steel-300">{row.model || '—'}</span>
+                    <span className="text-steel-400">asked {row.asked}, sent {row.sent}</span>
+                    {row.reason && <span className="text-xs text-warn-400">stepped past: {row.reason}</span>}
+                    {row.bench && <span className="text-xs text-steel-500">{row.bench}</span>}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Section>
+        </div>
+      )}
 
       <p className="mt-5 text-xs leading-relaxed text-steel-500">
         Fulfilment is measured from the request to the sample being ready — the span the bench

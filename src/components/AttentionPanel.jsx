@@ -102,6 +102,59 @@ function Reply({ task, onChanged }) {
   );
 }
 
+/**
+ * A task escalated to Admin [server: handoff.service `escalateToAdmin`]: the issue in the
+ * department's words, answered right here — the answer goes on the task and back to whoever
+ * raised it, and the escalation leaves every Admin's list.
+ */
+function Escalation({ notice, onChanged }) {
+  const [answer, setAnswer] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState(null);
+  const resolve = async (event) => {
+    event.preventDefault();
+    setBusy(true);
+    setProblem(null);
+    try {
+      await workspace.todos.resolveEscalation({ id: notice.task?._id || notice.task, note: answer });
+      onChanged();
+    } catch (failure) {
+      setProblem(failure.message);
+      setBusy(false);
+    }
+  };
+  return (
+    <form onSubmit={resolve} aria-label={`Escalation on ${notice.enquiry?.number || 'a team task'}`} className="rounded-xl border border-danger-500/40 bg-danger-500/[0.07] p-3">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <p className="text-sm font-bold text-steel-50">
+          <span className="mr-1.5 inline-block h-2 w-2 rounded-full bg-danger-400 align-middle" aria-label="Escalated" />
+          {departmentLabel(notice.department)} escalated to you
+          {' · '}
+          {notice.enquiry ? (
+            <Link to={`/enquiries/${notice.enquiry?._id || notice.enquiry}`} className="text-accent hover:underline">{notice.enquiry?.number}</Link>
+          ) : (
+            <span className="font-normal text-steel-300">Team task</span>
+          )}
+          {notice.customer?.name && <span className="font-normal text-steel-300"> · {notice.customer.name}</span>}
+        </p>
+        <span className="text-xs text-steel-400">{notice.by?.name ? `${notice.by.name} · ` : ''}{formatDate(notice.at)}</span>
+      </div>
+      <p className="mt-1 text-sm text-steel-100">“{notice.note}”</p>
+      <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+        <input
+          className="input flex-1"
+          placeholder="What you decide — it goes on the task and back to them"
+          aria-label="Answer the escalation"
+          value={answer}
+          onChange={(event) => setAnswer(event.target.value)}
+        />
+        <button type="submit" className="btn-primary" disabled={busy || answer.trim().length < 2}>{busy ? 'Sending…' : 'Answer'}</button>
+      </div>
+      {problem && <div className="mt-2"><Notice tone="danger">{problem}</Notice></div>}
+    </form>
+  );
+}
+
 function Update({ notice, onChanged }) {
   const [busy, setBusy] = useState(false);
   const read = Boolean(notice.readAt);
@@ -151,9 +204,11 @@ function Update({ notice, onChanged }) {
 export default function AttentionPanel({ attention, onChanged }) {
   const questions = attention?.questions || [];
   const replies = attention?.replies || [];
-  const notices = attention?.notices || [];
-  const unread = notices.filter((notice) => !notice.readAt).length;
-  if (!questions.length && !replies.length && !notices.length) return null;
+  /* Escalations come to Admin alone, and are answered here rather than read. */
+  const escalations = (attention?.notices || []).filter((notice) => notice.status === 'escalated');
+  const notices = (attention?.notices || []).filter((notice) => notice.status !== 'escalated');
+  const unread = notices.filter((notice) => !notice.readAt).length + escalations.length;
+  if (!questions.length && !replies.length && !notices.length && !escalations.length) return null;
   return (
     <section aria-label="Needs your action" className="card space-y-3 border-warn-500/40 p-4">
       <h2 className="flex items-center gap-2 text-base font-bold text-steel-50">
@@ -161,6 +216,12 @@ export default function AttentionPanel({ attention, onChanged }) {
         Needs your action
         <span className="rounded-full bg-warn-500/15 px-2 text-xs font-semibold tabular-nums text-warn-400">{questions.length + replies.length + unread}</span>
       </h2>
+      {escalations.length > 0 && (
+        <div className="space-y-2">
+          <p className="eyebrow">Escalated to you</p>
+          {escalations.map((notice) => <Escalation key={notice._id} notice={notice} onChanged={onChanged} />)}
+        </div>
+      )}
       {questions.length > 0 && (
         <div className="space-y-2">
           <p className="eyebrow">Questions for you</p>

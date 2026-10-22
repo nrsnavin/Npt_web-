@@ -89,6 +89,10 @@ export const workspace = {
     sendBack: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/send-back`, payload).then(unwrap),
     /* Admin only: ends the task where it stands, with a reason; nothing follows from it. */
     adminClose: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/admin-close`, payload).then(unwrap),
+    /** An issue on the task, to Admin alone — under Admin's "Needs your action" until answered. */
+    escalateToAdmin: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/escalate-admin`, payload).then(unwrap),
+    /** Admin's answer: on the task, back to whoever raised it. */
+    resolveEscalation: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/escalate-admin/resolve`, payload).then(unwrap),
     /* Marketing or Admin: how soon the buyer needs a Dispatch request's goods. */
     setDelivery: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/delivery`, payload).then(unwrap),
     reschedule: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/reschedule`, payload).then(unwrap),
@@ -677,6 +681,8 @@ export const production = {
   list: (params) => api.get('/production', { params }).then((response) => response.data),
   /** The queue in EDD order with the other teams beside each row — `{ data, meta }`, read by every department. */
   queue: () => api.get('/production/queue').then((response) => response.data),
+  /** Printing's or Assembly's queue in EDD order, with where the goods are model by model — `{ data, meta }`. */
+  teamQueue: (team) => api.get(`/production/queue/${team}`).then((response) => response.data),
   /** One Production task worked whole: models, hand-overs, EDD, work orders and the teams after it. */
   workflow: (taskId) => api.get(`/production/workflow/${taskId}`).then(unwrap),
   /**
@@ -875,6 +881,8 @@ export const samples = {
   /** What the customer said. On marketing's grant, not the sample team's. */
   recordFeedback: ({ id, ...payload }) => api.post(`/samples/${id}/feedback`, payload).then(unwrap),
   resample: ({ id, ...payload }) => api.post(`/samples/${id}/resample`, payload).then(unwrap),
+  /** Marketing's answer to Not available: wait, change the spec, or cancel [server: decideNotAvailable]. */
+  decideNotAvailable: ({ id, ...payload }) => api.post(`/samples/${id}/not-available`, payload).then(unwrap),
   /** Attaches a request raised before its enquiry existed. */
   linkEnquiry: ({ id, enquiry }) => api.post(`/samples/${id}/link-enquiry`, { enquiry }).then(unwrap),
   /** Names the buyer on a request raised for nobody — a counter job, or a trial gone real. */
@@ -934,6 +942,38 @@ export const samples = {
     return api.put(`/samples/${id}/reference-photo`, form).then(unwrap);
   },
   clearReferencePhoto: (id) => api.delete(`/samples/${id}/reference-photo`).then(unwrap),
+  /*
+   * The two pictures on each model row [server: sampleLog.controller `setItemPhoto`]: the finished
+   * piece the bench photographs at Sample Ready, and the buyer's reference for that model.
+   */
+  setItemPhoto: ({ id, itemId, photo }) => {
+    const form = new FormData();
+    form.append('photo', photo);
+    return api.put(`/samples/${id}/items/${itemId}/photo`, form).then(unwrap);
+  },
+  clearItemPhoto: ({ id, itemId }) => api.delete(`/samples/${id}/items/${itemId}/photo`).then(unwrap),
+  setItemReferencePhoto: ({ id, itemId, photo }) => {
+    const form = new FormData();
+    form.append('photo', photo);
+    return api.put(`/samples/${id}/items/${itemId}/reference-photo`, form).then(unwrap);
+  },
+  clearItemReferencePhoto: ({ id, itemId }) => api.delete(`/samples/${id}/items/${itemId}/reference-photo`).then(unwrap),
+  /*
+   * The model's readings of those pictures, suggest only [server: sampleVision.llm.js]: the courier
+   * slip into the dispatch fields, a buyer's photo matched to the register, the finished piece checked.
+   */
+  readCourierCopy: (photo) => {
+    const form = new FormData();
+    form.append('photo', photo);
+    return api.post('/samples/read-courier-copy', form).then(unwrap);
+  },
+  matchItemPhoto: ({ id, itemId, fresh }) => api.post(`/samples/${id}/items/${itemId}/match${fresh ? '?fresh=true' : ''}`).then(unwrap),
+  pickMatchedModel: ({ id, itemId, ref }) => api.post(`/samples/${id}/items/${itemId}/pick-model`, { ref }).then(unwrap),
+  checkItemPhoto: ({ id, itemId }) => api.post(`/samples/${id}/items/${itemId}/check`).then(unwrap),
+  /** The sample rack as a stock list [server: sampleRack.controller]. */
+  rack: () => api.get('/samples/rack').then((response) => response.data),
+  setRack: (rows) => api.put('/samples/rack', { rows }).then(unwrap),
+  removeRackLine: (lineId) => api.delete(`/samples/rack/${lineId}`).then(unwrap),
 };
 
 /** Per-department dashboards [§21-24]. */

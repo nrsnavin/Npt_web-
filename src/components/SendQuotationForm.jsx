@@ -32,6 +32,8 @@ export default function SendQuotationForm({ quotation, onCancel, onSent, onRefus
   const [whatsapp, setWhatsapp] = useState({ send: false, to: '', body: '' });
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState(null);
+  /* Sending is the end of the quotation team's task: it closes with the send unless unticked. */
+  const [closeTask, setCloseTask] = useState(true);
 
   useEffect(() => {
     let live = true;
@@ -58,7 +60,7 @@ export default function SendQuotationForm({ quotation, onCancel, onSent, onRefus
     setBusy(true);
     setProblem(null);
     try {
-      onSent(await quotationsApi.deliver({ id: quotation._id, ...channels }));
+      onSent(await quotationsApi.deliver({ id: quotation._id, ...channels, closeTask }));
     } catch (failure) {
       setProblem(failure.message);
       /* A price refused by the approval rule moves the quote into the approval queue, so the
@@ -151,6 +153,14 @@ export default function SendQuotationForm({ quotation, onCancel, onSent, onRefus
           </ul>
         </div>
       )}
+
+      <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-line/[0.08] px-3 py-2.5 text-sm">
+        <input type="checkbox" className="mt-0.5 h-4 w-4 accent-flame-500" checked={closeTask} onChange={(event) => setCloseTask(event.target.checked)} />
+        <span>
+          <span className="font-semibold text-steel-100">Close the quotation task</span>
+          <span className="block text-xs text-steel-400">The quote is with the buyer, so the task leaves the Quotation desk. Untick to keep it open as Quote Sent, for a second quote or a price still being talked over.</span>
+        </span>
+      </label>
 
       {(problem || why) && <Notice tone={problem ? 'danger' : 'info'}>{problem || why}</Notice>}
 
