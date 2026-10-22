@@ -677,6 +677,8 @@ export const production = {
   list: (params) => api.get('/production', { params }).then((response) => response.data),
   /** The queue in EDD order with the other teams beside each row — `{ data, meta }`, read by every department. */
   queue: () => api.get('/production/queue').then((response) => response.data),
+  /** Printing's or Assembly's queue in EDD order, with where the goods are model by model — `{ data, meta }`. */
+  teamQueue: (team) => api.get(`/production/queue/${team}`).then((response) => response.data),
   /** One Production task worked whole: models, hand-overs, EDD, work orders and the teams after it. */
   workflow: (taskId) => api.get(`/production/workflow/${taskId}`).then(unwrap),
   /**

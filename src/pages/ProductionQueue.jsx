@@ -37,6 +37,8 @@ export default function ProductionQueue() {
         subtitle="In the order the goods are due — open an enquiry’s workflow to update it"
         actions={
           <div className="flex flex-wrap gap-2 print:hidden">
+            <Link to="/production/queue/printing" className="btn-secondary">Printing queue</Link>
+            <Link to="/production/queue/assembling" className="btn-secondary">Assembly queue</Link>
             {worksProduction && <Link to="/work-orders" className="btn-secondary">Work orders</Link>}
             {worksProduction && <Link to="/production/plan" className="btn-secondary">Planning board</Link>}
             <button type="button" className="btn-secondary" onClick={() => window.print()}>Print</button>

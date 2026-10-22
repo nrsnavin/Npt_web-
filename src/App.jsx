@@ -61,6 +61,7 @@ const OrderDetail = lazyPage(() => import('./pages/OrderDetail.jsx'));
 const Production = lazyPage(() => import('./pages/Production.jsx'));
 const ProductionQueue = lazyPage(() => import('./pages/ProductionQueue.jsx'));
 const ProductionWorkflow = lazyPage(() => import('./pages/ProductionWorkflow.jsx'));
+const FinishingQueue = lazyPage(() => import('./pages/FinishingQueue.jsx'));
 const Oee = lazyPage(() => import('./pages/Oee.jsx'));
 const ProductionInsights = lazyPage(() => import('./pages/ProductionInsights.jsx'));
 const WorkOrders = lazyPage(() => import('./pages/WorkOrders.jsx'));
@@ -430,6 +431,15 @@ export default function App() {
             element={
               <RequireModule moduleKey={['production', 'dispatch', 'quality', 'orders', 'enquiries']}>
                 <ProductionQueue />
+              </RequireModule>
+            }
+          />
+          {/* The queue's next legs: Printing's and Assembly's open tasks in EDD order, with where the goods are. */}
+          <Route
+            path="production/queue/:team"
+            element={
+              <RequireModule moduleKey={['production', 'dispatch', 'quality', 'orders', 'enquiries']}>
+                <FinishingQueue />
               </RequireModule>
             }
           />

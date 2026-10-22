@@ -38,7 +38,7 @@ test('the Production desk is the queue alone — no enquiries tab — banded by 
   const page = read('pages/DepartmentDashboard.jsx');
   assert.match(page, /const isProduction = data\?\.figures\?\.department === 'production';/);
   assert.match(page, /const seesEnquiries = canRead\('enquiries'\) && !isProduction;/);
-  assert.match(page, /label: isProduction \? 'Production queue' : 'Department tasks'/);
+  assert.match(page, /label: isProduction \? 'Production queue' : queueTeam \? TEAM_WORDS\[queueTeam\]\.queue : 'Department tasks'/);
   assert.match(page, /\? eddBands\(shown\)\.map\(/);
   assert.match(page, /const filters = isProduction \? PRODUCTION_FILTERS : FILTERS;/);
   assert.match(page, /<Tile label="No EDD yet" value=\{undated\}/);

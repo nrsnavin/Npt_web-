@@ -27,6 +27,7 @@ import DeskTabs, { firstDeskTab } from '../components/DeskTabs.jsx';
 import ProductionQueueList from '../components/ProductionQueueList.jsx';
 import SoDesk from '../components/SoDesk.jsx';
 import FinishingDeskList from '../components/FinishingDeskList.jsx';
+import FinishingQueueList, { TEAM_WORDS } from '../components/FinishingQueueList.jsx';
 import { EDD_CHIP, eddChipOf } from '../utils/edd.js';
 import { EDD_BANDS, PRODUCTION_FILTERS, eddBandOf, eddBands } from '../utils/productionQueue.js';
 
@@ -231,6 +232,8 @@ function DepartmentDesk() {
   const isProduction = data?.figures?.department === 'production';
   /* The SO team's desk reads its requests ready-first, sized and with the buyer beside each [components/SoDesk.jsx]. */
   const isSoTeam = data?.figures?.department === 'order_confirmation';
+  /* Printing's and Assembly's desks are their queues in EDD order, with where the goods are [components/FinishingQueueList.jsx]. */
+  const queueTeam = deskTab && TEAM_WORDS[deskTab] ? deskTab : null;
   const shown = useMemo(() => {
     const term = search.trim().toLowerCase();
     return enquiries.filter((row) => {
@@ -278,7 +281,7 @@ function DepartmentDesk() {
     ...(seesEnquiries
       ? [{ key: 'all', label: everyone ? 'All enquiries' : figures.department === 'marketing' ? 'My enquiries' : 'All enquiries', count: null }]
       : []),
-    { key: 'enquiries', label: isProduction ? 'Production queue' : 'Department tasks', count: enquiries.length },
+    { key: 'enquiries', label: isProduction ? 'Production queue' : queueTeam ? TEAM_WORDS[queueTeam].queue : 'Department tasks', count: enquiries.length },
     /* Dispatch's delivery queue: every open request by the urgency marketing gave [DeliveryQueue]. */
     ...(data.baskets ? [{ key: 'delivery', label: 'Delivery queue', count: null }] : []),
     /* Dispatch plans its trips here: ready requests grouped by transporter, route and place [TripPlanner]. */
@@ -298,7 +301,8 @@ function DepartmentDesk() {
     <div className="mx-auto max-w-7xl space-y-5">
       <PageHeader
         title={`${figures.label} dashboard`}
-        subtitle={isProduction ? 'The queue in EDD order — open an enquiry’s workflow to give its statuses, hand-overs and EDD' : seesEnquiries ? 'Your department’s tasks, and every enquiry you can see' : 'The tasks raised for your department'}
+        subtitle={isProduction ? 'The queue in EDD order — open an enquiry’s workflow to give its statuses, hand-overs and EDD'
+          : queueTeam ? `${TEAM_WORDS[queueTeam].queue} in EDD order — what is in hand to ${TEAM_WORDS[queueTeam].verb}, and what is still with ${TEAM_WORDS[queueTeam].from}` : seesEnquiries ? 'Your department’s tasks, and every enquiry you can see' : 'The tasks raised for your department'}
         actions={
           <div className="flex flex-wrap gap-2">
             {otherDesks.map((entry) => (
@@ -326,7 +330,7 @@ function DepartmentDesk() {
       {/* Questions for this person and answers back to the department — acted on here, on every tab. */}
       <AttentionPanel attention={data.attention} onChanged={reload} />
 
-      {tab === 'enquiries' && !isProduction && <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      {tab === 'enquiries' && !isProduction && !queueTeam && <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Tile label="Open tasks" value={enquiries.length} hint={`${figures.open} on the department in all`} active={tab === 'enquiries' && filter === 'all'} onClick={() => pick('all')} />
         <Tile label="Late" value={late} tone={late ? 'text-danger-400' : 'text-success-400'} hint={isProduction ? 'Past the EDD' : 'Past the day they were due'} active={filter === 'late'} onClick={() => pick('late')} />
         <Tile label="Due today" value={today} tone={today ? 'text-warn-400' : 'text-steel-50'} hint={isProduction ? 'EDD is today' : 'By the end of today'} active={filter === 'today'} onClick={() => pick('today')} />
@@ -373,7 +377,10 @@ function DepartmentDesk() {
 
       {tab === 'enquiries' && isSoTeam && <SoDesk me={me} onChanged={reload} />}
 
-      {tab === 'enquiries' && !isProduction && !isSoTeam && (
+      {/* Printing's and Assembly's queues: the goods in hand to work, and what is still with the team before. */}
+      {tab === 'enquiries' && queueTeam && <FinishingQueueList key={queueTeam} team={queueTeam} compact onChanged={reload} />}
+
+      {tab === 'enquiries' && !isProduction && !isSoTeam && !queueTeam && (
         <section className="space-y-4">
           <div className="flex flex-wrap items-center gap-2">
             {filters.map((entry) => (

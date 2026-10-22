@@ -20,6 +20,8 @@ const app = read('App.jsx');
 const routes = new Set(['/', ...[...app.matchAll(/path="([^"]+)"/g)].map((match) => `/${match[1].replace(/^\//, '')}`)]);
 /* The master registers are routed in a loop — `${kind}s` for hook, clip and print. */
 for (const kind of ['hook', 'clip', 'print']) routes.add(`/${kind}s`);
+/* The production queue's legs are one parameterised route — `production/queue/:team` — for Printing and Assembly. */
+for (const team of ['printing', 'assembling']) routes.add(`/production/queue/${team}`);
 
 /* The modules the server grants, and the twelve stages, as the nav and stage tiles name them. */
 const MODULES = [
