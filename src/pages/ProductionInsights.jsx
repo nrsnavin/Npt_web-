@@ -267,7 +267,7 @@ function WhatsappPanel() {
  * apply, the presses and moulds most likely to stop, when to buy, and the floor's WhatsApp readings.
  */
 export default function ProductionInsights() {
-  const { canWrite } = useAuth();
+  const { canWrite, mayPlanProduction } = useAuth();
   const [tab, setTab] = useState('ask');
   return (
     <div className="space-y-5">
@@ -282,7 +282,8 @@ export default function ProductionInsights() {
         ))}
       </div>
       {tab === 'ask' && <AskPanel />}
-      {tab === 'schedule' && <SchedulePanel mayPlan={canWrite('production')} />}
+      {/* A suggested schedule is applied by the Production in charge (or Admin) [server: requireProductionInCharge]. */}
+      {tab === 'schedule' && <SchedulePanel mayPlan={canWrite('production') && mayPlanProduction} />}
       {tab === 'risk' && <RiskPanel />}
       {tab === 'buy' && <BuyPanel />}
       {tab === 'whatsapp' && <WhatsappPanel />}

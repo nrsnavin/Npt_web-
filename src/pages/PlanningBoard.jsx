@@ -9,7 +9,7 @@ import { formatDate, formatNumber } from '../utils/format.js';
 import { BAR_TONE, barSpan, dayHeading, loadShare } from '../utils/planningBoard.js';
 
 /** One job opened from the board: where it is, what the fit says, and what can be done. */
-function JobDialog({ job, press, mayPlan, onClose, onChanged }) {
+function JobDialog({ job, press, mayPlan, mayRun, onClose, onChanged }) {
   const { toast, warn } = useToast();
   const [machine, setMachine] = useState(press?._id || '');
   const [busy, setBusy] = useState(false);
@@ -49,19 +49,20 @@ function JobDialog({ job, press, mayPlan, onClose, onChanged }) {
         {job.fit?.warnings?.length > 0 && <Notice tone="warn">{job.fit.warnings.join(' · ')}</Notice>}
         {job.short?.length > 0 && <Notice tone="warn">Will run short: {job.short.map((item) => `${item.name} ${formatNumber(item.short)} ${item.unit}`).join(' · ')} — <Link to="/production/materials" className="underline">material needs</Link></Notice>}
         {problem && <FormError error={problem} />}
-        {mayPlan && (
+        {/* Planning (press, order, release) is the Production in charge's; starting the run and the job card, the floor's. */}
+        {(mayPlan || mayRun) && (
           <>
-            <div className="flex flex-wrap items-end gap-2">
+            {mayPlan && <div className="flex flex-wrap items-end gap-2">
               <Field label="Press" className="min-w-[14rem] flex-1"><MachineSelect value={machine} onChange={setMachine} emptyLabel="Take it off the press" /></Field>
               <button type="button" className="btn-primary" disabled={busy || machine === (press?._id || '')} onClick={() => send({ machine: machine || null }, machine ? 'Moved' : 'Taken off the press')}>
                 {machine ? 'Move here' : 'Take off'}
               </button>
-            </div>
+            </div>}
             {press && (
               <div className="flex flex-wrap gap-2">
-                <button type="button" className="btn-secondary" disabled={busy || job.sequence <= 1} onClick={() => send({ step: -1 }, 'Runs earlier')}>Run earlier</button>
-                <button type="button" className="btn-secondary" disabled={busy} onClick={() => send({ step: 1 }, 'Runs later')}>Run later</button>
-                {job.status === 'planned' && <button type="button" className="btn-secondary" disabled={busy} onClick={() => send({ move: 'release' }, 'Released to the floor')}>Release to the floor</button>}
+                {mayPlan && <button type="button" className="btn-secondary" disabled={busy || job.sequence <= 1} onClick={() => send({ step: -1 }, 'Runs earlier')}>Run earlier</button>}
+                {mayPlan && <button type="button" className="btn-secondary" disabled={busy} onClick={() => send({ step: 1 }, 'Runs later')}>Run later</button>}
+                {mayPlan && job.status === 'planned' && <button type="button" className="btn-secondary" disabled={busy} onClick={() => send({ move: 'release' }, 'Released to the floor')}>Release to the floor</button>}
                 {['planned', 'released', 'paused'].includes(job.status) && <Link className="btn-secondary" to={`/mould-runs?start=1&workOrder=${job._id}`}>Start the run</Link>}
                 <button type="button" className="btn-secondary" onClick={() => workOrdersApi.jobCard(job._id)}>Job card</button>
               </div>
@@ -80,8 +81,10 @@ function JobDialog({ job, press, mayPlan, onClose, onChanged }) {
  * light to dark to cut colour changes.
  */
 export default function PlanningBoard() {
-  const { canWrite } = useAuth();
-  const mayPlan = canWrite('production');
+  const { canWrite, mayPlanProduction } = useAuth();
+  /* The board is planned by the Production in charge (or Admin) [server: requireProductionInCharge]; the floor runs it. */
+  const mayRun = canWrite('production');
+  const mayPlan = mayRun && mayPlanProduction;
   const { toast, warn } = useToast();
   const [board, setBoard] = useState(null);
   const [error, setError] = useState(null);
@@ -220,7 +223,7 @@ export default function PlanningBoard() {
           <p className="text-xs text-steel-500">Bars are coloured by status; a red ring means the plan ends after the due date, an amber one that the mould's own history predicts it will; ⚠ means a warning on the press or mould, or a store that will run short. The thin line under each press is its daily load — red is double-booked.</p>
         </>
       )}
-      {open && <JobDialog job={open.job} press={open.press} mayPlan={mayPlan} onClose={() => setOpen(null)} onChanged={load} />}
+      {open && <JobDialog job={open.job} press={open.press} mayPlan={mayPlan} mayRun={mayRun} onClose={() => setOpen(null)} onChanged={load} />}
     </div>
   );
 }

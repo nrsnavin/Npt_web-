@@ -30,6 +30,8 @@ export const views = {
 };
 
 export const workspace = {
+  /** Who is Production in charge — empty when nobody is marked [server: productionInCharge.service]. */
+  productionInCharge: () => api.get('/workspace/production-in-charge').then(unwrap),
   /**
    * Tasks [§35]. `scope` picks which question is being asked: `mine` (the default) is what I am
    * holding, `department` is my department's queue, `customers` is marketing's view across every
@@ -94,6 +96,8 @@ export const workspace = {
     status: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/status`, payload).then(unwrap),
     /** The EDD from the Production / Assembly / Printing task, without a status move; said by the screen. */
     edd: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/edd`, payload, { feedback: false }).then(unwrap),
+    /** The Production in charge confirms the EDD Printing or Assembly gave. */
+    confirmEdd: (id) => api.post(`/workspace/todos/${id}/edd/confirm`, {}, { feedback: false }).then(unwrap),
     /* Production's call, model by model: printing, assembly, both or neither [server: `decideRouting`]. */
     routing: (id) => api.get(`/workspace/todos/${id}/routing`).then(unwrap),
     route: ({ id, models }) => api.post(`/workspace/todos/${id}/routing`, { models }, { feedback: false }).then(unwrap),

@@ -11,6 +11,7 @@ import { TaskFacts, TaskTimeline } from '../components/TaskHistory.jsx';
 import { BAND_TONE, WorkOrderChip } from '../components/ProductionQueueList.jsx';
 import { PartsList, PrintReferenceView } from '../components/OrderLineParts.jsx';
 import AddToProductionQueue from '../components/AddToProductionQueue.jsx';
+import ProductionInChargeLine from '../components/ProductionInChargeLine.jsx';
 import { ErrorState, PageHeader, Section, TableSkeleton } from '../components/ui.jsx';
 import { formatDate } from '../utils/format.js';
 import { departmentLabel } from '../utils/pipeline.js';
@@ -61,7 +62,11 @@ function TeamCard({ title, task, mayWork, onChanged }) {
           <TaskWorkflow todo={task} onChanged={onChanged} />
         </div>
       ) : (
-        <TaskTimeline task={task} button={button} compact className="mt-2" />
+        <>
+          {/* Printing's or Assembly's EDD, for the Production in charge to confirm (or give their own) [TaskEdd]. */}
+          {!task.completed && ['ask_printing', 'ask_assembling_edd'].includes(task.kind) && <div className="mt-2"><TaskEdd todo={task} onChanged={onChanged} /></div>}
+          <TaskTimeline task={task} button={button} compact className="mt-2" />
+        </>
       )}
     </div>
   );
@@ -110,6 +115,7 @@ export default function ProductionWorkflow() {
           </div>
         }
       />
+      <ProductionInChargeLine />
 
       <AddToProductionQueue open={adding} task={task} enquiryNumber={enquiry.number || 'this team task'} onClose={() => setAdding(false)} onAdded={changed} />
 
