@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import SampleLog from '../components/SampleLog.jsx';
+import AuthedImage from '../components/AuthedImage.jsx';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import {
@@ -396,6 +397,16 @@ function EnquirySamples({ enquiryId }) {
                 {sample.colour && ` · ${sample.colour}`}
                 {sample.requiredDate && ` · due ${formatDate(sample.requiredDate)}`}
               </p>
+              {/* The finished pieces, so the salesperson has them on the phone with the buyer. */}
+              {sample.items?.some((row) => row.photo?.key) && (
+                <ul className="mt-1.5 flex flex-wrap gap-1.5" aria-label={`Finished pieces on ${sample.number}`}>
+                  {sample.items.filter((row) => row.photo?.key).map((row) => (
+                    <li key={row._id} className="h-12 w-12 overflow-hidden rounded-md border border-line/[0.08]" title={row.modelNumber || ''}>
+                      <AuthedImage attachmentKey={row.photo.key} alt={`Finished ${row.modelNumber || 'piece'}`} className="h-full w-full object-cover" />
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
             <div className="flex items-center gap-2">
               {sample.isOverdue && <Badge tone="danger">Overdue</Badge>}

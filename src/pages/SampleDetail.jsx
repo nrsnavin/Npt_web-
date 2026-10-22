@@ -12,6 +12,8 @@ import BuyerContactCard from '../components/BuyerContactCard.jsx';
 import { CustomerSelect, EnquirySelect } from '../components/pickers.jsx';
 import SampleLog from '../components/SampleLog.jsx';
 import SampleRequestForm from '../components/SampleRequestForm.jsx';
+import SamplePhotos from '../components/SamplePhotos.jsx';
+import SampleReadyForm from '../components/SampleReadyForm.jsx';
 import ItemList from '../components/ItemList.jsx';
 import { formatDate, formatNumber } from '../utils/format.js';
 import { todayInIndia } from '../utils/taskForm.js';
@@ -356,7 +358,8 @@ function StagePanel({ sample, mayMove, onSaved, onAsk }) {
   const showMoves = mayMove && (onward.length > 0 || back.length > 0 || cancel);
 
   const go = async (to) => {
-    if (to === 'dispatched') {
+    /* Dispatch asks for the courier; Sample Ready asks for the photos [SampleReadyForm]. */
+    if (to === 'dispatched' || to === 'sample_ready') {
       onAsk(to);
       return;
     }
@@ -1557,7 +1560,15 @@ export default function SampleDetail() {
             </div>
           </Section>
 
-          <ReferencePhoto sample={sample} mayEdit={maySample && !closed} onSaved={setData} />
+          {/* The buyer's reference beside the finished piece, model by model [the sampling audit, items 1 and 2]. */}
+          <SamplePhotos
+            sample={sample}
+            mayBench={maySample && !closed}
+            mayReference={(maySample || canWrite('enquiries')) && !closed}
+            onSaved={setData}
+          />
+
+          <ReferencePhoto sample={sample} mayEdit={(maySample || canWrite('enquiries')) && !closed} onSaved={setData} />
 
           <SampleLog sampleId={sample._id} />
 
@@ -1716,14 +1727,20 @@ export default function SampleDetail() {
             ? 'Cancel this request'
             : movingStage === 'dispatched'
               ? 'Dispatch the sample'
-              : isBackwardSampleMove(sample.status, movingStage)
-                ? 'Send the sample back'
-                : 'Move stage'
+              : movingStage === 'sample_ready'
+                ? 'Sample ready — photograph each piece'
+                : isBackwardSampleMove(sample.status, movingStage)
+                  ? 'Send the sample back'
+                  : 'Move stage'
         }
         description={sample.number}
         onClose={() => setMovingStage(null)}
+        size={movingStage === 'sample_ready' ? 'lg' : 'md'}
       >
-        {movingStage && (
+        {movingStage === 'sample_ready' && (
+          <SampleReadyForm sample={sample} onClose={() => setMovingStage(null)} onSaved={setData} />
+        )}
+        {movingStage && movingStage !== 'sample_ready' && (
           <StageForm
             key={movingStage}
             sample={sample}

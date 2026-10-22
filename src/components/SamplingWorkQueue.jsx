@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { documents as documentsApi, samples as samplesApi } from '../api/endpoints.js';
 import { useRecord } from '../hooks/useRecords.js';
 import { DashboardSkeleton, ErrorState, Field, FormError, Modal } from './ui.jsx';
+import AuthedImage from './AuthedImage.jsx';
+import SampleReadyForm from './SampleReadyForm.jsx';
 import { formatDate } from '../utils/format.js';
 import {
   CHIPS, SAMPLE_COURIERS, SETS, TILE_FILTERS, UNSENT, filterFor, needsReason, optionsFor,
@@ -60,6 +62,19 @@ function CustomerCell({ row }) {
       <p className="mt-0.5 text-xs text-steel-300">
         {row.models.map((item) => `${item.model || 'New model'}: ${item.quantity} pcs`).join(' · ')}
       </p>
+      {/* The finished pieces, as thumbnails: marketing sees the piece without opening the request. */}
+      {row.models.some((item) => item.photo) && (
+        <ul className="mt-1.5 flex flex-wrap gap-1.5" aria-label={`Finished pieces on ${row.number}`}>
+          {row.models.filter((item) => item.photo).map((item) => (
+            <li key={item._id || item.photo} className="h-12 w-12 overflow-hidden rounded-md border border-line/[0.08]" title={item.model || ''}>
+              <AuthedImage attachmentKey={item.photo} alt={`Finished ${item.model || 'piece'}`} className="h-full w-full object-cover" />
+            </li>
+          ))}
+        </ul>
+      )}
+      {row.photos && row.queueStatus === 'ready' && row.photos.taken < row.photos.of && (
+        <p className="mt-1 text-[0.75rem] font-semibold text-warn-400">Ready without a photo of every piece ({row.photos.taken} of {row.photos.of})</p>
+      )}
       <Link to={row.link} className="mt-0.5 inline-block text-[0.75rem] text-steel-500 hover:text-accent">{row.number}</Link>
     </div>
   );
@@ -320,6 +335,8 @@ export default function SamplingWorkQueue() {
   const [problem, setProblem] = useState(null);
   const [reasoning, setReasoning] = useState(null);
   const [handing, setHanding] = useState(null);
+  /* Sample Ready asks for the photos first [SampleReadyForm]. */
+  const [readying, setReadying] = useState(null);
 
   const rows = data?.rows || [];
   const statuses = data?.statuses || [];
@@ -340,6 +357,7 @@ export default function SamplingWorkQueue() {
     if (to === row.queueStatus) return;
     setProblem(null);
     if (to === 'sent') return setHanding(row);
+    if (to === 'ready') return setReadying(row);
     if (needsReason(row, to)) return setReasoning({ row, to });
     setBusyId(row._id);
     try {
@@ -356,6 +374,7 @@ export default function SamplingWorkQueue() {
   const done = async () => {
     setReasoning(null);
     setHanding(null);
+    setReadying(null);
     await reload();
   };
 
@@ -500,6 +519,16 @@ export default function SamplingWorkQueue() {
         onClose={() => setHanding(null)}
       >
         {handing && <HandoverForm row={handing} onClose={() => setHanding(null)} onDone={done} />}
+      </Modal>
+
+      <Modal
+        open={Boolean(readying)}
+        title="Sample ready — photograph each piece"
+        description={readying ? `${readying.number} · ${readying.customer?.name || ''}` : ''}
+        size="lg"
+        onClose={() => setReadying(null)}
+      >
+        {readying && <SampleReadyForm sampleId={readying._id} onClose={() => setReadying(null)} onSaved={done} />}
       </Modal>
 
       <Modal

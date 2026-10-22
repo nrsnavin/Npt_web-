@@ -10,6 +10,7 @@ import HistoryPanel from '../components/HistoryPanel.jsx';
 import OrderQueries from '../components/OrderQueries.jsx';
 import OrderEscalations from '../components/OrderEscalations.jsx';
 import { MouldThumb } from '../components/MouldPhoto.jsx';
+import AuthedImage from '../components/AuthedImage.jsx';
 import { PartsList, PrintReference } from '../components/OrderLineParts.jsx';
 import OrderForm from '../components/OrderForm.jsx';
 import OrderPriority from '../components/OrderPriority.jsx';
@@ -51,6 +52,40 @@ import {
 const rupees = (value) => (value === undefined || value === null ? '—' : formatCurrency(value));
 
 /* --------------------------------- The gate --------------------------------- */
+
+/**
+ * The piece the buyer approved, beside the checks made against it [server: samplePhotos.service
+ * `approvedSampleFor`]. "Correct colour" and "sample approved" used to compare a word with a word;
+ * with the finished piece and the buyer's reference in view they compare a picture with the order.
+ */
+function ApprovedSampleCard({ approvedSample }) {
+  if (!approvedSample) return null;
+  const rows = approvedSample.items || [];
+  return (
+    <Section title="Approved sample" actions={<Link to={`/samples/${approvedSample._id}`} className="row-action">{approvedSample.number}</Link>}>
+      <p className="text-xs text-steel-400">
+        Approved {approvedSample.approvedAt ? formatDate(approvedSample.approvedAt) : ''}
+        {approvedSample.colourSent ? ` · sent in ${approvedSample.colourSent}` : ''}
+        {approvedSample.note ? ` — “${approvedSample.note}”` : ''}
+      </p>
+      <ul className="mt-3 space-y-2">
+        {rows.map((row, index) => (
+          <li key={row._id || index} className="flex items-center gap-3">
+            <span className="h-14 w-16 shrink-0 overflow-hidden rounded-md border border-line/[0.08] bg-line/[0.03]">
+              {row.photo
+                ? <AuthedImage attachmentKey={row.photo} alt={`Approved ${row.model || 'piece'}`} className="h-full w-full object-cover" />
+                : <span className="grid h-full w-full place-items-center text-[0.7rem] text-steel-500">No photo</span>}
+            </span>
+            <span className="min-w-0 text-sm">
+              <span className="block font-semibold text-steel-100">{row.model || 'Model'}</span>
+              {row.colour && <span className="block text-xs text-steel-400">{row.colour}</span>}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </Section>
+  );
+}
 
 function Checklist({ order, checks, onChanged, mayWrite }) {
   const [busy, setBusy] = useState(null);
@@ -887,6 +922,8 @@ export default function OrderDetail() {
 
         <div className="space-y-5">
           <Checklist order={order} checks={checks} onChanged={absorb} mayWrite={mayWrite} />
+
+          <ApprovedSampleCard approvedSample={data.approvedSample} />
 
           <OrderPriority
             order={order}

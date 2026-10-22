@@ -940,6 +940,22 @@ export const samples = {
     return api.put(`/samples/${id}/reference-photo`, form).then(unwrap);
   },
   clearReferencePhoto: (id) => api.delete(`/samples/${id}/reference-photo`).then(unwrap),
+  /*
+   * The two pictures on each model row [server: sampleLog.controller `setItemPhoto`]: the finished
+   * piece the bench photographs at Sample Ready, and the buyer's reference for that model.
+   */
+  setItemPhoto: ({ id, itemId, photo }) => {
+    const form = new FormData();
+    form.append('photo', photo);
+    return api.put(`/samples/${id}/items/${itemId}/photo`, form).then(unwrap);
+  },
+  clearItemPhoto: ({ id, itemId }) => api.delete(`/samples/${id}/items/${itemId}/photo`).then(unwrap),
+  setItemReferencePhoto: ({ id, itemId, photo }) => {
+    const form = new FormData();
+    form.append('photo', photo);
+    return api.put(`/samples/${id}/items/${itemId}/reference-photo`, form).then(unwrap);
+  },
+  clearItemReferencePhoto: ({ id, itemId }) => api.delete(`/samples/${id}/items/${itemId}/reference-photo`).then(unwrap),
 };
 
 /** Per-department dashboards [§21-24]. */
