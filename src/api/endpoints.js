@@ -89,6 +89,10 @@ export const workspace = {
     sendBack: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/send-back`, payload).then(unwrap),
     /* Admin only: ends the task where it stands, with a reason; nothing follows from it. */
     adminClose: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/admin-close`, payload).then(unwrap),
+    /** An issue on the task, to Admin alone — under Admin's "Needs your action" until answered. */
+    escalateToAdmin: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/escalate-admin`, payload).then(unwrap),
+    /** Admin's answer: on the task, back to whoever raised it. */
+    resolveEscalation: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/escalate-admin/resolve`, payload).then(unwrap),
     /* Marketing or Admin: how soon the buyer needs a Dispatch request's goods. */
     setDelivery: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/delivery`, payload).then(unwrap),
     reschedule: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/reschedule`, payload).then(unwrap),

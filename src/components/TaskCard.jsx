@@ -73,6 +73,10 @@ export default function TaskCard({ task, mayAct = false, open: openAtFirst = fal
             </span>
             <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${CHIP[state.tone]}`}>{state.label}</span>
             {edd && <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${EDD_CHIP[edd.tone]}`}>{edd.label}</span>}
+            {/* With Admin: escalated and not yet answered [HandoffTaskActions]. */}
+            {task.adminEscalation?.at && !task.adminEscalation.resolvedAt && !task.completed && (
+              <span className="rounded-full bg-danger-500/15 px-2 py-0.5 text-xs font-semibold text-danger-400" title={task.adminEscalation.reason}>With Admin</span>
+            )}
           </span>
           {latest && (
             <span className="mt-0.5 block truncate text-sm text-steel-300">

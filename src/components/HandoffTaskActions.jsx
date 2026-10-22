@@ -51,6 +51,7 @@ export function HandoffDialog({ todo, mode, onClose, onChanged }) {
     back: `Send back — ${name}`,
     date: `Change the due date — ${name}`,
     admin: `Close task — ${name}`,
+    escalate: `Escalate to Admin — ${name}`,
   };
 
   const submit = async (event) => {
@@ -64,6 +65,7 @@ export function HandoffDialog({ todo, mode, onClose, onChanged }) {
       if (mode === 'back') updated = await workspace.todos.sendBack({ id: todo._id, reason: note });
       if (mode === 'date') updated = await workspace.todos.reschedule({ id: todo._id, dueDate, reason: note });
       if (mode === 'admin') updated = await workspace.todos.adminClose({ id: todo._id, reason: note });
+      if (mode === 'escalate') updated = await workspace.todos.escalateToAdmin({ id: todo._id, reason: note });
       onChanged?.(updated);
       onClose();
     } catch (failure) {
@@ -82,6 +84,7 @@ export function HandoffDialog({ todo, mode, onClose, onChanged }) {
     back: 'Why it is going back',
     date: 'Why the date is moving',
     admin: 'Why it is being closed',
+    escalate: 'What the issue is',
   }[mode];
   const noteHint = {
     done: holds ? 'The enquiry goes back to its marketing person, with this' : 'Goes back to whoever asked, with the details below',
@@ -89,8 +92,9 @@ export function HandoffDialog({ todo, mode, onClose, onChanged }) {
     back: holds ? 'The enquiry goes back to its marketing person, with this' : 'It goes back to whoever asked, with this',
     date: 'Whoever asked sees this',
     admin: 'It ends here: no next team is asked and the enquiry does not move. The team that had it is told, with this.',
+    escalate: 'Only Admin sees this, under their Needs your action. The task stays with you; Admin’s answer comes back to you here.',
   }[mode];
-  const ready = note.trim().length >= (mode === 'admin' || mode === 'back' || mode === 'date' ? 5 : 2) && !(mode === 'date' && !dueDate);
+  const ready = note.trim().length >= (['admin', 'back', 'date', 'escalate'].includes(mode) ? 5 : 2) && !(mode === 'date' && !dueDate);
 
   return (
     <Modal open title={titles[mode]} description={todo.title} onClose={onClose}>
@@ -168,6 +172,11 @@ export default function HandoffTaskActions({ todo, onChanged, layout = 'row', pr
   if (!todo?.kind || todo.completed) return null;
   /* Admin may close any department task outright — never the enquiry itself, which closes with Task Closed. */
   const adminClose = isAdmin ? [{ key: 'admin', label: 'Close task (Admin)', hint: 'Ends it here, with a reason — nothing follows', onSelect: () => setMode('admin') }] : [];
+  /* Any issue the desk cannot settle goes to Admin alone [HandoffDialog 'escalate']; one at a time. */
+  const withAdmin = Boolean(todo.adminEscalation?.at && !todo.adminEscalation.resolvedAt);
+  const escalate = withAdmin
+    ? []
+    : [{ key: 'escalate', label: 'Escalate to Admin', hint: 'An issue only Admin can settle — Admin alone sees it', onSelect: () => setMode('escalate') }];
   /* A Dispatch request: marketing or Admin says how soon the buyer needs it [DeliveryUrgencyDialog]. */
   const urgency = todo.kind === 'invoice_dispatch' && (isAdmin || departments.includes('marketing'))
     ? [{ key: 'urgency', label: todo.delivery?.urgency ? `Delivery: ${todo.delivery.label} — change` : 'Set delivery urgency', hint: 'How soon the buyer needs it — orders the Dispatch queue', onSelect: () => setUrgencyOpen(true) }]
@@ -183,6 +192,7 @@ export default function HandoffTaskActions({ todo, onChanged, layout = 'row', pr
       { key: 'back', label: 'Send back', hint: 'With a reason, to whoever asked', onSelect: () => setMode('back') },
       { key: 'date', label: 'Change date', hint: 'Move the due date, with a reason', onSelect: () => setMode('date') },
       ...urgency,
+      ...escalate,
       ...adminClose,
     ];
     const lead = choices.find((choice) => choice.key === primary);
@@ -219,6 +229,9 @@ export default function HandoffTaskActions({ todo, onChanged, layout = 'row', pr
       <button type="button" className="row-action" onClick={() => setMode('back')}>Send back</button>
       <button type="button" className="row-action" onClick={() => setMode('date')}>Change date</button>
       {urgency.length > 0 && <button type="button" className="row-action" onClick={() => setUrgencyOpen(true)}>{todo.delivery?.urgency ? `Urgency: ${todo.delivery.label}` : 'Set urgency'}</button>}
+      {withAdmin
+        ? <span className="rounded-md bg-warn-500/15 px-2 py-0.5 text-xs font-semibold text-warn-400" title={todo.adminEscalation.reason}>With Admin</span>
+        : <button type="button" className="row-action" onClick={() => setMode('escalate')}>Escalate to Admin</button>}
       {isAdmin && <button type="button" className="row-action" onClick={() => setMode('admin')}>Close task</button>}
       <HandoffDialog todo={todo} mode={mode} onClose={() => setMode(null)} onChanged={onChanged} />
       {urgencyDialog}
