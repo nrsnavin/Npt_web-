@@ -44,7 +44,7 @@ export default function Enquiries({ embedded = false }) {
   /* Marketing's own status — the "Current Marketing Status" on each enquiry. Opens on the one a
      link asks for (the dashboard's "New Enquiries — View all"), and on Due now for "Due today". */
   const [marketing, setMarketing] = useState(() => searchParams.get('marketingStatus') || '');
-  const [view, setView] = useState(() => (['open', 'due', 'all'].includes(searchParams.get('view')) ? searchParams.get('view') : 'open'));
+  const [view, setView] = useState(() => (['open', 'due', 'closed', 'all'].includes(searchParams.get('view')) ? searchParams.get('view') : 'open'));
   const [mode, setMode] = useViewMode('enquiries');
   const [page, setPage] = useState(1);
   const { sort, toggle } = useSort();
@@ -106,7 +106,8 @@ export default function Enquiries({ embedded = false }) {
     customer: forCustomer,
     source,
     stage: plantStage,
-    open: !forCustomer && !source && !plantStage && (view === 'open' || view === 'due') ? 'true' : undefined,
+    /* Open: not closed, not lost, not marked Task Closed. Closed: exactly those [server: pipeline.controller]. */
+    open: view === 'closed' ? 'false' : !forCustomer && !source && !plantStage && (view === 'open' || view === 'due') ? 'true' : undefined,
     dueBy: view === 'due' ? endOfToday() : undefined,
     assignedTo: owner || undefined,
   };
@@ -128,6 +129,7 @@ export default function Enquiries({ embedded = false }) {
   const views = [
     { value: 'open', label: 'Open' },
     { value: 'due', label: 'Due now' },
+    { value: 'closed', label: 'Closed' },
     { value: 'all', label: 'All' },
   ];
 

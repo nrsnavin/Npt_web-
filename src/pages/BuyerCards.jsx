@@ -236,7 +236,10 @@ function CardEditor({ card, onDone }) {
      app's to guess. How we met them starts at Phone, the usual answer; the follow-up at tomorrow. */
   useEffect(() => {
     setFields({
-      ...(card.reading || {}), nextAction: '', nextFollowUpDate: tomorrowIso(), source: 'phone', estimatedValue: '', assignedTo: '',
+      ...(card.reading || {}),
+      /* The mobile is nearly always the WhatsApp number too: filled in, and changed here when it is not. */
+      whatsapp: card.reading?.whatsapp || card.reading?.mobile || '',
+      nextAction: '', nextFollowUpDate: tomorrowIso(), source: 'phone', estimatedValue: '', assignedTo: '',
       /* A buyer the plant already has — the one found by their number, to begin with. */
       customer: card.matchedCustomer?._id || '',
       /* The next step, picked; a sample or a quotation also raises that department's task. */

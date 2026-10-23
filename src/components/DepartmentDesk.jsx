@@ -424,7 +424,8 @@ export default function DepartmentDesk({ enquiry, onChanged }) {
               <span className="font-bold">Dispatch plan</span>
               <span className="text-steel-300"> · {plan === 'by_model' ? 'each model as it is ready' : 'all models together'}</span>
               <p className="text-xs text-steel-400">
-                Ready: {readiness.ready.join(', ') || 'none yet'}
+                {readiness.sent?.length > 0 && `Sent: ${readiness.sent.join(', ')} · `}
+                Ready: {readiness.ready.filter((model) => !(readiness.sent || []).includes(model)).join(', ') || 'none yet'}
                 {readiness.waiting.length > 0 && ` · waiting: ${readiness.waiting.map((row) => `${row.model} (${row.team === 'assembling' ? 'Assembly' : row.team === 'printing' ? 'Printing' : 'Production'})`).join(', ')}`}
               </p>
             </div>

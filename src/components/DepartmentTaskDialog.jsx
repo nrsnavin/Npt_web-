@@ -104,7 +104,7 @@ function Rows({ field, rows, prefill, onChange }) {
         /* Rows have no identity until saved, so their place is their key. */
         <div key={index} className="relative grid grid-cols-2 gap-2 rounded-lg border border-line/[0.08] p-2 pr-9 sm:grid-cols-4">
           {field.columns.map((column) => (
-            <label key={column.key} className={`text-[0.75rem] text-steel-500 ${column.key === 'model' ? 'col-span-2' : ''}`}>
+            <label key={column.key} className={`text-[0.75rem] text-steel-500 ${['model', 'complaint'].includes(column.key) ? 'col-span-2' : ''}`}>
               {column.label}{column.required ? ' *' : ''}
               <Answer field={column} value={row[column.key]} prefill={prefill} onChange={(value) => set(index, column.key, value)} />
             </label>
