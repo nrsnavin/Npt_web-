@@ -684,8 +684,10 @@ export const payments = {
   setContact: ({ id, ...payload }) => api.put(`/payments/${id}/contact`, payload).then(unwrap),
   /** Money in — Accounts, Payment Collection or PRT; only Accounts' counts at the payment gate until confirmed. */
   receipt: ({ id, ...payload }) => api.post(`/payments/${id}/receipts`, payload).then(unwrap),
-  /** Accounts has seen a collector's receipt in the bank. */
-  confirmReceipt: ({ id, receiptId }) => api.post(`/payments/${id}/receipts/${receiptId}/confirm`).then(unwrap),
+  /** Accounts has seen a logged payment in the bank — with the bank line: UTR, amount, day credited, account, remark. */
+  confirmReceipt: ({ id, receiptId, ...bankLine }) => api.post(`/payments/${id}/receipts/${receiptId}/confirm`, bankLine).then(unwrap),
+  /** Accounts did not find a logged payment in the bank — with the reason; whoever logged it is told. */
+  rejectReceipt: ({ id, receiptId, reason }) => api.post(`/payments/${id}/receipts/${receiptId}/reject`, { reason }).then(unwrap),
   /** Disputed or on hold, and clearing it again. Both stop the escalation ladder. */
   judgement: ({ id, ...payload }) => api.post(`/payments/${id}/judgement`, payload).then(unwrap),
   /** The advance a buyer owes before anything is made, against the order it belongs to. */

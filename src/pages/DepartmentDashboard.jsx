@@ -33,6 +33,7 @@ import { EDD_BANDS, PRODUCTION_FILTERS, eddBandOf, eddBands } from '../utils/pro
 import { DeliveryBadge, DeliveryRiskPanel, inDanger } from '../components/DeliveryRisk.jsx';
 import DispatchTable from '../components/DispatchTable.jsx';
 import DeskTables, { DESK_TABLE_KINDS, takesTable } from '../components/DeskTables.jsx';
+import PaymentsToConfirm from '../components/PaymentsToConfirm.jsx';
 
 /**
  * A department's dashboard [server: handoff.service `enquiriesHeldBy`, `departmentDashboard`].
@@ -326,7 +327,7 @@ function DepartmentDesk() {
   if (loading && !data) return <DashboardSkeleton label="Loading the department" tiles={4} />;
   if (error) return <ErrorState error={error} onRetry={reload} />;
 
-  const { figures, requests: everyRequest = [], queries: everyQuery = [], recentlyDone, waitingOnOthers, cameBack, atStages } = data;
+  const { figures, requests: everyRequest = [], queries: everyQuery = [], recentlyDone, waitingOnOthers, cameBack, atStages, paymentsToConfirm } = data;
   const requests = deskTab ? everyRequest.filter((task) => task.department === deskTab) : everyRequest;
   /* Readiness queries from other teams [server: config/departmentTaskForms.js `readinessQuery`]: their own tab, apart from the order's work. */
   const queries = deskTab ? everyQuery.filter((row) => row.task.department === deskTab) : everyQuery;
@@ -367,6 +368,8 @@ function DepartmentDesk() {
    * planning, and every enquiry for Admin and marketing.
    */
   const toDoCount = (isProduction || queueTeam ? 0 : enquiries.length) + queries.length + requests.length;
+  /* Accounts' payments to confirm: a list of their own, above To do [components/PaymentsToConfirm.jsx]. */
+  const toConfirm = paymentsToConfirm || null;
   const TABS = [
     ...(isSampling ? [{ key: 'queue', label: 'Work queue', count: null }] : []),
     ...(isProduction ? [{ key: 'pqueue', label: 'Production queue', count: null }] : []),
@@ -374,7 +377,7 @@ function DepartmentDesk() {
     ...(seesEnquiries
       ? [{ key: 'all', label: everyone ? 'All enquiries' : figures.department === 'marketing' ? 'My enquiries' : 'All enquiries', count: null }]
       : []),
-    { key: 'tasks', label: 'Tasks', count: toDoCount },
+    { key: 'tasks', label: 'Tasks', count: toDoCount + (toConfirm?.length || 0) },
     /* Dispatch's delivery queue: every open request by the urgency marketing gave [DeliveryQueue]. */
     ...(data.baskets ? [{ key: 'delivery', label: 'Delivery queue', count: null }] : []),
     /* Dispatch plans its trips here: ready requests grouped by transporter, route and place [TripPlanner]. */
@@ -455,6 +458,11 @@ function DepartmentDesk() {
 
       {tab === 'tasks' && (
         <div className="space-y-6">
+          {toConfirm && (
+            <TaskSection title="Payments to confirm" count={toConfirm.length} hint="Logged by Payment Collection or PRT — check each in the bank" tone="text-warn-400">
+              <PaymentsToConfirm rows={toConfirm} onChanged={reload} />
+            </TaskSection>
+          )}
           <TaskSection title="To do" count={toDoCount} hint={`Work sent to ${deskLabel}`}>
             {isProduction || queueTeam ? (
               /* Production, Printing and Assembly work their orders from their queue tab. */
