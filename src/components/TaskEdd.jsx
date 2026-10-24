@@ -258,22 +258,11 @@ function EddBox({ todo, mayAct, onChanged, toast, editing, setEditing }) {
   const { mayPlanProduction } = useAuth();
   /* The EDD: marketing's, read here. */
   const edd = eddOfTask(todo);
-  /*
-   * Printing's or Assembly's completion date, last in a chain Production routed: the Production
-   * in charge confirms it or gives their own [server: handoff.service `confirmTaskEdd`].
-   */
-  const inChain = todo.kind !== 'ask_edd' && Boolean(todo.routing?.byProduction);
-  const confirms = inChain && mayPlanProduction && !todo.completed;
-  const gives = givesEdd(todo) && (mayAct || confirms) && !todo.completed;
+  /* Each team gives its own completion date — Printing's and Assembly's are theirs; Production, Admin and marketing read them. */
+  const gives = givesEdd(todo) && mayAct && !todo.completed && (todo.kind !== 'ask_edd' || mayPlanProduction);
   const givenHere = (todo.modelDates || []).map((row) => row.date).filter(Boolean).sort().at(-1);
   const needed = givesEdd(todo) && !givenHere && !todo.completed;
   const afterEdd = Boolean(givenHere && edd?.date && givenHere > edd.date);
-  const confirm = async () => {
-    const saved = await workspace.todos.confirmEdd(todo._id);
-    toast(`Completion date ${formatDate(saved.eddConfirmed?.date)} confirmed`, 'The team that gave it sees your confirmation on its task.');
-    onChanged?.(saved);
-  };
-
   const save = async ({ date, note, models }) => {
     const saved = await workspace.todos.edd({ id: todo._id, date, models, note });
     const latest = date || (models || []).map((row) => row.date).sort().at(-1);
@@ -297,14 +286,6 @@ function EddBox({ todo, mayAct, onChanged, toast, editing, setEditing }) {
           <span className="text-steel-300"> — say when this team will be finished.{gives ? ' It shows on the enquiry beside the EDD.' : ''}</span>
         </p>
       ))}
-      {inChain && givenHere && (
-        todo.eddConfirmed
-          ? <p className="mt-1 text-xs font-semibold text-success-400">✓ Confirmed by the Production in charge — {formatDate(todo.eddConfirmed.date)}</p>
-          : <p className="mt-1 text-xs font-semibold text-warn-400">Waiting for the Production in charge to confirm</p>
-      )}
-      {confirms && givenHere && !todo.eddConfirmed && !editing && (
-        <button type="button" className="btn-primary mt-1 px-3 py-1.5 text-xs" onClick={confirm}>Confirm completion date</button>
-      )}
       {/* Wanted: the form is right there. Given: a Change button, and the form on request. */}
       {gives && givenHere && !editing && (
         <button type="button" className="row-action mt-1" onClick={() => setEditing(true)}>Change completion date</button>

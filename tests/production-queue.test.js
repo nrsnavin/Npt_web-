@@ -43,15 +43,18 @@ test('the Production desk shows the same compact queue; the workflow page is rea
   for (const key of ['production', 'despatch', 'assembling', 'quality', 'printing', 'mould']) assert.ok(linked.includes(key), `${key} desk links the queue`);
 });
 
-test('the workflow page: the model table, Production’s updates, Printing and Assembly beside, the work orders and presses', () => {
+test('the workflow page: the model table, Production’s updates, the later teams’ updates to read, the work orders and presses', () => {
   assert.match(workflow, /productionApi\.workflow\(taskId\)/);
-  for (const head of ['Model', 'After moulding', 'Production', 'Printing', 'Assembly', 'EDD', 'Work order']) assert.ok(workflow.includes(`>${head}</th>`), head);
+  for (const head of ['Model', 'After moulding', 'Production', 'EDD', 'Work order']) assert.ok(workflow.includes(`>${head}</th>`), head);
+  for (const head of ['Printing', 'Assembly']) assert.ok(!workflow.includes(`>${head}</th>`), `no ${head} column — Production reads their updates instead`);
   assert.match(workflow, /goods came \{formatDate\(received\)\}/);
   assert.match(workflow, /\{status\.given\.label\} \{formatDate\(status\.given\.date\)\}/, 'each team’s hand-over date or EDD under its status');
   assert.match(workflow, /<TaskEdd todo=\{task\} mayAct onChanged=\{changed\} \/>/, 'printing / assembly decided and the dates given');
   assert.match(workflow, /<TaskWorkflow todo=\{task\} onChanged=\{changed\} \/>/, 'each model’s status and hand-over');
-  assert.match(workflow, /<TeamCard title="Printing" task=\{teams\.printing\}/);
-  assert.match(workflow, /<TeamCard title="Assembly" task=\{teams\.assembling\}/);
+  assert.match(workflow, /<TeamUpdates title="Printing" task=\{teams\.printing\} \/>/);
+  assert.match(workflow, /<TeamUpdates title="Assembly" task=\{teams\.assembling\} \/>/);
+  assert.doesNotMatch(workflow, /TeamCard|TaskEdd todo=\{task\} onChanged/, 'no workflow or date controls for the later teams on Production’s page');
+  assert.match(workflow, /\{dateLabelFor\(task, 'Completion date'\)\} \{formatDate\(given\)\}/, 'the date each team gave, to read');
   assert.match(workflow, /title=\{`Work orders \(\$\{workOrders\.length\}\)`\}/);
   assert.match(workflow, /Plan on a press/);
   assert.match(workflow, /running since \{formatDate\(run\.startedAt\)\}/);

@@ -100,8 +100,6 @@ export const workspace = {
     status: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/status`, payload).then(unwrap),
     /** The EDD from the Production / Assembly / Printing task, without a status move; said by the screen. */
     edd: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/edd`, payload, { feedback: false }).then(unwrap),
-    /** The Production in charge confirms the EDD Printing or Assembly gave. */
-    confirmEdd: (id) => api.post(`/workspace/todos/${id}/edd/confirm`, {}, { feedback: false }).then(unwrap),
     /** A job raised from the customer: its EDD, marketing's, set from any of its tasks [server: eddAsk.service `setJobEdd`]. */
     jobEdd: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/job-edd`, payload, { feedback: false }).then(unwrap),
     /* Production's call, model by model: printing, assembly, both or neither [server: `decideRouting`]. */

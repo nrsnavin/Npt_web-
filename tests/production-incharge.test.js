@@ -79,12 +79,9 @@ test('the Production desks name who is in charge, or warn that nobody is', () =>
   assert.match(read('api/endpoints.js'), /productionInCharge: \(\) => api\.get\('\/workspace\/production-in-charge'\)/);
 });
 
-test('the completion date Printing or Assembly gives is confirmed by the in charge, who may also give their own', () => {
+test('Printing’s and Assembly’s completion dates are their own: nobody confirms them, the in charge does not give them', () => {
   const edd = read('components/TaskEdd.jsx');
-  assert.match(edd, /const inChain = todo\.kind !== 'ask_edd' && Boolean\(todo\.routing\?\.byProduction\);/);
-  assert.match(edd, /const gives = givesEdd\(todo\) && \(mayAct \|\| confirms\) && !todo\.completed;/);
-  assert.match(edd, /workspace\.todos\.confirmEdd\(todo\._id\)/);
-  assert.match(edd, />Confirm completion date<\/button>/);
-  assert.match(edd, /Waiting for the Production in charge to confirm/);
-  assert.match(read('api/endpoints.js'), /confirmEdd: \(id\) => api\.post\(`\/workspace\/todos\/\$\{id\}\/edd\/confirm`/);
+  assert.match(edd, /const gives = givesEdd\(todo\) && mayAct && !todo\.completed && \(todo\.kind !== 'ask_edd' \|\| mayPlanProduction\);/);
+  assert.doesNotMatch(edd, /confirmEdd|Confirm completion date|Waiting for the Production in charge to confirm/);
+  assert.doesNotMatch(read('api/endpoints.js'), /confirmEdd/);
 });
