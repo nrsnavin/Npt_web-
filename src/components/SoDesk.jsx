@@ -23,8 +23,8 @@ import { piecesOf as pieces, rupeesOf as rupees, sizeWords } from '../utils/soDe
  *   question    a Needs Clarification's question and marketing's answer, inline
  *
  * The queue as cards, one a request — the SO team's only view of its department tasks — plus the
- * week's bookings and where each went, the prepared orders not yet in production, and a printable
- * prep sheet per request.
+ * week's bookings and where each went, and the prepared orders not yet in production. On each card:
+ * the workflow, the SO upload that finishes it, and Escalate to Admin — nothing else.
  */
 
 const CREDIT = { good: 'text-success-400', watch: 'text-warn-400', hold: 'text-danger-400' };
@@ -92,7 +92,7 @@ function Question({ question, task, onChanged }) {
 }
 
 /** One request, as a card: what to do with it on top, the request as entered, the team's workflow under it. */
-function SoCard({ row, onChanged, onPrint, onAsk }) {
+function SoCard({ row, onChanged, onAsk }) {
   const { task, enquiry, so } = row;
   const catalogue = useHandoffCatalogue();
   const button = buttonFor(catalogue, task.kind);
@@ -130,54 +130,8 @@ function SoCard({ row, onChanged, onPrint, onAsk }) {
       <div className="border-t border-line/[0.06] pt-3"><TaskWorkflow todo={task} onChanged={onChanged} /></div>
       <div className="flex flex-wrap items-center gap-3 border-t border-line/[0.06] pt-2">
         <HandoffTaskActions todo={task} onChanged={onChanged} />
-        <button type="button" className="row-action" onClick={() => onPrint(row)}>Print prep sheet</button>
       </div>
     </article>
-  );
-}
-
-/** The prep sheet: one page with everything the SO is keyed from. Printed from the browser. */
-function PrepSheet({ row, onClose }) {
-  const { task, enquiry, so } = row;
-  const brief = task.brief || {};
-  return (
-    <Modal open title={`SO prep sheet — ${enquiry?.number || 'Team task'}`} size="lg" onClose={onClose}>
-      <style>{'@media print { body * { visibility: hidden; } #so-prep-sheet, #so-prep-sheet * { visibility: visible; } #so-prep-sheet { position: absolute; inset: 0; padding: 16px; background: #fff; color: #000; } }'}</style>
-      <div id="so-prep-sheet" className="space-y-4 text-sm">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="text-lg font-bold">{(enquiry ? enquiry.customer?.name : task.customer?.name) || '—'}</h2>
-          <p className="text-xs">{enquiry?.number || 'Team task'} · raised {formatDate(task.createdAt)} by {task.createdBy?.name || '—'}</p>
-        </div>
-        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
-          {[['Contact person', brief.contactPerson], ['Mobile', brief.mobile], ['Payment terms', brief.paymentTerms], ['Customer PO number', brief.poNumber], ['Production confirmed', brief.productionConfirmed === 'Yes' ? 'Yes' : 'No — hold until released'], ['Marketing person', enquiry?.assignedTo?.name || task.createdBy?.name]]
-            .filter(([, value]) => value).map(([label, value]) => (<div key={label} className="contents"><dt className="text-steel-500">{label}</dt><dd className="font-medium">{value}</dd></div>))}
-        </dl>
-        <table className="w-full border-collapse text-sm">
-          <thead><tr className="border-b">{['#', 'Model', 'Material & colour', 'Hook', 'Clip', 'Print', 'Pieces', 'Price', 'Value', 'EDD'].map((head) => <th key={head} className="py-1 pr-2 text-left text-xs font-semibold">{head}</th>)}</tr></thead>
-          <tbody>
-            {so.lines.map((line, at) => {
-              const qty = Number(line.quantity) || 0;
-              const price = Number(line.price) || 0;
-              return (
-                <tr key={`${line.model}-${at}`} className="border-b">
-                  <td className="py-1 pr-2">{at + 1}</td><td className="py-1 pr-2 font-semibold">{line.model || '—'}</td><td className="py-1 pr-2">{line.material || '—'}</td>
-                  <td className="py-1 pr-2">{line.hook || '—'}</td><td className="py-1 pr-2">{line.clip || '—'}</td><td className="py-1 pr-2">{line.print || '—'}</td>
-                  <td className="py-1 pr-2 tabular-nums">{qty ? qty.toLocaleString('en-IN') : '—'}</td><td className="py-1 pr-2 tabular-nums">{price ? `₹${price}` : '—'}</td>
-                  <td className="py-1 pr-2 tabular-nums">{qty && price ? rupees(qty * price) : '—'}</td><td className="py-1 pr-2">{line.edd ? formatDate(line.edd) : '—'}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-          <tfoot><tr><td colSpan={6} className="py-1 pr-2 text-right font-semibold">Total</td><td className="py-1 pr-2 font-semibold tabular-nums">{so.size.pieces.toLocaleString('en-IN')}</td><td /><td className="py-1 pr-2 font-semibold tabular-nums">{rupees(so.size.value)}</td><td /></tr></tfoot>
-        </table>
-        {task.notes && <p className="text-sm">Note from marketing: {task.notes}</p>}
-        <p className="text-xs text-steel-500">Printed {formatDate(new Date())}</p>
-      </div>
-      <div className="mt-4 flex justify-end gap-2 print:hidden">
-        <button type="button" className="btn-secondary" onClick={onClose}>Close</button>
-        <button type="button" className="btn-primary" onClick={() => window.print()}>Print</button>
-      </div>
-    </Modal>
   );
 }
 
@@ -222,7 +176,6 @@ function Tile({ label, value, hint, tone = 'text-steel-50' }) {
 export default function SoDesk({ onChanged }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
-  const [printing, setPrinting] = useState(null);
   const [asking, setAsking] = useState(null);
   const [search, setSearch] = useState('');
   const load = useCallback(() => departmentsApi.soDesk().then((answer) => { setData(answer); setError(null); }).catch((failure) => setError(failure)), []);
@@ -260,7 +213,7 @@ export default function SoDesk({ onChanged }) {
         <EmptyState title={data.rows.length ? 'Nothing matches the search' : 'No SO request open'} description={data.rows.length ? 'Clear the search to see them all.' : 'When marketing sends an enquiry to PO & SO, it appears here.'} />
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {rows.map((row) => <SoCard key={row.task._id} row={row} onChanged={changed} onPrint={setPrinting} onAsk={setAsking} />)}
+          {rows.map((row) => <SoCard key={row.task._id} row={row} onChanged={changed} onAsk={setAsking} />)}
         </div>
       )}
 
@@ -305,7 +258,6 @@ export default function SoDesk({ onChanged }) {
         </div>
       )}
 
-      {printing && <PrepSheet row={printing} onClose={() => setPrinting(null)} />}
       {asking && <AskMarketing row={asking} onClose={() => setAsking(null)} onChanged={changed} />}
     </section>
   );

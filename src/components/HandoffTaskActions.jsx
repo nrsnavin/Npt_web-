@@ -204,6 +204,12 @@ export default function HandoffTaskActions({ todo, onChanged, layout = 'row', pr
       </>
     );
   }
+  /*
+   * The plain actions a task's form allows beside its own workflow [server: departmentTaskForms
+   * `taskActions`]: the SO team's task keeps only Escalate to Admin — the SO upload finishes it.
+   */
+  const allowed = buttonFor(catalogue, todo.kind)?.form?.taskActions;
+  const allows = (key) => !allowed || allowed.includes(key);
   if (layout === 'menu' && !isTheEnquiry(todo, buttonFor(catalogue, todo.kind))) {
     const byUpload = (buttonFor(catalogue, todo.kind)?.form?.statuses || []).some((entry) => entry.pdf && entry.done);
     const choices = [
@@ -212,9 +218,7 @@ export default function HandoffTaskActions({ todo, onChanged, layout = 'row', pr
       { key: 'back', label: 'Send back', hint: 'With a reason, to whoever asked', onSelect: () => setMode('back') },
       { key: 'date', label: 'Change date', hint: 'Move the due date, with a reason', onSelect: () => setMode('date') },
       ...urgency,
-      ...escalate,
-      ...adminClose,
-    ];
+    ].filter((choice) => allows(choice.key)).concat(escalate, adminClose);
     const lead = choices.find((choice) => choice.key === primary);
     return (
       <>
@@ -244,10 +248,10 @@ export default function HandoffTaskActions({ todo, onChanged, layout = 'row', pr
   const byUpload = (buttonFor(catalogue, todo.kind)?.form?.statuses || []).some((entry) => entry.pdf && entry.done);
   return (
     <>
-      <button type="button" className="row-action" onClick={() => setMode('update')}>Update</button>
-      {!byUpload && <button type="button" className="row-action" onClick={() => setMode('done')}>{todo.holds ? 'Back to marketing' : 'Done'}</button>}
-      <button type="button" className="row-action" onClick={() => setMode('back')}>Send back</button>
-      <button type="button" className="row-action" onClick={() => setMode('date')}>Change date</button>
+      {allows('update') && <button type="button" className="row-action" onClick={() => setMode('update')}>Update</button>}
+      {!byUpload && allows('done') && <button type="button" className="row-action" onClick={() => setMode('done')}>{todo.holds ? 'Back to marketing' : 'Done'}</button>}
+      {allows('back') && <button type="button" className="row-action" onClick={() => setMode('back')}>Send back</button>}
+      {allows('date') && <button type="button" className="row-action" onClick={() => setMode('date')}>Change date</button>}
       {urgency.length > 0 && <button type="button" className="row-action" onClick={() => setUrgencyOpen(true)}>{todo.delivery?.urgency ? `Urgency: ${todo.delivery.label}` : 'Set urgency'}</button>}
       {withAdmin
         ? <span className="rounded-md bg-warn-500/15 px-2 py-0.5 text-xs font-semibold text-warn-400" title={todo.adminEscalation.reason}>With Admin</span>
