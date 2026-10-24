@@ -39,3 +39,9 @@ test('the payment page confirms with the same form and shows what the bank line 
   assert.match(page, /onClick=\{\(\) => confirm\(receipt\)\}/);
   assert.match(page, /receipt\.confirmed\.reference \? ` · UTR \$\{receipt\.confirmed\.reference\}` : ''/);
 });
+
+test('an invoice reads Paid only once Accounts has seen the money; until then it says it waits for Accounts', () => {
+  for (const page of ['pages/Payments.jsx', 'pages/PaymentDetail.jsx']) {
+    assert.match(read(page), /awaiting_confirmation: 'Paid — waiting for Accounts',/, page);
+  }
+});

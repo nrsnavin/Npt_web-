@@ -20,7 +20,9 @@ test('the Dispatch desk shows ready / sent / still being made for an order going
   assert.match(desk, /aria-label="Models to dispatch"/);
   assert.match(desk, /Ready to go: \{row\.readiness\.ready\.filter\(\(model\) => !\(row\.readiness\.sent \|\| \[\]\)\.includes\(model\)\)\.join\(', '\) \|\| 'none yet'\}/);
   assert.match(desk, /· Sent: \{row\.readiness\.sent\.join\(', '\)\}/);
-  assert.match(desk, /mark Part Quantity Dispatched with the models sent/);
+  assert.match(desk, /dispatch each load with its models; the app marks it Part or Fully Dispatched/);
+  assert.match(desk, /· Part sent: \{row\.readiness\.partSent\.map/, 'part of a model gone, with its pieces');
+  assert.match(read('components/DispatchTable.jsx'), /Part sent: \{goods\.partSent\.map/);
   assert.match(read('components/DepartmentDesk.jsx'), /\{readiness\.sent\?\.length > 0 && `Sent: \$\{readiness\.sent\.join\(', '\)\} · `\}/);
   assert.ok(MARKETING_STATUSES.some((entry) => entry.value === 'part_sent' && entry.label === 'Part sent'));
 });

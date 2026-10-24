@@ -40,6 +40,8 @@ import { formatCurrency, formatDate, humanise } from '../utils/format.js';
 
 const STATE_LABELS = {
   paid: 'Paid',
+  /* Logged by the collector, not yet seen in the bank by Accounts [server: Receivable `state`]. */
+  awaiting_confirmation: 'Paid — waiting for Accounts',
   part_paid: 'Part paid',
   overdue: 'Overdue',
   due_today: 'Due today',

@@ -36,6 +36,11 @@ function GoodsCell({ goods, status }) {
           </p>
         </>
       )}
+      {/* What has gone already, on this request or an earlier one [server: modelReadiness `sent` `partSent`]. */}
+      {goods.sent?.length > 0 && <p className="text-steel-400">Sent: {goods.sent.join(', ')}</p>}
+      {goods.partSent?.length > 0 && (
+        <p className="text-steel-400">Part sent: {goods.partSent.map((row) => `${row.model} (${row.sent.toLocaleString('en-IN')}${row.ordered ? ` of ${row.ordered.toLocaleString('en-IN')}` : ''})`).join(', ')}</p>
+      )}
       {goods.qc?.required && (
         goods.qc.atQc?.length
           ? <p className="font-semibold text-warn-400">QC pending{goods.qc.passed?.length ? ` · passed ${goods.qc.passed.join(', ')}` : ''}</p>

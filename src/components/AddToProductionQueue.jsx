@@ -3,6 +3,7 @@ import { workspace } from '../api/endpoints.js';
 import { Modal, Notice } from './ui.jsx';
 import { pathOf } from '../utils/edd.js';
 import { todayInIndia } from '../utils/taskForm.js';
+import { formatDate } from '../utils/format.js';
 
 /**
  * Production adds its task to the production queue [server: handoff.service
@@ -14,6 +15,8 @@ import { todayInIndia } from '../utils/taskForm.js';
 export default function AddToProductionQueue({ task, enquiryNumber, open, onClose, onAdded }) {
   const [rows, setRows] = useState(null);
   const [decided, setDecided] = useState(false);
+  /* The EDD marketing or Admin set [server: handoff.service `marketingEddFor`]: shown, and the date starts from it. */
+  const [edd, setEdd] = useState(null);
   const [date, setDate] = useState('');
   const [note, setNote] = useState('');
   const [problem, setProblem] = useState(null);
@@ -27,6 +30,9 @@ export default function AddToProductionQueue({ task, enquiryNumber, open, onClos
       if (!live) return;
       const said = new Map((answer.routing?.models || []).map((row) => [row.model, row]));
       setDecided(Boolean(answer.routing?.decidedAt));
+      setEdd(answer.edd || null);
+      /* The same EDD follows onto the plan unless Production changes it — never a day already past. */
+      if (answer.edd?.date && answer.edd.date >= todayInIndia()) setDate((current) => current || answer.edd.date);
       setRows((answer.models || []).map((entry) => ({
         model: entry.model, print: entry.print, hook: entry.hook, clip: entry.clip,
         printing: Boolean(said.get(entry.model)?.printing), assembly: Boolean(said.get(entry.model)?.assembly),
@@ -103,8 +109,19 @@ export default function AddToProductionQueue({ task, enquiryNumber, open, onClos
               </table>
             </div>
           </div>
+          {/* The EDD the buyer is promised, as marketing or Admin set it. */}
+          {edd ? (
+            <div className="rounded-lg bg-accent/10 px-3 py-2 text-sm text-steel-100" aria-label="EDD set by marketing">
+              <p><span className="font-semibold">EDD set by marketing{edd.by ? ` (${edd.by})` : ''}:</span> {edd.date ? formatDate(edd.date) : 'model by model'}</p>
+              {edd.models?.length > 0 && (
+                <p className="text-xs text-steel-300">{edd.models.map((row) => `${row.model}: ${formatDate(row.date)}`).join(' · ')}</p>
+              )}
+            </div>
+          ) : (
+            <p className="rounded-lg bg-warn-500/10 px-3 py-2 text-sm text-warn-400">Marketing has not set the EDD yet.</p>
+          )}
           <label className="block text-sm text-steel-300">
-            EDD (optional)
+            EDD{edd?.date ? ' — filled from marketing’s, change it if needed' : ' (optional)'}
             <input type="date" className="input mt-1" min={todayInIndia()} value={date} onChange={(event) => setDate(event.target.value)} />
             <span className="mt-1 block text-xs text-steel-500">Where a model goes to Printing or Assembly, this is the day Production hands it over.</span>
           </label>

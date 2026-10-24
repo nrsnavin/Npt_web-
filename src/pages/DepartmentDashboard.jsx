@@ -163,8 +163,9 @@ function EnquiryCard({ row, department, me, onChanged, query = false }) {
         <p className="-mt-1 rounded-lg bg-line/[0.04] px-2.5 py-1.5 text-xs text-steel-200" aria-label="Models to dispatch">
           <span className="font-semibold text-success-400">Ready to go: {row.readiness.ready.filter((model) => !(row.readiness.sent || []).includes(model)).join(', ') || 'none yet'}</span>
           {row.readiness.sent?.length > 0 && <span className="text-steel-400"> · Sent: {row.readiness.sent.join(', ')}</span>}
+          {row.readiness.partSent?.length > 0 && <span className="text-steel-400"> · Part sent: {row.readiness.partSent.map((entry) => `${entry.model} (${entry.sent.toLocaleString('en-IN')}${entry.ordered ? ` of ${entry.ordered.toLocaleString('en-IN')}` : ''} pcs)`).join(', ')}</span>}
           {row.readiness.waiting?.length > 0 && <span className="text-warn-400"> · Still being made: {row.readiness.waiting.map((entry) => `${entry.model} (${entry.team === 'assembling' ? 'Assembly' : entry.team === 'printing' ? 'Printing' : 'Production'})`).join(', ')}</span>}
-          <span className="block text-steel-500">Dispatch plan: each model as it is ready — mark Part Quantity Dispatched with the models sent.</span>
+          <span className="block text-steel-500">Dispatch plan: each model as it is ready — dispatch each load with its models; the app marks it Part or Fully Dispatched.</span>
         </p>
       )}
       {/* What was asked, as it was entered on the form — every answer, each model in its own block. */}

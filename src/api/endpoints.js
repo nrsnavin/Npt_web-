@@ -128,9 +128,9 @@ export const workspace = {
     /** What the dispatch form offers: the models ordered and sent, ready or not, the plan and the modes [server: `dispatchSheet`]. */
     dispatchSheet: (id) => api.get(`/workspace/todos/${id}/dispatch`).then(unwrap),
     /** A load from the dispatch form: the models and pieces, how it travels, and its LR copy or proof of delivery. */
-    dispatchLoad: ({ id, status, mode, lines, note, file }) => {
+    /** A load from the dispatch form; the server picks Part / Fully Dispatched from what has gone. */
+    dispatchLoad: ({ id, mode, lines, note, file }) => {
       const form = new FormData();
-      form.append('status', status);
       form.append('mode', mode);
       form.append('lines', JSON.stringify(lines));
       if (note) form.append('note', note);

@@ -11,12 +11,14 @@ import CloseTaskPrompt from './CloseTaskPrompt.jsx';
  * the proof of delivery from our own vehicle, or the signed receipt when the party collects.
  *
  * An order going out together starts with every model still to go ticked; one going out model by
- * model starts with the ready ones. Fully Dispatched or Dispatched offers to close the task.
+ * model starts with the ready ones. The app says what the load makes it — Part Quantity Dispatched
+ * while anything is still to go (on this request or an earlier one), Fully Dispatched once
+ * everything ordered has gone — and only Fully Dispatched offers to close the task.
  */
 const LIMIT = 1024 * 1024;
 const TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
 
-export default function DispatchLoadDialog({ todo, step, onClose, onDone }) {
+export default function DispatchLoadDialog({ todo, onClose, onDone }) {
   const { toast } = useToast();
   const [sheet, setSheet] = useState(null);
   const [problem, setProblem] = useState(null);
@@ -50,7 +52,13 @@ export default function DispatchLoadDialog({ todo, step, onClose, onDone }) {
   const tooBig = file && file.size > LIMIT;
   const wrongType = file && !TYPES.includes(file.type);
   const ready = chosen.length > 0 && !missingPieces && how && file && !tooBig && !wrongType;
-  const closes = Boolean(step.next) && step.key !== 'part_dispatched';
+  /* What this load leaves: every model ordered gone in full makes it Fully Dispatched [server: recordDispatchLoad]. */
+  const leftAfter = models.map((row) => {
+    const going = ticked[row.model] ? Number(pieces[row.model]) || 0 : 0;
+    return { model: row.model, left: row.ordered ? Math.max(0, row.ordered - (row.sent || 0) - going) : (row.sent || going ? 0 : 1), known: Boolean(row.ordered) };
+  });
+  const stillToGo = leftAfter.filter((row) => row.left > 0);
+  const outcome = models.length && !stillToGo.length ? 'Fully Dispatched' : 'Part Quantity Dispatched';
   const sentWords = useMemo(() => chosen.map((row) => `${row.model} ${Number(pieces[row.model] || 0).toLocaleString('en-IN')}`).join(' · '), [chosen, pieces]);
 
   const save = async (event) => {
@@ -59,12 +67,13 @@ export default function DispatchLoadDialog({ todo, step, onClose, onDone }) {
     setProblem(null);
     try {
       const saved = await workspace.todos.dispatchLoad({
-        id: todo._id, status: step.key, mode, note: note.trim() || undefined, file,
+        id: todo._id, mode, note: note.trim() || undefined, file,
         lines: chosen.map((row) => ({ model: row.model, quantity: Number(pieces[row.model]) })),
       });
-      toast(step.label, mode === 'transporter' ? 'Reception has the LR copy to send to the buyer.' : `${how.proofLabel} kept on the task.`);
-      /* Fully Dispatched or Dispatched: nothing left to send — close the task now? The screen refreshes once that is answered. */
-      if (closes && !saved.completed) setOffer(saved);
+      const said = saved.status === 'fully_dispatched' ? 'Fully Dispatched' : 'Part Quantity Dispatched';
+      toast(said, mode === 'transporter' ? 'Reception has the LR copy to send to the buyer.' : `${how.proofLabel} kept on the task.`);
+      /* Fully Dispatched: nothing left to send — close the task now? The screen refreshes once that is answered. */
+      if (saved.status === 'fully_dispatched' && !saved.completed) setOffer(saved);
       else {
         onDone?.(saved);
         onClose();
@@ -79,15 +88,15 @@ export default function DispatchLoadDialog({ todo, step, onClose, onDone }) {
     return (
       <CloseTaskPrompt
         task={offer}
-        why={`${step.label} — ${sentWords} sent. Close the task if nothing more goes on it.`}
+        why={`Fully Dispatched — ${sentWords} sent, and everything ordered has gone. Close the task if nothing more goes on it.`}
         onClose={() => { onDone?.(offer); onClose(); }}
-        onClosed={(saved) => { toast('Task closed', `${step.label} — the request is done.`); onDone?.(saved); onClose(); }}
+        onClosed={(saved) => { toast('Task closed', 'Fully Dispatched — the request is done.'); onDone?.(saved); onClose(); }}
       />
     );
   }
 
   return (
-    <Modal open title={step.label} description="Tick the models in this load, the pieces of each, and how it travels." onClose={onClose}>
+    <Modal open title="Dispatch a load" description="Tick the models in this load, the pieces of each, and how it travels." onClose={onClose}>
       <form onSubmit={save} className="space-y-4" aria-label="Dispatch load">
         {!sheet && !problem && <p className="text-sm text-steel-400">Loading the models…</p>}
         {sheet && (
@@ -132,6 +141,17 @@ export default function DispatchLoadDialog({ todo, step, onClose, onDone }) {
               );
             })}
             {chosen.length > 0 && <p className="text-xs text-steel-400">{total.toLocaleString('en-IN')} pcs in this load</p>}
+            {/* What the load makes it — the app decides, Dispatch never has to pick. */}
+            {chosen.length > 0 && (
+              <p className={`rounded-md px-2.5 py-1.5 text-sm font-semibold ${stillToGo.length ? 'bg-warn-500/10 text-warn-400' : 'bg-success-500/10 text-success-400'}`} aria-live="polite">
+                This load makes it {outcome}
+                {stillToGo.length > 0 && (
+                  <span className="block text-xs font-normal text-steel-300">
+                    Still to go: {stillToGo.map((row) => (row.known ? `${row.model} ${row.left.toLocaleString('en-IN')} pcs` : row.model)).join(', ')}
+                  </span>
+                )}
+              </p>
+            )}
           </fieldset>
         )}
         {sheet && (
@@ -164,7 +184,7 @@ export default function DispatchLoadDialog({ todo, step, onClose, onDone }) {
         {problem && <Notice tone="danger">{problem}</Notice>}
         <div className="flex justify-end gap-2">
           <button type="button" className="btn-ghost" onClick={onClose} disabled={busy}>Cancel</button>
-          <button type="submit" className="btn-primary" disabled={busy || !ready}>{busy ? 'Saving…' : step.label}</button>
+          <button type="submit" className="btn-primary" disabled={busy || !ready}>{busy ? 'Saving…' : 'Save dispatch'}</button>
         </div>
       </form>
     </Modal>

@@ -823,7 +823,6 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
       {loading && (
         <DispatchLoadDialog
           todo={todo}
-          step={loading}
           onClose={() => setLoading(null)}
           onDone={(saved) => onChanged?.(saved)}
         />
