@@ -142,7 +142,7 @@ test('the enquiry sets the EDD per model and the dispatch plan, and shows which 
   const desk = readFileSync(new URL('../src/components/DepartmentDesk.jsx', import.meta.url), 'utf8');
   assert.match(desk, /enquiriesApi\.setModelEdds\(\{ id: enquiry\._id, models: rows, note \}\)/);
   assert.match(desk, /enquiriesApi\.setDispatchPlan\(\{ id: enquiry\._id, mode \}\)/);
-  assert.match(desk, /Dispatch each model as it is ready/);
+  assert.match(desk, /Each model on its own, when ready/);
   assert.ok(desk.indexOf('const [settingFinal, setSettingFinal] = useState(false);') < desk.indexOf('if (!catalogue) return null;'), 'hooks before the early return');
   const edd = readFileSync(new URL('../src/components/TaskEdd.jsx', import.meta.url), 'utf8');
   assert.match(edd, /\(set for this model\)/);

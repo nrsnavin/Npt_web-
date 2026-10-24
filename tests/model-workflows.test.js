@@ -105,7 +105,7 @@ test('Printing’s and Assembly’s strips say where each model’s goods are, a
   assert.match(workflow, /`Still with \$\{ROUTE_LABELS\[fromOf\(route\)\]\}/);
   /* Assembly takes a printed model from Printing, an unprinted one from Production. */
   assert.match(workflow, /const fromOf = \(route\) => \(todo\.kind === 'ask_assembling_edd' && route\?\.printing \? 'printing' : 'production'\);/);
-  assert.match(workflow, /const eachAsReady = todo\.enquiry\?\.dispatchPlan\?\.mode === 'by_model';/);
+  assert.match(workflow, /const eachAsReady = dispatchModeOf\(todo\.enquiry\) === 'by_model';/);
   assert.match(workflow, /\{current\?\.readyForDispatch && todo\.enquiry && \(/);
   assert.match(workflow, /Goes to Dispatch as soon as it is ready — dispatch plan: each model as it is ready\./);
   assert.match(workflow, /Waits for the other models — dispatch plan: all together\. Marketing or Admin can change it on the enquiry\./);
@@ -121,4 +121,13 @@ test('a printed model with no assembly after gives Printing’s completion date,
   const workflow = readFileSync(new URL('../src/components/TaskWorkflow.jsx', import.meta.url), 'utf8');
   assert.match(workflow, /dateLabelFor\(todo, form\.statusDate\?\.label \|\| 'Ready date', fixedModels \|\| \(byModel \? picked : \[\]\)\)/);
   assert.match(workflow, /dateLabelFor\(todo, form\.statusDate\?\.label \|\| 'Ready date', row\.model\)/);
+});
+
+test('several models go each on its own way unless one consignment is chosen; one model goes together', async () => {
+  const { dispatchModeOf } = await import('../src/utils/dispatchPlan.js');
+  assert.equal(dispatchModeOf({ items: [{ modelNumber: 'A' }, { modelNumber: 'B' }] }), 'by_model');
+  assert.equal(dispatchModeOf({ items: [{ modelNumber: 'A' }] }), 'together');
+  assert.equal(dispatchModeOf({ items: [{ modelNumber: 'A' }, { modelNumber: 'B' }], dispatchPlan: { mode: 'together' } }), 'together', 'marketing’s choice wins');
+  const desk = readFileSync(new URL('../src/components/DepartmentDesk.jsx', import.meta.url), 'utf8');
+  assert.match(desk, /\{planChosen \? '' : ' \(default\)'\}/);
 });

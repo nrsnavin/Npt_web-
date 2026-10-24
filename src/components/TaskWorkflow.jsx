@@ -9,6 +9,7 @@ import TaskDocuments from './TaskDocuments.jsx';
 import DepartmentTaskDialog from './DepartmentTaskDialog.jsx';
 import CloseTaskPrompt, { offersClose } from './CloseTaskPrompt.jsx';
 import DispatchLoadDialog from './DispatchLoadDialog.jsx';
+import { dispatchModeOf } from '../utils/dispatchPlan.js';
 import RegisterPick from './RegisterPick.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import { todayInIndia } from '../utils/taskForm.js';
@@ -396,7 +397,7 @@ function ModelWorkflows({ todo, form, statuses, offered, noDates, onMoved }) {
   const incoming = todo.routing?.incoming || {};
   const fromOf = (route) => (todo.kind === 'ask_assembling_edd' && route?.printing ? 'printing' : 'production');
   /* The enquiry's dispatch plan: each model goes as soon as it is ready, or all go together [server: Enquiry `dispatchPlan`]. */
-  const eachAsReady = todo.enquiry?.dispatchPlan?.mode === 'by_model';
+  const eachAsReady = dispatchModeOf(todo.enquiry) === 'by_model';
   return (
     <ul className="space-y-2" aria-label="Workflow by model">
       {rows.map((row) => {
