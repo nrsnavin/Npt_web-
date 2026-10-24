@@ -22,8 +22,18 @@ export const TOP = [
   { key: 'masters', label: 'Masters & Access', icon: '⚙', from: [{ module: 'customers' }, { module: 'catalogue' }, { module: 'admin' }] },
 ];
 
+/**
+ * The departments that work from their own desk alone — Production, Printing, Assembly, Dispatch,
+ * the office teams — keep a short bar: My work, Enquiries and Quotations where they may open them,
+ * their own screens, and More. Department Tasks and Masters & Access are one tap away under More,
+ * not words to read every time. Marketing and Admin keep the full bar: they work across the departments.
+ */
+const SHORT_BAR = ['dashboard', 'enquiries', 'quotations'];
+const WORKS_ACROSS = ['marketing', 'management', 'audit'];
+export const usesShortBar = (departments = [], { isAdmin = false } = {}) => !isAdmin && departments.length > 0 && !departments.some((key) => WORKS_ACROSS.includes(key));
+
 /** The bar's items from what this person may open: the five, their department's own, then More. */
-export function barItems(everything, ownKeys = []) {
+export function barItems(everything, ownKeys = [], { short = false } = {}) {
   /* Queries are not a screen on the bar: they live in the panel at the bottom right, with their
      unread count [dock/WorkspaceRail.jsx, QueriesPanel] — the full list is one link from there. */
   const readable = everything.filter((entry) => entry.key !== 'queries');
@@ -35,21 +45,27 @@ export function barItems(everything, ownKeys = []) {
     features.forEach((feature) => used.add(feature.to));
     return features;
   };
-  const items = TOP.map((top) => ({
+  /* A short bar keeps the desk — called My work — and Enquiries and Quotations, where readable. */
+  const items = TOP.filter((top) => !short || SHORT_BAR.includes(top.key)).map((top) => ({
     key: top.key,
-    label: top.label,
+    label: short && top.key === 'dashboard' ? 'My work' : top.label,
     icon: top.icon,
     features: [...(top.extra || []), ...top.from.flatMap((source) => pick(source.module, source.to))],
   })).filter((top) => top.features.length);
   const rest = readable
     .map((entry) => ({ ...entry, features: entry.features.filter((feature) => !used.has(feature.to)) }))
     .filter((entry) => entry.features.length);
-  const own = rest.filter((entry) => ownKeys.includes(entry.key));
-  const more = rest.filter((entry) => !ownKeys.includes(entry.key));
+  /* On a short bar what the dropped items held — Department Tasks, Masters & Access — is under More. */
+  const own = rest.filter((entry) => ownKeys.includes(entry.key) && !(short && entry.key === 'dashboard'));
+  const more = rest.filter((entry) => !own.includes(entry));
+  const moreFeatures = [
+    ...(short ? TOP.filter((top) => !SHORT_BAR.includes(top.key)).flatMap((top) => top.extra || []) : []),
+    ...more.flatMap((entry) => entry.features),
+  ];
   return [
     ...items,
     ...own.map((entry) => ({ key: entry.key, label: entry.label, features: entry.features })),
-    ...(more.length ? [{ key: 'more', label: 'More', features: more.flatMap((entry) => entry.features) }] : []),
+    ...(moreFeatures.length ? [{ key: 'more', label: 'More', features: moreFeatures }] : []),
   ];
 }
 

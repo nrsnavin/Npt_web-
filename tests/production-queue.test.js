@@ -17,12 +17,12 @@ const page = read('pages/ProductionQueue.jsx');
 const list = read('components/ProductionQueueList.jsx');
 const workflow = read('pages/ProductionWorkflow.jsx');
 
-test('the queue is one line per enquiry: EDD, whose it is, the thirty-word summary, work orders, and Workflow →', () => {
+test('the queue is one line per enquiry: EDD, whose it is, the thirty-word summary, work orders, and Open job →', () => {
   assert.match(list, /productionApi\.queue\(\)/);
   assert.match(list, /setInterval\(load, REFRESH_MS\)/, 'it keeps itself fresh');
   assert.match(list, /\{row\.summary\}/);
   assert.match(list, /<WorkOrderChip key=\{wo\._id\} wo=\{wo\} orderId=\{row\.order\?\._id\} \/>/);
-  assert.match(list, /<Link to=\{row\.link\} className=\{`\$\{mayPlan && row\.production && !row\.production\.taken \? 'btn-secondary' : 'btn-primary'\} [^`]*`\}>Workflow →<\/Link>/, 'the main button, unless adding to the queue is');
+  assert.match(list, /<Link to=\{row\.link\} className=\{`\$\{mayPlan && row\.production && !row\.production\.taken \? 'btn-secondary' : 'btn-primary'\} [^`]*`\}>Open job →<\/Link>/, 'the main button, unless adding to the queue is');
   assert.match(list, /\{row\.edd \? dueWords\(row\.edd\.date\) : 'give the date'\}/);
   assert.doesNotMatch(list, /<select/, 'no status is changed from the queue');
   assert.match(page, /<ProductionQueueList onRows=\{onRows\} \/>/);

@@ -31,4 +31,4 @@ export default function DeskTabs({ departments, counts = {}, value, onChange, la
 }
 
 /** The tab a shared desk opens on: the person's own team where they are in one, else the first. */
-export const firstDeskTab = (desk, departments = []) => desk.find((key) => departments.includes(key)) || desk[0];
+export const firstDeskTab = (desk, departments = []) => departments.find((key) => desk.includes(key)) || desk[0];

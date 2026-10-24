@@ -76,7 +76,7 @@ export default function FinishingDeskList({ rows = [], onChanged }) {
                   <button type="button" className="btn-secondary px-3 py-2 text-sm" onClick={() => setOpened(row.task)}>
                     {mayWork(row.task) && !row.task.completed ? 'Update' : 'Open'}
                   </button>
-                  {row.workflow && <Link to={row.workflow} className="btn-primary px-3 py-2 text-sm">Workflow →</Link>}
+                  {row.workflow && <Link to={row.workflow} className="btn-primary px-3 py-2 text-sm">Open job →</Link>}
                 </div>
               </div>
             </li>

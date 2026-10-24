@@ -16,7 +16,7 @@ const read = (path) => readFileSync(new URL(`../src/${path}`, import.meta.url), 
 const page = read('pages/FinishingQueue.jsx');
 const list = read('components/FinishingQueueList.jsx');
 
-test('the queue is one line per task: the date the team works to, whose it is, the goods, each model, Update and Workflow →', () => {
+test('the queue is one line per task: the date the team works to, whose it is, the goods, each model, Update and Open job →', () => {
   assert.match(list, /productionApi\.teamQueue\(team\)/);
   assert.match(list, /setInterval\(load, REFRESH_MS\)/, 'it keeps itself fresh');
   assert.match(list, /\{row\.edd \? dueWords\(row\.edd\.date\) : 'give the date'\}/);
@@ -27,7 +27,7 @@ test('the queue is one line per task: the date the team works to, whose it is, t
   assert.match(list, /`Received from \$\{entry\.fromLabel\} \$\{formatDate\(came\)\} — add to work queue`/, 'goods received, not yet taken on');
   assert.match(list, /`In work queue · from \$\{entry\.fromLabel\} \$\{formatDate\(came\)\}`/);
   assert.match(list, /\{mayWork\(row\.task\) \? 'Update' : 'Open'\}/);
-  assert.match(list, /\{row\.link && <Link to=\{row\.link\}[^>]*>Workflow →<\/Link>\}/);
+  assert.match(list, /\{row\.link && <Link to=\{row\.link\}[^>]*>Open job →<\/Link>\}/);
   assert.match(list, /<TaskPanel/, 'the task is worked from the queue');
   assert.doesNotMatch(list, /<select/, 'no status is changed on the line itself');
 });

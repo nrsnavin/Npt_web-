@@ -12,7 +12,7 @@ import { Modal } from './ui.jsx';
 import { humanise } from '../utils/format.js';
 import { departmentLabel } from '../utils/pipeline.js';
 import { simpleNavFor } from '../config/simpleNav.js';
-import { barItems, litItem } from '../config/topBar.js';
+import { barItems, litItem, usesShortBar } from '../config/topBar.js';
 
 /**
  * The plant's own layout: a dark bar across the top with Dashboard · Enquiries · Department
@@ -304,15 +304,14 @@ function AccountBar({ user, roleLabel, onSignOut, accounts = [], onSwitch, onAdd
           onClick={() => setOpen((value) => !value)}
           className="flex w-full items-center justify-between gap-3 rounded-xl border border-line/15 bg-ink-850 px-3.5 py-2.5 text-left text-sm text-steel-100 hover:border-line/25"
         >
-          {/* The email and role on a wide screen; on a phone, where that was cut to "rsnavin1@g…", the
-              name alone — the role is in the menu it opens. */}
+          {/* The person's name — what they recognise — with their role on a wide screen; the email is in the menu it opens. */}
           <span className="truncate sm:hidden">{user?.name || who}</span>
-          <span className="hidden truncate sm:inline">{who}{roleLabel ? ` · ${roleLabel}` : ''}</span>
+          <span className="hidden truncate sm:inline">{user?.name || who}{roleLabel ? ` · ${roleLabel}` : ''}</span>
           <span aria-hidden className="text-steel-400">⌄</span>
         </button>
         {open && (
           <div role="menu" className="absolute left-0 top-full z-40 mt-1 w-full rounded-xl border border-line/10 bg-ink-850 p-1.5 shadow-modal">
-            <p className="px-3 py-2 text-xs text-steel-400">Signed in as <span className="font-semibold text-steel-100">{user?.name}</span>{roleLabel ? ` · ${roleLabel}` : ''}</p>
+            <p className="px-3 py-2 text-xs text-steel-400">Signed in as <span className="font-semibold text-steel-100">{user?.name}</span>{roleLabel ? ` · ${roleLabel}` : ''}{user?.email ? <span className="block">{user.email}</span> : null}</p>
             <NavLink to="/profile" role="menuitem" className="block rounded-lg px-3 py-2 text-sm font-semibold text-steel-100 hover:bg-line/[0.05]">Profile and access</NavLink>
             {/* The other accounts on this device [auth/accounts.js]: one tap to become them. */}
             {accounts.filter((row) => !row.active).length > 0 && (
@@ -411,7 +410,7 @@ export default function Layout() {
    * Masters & Access, the department's own modules beside them, and the rest under More.
    */
   const items = useMemo(
-    () => barItems(readable, simpleNavFor(departments, { isAdmin }) || []),
+    () => barItems(readable, simpleNavFor(departments, { isAdmin }) || [], { short: usesShortBar(departments, { isAdmin }) }),
     [readable, departments, isAdmin],
   );
   const lit = litItem(location.pathname, items);

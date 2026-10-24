@@ -417,7 +417,9 @@ export function AuthProvider({ children }) {
       mayPlanProduction: user?.role === 'admin' || (user?.departments || [user?.department]).includes('management')
         || user?.productionInCharge === true,
       /** Every department this person works in, their main one first [server: utils/departments.js]. */
-      departments: user?.departments || (user?.department ? [user.department] : []),
+      departments: user?.department
+        ? [user.department, ...(user.departments || []).filter((key) => key !== user.department)]
+        : user?.departments || [],
       /** True when they work in that department, as their main one or an extra one. */
       worksIn(key) {
         return Boolean(key) && (user?.departments || [user?.department]).includes(key);
