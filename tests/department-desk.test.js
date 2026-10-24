@@ -47,9 +47,15 @@ test('the dashboard lists department tasks as cards, with what was asked, their 
   assert.match(page, /<HandoffTaskActions todo=\{task\}/);
   assert.match(page, /data\?\.enquiries/);
   assert.match(page, /<TaskFacts button=\{button\} task=\{task\}/);
-  for (const tab of ['Department tasks', 'Requests', 'Waiting on others', 'Came back', 'Done this week']) {
-    assert.ok(page.includes(`'${tab}'`), `no ${tab} tab`);
-  }
+  /* One Tasks tab: To do, We asked, Replies, and what was finished a toggle away — the old tabs are gone. */
+  assert.match(page, /\{ key: 'tasks', label: 'Tasks', count: toDoCount \}/);
+  for (const section of ['To do', 'We asked', 'Replies']) assert.match(page, new RegExp(`<TaskSection title="${section}"`));
+  assert.match(page, /<HandoffTaskList tasks=\{waitingOnOthers\} perspective="sender"/);
+  assert.match(page, /<HandoffTaskList tasks=\{cameBack\} perspective="sender"/);
+  assert.match(page, /\{showDone \? 'Hide' : 'Show'\} done this week \(\{recentlyDone\.length\}\)/);
+  assert.match(page, /<TaskGroup title="Other jobs for the department">/);
+  for (const gone of ["'Requests'", "'Waiting on others'", "'Came back'", "'Done this week'", "'Asked by other teams'"]) assert.ok(!page.includes(gone), `${gone} is no longer a tab`);
+  assert.match(read('components/HandoffTaskList.jsx'), /\{!task\.kind && perspective === 'holder' && \(/, 'a job with no task form is marked done from the list');
 });
 
 test('Assembly, Payment Collection and Audit are departments with their own desk and workspace', async () => {

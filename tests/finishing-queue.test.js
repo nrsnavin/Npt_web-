@@ -61,9 +61,10 @@ test('each team has its page, with Print and CSV, and the other queues one tap a
 test('the Printing and Assembly desks are their queues; Quality keeps its list; the links are on the workspaces', () => {
   const desk = read('pages/DepartmentDashboard.jsx');
   assert.match(desk, /const queueTeam = deskTab && TEAM_WORDS\[deskTab\] \? deskTab : null;/);
-  assert.match(desk, /\{tab === 'enquiries' && queueTeam && <FinishingQueueList key=\{queueTeam\} team=\{queueTeam\} compact onChanged=\{reload\} \/>\}/);
-  assert.match(desk, /queueTeam \? TEAM_WORDS\[queueTeam\]\.queue : 'Department tasks'/, 'the tab is named for the queue');
-  assert.match(desk, /\{tab === 'enquiries' && !isProduction && !isSoTeam && !queueTeam && \(/, 'the other desks keep their lists');
+  assert.match(desk, /\{tab === 'fqueue' && queueTeam && <FinishingQueueList key=\{queueTeam\} team=\{queueTeam\} compact onChanged=\{reload\} \/>\}/);
+  assert.match(desk, /\.\.\.\(queueTeam \? \[\{ key: 'fqueue', label: TEAM_WORDS\[queueTeam\]\.queue, count: null \}\] : \[\]\)/, 'the tab is named for the queue');
+  assert.match(desk, /opening === 'enquiries' \? \(isProduction \? 'pqueue' : queueTeam \? 'fqueue' : 'tasks'\)/, 'the desk opens on its queue');
+  assert.match(desk, /\) : isSoTeam \? \(\s*<SoDesk/, 'the other desks keep their lists under To do');
   for (const key of ['printing', 'assembling', 'quality', 'production']) {
     const pages = DEPARTMENT_WORKSPACES[key].pages.map((entry) => entry.to);
     assert.ok(pages.includes('/production/queue/printing'), `${key} links the Printing queue`);
