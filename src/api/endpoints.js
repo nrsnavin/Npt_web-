@@ -125,6 +125,20 @@ export const workspace = {
       /* Said by the screen itself, with whether Production was asked [TaskWorkflow]. */
       return api.post(`/workspace/todos/${id}/result`, form, { feedback: false }).then((response) => response.data);
     },
+    /** What the dispatch form offers: the models ordered and sent, ready or not, the plan and the modes [server: `dispatchSheet`]. */
+    dispatchSheet: (id) => api.get(`/workspace/todos/${id}/dispatch`).then(unwrap),
+    /** A load from the dispatch form: the models and pieces, how it travels, and its LR copy or proof of delivery. */
+    dispatchLoad: ({ id, status, mode, lines, note, file }) => {
+      const form = new FormData();
+      form.append('status', status);
+      form.append('mode', mode);
+      form.append('lines', JSON.stringify(lines));
+      if (note) form.append('note', note);
+      form.append('file', file);
+      return api.post(`/workspace/todos/${id}/dispatch`, form, { feedback: false }).then(unwrap);
+    },
+    /** The file already on the task sent to the buyer — Reception sending the LR copy Dispatch uploaded; keeps `sent`. */
+    sendResult: (id) => api.post(`/workspace/todos/${id}/result/send`, {}, { feedback: false }).then((response) => response.data),
     /** Papers a department keeps on its task — Dispatch's invoice and dispatch details, Reception's. */
     documents: (id) => api.get(`/workspace/todos/${id}/documents`).then(unwrap),
     addDocument: ({ id, docType, file }) => {

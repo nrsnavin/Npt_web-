@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import TaskDocuments from './TaskDocuments.jsx';
 import DepartmentTaskDialog from './DepartmentTaskDialog.jsx';
 import CloseTaskPrompt, { offersClose } from './CloseTaskPrompt.jsx';
+import DispatchLoadDialog from './DispatchLoadDialog.jsx';
 import RegisterPick from './RegisterPick.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import { todayInIndia } from '../utils/taskForm.js';
@@ -163,6 +164,13 @@ export function MoveForm({ todo, form, step, onCancel, onMoved, noDates = false,
 }
 
 const PDF_LIMIT = 1024 * 1024;
+
+/** The task's file has gone to the buyer: its status is the one sending sets, or later [server: `markResultSent`]. */
+export const resultSent = (todo, statuses = []) => {
+  const at = statuses.findIndex((entry) => entry.sent);
+  const now = statuses.findIndex((entry) => entry.key === todo?.status);
+  return at >= 0 && now >= at;
+};
 
 export function CommentDialog({ step, target, onClose, onSave }) {
   const [note, setNote] = useState('');
@@ -543,6 +551,9 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
   /* Dispatch's "Ask Production": the other department's form, filled from the enquiry. */
   const [askingDepartment, setAskingDepartment] = useState(null);
   const [uploading, setUploading] = useState(false);
+  /* Part Quantity Dispatched, Fully Dispatched, Dispatched: the dispatch form [DispatchLoadDialog]. */
+  const [loading, setLoading] = useState(null);
+  const [sending, setSending] = useState(false);
   const [editing, setEditing] = useState(false);
   /* Several models: each has its own workflow [ModelWorkflows]; moving every model at once is opened on request. */
   const [allAtOnce, setAllAtOnce] = useState(false);
@@ -590,9 +601,30 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
     );
   }
 
+  /* Reception sends the LR copy already on the task — Dispatch uploaded it with the load. */
+  const sendToBuyer = async () => {
+    setSending(true);
+    setProblem(null);
+    try {
+      const answer = await workspace.todos.sendResult(todo._id);
+      const channel = (entry) => (entry.channel === 'email' ? 'Email' : 'WhatsApp');
+      const went = (answer.sent || []).filter((entry) => entry.status === 'sent');
+      const missed = (answer.sent || []).filter((entry) => entry.status !== 'sent');
+      if (went.length) toast(`${button.form.resultTitle || 'File'} sent to the buyer`, went.map((entry) => `${channel(entry)} to ${entry.recipient}`).join(' · '));
+      if (missed.length) warn(`${missed.map(channel).join(' and ')} not sent`, missed.map((entry) => `${channel(entry)}: ${String(entry.reason || entry.status).replaceAll('_', ' ')}`).join(' · '));
+      onChanged?.(answer.data);
+    } catch (failure) {
+      setProblem(failure.message);
+    } finally {
+      setSending(false);
+    }
+  };
+
   const choose = async (key) => {
     const step = statuses.find((entry) => entry.key === key);
     setProblem(null);
+    /* A load is said from the dispatch form: the models and pieces, how it travels, its LR copy or proof of delivery. */
+    if (step.loads) return setLoading(step);
     if (step.pdf) return setUploading(true);
     if (step.comment) return setAsking(step);
     /* A workflow whose every move says why, or says when — or a move that records something
@@ -714,7 +746,13 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
         )}
         {resultStep && (
           <button type="button" className="btn-primary px-3 py-1.5 text-xs" onClick={() => setUploading(true)}>
-            {button.form.resultLabel || `Upload PDF — ${resultStep.label}`}
+            {todo.resultFile && button.form.sendResult ? 'Upload again' : button.form.resultLabel || `Upload PDF — ${resultStep.label}`}
+          </button>
+        )}
+        {/* The LR copy Dispatch uploaded with the load, waiting on this task: Reception sends it to the buyer [server: `handoffSendResult`]. */}
+        {button.form.sendResult && todo.resultFile && !resultSent(todo, statuses) && (
+          <button type="button" className="btn-primary px-3 py-1.5 text-xs" disabled={sending} onClick={sendToBuyer}>
+            {sending ? 'Sending…' : `Send ${(button.form.resultTitle || 'file').toLowerCase()} to buyer`}
           </button>
         )}
       </div>
@@ -779,6 +817,14 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
             if (answer.order?.problem) warn('Sales order not booked', `${answer.order.problem}. Book it on the Sales orders screen.`);
             onChanged?.(answer.data);
           }}
+        />
+      )}
+      {loading && (
+        <DispatchLoadDialog
+          todo={todo}
+          step={loading}
+          onClose={() => setLoading(null)}
+          onDone={(saved) => onChanged?.(saved)}
         />
       )}
       {askingDepartment && (
