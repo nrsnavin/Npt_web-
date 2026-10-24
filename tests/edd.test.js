@@ -155,3 +155,31 @@ test('a task of several models moves model by model: the models ticked, each one
   assert.match(workflow, /aria-label="Workflow by model"/);
   assert.match(workflow, /The task stays open until every model is closed\./);
 });
+
+test('Printing / Assembly: a model whose goods have not come is offered nothing but the first step, Goods Received, an issue or closing it', async () => {
+  const { statusesFor, statusesForModel, goodsAwaited, goodsOf } = await import('../src/utils/edd.js');
+  const statuses = [
+    { key: 'asked', label: 'Asked' }, { key: 'goods_received', label: 'Goods Received', receives: true }, { key: 'in_queue', label: 'In Work Queue', queues: true },
+    { key: 'started', label: 'Started' }, { key: 'ready_dispatch', label: 'Ready for Dispatch', readyForDispatch: true }, { key: 'closed', label: 'Task Closed', done: true },
+  ];
+  const task = { kind: 'ask_assembling_edd', status: 'asked', brief: { models: 'A-1, B-2' }, routing: { byProduction: true, models: ['A-1', 'B-2'], receivedModels: { 'B-2': '2026-10-24' } } };
+  assert.equal(goodsAwaited(task, 'A-1'), true);
+  assert.equal(goodsAwaited(task, 'B-2'), false);
+  assert.deepEqual(statusesForModel(task, statuses, 'A-1').map((step) => step.key), ['asked', 'goods_received', 'closed']);
+  assert.deepEqual(statusesForModel(task, statuses, 'B-2').map((step) => step.key), statuses.map((step) => step.key));
+  assert.deepEqual(goodsOf(task, 'B-2', statuses, 'goods_received'), { stage: 'received', came: '2026-10-24' });
+  assert.equal(goodsOf(task, 'B-2', statuses, 'started').stage, 'in_queue', 'started straight away is in the work queue');
+  assert.equal(goodsOf(task, 'A-1', statuses).stage, 'to_come');
+  /* Nothing has come: the whole task offers only those. */
+  assert.deepEqual(statusesFor({ ...task, routing: { ...task.routing, receivedModels: {} } }, statuses).map((step) => step.key), ['asked', 'goods_received', 'closed']);
+  /* A task Dispatch asked by hand (not routed by Production) is not held. */
+  assert.equal(statusesFor({ ...task, routing: {} }, statuses).length, statuses.length);
+});
+
+test('Production: Ready for Dispatch is not offered for a model that goes on to Printing or Assembly', async () => {
+  const { statusesForModel } = await import('../src/utils/edd.js');
+  const statuses = [{ key: 'started', label: 'Started' }, { key: 'handed_printing', label: 'Handed to Printing', handsTo: 'printing' }, { key: 'ready_dispatch', label: 'Ready for Dispatch', readyForDispatch: true }];
+  const task = { kind: 'ask_edd', routing: { handsTo: ['printing'], models: [{ model: 'A-1', printing: true }, { model: 'C-3' }] } };
+  assert.deepEqual(statusesForModel(task, statuses, 'A-1').map((step) => step.key), ['started', 'handed_printing']);
+  assert.deepEqual(statusesForModel(task, statuses, 'C-3').map((step) => step.key), ['started', 'ready_dispatch']);
+});

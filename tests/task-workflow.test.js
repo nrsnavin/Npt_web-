@@ -126,7 +126,8 @@ test('Admin and marketing raise a team task with no enquiry; the desk shows it w
   const dashboard = read('pages/DepartmentDashboard.jsx');
   assert.match(dashboard, /\(isAdmin \|\| departments\?\.includes\('marketing'\)\) && firstTask &&/);
   assert.match(dashboard, /<DepartmentTaskDialog enquiry=\{null\}/);
-  assert.match(dashboard, /const actions = enquiry \? deskActionsFor\(department, row\) : \[\];/);
+  /* No enquiry links — only the quotation a customer's Create Quotation task raised [tests/quotation-task-models.test.js]. */
+  assert.match(dashboard, /const actions = enquiry\s+\? deskActionsFor\(department, row\)\s+: row\.records\?\.quotation \?/);
   assert.match(dashboard, /<p className="text-base font-bold text-steel-50">Team task<\/p>/);
   const dialog = read('components/DepartmentTaskDialog.jsx');
   assert.match(dialog, /const team = !enquiry;/);

@@ -24,16 +24,19 @@ test('the queue is one line per task: the date the team works to, whose it is, t
   assert.match(list, /\{row\.summary\}/);
   assert.match(list, /<ModelLine key=\{entry\.model\} entry=\{entry\} \/>/, 'each model with where its goods are');
   assert.match(list, /with \{entry\.fromLabel\}\{entry\.expected \? ` · due \$\{formatDate\(entry\.expected\)\}` : ' · no date'\}/);
-  assert.match(list, /from \{entry\.fromLabel\} \{formatDate\(came\)\}/);
+  assert.match(list, /`Received from \$\{entry\.fromLabel\} \$\{formatDate\(came\)\} — add to work queue`/, 'goods received, not yet taken on');
+  assert.match(list, /`In work queue · from \$\{entry\.fromLabel\} \$\{formatDate\(came\)\}`/);
   assert.match(list, /\{mayWork\(row\.task\) \? 'Update' : 'Open'\}/);
   assert.match(list, /\{row\.link && <Link to=\{row\.link\}[^>]*>Workflow →<\/Link>\}/);
   assert.match(list, /<TaskPanel/, 'the task is worked from the queue');
   assert.doesNotMatch(list, /<select/, 'no status is changed on the line itself');
 });
 
-test('the goods filter opens on Both and says when a kept choice hides tasks; the bands and search are the production queue’s', () => {
-  assert.match(list, /\{ key: 'in_hand', label: 'Goods in hand'/);
-  assert.match(list, /\{ key: 'waiting', label: 'Still to come'/);
+test('the goods filter: Goods received, Work queue, Still to come, All — opens on All and says when a kept choice hides tasks', () => {
+  assert.match(list, /\{ key: 'received', label: 'Goods received', count: \(meta\) => meta\?\.goods\?\.received \}/);
+  assert.match(list, /\{ key: 'in_queue', label: 'Work queue', count: \(meta\) => meta\?\.goods\?\.inQueue \}/);
+  assert.match(list, /\{ key: 'to_come', label: 'Still to come', count: \(meta\) => meta\?\.goods\?\.toCome \}/);
+  assert.match(list, /if \(stage !== 'all' && row\.goods\?\.stage !== stage\) return false;/);
   assert.match(list, /return 'all';/, 'Both until a choice is made');
   assert.match(list, /npt\.finishingStage\.\$\{team\}/, 'kept per team');
   assert.match(list, /not shown by this filter/);
@@ -80,4 +83,11 @@ test('the CSV says where each model’s goods are', () => {
   assert.equal(header, 'Date,Due,Enquiry,Buyer,Models,SO,Goods,Status');
   assert.match(line, /^2026-10-24,in 2 days,ENQ-1,Aruna Knits,"NPT-410V, NPT-400S",SO-9,/);
   assert.match(line, /NPT-410V: from Production 2026-10-20; NPT-400S: with Printing due 2026-10-22/);
+});
+
+test('goods received are added to the work queue from the row, in one tap [server: handoff.service `addToWorkQueue`]', () => {
+  assert.match(list, /workspace\.todos\.workQueue\(\{ id: row\.task\._id, models: row\.goods\?\.toQueue \|\| \[\] \}\)/);
+  assert.match(list, /\{mayWork\(row\.task\) && goods\.toQueue\?\.length > 0 && \(/, 'only for whoever works the task, and only with goods to take on');
+  assert.match(list, /`Add to work queue\$\{goods\.toQueue\.length > 1 \? ` \(\$\{goods\.toQueue\.length\}\)` : ''\}`/);
+  assert.match(read('api/endpoints.js'), /workQueue: \(\{ id, models, note \}\) => api\.post\(`\/workspace\/todos\/\$\{id\}\/work-queue`/);
 });

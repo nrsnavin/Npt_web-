@@ -69,7 +69,10 @@ test('Printing’s and Assembly’s strips say where each model’s goods are, a
   const workflow = read('components/TaskWorkflow.jsx');
   assert.match(workflow, /const after = todo\.kind !== 'ask_edd';/);
   assert.match(workflow, /const received = todo\.routing\?\.receivedModels \|\| \{\};/);
-  assert.match(workflow, /`Goods came \$\{formatDate\(received\[row\.model\]\)\} from \$\{ROUTE_LABELS\[fromOf\(route\)\]\}`/);
+  assert.match(workflow, /`Goods came \$\{formatDate\(received\[row\.model\]\)\} from \$\{ROUTE_LABELS\[fromOf\(route\)\]\}\$\{goodsOf\(todo, row\.model, statuses, row\.status\)\?\.stage === 'received' \? ' — not yet in the work queue' : ''\}`/);
+  /* The goods coming in, on every Printing / Assembly task: received with Add to work queue, and what is still to come. */
+  assert.match(workflow, /<GoodsIn todo=\{todo\} statuses=\{button\?\.form\?\.statuses \|\| \[\]\} onMoved=\{moved\} \/>/);
+  assert.match(workflow, /onMoved\(await workspace\.todos\.workQueue\(\{ id: todo\._id, models: toQueue\.map\(\(entry\) => entry\.model\) \}\)\)/);
   assert.match(workflow, /`Still with \$\{ROUTE_LABELS\[fromOf\(route\)\]\}/);
   /* Assembly takes a printed model from Printing, an unprinted one from Production. */
   assert.match(workflow, /const fromOf = \(route\) => \(todo\.kind === 'ask_assembling_edd' && route\?\.printing \? 'printing' : 'production'\);/);

@@ -83,7 +83,10 @@ function EnquiryCard({ row, department, me, onChanged }) {
   const holder = task.user?._id ? task.user : null;
   const lastUpdate = (task.updates || []).at(-1);
   /* A team task raised without an enquiry has no enquiry screens to open. */
-  const actions = enquiry ? deskActionsFor(department, row) : [];
+  /* A team task has no enquiry screens — but a customer's Create Quotation task has the quotation it raised [server: raiseTeamTask]. */
+  const actions = enquiry
+    ? deskActionsFor(department, row)
+    : row.records?.quotation ? [{ label: 'Cost the quotation', href: `/quotations/${row.records.quotation._id}`, primary: true }] : [];
   const days = daysSince(row.since);
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
