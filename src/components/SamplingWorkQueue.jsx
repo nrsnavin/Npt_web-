@@ -32,15 +32,15 @@ const STATUS_TONE = {
   closed: 'bg-line/[0.08] text-steel-400',
 };
 
-function Tile({ label, hint, value, tone = 'text-steel-50', to, onClick, active }) {
+function Tile({ label, hint, value, tone = 'text-steel-50', to, onClick, active, hideOnPhone = false }) {
   const body = (
     <>
-      <p className="eyebrow">{label}</p>
-      <p className={`mt-1 text-3xl font-bold tabular-nums ${tone}`}>{value ?? '—'}</p>
-      <p className="mt-1 text-xs text-steel-400">{hint}</p>
+      <p className="eyebrow leading-tight">{label}</p>
+      <p className={`mt-1 text-2xl font-bold tabular-nums sm:text-3xl ${tone}`}>{value ?? '—'}</p>
+      <p className="mt-1 hidden text-xs text-steel-400 sm:block">{hint}</p>
     </>
   );
-  const className = `card p-4 text-left transition hover:border-flame-500/40 ${active ? 'border-flame-500/60 ring-1 ring-flame-500/30' : ''}`;
+  const className = `card ${hideOnPhone ? 'hidden sm:block' : ''} px-2 py-2 text-left sm:p-4 transition hover:border-flame-500/40 ${active ? 'border-flame-500/60 ring-1 ring-flame-500/30' : ''}`;
   return to ? <Link to={to} className={className}>{body}</Link> : <button type="button" className={className} onClick={onClick}>{body}</button>;
 }
 
@@ -437,22 +437,24 @@ export default function SamplingWorkQueue() {
 
   return (
     <section className="space-y-4">
-      <div className="card flex flex-wrap items-start justify-between gap-3 p-5">
+      {/* On a phone the jobs come first: the heading is for the wider screen. */}
+      <div className="card hidden flex-wrap items-start justify-between gap-3 p-5 sm:flex">
         <div>
-          <h2 className="text-xl font-bold text-steel-50">Department Work Queue</h2>
-          <p className="mt-1 text-sm text-steel-400">Every request moves to the responsible team login and returns a live status.</p>
+          <h2 className="text-xl font-bold text-steel-50">Sample requests</h2>
+          <p className="mt-1 text-sm text-steel-400">Change the status on each request as the sample moves along.</p>
         </div>
         <span className="rounded-full border border-line/[0.1] bg-line/[0.04] px-3 py-1.5 text-xs font-semibold text-steel-300">
-          Sampling Team login · Only assigned or tagged tasks are visible
+          You see the requests given to you or your team
         </span>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+      {/* One row of four on a phone, so the requests start on the first screen; Questions has its own button there. */}
+      <div className="grid grid-cols-4 gap-2 sm:grid-cols-2 sm:gap-3 lg:grid-cols-5">
         <Tile label="Open tasks" hint="In the sampling queue" value={tiles.open} active={chip === 'all'} onClick={() => setChip('all')} />
         <Tile label={TILE_FILTERS.late.label} hint={TILE_FILTERS.late.hint} value={tiles.late} tone={tiles.late ? 'text-danger-400' : 'text-steel-50'} active={chip === 'late'} onClick={() => setChip('late')} />
         <Tile label={TILE_FILTERS.today.label} hint={TILE_FILTERS.today.hint} value={tiles.dueToday} tone={tiles.dueToday ? 'text-warn-400' : 'text-steel-50'} active={chip === 'today'} onClick={() => setChip('today')} />
         <Tile label={TILE_FILTERS.ready.label} hint={TILE_FILTERS.ready.hint} value={tiles.readyToSend} tone={tiles.readyToSend ? 'text-flame-400' : 'text-steel-50'} active={chip === 'ready'} onClick={() => setChip('ready')} />
-        <Tile label="Internal tags" hint="Department questions" value={tiles.internalTags} to="/queries" />
+        <Tile label="Questions" hint="From other teams" value={tiles.internalTags} to="/queries" hideOnPhone />
       </div>
 
       <div className="flex flex-wrap items-center gap-2">

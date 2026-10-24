@@ -17,11 +17,11 @@ export default function DeskTabs({ departments, counts = {}, value, onChange, la
             role="tab"
             aria-selected={active}
             onClick={() => onChange(key)}
-            className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition ${
+            className={`flex items-center justify-center gap-1.5 rounded-lg px-1.5 py-2.5 text-sm font-semibold transition sm:gap-2 sm:px-3 ${
               active ? 'fill-primary shadow-sm' : 'text-steel-300 hover:bg-line/[0.05] hover:text-steel-100'
             }`}
           >
-            <span className="truncate">{departmentLabel(key)}</span>
+            <span className="min-w-0 break-words">{departmentLabel(key)}</span>
             <span className={`rounded-full px-1.5 text-xs tabular-nums ${active ? 'bg-black/15' : 'bg-line/[0.08] text-steel-400'}`}>{counts[key] ?? 0}</span>
           </button>
         );

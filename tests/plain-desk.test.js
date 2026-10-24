@@ -78,3 +78,25 @@ test('the queues: the date chips and search in view, the rest under More filters
 test('a shared desk opens on the person’s main team, not the first tab', () => {
   assert.match(read('components/DeskTabs.jsx'), /departments\.find\(\(key\) => desk\.includes\(key\)\) \|\| desk\[0\]/);
 });
+
+test('a card has one main button: the next step, when the task has steps', () => {
+  const page = read('pages/DepartmentDashboard.jsx');
+  assert.match(page, /const hasSteps = !query && Boolean\(button\?\.form\?\.statuses\?\.length\);/);
+  assert.equal((page.match(/action\.primary && !hasSteps \? 'btn-primary' : 'btn-secondary'/g) || []).length, 2, 'links and raise buttons alike');
+});
+
+test('a desk with only its Tasks shows no tab bar; each group under To do carries its count', () => {
+  const page = read('pages/DepartmentDashboard.jsx');
+  assert.match(page, /\$\{TABS\.length === 1 \? 'hidden' : ''\}`\} role="tablist"/);
+  assert.match(page, /<TaskGroup title="Other teams ask: when will it be ready\?" count=\{queries\.length\}/);
+});
+
+test('phones: team names whole on the shared desk, small number boxes on Sampling and the SO desk', () => {
+  assert.doesNotMatch(read('components/DeskTabs.jsx'), /className="truncate">\{departmentLabel\(key\)\}/);
+  const sampling = read('components/SamplingWorkQueue.jsx');
+  assert.match(sampling, /grid grid-cols-4 gap-2 sm:grid-cols-2 sm:gap-3 lg:grid-cols-5/);
+  assert.match(sampling, /to="\/queries" hideOnPhone \/>/);
+  assert.match(sampling, /card hidden flex-wrap items-start justify-between gap-3 p-5 sm:flex/, 'the heading only on a wider screen');
+  assert.doesNotMatch(sampling, /Only assigned or tagged tasks are visible/, 'plain words');
+  assert.match(read('components/SoDesk.jsx'), /grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-5/);
+});

@@ -53,7 +53,7 @@ test('the dashboard lists department tasks as cards, with what was asked, their 
   assert.match(page, /<HandoffTaskList tasks=\{waitingOnOthers\} perspective="sender"/);
   assert.match(page, /<HandoffTaskList tasks=\{cameBack\} perspective="sender"/);
   assert.match(page, /\{showDone \? 'Hide' : 'Show'\} done this week \(\{recentlyDone\.length\}\)/);
-  assert.match(page, /<TaskGroup title="Other jobs for the department">/);
+  assert.match(page, /<TaskGroup title="Other jobs for the department" count=\{requests\.length\}>/);
   for (const gone of ["'Requests'", "'Waiting on others'", "'Came back'", "'Done this week'", "'Asked by other teams'"]) assert.ok(!page.includes(gone), `${gone} is no longer a tab`);
   assert.match(read('components/HandoffTaskList.jsx'), /\{!task\.kind && perspective === 'holder' && \(/, 'a job with no task form is marked done from the list');
 });

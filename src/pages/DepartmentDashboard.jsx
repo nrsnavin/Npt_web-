@@ -79,10 +79,13 @@ function TaskSection({ title, count, hint, tone = 'text-steel-100', children }) 
 }
 
 /** A group inside To do: other teams' questions, the department's other jobs. */
-function TaskGroup({ title, hint, children }) {
+function TaskGroup({ title, count, hint, children }) {
   return (
     <div className="space-y-2">
-      <h3 className="text-sm font-bold uppercase tracking-wide text-steel-300">{title}</h3>
+      <h3 className="text-sm font-bold uppercase tracking-wide text-steel-300">
+        {title}
+        {count !== undefined && <span className="ml-2 font-normal normal-case tabular-nums text-steel-500">{count}</span>}
+      </h3>
       {hint && <p className="-mt-1 text-xs text-steel-500">{hint}</p>}
       {children}
     </div>
@@ -109,6 +112,8 @@ function EnquiryCard({ row, department, me, onChanged, query = false }) {
     ? deskActionsFor(department, row)
     : row.records?.quotation ? [{ label: 'Cost the quotation', href: `/quotations/${row.records.quotation._id}`, primary: true }] : [];
   const days = daysSince(row.since);
+  /* One main (orange) button on a card: the next step, when the task has steps — the links to other screens are then plain. */
+  const hasSteps = !query && Boolean(button?.form?.statuses?.length);
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
 
@@ -203,7 +208,7 @@ function EnquiryCard({ row, department, me, onChanged, query = false }) {
             type="button"
             disabled={busy}
             onClick={() => raise(action.raise)}
-            className={`${action.primary ? 'btn-primary' : 'btn-secondary'} px-3 py-1.5 text-xs`}
+            className={`${action.primary && !hasSteps ? 'btn-primary' : 'btn-secondary'} px-3 py-1.5 text-xs`}
           >
             {busy ? 'Raising…' : action.label}
           </button>
@@ -211,7 +216,7 @@ function EnquiryCard({ row, department, me, onChanged, query = false }) {
           <Link
             key={action.label}
             to={action.href}
-            className={`${action.primary ? 'btn-primary' : 'btn-secondary'} px-3 py-1.5 text-xs`}
+            className={`${action.primary && !hasSteps ? 'btn-primary' : 'btn-secondary'} px-3 py-1.5 text-xs`}
           >
             {action.label}
           </Link>
@@ -417,7 +422,8 @@ function DepartmentDesk() {
       {RISK_DESKS.includes(figures.department) && <DeliveryRiskPanel />}
 
 
-      <div className="flex flex-wrap gap-1 rounded-xl border border-line/[0.06] bg-line/[0.02] p-1" role="tablist">
+      {/* A desk with only its Tasks needs no tab bar — one tab is not a choice. */}
+      <div className={`flex flex-wrap gap-1 rounded-xl border border-line/[0.06] bg-line/[0.02] p-1 ${TABS.length === 1 ? 'hidden' : ''}`} role="tablist">
         {TABS.map((entry) => (
           <button
             key={entry.key}
@@ -541,7 +547,7 @@ function DepartmentDesk() {
             )}
             {/* Printing, Assembly or Dispatch asking when goods will be ready [server: config/departmentTaskForms.js `readinessQuery`]. */}
             {queries.length > 0 && (
-              <TaskGroup title="Other teams ask: when will it be ready?" hint="Each answer goes back to the team that asked; Ready Now closes it.">
+              <TaskGroup title="Other teams ask: when will it be ready?" count={queries.length} hint="Each answer goes back to the team that asked; Ready Now closes it.">
                 <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                   {queries.map((row) => (
                     <EnquiryCard key={row.task._id} row={row} department={row.task.department} me={me} onChanged={reload} query />
@@ -551,7 +557,7 @@ function DepartmentDesk() {
             )}
             {/* Jobs the app raised for the department: confirm a payment, cost an SO, a mould's maintenance. */}
             {requests.length > 0 && (
-              <TaskGroup title="Other jobs for the department">
+              <TaskGroup title="Other jobs for the department" count={requests.length}>
                 <div className="card p-4"><HandoffTaskList tasks={requests} onChanged={reload} /></div>
               </TaskGroup>
             )}
