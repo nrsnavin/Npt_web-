@@ -74,6 +74,35 @@ function DuePill({ row }) {
   return <span className="rounded-full bg-line/[0.06] px-2.5 py-1 text-[0.75rem] font-semibold text-steel-400">Due {formatDate(row.task.dueDate)}</span>;
 }
 
+/**
+ * One part of the Tasks tab — To do, We asked, Replies — with its count, folded with a click.
+ */
+function TaskSection({ title, count, hint, tone = 'text-steel-100', children }) {
+  const [open, setOpen] = useState(true);
+  return (
+    <section className="space-y-3" aria-label={title}>
+      <button type="button" className="flex w-full flex-wrap items-baseline gap-x-2 border-b border-line/[0.08] pb-1.5 text-left" aria-expanded={open} onClick={() => setOpen((value) => !value)}>
+        <span className="text-steel-500" aria-hidden="true">{open ? '▾' : '▸'}</span>
+        <h2 className={`text-base font-bold ${tone}`}>{title}</h2>
+        <span className="rounded-full bg-line/[0.08] px-2 text-xs font-semibold tabular-nums text-steel-300">{count}</span>
+        {hint && <span className="text-xs text-steel-500">{hint}</span>}
+      </button>
+      {open && children}
+    </section>
+  );
+}
+
+/** A group inside To do: other teams' questions, the department's other jobs. */
+function TaskGroup({ title, hint, children }) {
+  return (
+    <div className="space-y-2">
+      <h3 className="text-sm font-bold uppercase tracking-wide text-steel-300">{title}</h3>
+      {hint && <p className="-mt-1 text-xs text-steel-500">{hint}</p>}
+      {children}
+    </div>
+  );
+}
+
 function Chip({ children }) {
   return <span className="rounded-md bg-line/[0.05] px-2 py-0.5 text-xs text-steel-300">{children}</span>;
 }
@@ -218,8 +247,6 @@ function EnquiryCard({ row, department, me, onChanged, query = false }) {
   );
 }
 
-/* The desks other teams ask "when will it be ready?" — Production's, and Assembly's (Dispatch asks it). */
-const QUERY_DESKS = ['production', 'assembling'];
 /* Where a desk's Table / Cards choice is kept, on this device — Dispatch's under its first key. */
 const viewKeyOf = (department) => (department === 'despatch' ? 'npt.dispatchView' : `npt.deskView.${department}`);
 /* The desks that read as tables [DispatchTable, DeskTables]. */
@@ -244,6 +271,8 @@ function DepartmentDesk() {
   const fetch = useCallback(() => departmentsApi.dashboard(key), [key]);
   const { data, loading, error, reload } = useRecord(fetch, `department-${key}`);
   const [chosenTab, setTab] = useState(null);
+  /* What the department finished this week: under the tasks, a toggle away. */
+  const [showDone, setShowDone] = useState(false);
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
   /* "New team task": Admin and marketing ask a team for something with no enquiry behind it. */
@@ -301,7 +330,6 @@ function DepartmentDesk() {
   const requests = deskTab ? everyRequest.filter((task) => task.department === deskTab) : everyRequest;
   /* Readiness queries from other teams [server: config/departmentTaskForms.js `readinessQuery`]: their own tab, apart from the order's work. */
   const queries = deskTab ? everyQuery.filter((row) => row.task.department === deskTab) : everyQuery;
-  const takesQueries = queries.length > 0 || QUERY_DESKS.includes(deskTab || figures.department);
   const deskCounts = deskList ? Object.fromEntries(deskList.map((key) => [key, everyRow.filter((row) => row.task.department === key).length])) : {};
   /* Sampling works from its own queue — the sample requests, as the team designed it. */
   const isSampling = figures.department === 'sampling';
@@ -309,7 +337,6 @@ function DepartmentDesk() {
      the Production desk: that is the queue, in EDD order, and nothing else. */
   const seesEnquiries = canRead('enquiries') && !isProduction;
   const everyone = isAdmin || figures.department === 'management';
-  const tab = chosenTab || firstDashboardTab(figures.department, { isAdmin: everyone, seesEnquiries });
   const seesAll = mayDelete;
   /* A shared desk: the tab above has picked the team, so its rows are one list. */
   const deskMembers = deskList || [figures.department];
@@ -322,25 +349,34 @@ function DepartmentDesk() {
   const undated = enquiries.filter((row) => eddBandOf(row) === 'none').length;
   const filters = isProduction ? PRODUCTION_FILTERS : FILTERS;
 
+  /*
+   * One "Tasks" tab for every desk [TaskSections]: To do (what was sent to the department), We
+   * asked (what it sent to other teams, still open), Replies (their answers this week), and what
+   * it finished, a toggle away. Beside it only the views that are a job of their own: Sampling's
+   * work queue, the Production / Printing / Assembly queues, Dispatch's delivery queue and trip
+   * planning, and every enquiry for Admin and marketing.
+   */
+  const toDoCount = (isProduction || queueTeam ? 0 : enquiries.length) + queries.length + requests.length;
   const TABS = [
     ...(isSampling ? [{ key: 'queue', label: 'Work queue', count: null }] : []),
+    ...(isProduction ? [{ key: 'pqueue', label: 'Production queue', count: null }] : []),
+    ...(queueTeam ? [{ key: 'fqueue', label: TEAM_WORDS[queueTeam].queue, count: null }] : []),
     ...(seesEnquiries
       ? [{ key: 'all', label: everyone ? 'All enquiries' : figures.department === 'marketing' ? 'My enquiries' : 'All enquiries', count: null }]
       : []),
-    { key: 'enquiries', label: isProduction ? 'Production queue' : queueTeam ? TEAM_WORDS[queueTeam].queue : 'Department tasks', count: enquiries.length },
+    { key: 'tasks', label: 'Tasks', count: toDoCount },
     /* Dispatch's delivery queue: every open request by the urgency marketing gave [DeliveryQueue]. */
     ...(data.baskets ? [{ key: 'delivery', label: 'Delivery queue', count: null }] : []),
     /* Dispatch plans its trips here: ready requests grouped by transporter, route and place [TripPlanner]. */
     ...(data.baskets ? [{ key: 'baskets', label: 'Plan trips', count: null }] : []),
-    ...(takesQueries ? [{ key: 'queries', label: 'Asked by other teams', count: queries.length }] : []),
-    { key: 'requests', label: 'Requests', count: requests.length },
-    { key: 'waiting', label: 'Waiting on others', count: waitingOnOthers.length },
-    { key: 'back', label: 'Came back', count: cameBack.length },
-    { key: 'done', label: 'Done this week', count: recentlyDone.length },
   ];
+  /* The desk opens where it always has: the queue for Production, Printing and Assembly, else the tasks. */
+  const opening = firstDashboardTab(figures.department, { isAdmin: everyone, seesEnquiries });
+  const fallback = opening === 'enquiries' ? (isProduction ? 'pqueue' : queueTeam ? 'fqueue' : 'tasks') : opening;
+  const tab = TABS.some((entry) => entry.key === chosenTab) ? chosenTab : TABS.some((entry) => entry.key === fallback) ? fallback : 'tasks';
 
   const pick = (next) => {
-    setTab('enquiries');
+    setTab('tasks');
     setFilter(next);
   };
 
@@ -380,23 +416,6 @@ function DepartmentDesk() {
       {/* The orders in danger of missing their EDD, where they are planned and promised: Production, Printing / Assembly, marketing, Admin. */}
       {RISK_DESKS.includes(figures.department) && <DeliveryRiskPanel />}
 
-      {tab === 'enquiries' && !isProduction && !queueTeam && <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Tile label="Open tasks" value={enquiries.length} hint={`${figures.open} on the department in all`} active={tab === 'enquiries' && filter === 'all'} onClick={() => pick('all')} />
-        <Tile label="Late" value={late} tone={late ? 'text-danger-400' : 'text-success-400'} hint={isProduction ? 'Past the EDD' : 'Past the day they were due'} active={filter === 'late'} onClick={() => pick('late')} />
-        <Tile label="Due today" value={today} tone={today ? 'text-warn-400' : 'text-steel-50'} hint={isProduction ? 'EDD is today' : 'By the end of today'} active={filter === 'today'} onClick={() => pick('today')} />
-        {isProduction ? (
-          <Tile label="No EDD yet" value={undated} tone={undated ? 'text-warn-400' : 'text-success-400'} hint="Give the date on the task" active={filter === 'none'} onClick={() => pick('none')} />
-        ) : (
-          <Tile
-            label="Not picked up"
-            value={unclaimed}
-            tone={unclaimed ? 'text-warn-400' : 'text-steel-50'}
-            hint={figures.onTimePercent !== null ? `${figures.doneThisWeek} done this week · ${figures.onTimePercent}% on time` : `${figures.doneThisWeek} done this week`}
-            active={filter === 'unclaimed'}
-            onClick={() => pick('unclaimed')}
-          />
-        )}
-      </div>}
 
       <div className="flex flex-wrap gap-1 rounded-xl border border-line/[0.06] bg-line/[0.02] p-1" role="tablist">
         {TABS.map((entry) => (
@@ -423,89 +442,155 @@ function DepartmentDesk() {
       {tab === 'all' && <Enquiries embedded />}
 
       {/* Production's queue: one line per enquiry in EDD order; each is worked on its workflow page. */}
-      {tab === 'enquiries' && isProduction && <ProductionQueueList compact />}
-
-      {tab === 'enquiries' && isSoTeam && <SoDesk me={me} onChanged={reload} />}
+      {tab === 'pqueue' && <ProductionQueueList compact />}
 
       {/* Printing's and Assembly's queues: the goods in hand to work, and what is still with the team before. */}
-      {tab === 'enquiries' && queueTeam && <FinishingQueueList key={queueTeam} team={queueTeam} compact onChanged={reload} />}
+      {tab === 'fqueue' && queueTeam && <FinishingQueueList key={queueTeam} team={queueTeam} compact onChanged={reload} />}
 
-      {tab === 'enquiries' && !isProduction && !isSoTeam && !queueTeam && (
-        <section className="space-y-4">
-          <div className="flex flex-wrap items-center gap-2">
-            {filters.map((entry) => (
-              <button
-                key={entry.key}
-                type="button"
-                onClick={() => setFilter(entry.key)}
-                className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
-                  filter === entry.key ? 'border-flame-500 bg-flame-500/10 text-flame-400' : 'border-line/[0.1] text-steel-400 hover:text-steel-200'
-                }`}
-              >
-                {entry.label}
-              </button>
-            ))}
-            {TABLE_DESKS.includes(figures.department) && (
-              <div className="ml-auto flex rounded-lg border border-line/[0.1] p-0.5" role="group" aria-label={figures.department === 'despatch' ? 'Dispatch view' : `${figures.label} view`}>
-                {[['table', 'Table'], ['cards', 'Cards']].map(([value, label]) => (
-                  <button key={value} type="button" aria-pressed={viewOf(figures.department) === value} onClick={() => chooseView(figures.department, value)}
-                    className={`rounded-md px-2.5 py-1 text-xs font-semibold ${viewOf(figures.department) === value ? 'fill-primary' : 'text-steel-400 hover:text-steel-200'}`}>
-                    {label}
-                  </button>
-                ))}
+      {tab === 'tasks' && (
+        <div className="space-y-6">
+          <TaskSection title="To do" count={toDoCount} hint={`Work sent to ${figures.label}`}>
+            {isProduction || queueTeam ? (
+              /* Production, Printing and Assembly work their orders from their queue tab. */
+              <p className="rounded-lg bg-line/[0.04] px-3 py-2 text-sm text-steel-300">
+                {isProduction ? enquiries.length : (deskCounts[queueTeam] ?? enquiries.length)} order{enquiries.length === 1 ? '' : 's'} on the{' '}
+                <button type="button" className="font-semibold text-accent hover:underline" onClick={() => setTab(isProduction ? 'pqueue' : 'fqueue')}>
+                  {isProduction ? 'Production queue' : TEAM_WORDS[queueTeam].queue}
+                </button>
+                {' '}— worked there, in EDD order.
+              </p>
+            ) : isSoTeam ? (
+              <SoDesk me={me} onChanged={reload} />
+            ) : (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                  <Tile label="Open tasks" value={enquiries.length} hint={`${figures.open} on the department in all`} active={filter === 'all'} onClick={() => pick('all')} />
+                  <Tile label="Late" value={late} tone={late ? 'text-danger-400' : 'text-success-400'} hint={isProduction ? 'Past the EDD' : 'Past the day they were due'} active={filter === 'late'} onClick={() => pick('late')} />
+                  <Tile label="Due today" value={today} tone={today ? 'text-warn-400' : 'text-steel-50'} hint={isProduction ? 'EDD is today' : 'By the end of today'} active={filter === 'today'} onClick={() => pick('today')} />
+                  {isProduction ? (
+                    <Tile label="No EDD yet" value={undated} tone={undated ? 'text-warn-400' : 'text-success-400'} hint="Give the date on the task" active={filter === 'none'} onClick={() => pick('none')} />
+                  ) : (
+                    <Tile
+                      label="Not picked up"
+                      value={unclaimed}
+                      tone={unclaimed ? 'text-warn-400' : 'text-steel-50'}
+                      hint={figures.onTimePercent !== null ? `${figures.doneThisWeek} done this week · ${figures.onTimePercent}% on time` : `${figures.doneThisWeek} done this week`}
+                      active={filter === 'unclaimed'}
+                      onClick={() => pick('unclaimed')}
+                    />
+                  )}
+                </div>
+                <section className="space-y-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {filters.map((entry) => (
+                      <button
+                        key={entry.key}
+                        type="button"
+                        onClick={() => setFilter(entry.key)}
+                        className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                          filter === entry.key ? 'border-flame-500 bg-flame-500/10 text-flame-400' : 'border-line/[0.1] text-steel-400 hover:text-steel-200'
+                        }`}
+                      >
+                        {entry.label}
+                      </button>
+                    ))}
+                    {TABLE_DESKS.includes(figures.department) && (
+                      <div className="ml-auto flex rounded-lg border border-line/[0.1] p-0.5" role="group" aria-label={figures.department === 'despatch' ? 'Dispatch view' : `${figures.label} view`}>
+                        {[['table', 'Table'], ['cards', 'Cards']].map(([value, label]) => (
+                          <button key={value} type="button" aria-pressed={viewOf(figures.department) === value} onClick={() => chooseView(figures.department, value)}
+                            className={`rounded-md px-2.5 py-1 text-xs font-semibold ${viewOf(figures.department) === value ? 'fill-primary' : 'text-steel-400 hover:text-steel-200'}`}>
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    <input aria-label="Search enquiry, buyer or model"
+                      type="search"
+                      className="input ml-auto w-full sm:w-64"
+                      placeholder="Search enquiry, buyer or model…"
+                      value={search}
+                      onChange={(event) => setSearch(event.target.value)}
+                    />
+                  </div>
+
+                  {/* Quality · Printing · Assembly: one line a task — enquiry, buyer, EDD, the state in 20–30 words, the workflow page. */}
+                  {deskList && shown.length > 0 ? (
+                    <FinishingDeskList rows={shown} onChanged={reload} />
+                  ) : figures.department === 'despatch' && viewOf('despatch') === 'table' && shown.length > 0 ? (
+                    <DispatchTable rows={shown} me={me} onChanged={reload} />
+                  ) : DESK_TABLE_KINDS[figures.department] && viewOf(figures.department) === 'table' && shown.some((row) => takesTable(figures.department, row)) ? (
+                    <div className="space-y-5">
+                      <DeskTables department={figures.department} rows={shown.filter((row) => takesTable(figures.department, row))} me={me} onChanged={reload} />
+                      {/* Anything else on the desk — a task of another kind — stays a card below the tables. */}
+                      {shown.some((row) => !takesTable(figures.department, row)) && (
+                        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                          {shown.filter((row) => !takesTable(figures.department, row)).map((row) => (
+                            <EnquiryCard key={row.task._id} row={row} department={row.task.department || figures.department} me={me} onChanged={reload} />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ) : shown.length ? (
+                    (isProduction
+                      ? eddBands(shown).map((band) => ({ key: band.key, label: band.label, tone: band.tone, rows: band.rows }))
+                      : bySection(shown, (row) => row.task.department)
+                    ).map((section) => (
+                      <div key={section.key} className="space-y-3">
+                        {section.label && <h2 className={`text-sm font-bold uppercase tracking-wide ${section.tone || 'text-steel-300'}`}>{section.label} <span className="font-normal normal-case tabular-nums text-steel-500">{section.rows.length}</span></h2>}
+                        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                          {section.rows.map((row) => (
+                            <EnquiryCard key={row.task._id} row={row} department={row.task.department || figures.department} me={me} onChanged={reload} />
+                          ))}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="rounded-lg border border-dashed border-line/15 px-4 py-6 text-center text-sm text-steel-400">
+                      {enquiries.length ? 'Nothing matches this filter — pick another, or clear the search.' : 'Nothing to do right now. Work sent to this department appears here.'}
+                    </p>
+                  )}
+                </section>
               </div>
             )}
-            <input aria-label="Search enquiry, buyer or model"
-              type="search"
-              className="input ml-auto w-full sm:w-64"
-              placeholder="Search enquiry, buyer or model…"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-            />
-          </div>
+            {/* Printing, Assembly or Dispatch asking when goods will be ready [server: config/departmentTaskForms.js `readinessQuery`]. */}
+            {queries.length > 0 && (
+              <TaskGroup title="Other teams ask: when will it be ready?" hint="Each answer goes back to the team that asked; Ready Now closes it.">
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {queries.map((row) => (
+                    <EnquiryCard key={row.task._id} row={row} department={row.task.department} me={me} onChanged={reload} query />
+                  ))}
+                </div>
+              </TaskGroup>
+            )}
+            {/* Jobs the app raised for the department: confirm a payment, cost an SO, a mould's maintenance. */}
+            {requests.length > 0 && (
+              <TaskGroup title="Other jobs for the department">
+                <div className="card p-4"><HandoffTaskList tasks={requests} onChanged={reload} /></div>
+              </TaskGroup>
+            )}
+          </TaskSection>
 
-          {/* Quality · Printing · Assembly: one line a task — enquiry, buyer, EDD, the state in 20–30 words, the workflow page. */}
-          {deskList && shown.length > 0 ? (
-            <FinishingDeskList rows={shown} onChanged={reload} />
-          ) : figures.department === 'despatch' && viewOf('despatch') === 'table' && shown.length > 0 ? (
-            <DispatchTable rows={shown} me={me} onChanged={reload} />
-          ) : DESK_TABLE_KINDS[figures.department] && viewOf(figures.department) === 'table' && shown.some((row) => takesTable(figures.department, row)) ? (
-            <div className="space-y-5">
-              <DeskTables department={figures.department} rows={shown.filter((row) => takesTable(figures.department, row))} me={me} onChanged={reload} />
-              {/* Anything else on the desk — a task of another kind — stays a card below the tables. */}
-              {shown.some((row) => !takesTable(figures.department, row)) && (
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {shown.filter((row) => !takesTable(figures.department, row)).map((row) => (
-                    <EnquiryCard key={row.task._id} row={row} department={row.task.department || figures.department} me={me} onChanged={reload} />
-                  ))}
-                </div>
-              )}
-            </div>
-          ) : shown.length ? (
-            (isProduction
-              ? eddBands(shown).map((band) => ({ key: band.key, label: band.label, tone: band.tone, rows: band.rows }))
-              : bySection(shown, (row) => row.task.department)
-            ).map((section) => (
-              <div key={section.key} className="space-y-3">
-                {section.label && <h2 className={`text-sm font-bold uppercase tracking-wide ${section.tone || 'text-steel-300'}`}>{section.label} <span className="font-normal normal-case tabular-nums text-steel-500">{section.rows.length}</span></h2>}
-                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {section.rows.map((row) => (
-                    <EnquiryCard key={row.task._id} row={row} department={row.task.department || figures.department} me={me} onChanged={reload} />
-                  ))}
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="card px-6 py-10 text-center">
-              <p className="text-base font-semibold text-steel-200">
-                {enquiries.length ? 'Nothing matches this filter.' : 'No department task open right now.'}
-              </p>
-              <p className="mt-1 text-sm text-steel-500">
-                {enquiries.length ? 'Pick another, or clear the search.' : 'When someone clicks your department on an enquiry, its task appears here.'}
-              </p>
-            </div>
-          )}
-        </section>
+          <TaskSection title="We asked" count={waitingOnOthers.length} hint="What we sent to another team, still open with them" tone="text-aqua-300">
+            {waitingOnOthers.length ? (
+              <div className="card p-4"><HandoffTaskList tasks={waitingOnOthers} perspective="sender" onChanged={reload} /></div>
+            ) : <p className="text-sm text-steel-500">Nothing we sent is still open.</p>}
+          </TaskSection>
+
+          <TaskSection title="Replies" count={cameBack.length} hint="Answers to what we asked, in the last 7 days" tone="text-success-400">
+            {cameBack.length ? (
+              <div className="card p-4"><HandoffTaskList tasks={cameBack} perspective="sender" /></div>
+            ) : <p className="text-sm text-steel-500">No replies this week.</p>}
+          </TaskSection>
+
+          <div>
+            <button type="button" className="link-muted text-sm" aria-expanded={showDone} onClick={() => setShowDone((value) => !value)}>
+              {showDone ? 'Hide' : 'Show'} done this week ({recentlyDone.length})
+            </button>
+            {showDone && (recentlyDone.length ? (
+              <div className="card mt-2 p-4"><HandoffTaskList tasks={recentlyDone} /></div>
+            ) : <p className="mt-1 text-sm text-steel-500">Nothing finished this week yet.</p>)}
+          </div>
+        </div>
       )}
 
       {tab === 'delivery' && (
@@ -525,52 +610,6 @@ function DepartmentDesk() {
             <Link to="/dispatch/lists" className="text-xs font-semibold text-accent hover:underline">Vehicles &amp; transporters</Link>
           </div>
           <TripPlanner />
-        </section>
-      )}
-
-      {tab === 'queries' && (
-        <section className="space-y-3" aria-label="Asked by other teams">
-          <p className="text-sm text-steel-400">
-            Printing, Assembly or Dispatch asking when the goods will be ready — a short workflow of its own: Query Received, Planning,
-            Will Be Ready On (with the date), Ready Now. Each move answers the team that asked; Ready Now closes it.
-          </p>
-          {queries.length ? (
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {queries.map((row) => (
-                <EnquiryCard key={row.task._id} row={row} department={row.task.department} me={me} onChanged={reload} query />
-              ))}
-            </div>
-          ) : (
-            <div className="card px-6 py-10 text-center">
-              <p className="text-base font-semibold text-steel-200">No team is waiting on an answer.</p>
-              <p className="mt-1 text-sm text-steel-500">When Printing, Assembly or Dispatch asks when goods will be ready, it appears here.</p>
-            </div>
-          )}
-        </section>
-      )}
-      {tab === 'requests' && (
-        <section className="card space-y-4 p-5">
-          {requests.length ? bySection(requests, (task) => task.department).map((section) => (
-            <div key={section.key}>
-              {section.label && <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-steel-300">{section.label}</h2>}
-              <HandoffTaskList tasks={section.rows} onChanged={reload} />
-            </div>
-          )) : <HandoffTaskList tasks={[]} onChanged={reload} empty="No side requests — only the enquiries themselves." />}
-        </section>
-      )}
-      {tab === 'waiting' && (
-        <section className="card p-5">
-          <HandoffTaskList tasks={waitingOnOthers} perspective="sender" onChanged={reload} empty="Nothing sent out is still open." />
-        </section>
-      )}
-      {tab === 'back' && (
-        <section className="card p-5">
-          <HandoffTaskList tasks={cameBack} perspective="sender" empty="Nothing came back this week." />
-        </section>
-      )}
-      {tab === 'done' && (
-        <section className="card p-5">
-          <HandoffTaskList tasks={recentlyDone} empty="Nothing finished this week yet." />
         </section>
       )}
 

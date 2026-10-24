@@ -31,7 +31,7 @@ test('the queue is one line per enquiry: EDD, whose it is, the thirty-word summa
 
 test('the Production desk shows the same compact queue; the workflow page is reachable from the queue, the desk and the task', () => {
   const desk = read('pages/DepartmentDashboard.jsx');
-  assert.match(desk, /\{tab === 'enquiries' && isProduction && <ProductionQueueList compact \/>\}/);
+  assert.match(desk, /\{tab === 'pqueue' && <ProductionQueueList compact \/>\}/);
   const app = read('App.jsx');
   assert.match(app, /path="production\/queue"/);
   assert.match(app, /path="production\/workflow\/:taskId"/);

@@ -13,7 +13,7 @@ const read = (path) => readFileSync(new URL(`../src/${path}`, import.meta.url), 
 
 test('the SO dashboard swaps in the SO desk, fed by its own endpoint', () => {
   assert.match(read('pages/DepartmentDashboard.jsx'), /const isSoTeam = data\?\.figures\?\.department === 'order_confirmation';/);
-  assert.match(read('pages/DepartmentDashboard.jsx'), /\{tab === 'enquiries' && isSoTeam && <SoDesk me=\{me\} onChanged=\{reload\} \/>\}/);
+  assert.match(read('pages/DepartmentDashboard.jsx'), /\) : isSoTeam \? \(\s*<SoDesk me=\{me\} onChanged=\{reload\} \/>/);
   assert.match(read('api/endpoints.js'), /soDesk: \(\) => api\.get\('\/departments\/order_confirmation\/so-desk'\)/);
 });
 

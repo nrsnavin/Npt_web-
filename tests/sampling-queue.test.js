@@ -88,7 +88,8 @@ test('the handover form: direct or courier, either a contact or a phone, and it 
 
 test('sampling’s desk opens on the work queue', () => {
   const desk = read('pages/DepartmentDashboard.jsx');
-  assert.match(desk, /const tab = chosenTab \|\| firstDashboardTab\(figures\.department, \{ isAdmin: everyone, seesEnquiries \}\)/);
+  assert.match(desk, /const opening = firstDashboardTab\(figures\.department, \{ isAdmin: everyone, seesEnquiries \}\);/);
+  assert.match(desk, /const tab = TABS\.some\(\(entry\) => entry\.key === chosenTab\) \? chosenTab : TABS\.some\(\(entry\) => entry\.key === fallback\) \? fallback : 'tasks';/);
   assert.match(desk, /\{tab === 'queue' && <SamplingWorkQueue \/>\}/);
 });
 

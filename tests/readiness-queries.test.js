@@ -11,12 +11,11 @@ import { readFileSync } from 'node:fs';
 
 const read = (path) => readFileSync(new URL(`../src/${path}`, import.meta.url), 'utf8');
 
-test('the desk draws the queries on their own tab, apart from the order’s work', () => {
+test('the desk draws the queries under To do, in a group of their own apart from the order’s work', () => {
   const dashboard = read('pages/DepartmentDashboard.jsx');
   assert.match(dashboard, /queries: everyQuery = \[\]/);
-  assert.match(dashboard, /const QUERY_DESKS = \['production', 'assembling'\];/);
-  assert.match(dashboard, /\{ key: 'queries', label: 'Asked by other teams', count: queries\.length \}/);
-  assert.match(dashboard, /\{tab === 'queries' && \(/);
+  assert.match(dashboard, /<TaskGroup title="Other teams ask: when will it be ready\?"/);
+  assert.match(dashboard, /const toDoCount = \(isProduction \|\| queueTeam \? 0 : enquiries\.length\) \+ queries\.length \+ requests\.length;/);
   assert.match(dashboard, /<EnquiryCard key=\{row\.task\._id\} row=\{row\} department=\{row\.task\.department\} me=\{me\} onChanged=\{reload\} query \/>/);
   assert.match(dashboard, /asks — when will it be ready\?/);
 });

@@ -38,6 +38,11 @@ export default function HandoffTaskList({ tasks, onChanged, perspective = 'holde
     await workspace.todos.update({ id: task._id, claim: true });
     onChanged?.();
   };
+  /* A job the app raised for the department with no task form behind it: done is all there is to say. */
+  const finish = async (task) => {
+    await workspace.todos.update({ id: task._id, completed: true });
+    onChanged?.();
+  };
 
   if (!tasks?.length) return empty ? <p className="text-sm text-steel-500">{empty}</p> : null;
 
@@ -63,7 +68,10 @@ export default function HandoffTaskList({ tasks, onChanged, perspective = 'holde
               {!task.completed && perspective === 'holder' && (holder ? ` · with ${String(holder._id) === me ? 'you' : holder.name}` : ' · nobody has picked it up')}
             </p>
             {/* The last few things that happened, as a short timeline — how it is going while it is still here. */}
-            <TaskTimeline task={task} button={buttonFor(catalogue, task.kind)} compact className="mt-1.5" />
+            {/* A job the app raised has no workflow to retell — what it says is enough. */}
+            {task.kind
+              ? <TaskTimeline task={task} button={buttonFor(catalogue, task.kind)} compact className="mt-1.5" />
+              : task.notes && <p className="mt-1 text-xs text-steel-300">{task.notes}</p>}
             {task.outcome?.next && <p className="mt-1 text-xs text-steel-400">→ {buttonFor(catalogue, task.outcome.next)?.label || 'next step'}</p>}
             {!task.completed && mayAct(task) && (
               <div className="mt-1.5 flex flex-wrap gap-3">
@@ -71,6 +79,9 @@ export default function HandoffTaskList({ tasks, onChanged, perspective = 'holde
                   <button type="button" className="row-action" onClick={() => claim(task)}>I&rsquo;ll take it</button>
                 )}
                 <HandoffTaskActions todo={task} onChanged={onChanged} />
+                {!task.kind && perspective === 'holder' && (
+                  <button type="button" className="row-action" onClick={() => finish(task)}>Mark done</button>
+                )}
               </div>
             )}
           </li>
