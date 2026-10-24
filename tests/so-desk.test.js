@@ -31,17 +31,14 @@ test('the desk reads each request for what to do with it: readiness, size, EDD, 
   assert.match(desk, />Got it<\/button>/);
 });
 
-test('three views — lanes, table, cards — the week’s bookings, held orders, and a printable prep sheet', () => {
+test('cards only — no lanes, no table, no view toggle — with the week’s bookings, held orders, and a printable prep sheet', () => {
   const desk = read('components/SoDesk.jsx');
-  assert.match(desk, /const VIEWS = \[\{ key: 'lanes'/);
-  assert.match(desk, /aria-label="Lanes"/);
-  assert.match(desk, /function SoTable/);
-  assert.match(desk, /'Enquiry', 'Buyer', 'Models', 'Pieces', 'Value', 'Terms', 'PO no\.', 'Earliest EDD', 'Ready\?', 'Status', 'With'/);
+  assert.doesNotMatch(desk, /VIEWS|aria-label="Lanes"|function SoTable|localStorage|aria-label="View"/);
+  assert.match(desk, /<div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">\s*\{rows\.map\(\(row\) => <SoCard key=\{row\.task\._id\}/);
   assert.match(desk, /aria-label="Booked this week"/);
   assert.match(desk, /aria-label="Prepared, not yet in production"/);
   assert.match(desk, /id="so-prep-sheet"/);
   assert.match(desk, /window\.print\(\)/);
-  assert.match(desk, /localStorage\.getItem\(VIEW_KEY\)/);
 });
 
 test('an order is sized in words', () => {

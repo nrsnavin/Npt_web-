@@ -22,19 +22,10 @@ import { piecesOf as pieces, rupeesOf as rupees, sizeWords } from '../utils/soDe
  *   duplicate   an order already open on the enquiry, or a second request for it
  *   question    a Needs Clarification's question and marketing's answer, inline
  *
- * Three ways to read the queue — Lanes (the four stages side by side), Table (one row a request)
- * and Cards — plus the week's bookings and where each went, the prepared orders not yet in
- * production, and a printable prep sheet per request.
+ * The queue as cards, one a request — the SO team's only view of its department tasks — plus the
+ * week's bookings and where each went, the prepared orders not yet in production, and a printable
+ * prep sheet per request.
  */
-
-const VIEWS = [{ key: 'lanes', label: 'Lanes' }, { key: 'table', label: 'Table' }, { key: 'cards', label: 'Cards' }];
-const LANES = [
-  { key: 'waiting', label: 'SO Waiting' }, { key: 'preparing', label: 'SO Preparing' },
-  { key: 'clarification', label: 'Needs Clarification' }, { key: 'prepared', label: 'SO Prepared' },
-];
-const VIEW_KEY = 'npt.soDesk.view';
-const readView = () => { try { return localStorage.getItem(VIEW_KEY) || 'lanes'; } catch { return 'lanes'; } };
-const keepView = (view) => { try { localStorage.setItem(VIEW_KEY, view); } catch { /* a private window */ } };
 
 const CREDIT = { good: 'text-success-400', watch: 'text-warn-400', hold: 'text-danger-400' };
 const WENT = { production: 'bg-success-500/15 text-success-400', held: 'bg-warn-500/15 text-warn-400', advance: 'bg-danger-500/15 text-danger-400', checks: 'bg-line/[0.08] text-steel-300', none: 'bg-line/[0.08] text-steel-400' };
@@ -101,7 +92,7 @@ function Question({ question, task, onChanged }) {
 }
 
 /** One request, as a card: what to do with it on top, the request as entered, the team's workflow under it. */
-function SoCard({ row, onChanged, onPrint, onAsk, compact = false }) {
+function SoCard({ row, onChanged, onPrint, onAsk }) {
   const { task, enquiry, so } = row;
   const catalogue = useHandoffCatalogue();
   const button = buttonFor(catalogue, task.kind);
@@ -132,65 +123,16 @@ function SoCard({ row, onChanged, onPrint, onAsk, compact = false }) {
       )}
       <BuyerLine buyer={so.buyer} />
       <Question question={so.question} task={task} onChanged={onChanged} />
-      {!compact && (
-        <>
-          <TaskFacts button={button} task={task} />
-          <TaskPdfLink file={task.attachment} className="self-start" />
-          {task.notes && <p className="text-sm text-steel-300">“{task.notes}”</p>}
-          <p className="text-xs text-steel-500">Here since {formatDate(row.since)} · {task.user?.name ? `with ${task.user.name}` : 'nobody has picked it up'}{owner ? ` · ${owner}’s buyer` : ''}</p>
-          <div className="border-t border-line/[0.06] pt-3"><TaskWorkflow todo={task} onChanged={onChanged} /></div>
-          <div className="flex flex-wrap items-center gap-3 border-t border-line/[0.06] pt-2">
-            <HandoffTaskActions todo={task} onChanged={onChanged} />
-            <button type="button" className="row-action" onClick={() => onPrint(row)}>Print prep sheet</button>
-          </div>
-        </>
-      )}
-      {compact && (
-        <div className="flex flex-wrap items-center gap-2 text-xs text-steel-500">
-          <span>{task.user?.name ? `with ${task.user.name}` : 'not picked up'} · since {formatDate(row.since)}</span>
-          <button type="button" className="row-action ml-auto text-xs" onClick={() => onPrint(row)}>Prep sheet</button>
-        </div>
-      )}
+      <TaskFacts button={button} task={task} />
+      <TaskPdfLink file={task.attachment} className="self-start" />
+      {task.notes && <p className="text-sm text-steel-300">“{task.notes}”</p>}
+      <p className="text-xs text-steel-500">Here since {formatDate(row.since)} · {task.user?.name ? `with ${task.user.name}` : 'nobody has picked it up'}{owner ? ` · ${owner}’s buyer` : ''}</p>
+      <div className="border-t border-line/[0.06] pt-3"><TaskWorkflow todo={task} onChanged={onChanged} /></div>
+      <div className="flex flex-wrap items-center gap-3 border-t border-line/[0.06] pt-2">
+        <HandoffTaskActions todo={task} onChanged={onChanged} />
+        <button type="button" className="row-action" onClick={() => onPrint(row)}>Print prep sheet</button>
+      </div>
     </article>
-  );
-}
-
-/** One row a request: for scanning twenty at once, and for the people who key the SO from a list. */
-function SoTable({ rows, onPrint, onOpen }) {
-  return (
-    <div className="card overflow-x-auto">
-      <table className="w-full text-left text-sm">
-        <thead className="text-xs font-semibold text-steel-400">
-          <tr>
-            {['Enquiry', 'Buyer', 'Models', 'Pieces', 'Value', 'Terms', 'PO no.', 'Earliest EDD', 'Ready?', 'Status', 'With', ''].map((head) => <th key={head} className="px-3 py-2">{head}</th>)}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-line/[0.04]">
-          {rows.map((row) => {
-            const { task, enquiry, so } = row;
-            return (
-              <tr key={task._id} className={`row-hover ${so.edd?.urgent ? 'bg-danger-500/[0.04]' : ''}`}>
-                <td className="px-3 py-2 font-semibold text-steel-100">{enquiry ? <Link to={`/enquiries/${enquiry._id}`} className="hover:text-accent">{enquiry.number}</Link> : 'Team task'}</td>
-                <td className="px-3 py-2 text-steel-200">{(enquiry ? enquiry.customer?.name : task.customer?.name) || '—'}</td>
-                <td className="px-3 py-2 text-steel-200">{so.lines.map((line) => line.model).filter(Boolean).join(', ') || '—'}</td>
-                <td className="px-3 py-2 tabular-nums text-steel-200">{so.size.pieces ? so.size.pieces.toLocaleString('en-IN') : '—'}</td>
-                <td className="px-3 py-2 tabular-nums text-steel-200">{so.size.value ? rupees(so.size.value) : '—'}</td>
-                <td className="px-3 py-2 text-steel-300">{so.terms || '—'}</td>
-                <td className="px-3 py-2 text-steel-300">{so.poNumber || '—'}</td>
-                <td className="px-3 py-2"><EddChip edd={so.edd} /></td>
-                <td className="px-3 py-2 text-xs">{so.readiness.ready ? <span className="font-semibold text-success-400">Ready</span> : <span className="font-semibold text-warn-400" title={so.readiness.missing.join(' · ')}>Missing {so.readiness.missing.length}</span>}</td>
-                <td className="px-3 py-2 text-xs text-steel-300">{LANES.find((lane) => lane.key === so.lane)?.label || task.status}</td>
-                <td className="px-3 py-2 text-xs text-steel-400">{task.user?.name || 'not picked up'}</td>
-                <td className="whitespace-nowrap px-3 py-2 text-right">
-                  <button type="button" className="row-action" onClick={() => onOpen(row)}>Open</button>
-                  <button type="button" className="row-action ml-2" onClick={() => onPrint(row)}>Print</button>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
   );
 }
 
@@ -280,15 +222,12 @@ function Tile({ label, value, hint, tone = 'text-steel-50' }) {
 export default function SoDesk({ onChanged }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
-  const [view, setView] = useState(readView);
   const [printing, setPrinting] = useState(null);
   const [asking, setAsking] = useState(null);
-  const [opened, setOpened] = useState(null);
   const [search, setSearch] = useState('');
   const load = useCallback(() => departmentsApi.soDesk().then((answer) => { setData(answer); setError(null); }).catch((failure) => setError(failure)), []);
   useEffect(() => { load(); }, [load]);
   const changed = () => { load(); onChanged?.(); };
-  const pick = (next) => { setView(next); keepView(next); };
 
   const rows = useMemo(() => {
     const all = data?.rows || [];
@@ -301,7 +240,6 @@ export default function SoDesk({ onChanged }) {
   if (error) return <ErrorState error={error} onRetry={load} />;
   if (!data) return <TableSkeleton rows={5} columns={4} />;
   const { summary, booked, held, others } = data;
-  const opener = (row) => setOpened(row);
 
   return (
     <section className="space-y-4" aria-label="SO desk">
@@ -314,36 +252,12 @@ export default function SoDesk({ onChanged }) {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <div className="flex gap-1 rounded-xl border border-line/[0.06] bg-line/[0.02] p-1" role="group" aria-label="View">
-          {VIEWS.map((entry) => (
-            <button key={entry.key} type="button" aria-pressed={view === entry.key} onClick={() => pick(entry.key)} className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${view === entry.key ? 'fill-primary shadow' : 'text-steel-300 hover:bg-line/[0.06]'}`}>{entry.label}</button>
-          ))}
-        </div>
         <p className="text-xs text-steel-500">Ready first, then by the earliest EDD.</p>
         <input aria-label="Search enquiry, buyer or model" type="search" className="input ml-auto w-full sm:w-64" placeholder="Search enquiry, buyer or model…" value={search} onChange={(event) => setSearch(event.target.value)} />
       </div>
 
       {rows.length === 0 ? (
         <EmptyState title={data.rows.length ? 'Nothing matches the search' : 'No SO request open'} description={data.rows.length ? 'Clear the search to see them all.' : 'When marketing sends an enquiry to PO & SO, it appears here.'} />
-      ) : view === 'lanes' ? (
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4" aria-label="Lanes">
-          {LANES.map((lane) => {
-            const inLane = rows.filter((row) => row.so.lane === lane.key);
-            return (
-              <div key={lane.key} className="space-y-2 rounded-xl border border-line/[0.06] bg-line/[0.02] p-2">
-                <h3 className="px-1 text-xs font-bold uppercase tracking-wide text-steel-300">{lane.label} <span className="font-normal normal-case tabular-nums text-steel-500">{inLane.length}</span></h3>
-                {inLane.length === 0 && <p className="px-1 py-3 text-xs text-steel-500">None</p>}
-                {inLane.map((row) => (
-                  <div key={row.task._id} role="button" tabIndex={0} onClick={() => opener(row)} onKeyDown={(event) => event.key === 'Enter' && opener(row)} className="cursor-pointer">
-                    <SoCard row={row} compact onChanged={changed} onPrint={setPrinting} onAsk={setAsking} />
-                  </div>
-                ))}
-              </div>
-            );
-          })}
-        </div>
-      ) : view === 'table' ? (
-        <SoTable rows={rows} onPrint={setPrinting} onOpen={opener} />
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {rows.map((row) => <SoCard key={row.task._id} row={row} onChanged={changed} onPrint={setPrinting} onAsk={setAsking} />)}
@@ -391,11 +305,6 @@ export default function SoDesk({ onChanged }) {
         </div>
       )}
 
-      {opened && (
-        <Modal open title={`${opened.enquiry?.number || 'Team task'} · ${(opened.enquiry ? opened.enquiry.customer?.name : opened.task.customer?.name) || ''}`} size="lg" onClose={() => setOpened(null)}>
-          <SoCard row={rows.find((row) => row.task._id === opened.task._id) || opened} onChanged={changed} onPrint={setPrinting} onAsk={setAsking} />
-        </Modal>
-      )}
       {printing && <PrepSheet row={printing} onClose={() => setPrinting(null)} />}
       {asking && <AskMarketing row={asking} onClose={() => setAsking(null)} onChanged={changed} />}
     </section>
