@@ -30,6 +30,7 @@ import FinishingDeskList from '../components/FinishingDeskList.jsx';
 import FinishingQueueList, { TEAM_WORDS } from '../components/FinishingQueueList.jsx';
 import { EDD_CHIP, eddChipOf } from '../utils/edd.js';
 import { EDD_BANDS, PRODUCTION_FILTERS, eddBandOf, eddBands } from '../utils/productionQueue.js';
+import { DeliveryBadge, DeliveryRiskPanel, inDanger } from '../components/DeliveryRisk.jsx';
 
 /**
  * A department's dashboard [server: handoff.service `enquiriesHeldBy`, `departmentDashboard`].
@@ -124,7 +125,11 @@ function EnquiryCard({ row, department, me, onChanged, query = false }) {
           )}
           <p className="truncate text-sm text-steel-300">{(enquiry ? enquiry.customer?.name : task.customer?.name) || (enquiry ? '—' : 'No enquiry')}</p>
         </div>
-        <DuePill row={row} />
+        <div className="flex flex-col items-end gap-1">
+          <DuePill row={row} />
+          {/* In danger of missing marketing's EDD — sooner for an order of several models [server: deliveryRisk.service]. */}
+          {inDanger(row.delivery) && <DeliveryBadge risk={row.delivery} />}
+        </div>
       </header>
 
       <p className="text-sm font-semibold text-steel-100">
@@ -213,6 +218,8 @@ function EnquiryCard({ row, department, me, onChanged, query = false }) {
 
 /* The desks other teams ask "when will it be ready?" — Production's, and Assembly's (Dispatch asks it). */
 const QUERY_DESKS = ['production', 'assembling'];
+/* The desks that see the orders at risk of missing the EDD [components/DeliveryRisk.jsx]. */
+const RISK_DESKS = ['production', 'marketing', 'management'];
 
 const FILTERS = [
   { key: 'all', label: 'All' },
@@ -353,6 +360,9 @@ function DepartmentDesk() {
 
       {/* Questions for this person and answers back to the department — acted on here, on every tab. */}
       <AttentionPanel attention={data.attention} onChanged={reload} />
+
+      {/* The orders in danger of missing their EDD, where they are planned and promised: Production, Printing / Assembly, marketing, Admin. */}
+      {RISK_DESKS.includes(figures.department) && <DeliveryRiskPanel />}
 
       {tab === 'enquiries' && !isProduction && !queueTeam && <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Tile label="Open tasks" value={enquiries.length} hint={`${figures.open} on the department in all`} active={tab === 'enquiries' && filter === 'all'} onClick={() => pick('all')} />

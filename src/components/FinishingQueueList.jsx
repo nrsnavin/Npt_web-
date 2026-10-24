@@ -7,6 +7,7 @@ import { BAND_TONE, QcChip, RISK_TONE, RiskChips } from './ProductionQueueList.j
 import { ErrorState, TableSkeleton } from './ui.jsx';
 import { formatDate, formatRelative } from '../utils/format.js';
 import { EDD_BANDS, dueWords } from '../utils/productionQueue.js';
+import { DELIVERY_TONE, DeliveryBadge, inDanger } from './DeliveryRisk.jsx';
 
 /**
  * Printing's and Assembly's queues, read at a glance [server: finishingQueue.controller]: one
@@ -210,7 +211,7 @@ export default function FinishingQueueList({ team, compact = false, onRows, onCh
             const riskTone = RISK_TONE[row.risk?.level] || null;
             const goods = row.goods || {};
             return (
-              <li key={row.task._id} className={`card border-l-4 ${riskTone ? riskTone.edge : tone.edge} p-3 sm:p-4`}>
+              <li key={row.task._id} className={`card border-l-4 ${inDanger(row.delivery) ? DELIVERY_TONE[row.delivery.level].left : riskTone ? riskTone.edge : tone.edge} p-3 sm:p-4`}>
                 <div className="grid gap-3 md:grid-cols-[8.5rem_minmax(0,14rem)_minmax(0,1fr)_auto] md:items-center">
                   {/* The date the team works to. */}
                   <div className="flex items-center gap-2 md:block">
@@ -238,10 +239,14 @@ export default function FinishingQueueList({ team, compact = false, onRows, onCh
                   </div>
                   {/* Where it stands: the thirty words, then each model. */}
                   <div className="min-w-0 space-y-1.5">
-                    {(riskTone && row.risk?.why) || row.qc?.required ? (
+                    {(riskTone && row.risk?.why) || row.qc?.required || inDanger(row.delivery) ? (
                       <p className="flex flex-wrap items-center gap-1.5 text-xs">
-                        {riskTone && row.risk?.why && <span className={`rounded-full px-2 py-0.5 font-semibold ${riskTone.chip}`}>{riskTone.label}</span>}
-                        {riskTone && row.risk?.why && <span className="text-steel-300">{row.risk.why}</span>}
+                        {/* The press-days reading, unless the whole-order reading below already says the order is in danger. */}
+                        {riskTone && row.risk?.why && !inDanger(row.delivery) && <span className={`rounded-full px-2 py-0.5 font-semibold ${riskTone.chip}`}>{riskTone.label}</span>}
+                        {riskTone && row.risk?.why && !inDanger(row.delivery) && <span className="text-steel-300">{row.risk.why}</span>}
+                        {/* The whole order against marketing's EDD, every model and team counted [server: deliveryRisk.service]. */}
+                        {inDanger(row.delivery) && <DeliveryBadge risk={row.delivery} />}
+                        {inDanger(row.delivery) && <span className="text-steel-300">{row.delivery.why}</span>}
                         <QcChip qc={row.qc} />
                       </p>
                     ) : null}

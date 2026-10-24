@@ -15,6 +15,7 @@ import Enquiries from './Enquiries.jsx';
 import { DashboardSkeleton, ErrorState, Modal, Notice } from '../components/ui.jsx';
 import { departmentLabel } from '../utils/pipeline.js';
 import { formatDate, formatDateTime } from '../utils/format.js';
+import { DeliveryRiskPanel } from '../components/DeliveryRisk.jsx';
 
 /**
  * The overview dashboard [the plant's own layout] — Admin's company-wide, a marketing person's
@@ -333,6 +334,9 @@ export default function OverviewDashboard() {
           {role}
         </span>
       </section>
+
+      {/* The orders in danger of missing marketing's EDD, worst first; a marketing person sees their own buyers' [server: deliveryRisk.service]. */}
+      <DeliveryRiskPanel />
 
       {/* The company's figures — Admin's view. A marketing person's own figures were taken off their
           dashboard: the new enquiries, the tasks and the party master below are what they work from. */}

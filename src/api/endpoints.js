@@ -685,6 +685,8 @@ export const production = {
   queue: () => api.get('/production/queue').then((response) => response.data),
   /** Printing's or Assembly's queue in EDD order, with where the goods are model by model — `{ data, meta }`. */
   teamQueue: (team) => api.get(`/production/queue/${team}`).then((response) => response.data),
+  /** The orders in danger of missing marketing's EDD, worst first — `{ data, meta }` [server: deliveryRisk.service]. */
+  atRisk: () => api.get('/production/at-risk').then((response) => response.data),
   /** One Production task worked whole: models, hand-overs, EDD, work orders and the teams after it. */
   workflow: (taskId) => api.get(`/production/workflow/${taskId}`).then(unwrap),
   /**

@@ -52,12 +52,15 @@ test('only Admin is offered "Hand to someone" on the enquiry', () => {
   assert.match(read('pages/EnquiryDetail.jsx'), /\{isAdmin && <DelegateEnquiry enquiry=\{enquiry\} onDone=\{afterHandover\} \/>\}/);
 });
 
-test('in Production the enquiry shows the EDD, or that it was asked and not given', () => {
+test('the enquiry shows marketing’s EDD, the plant’s completion beside it, and the delivery risk', () => {
   const desk = read('components/DepartmentDesk.jsx');
   assert.match(desk, /const inProduction = \['production_edd', 'assembling'\]\.includes\(stage\) \|\| Boolean\(production\?\.asked\);/);
   assert.match(desk, /<EddLine edd=\{\{ date: production\.edd\.edd, department: production\.edd\.department/);
   assert.match(desk, /EDD not set yet/);
-  assert.match(desk, /asked \{formatDate\(production\.asked\.at\)\}, not given yet/);
+  assert.match(desk, /set the date the buyer is promised — the production queue runs by it/);
+  /* The plant's dates beside it, and whether the order is in danger [DeliveryReading]. */
+  assert.match(desk, /Plant’s completion \{formatDate\(production\.completion\.date\)\}/);
+  assert.match(desk, /<DeliveryReading risk=\{history\?\.risk\} className="mt-2" \/>/);
   assert.match(desk, /plant expects \$\{formatDate\(line\.expectedCompletion\)\}/);
 });
 

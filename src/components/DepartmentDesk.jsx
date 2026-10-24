@@ -3,6 +3,7 @@ import { enquiries as enquiriesApi, handoffs as handoffsApi, orders as ordersApi
 import { Link } from 'react-router-dom';
 import TaskPdfLink from './TaskPdfLink.jsx';
 import { EddForm, EddLine, ModelEdds } from './TaskEdd.jsx';
+import { DeliveryReading } from './DeliveryRisk.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import TaskCard from './TaskCard.jsx';
 import EnquiryPayments from './EnquiryPayments.jsx';
@@ -261,7 +262,7 @@ export default function DepartmentDesk({ enquiry, onChanged }) {
   const setFinal = async ({ date, models, note }) => {
     const rows = models || production.byModel.map((row) => ({ model: row.model, date }));
     await enquiriesApi.setModelEdds({ id: enquiry._id, models: rows, note });
-    toast('Final EDD saved', 'Production, Printing, Assembly and Dispatch are told.');
+    toast('EDD per model saved', 'Production, Printing, Assembly and Dispatch are told.');
     setSettingFinal(false);
     refresh();
   };
@@ -356,11 +357,7 @@ export default function DepartmentDesk({ enquiry, onChanged }) {
               ) : (
                 <p className="text-sm text-steel-100">
                   <span className="font-bold text-warn-400">EDD not set yet</span>
-                  {production.asked ? (
-                    <span className="text-steel-400"> · {departmentLabel(production.asked.department)} asked {formatDate(production.asked.at)}, not given yet</span>
-                  ) : maySetEdd ? (
-                    <span className="text-steel-400"> · the date the buyer is working to, for Production and Dispatch</span>
-                  ) : null}
+                  <span className="text-steel-400"> · {maySetEdd ? 'set the date the buyer is promised — the production queue runs by it' : 'marketing gives the date the buyer is promised'}</span>
                 </p>
               )}
               {maySetEdd && !settingEdd && (
@@ -368,20 +365,30 @@ export default function DepartmentDesk({ enquiry, onChanged }) {
               )}
             </div>
             {settingEdd && <EddForm onSave={setEdd} onCancel={() => setSettingEdd(false)} label={production.edd ? 'Change EDD' : 'Set EDD'} />}
-            {/* Each model's EDD — the latest its teams gave — with each team's own date. */}
-            {production.byModel?.length > 0 && <ModelEdds rows={production.byModel} className="mt-1.5" />}
-            {/* Marketing's final word per model: the latest by default, changed when the buyer is committed to another day. */}
-            {maySetEdd && production.byModel?.length > 0 && !settingFinal && (
-              <button type="button" className="row-action mt-1" onClick={() => setSettingFinal(true)}>Set final EDD per model</button>
+            {/* The plant's own dates, beside the EDD: when the last team on each model says it will be finished [server: refreshModelEdds]. */}
+            {production.completion?.date && (
+              <p className={`mt-1 text-sm ${production.edd && production.completion.date > production.edd.edd ? 'font-semibold text-danger-400' : 'text-steel-200'}`}>
+                <span className="font-bold">Plant’s completion {formatDate(production.completion.date)}</span>
+                <span className="text-steel-400">{production.completion.complete ? ' — every model' : ' — the models dated so far'}</span>
+                {production.edd && production.completion.date > production.edd.edd ? ' — after the EDD' : ''}
+              </p>
+            )}
+            {/* Each model: its EDD, each team's hand-over or completion date. */}
+            {production.byModel?.length > 0 && <ModelEdds rows={production.byModel} edd={production.edd?.edd || null} className="mt-1.5" />}
+            {/* Will it make the EDD — the work left on every model at the plant's usual pace [server: deliveryRisk.service]. */}
+            <DeliveryReading risk={history?.risk} className="mt-2" />
+            {/* Marketing's EDD for one model apart from the rest, when the buyer is committed to another day for it. */}
+            {maySetEdd && production.byModel?.length > 1 && !settingFinal && (
+              <button type="button" className="row-action mt-1" onClick={() => setSettingFinal(true)}>Set EDD per model</button>
             )}
             {settingFinal && (
               <EddForm
                 onSave={setFinal}
                 onCancel={() => setSettingFinal(false)}
-                label="Save final EDD"
-                dateLabel="Final EDD"
+                label="Save EDD per model"
+                dateLabel="EDD"
                 models={production.byModel.map((row) => row.model)}
-                given={Object.fromEntries(production.byModel.map((row) => [row.model, row.date || row.suggested || '']))}
+                given={Object.fromEntries(production.byModel.map((row) => [row.model, row.final?.date || production.edd?.edd || '']))}
               />
             )}
             {production.asked?.status && (

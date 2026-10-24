@@ -5,6 +5,7 @@ import TaskPanel from './TaskPanel.jsx';
 import { BAND_TONE } from './ProductionQueueList.jsx';
 import { formatDate } from '../utils/format.js';
 import { byEdd, dueWords, eddBandOf } from '../utils/productionQueue.js';
+import { DeliveryBadge, inDanger } from './DeliveryRisk.jsx';
 
 /**
  * The Printing, Assembly and Quality desks, read at a glance [server: deskSummary.service]: one
@@ -50,6 +51,8 @@ export default function FinishingDeskList({ rows = [], onChanged }) {
                     <p className="font-bold text-steel-50">Team task</p>
                   )}
                   <p className="truncate text-sm text-steel-300">{row.enquiry?.customer?.name || row.task.customer?.name || '—'}</p>
+                  {/* In danger of missing marketing's EDD [server: deliveryRisk.service]. */}
+                  {inDanger(row.delivery) && <DeliveryBadge risk={row.delivery} className="mt-0.5" />}
                   {/* What the task is about [server: deskSummary.service `modelsOfBrief`]: each model with its pieces and complaint, and the complaint received. */}
                   {row.models?.length > 0 && (
                     <p className="text-xs text-steel-200" aria-label="Models">

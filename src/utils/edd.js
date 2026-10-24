@@ -28,7 +28,8 @@ export const eddOfTask = (task) => {
 /*
  * What follows moulding, decided by Production model by model [server: handoff.service
  * `decideRouting`]: a team that hands on gives the next team a hand-over date; the last team in
- * the chain — Production when nothing follows, else Printing or Assembly — gives the EDD.
+ * the chain — Production when nothing follows, else Printing or Assembly — gives the completion
+ * date. The EDD is marketing's.
  */
 export const ROUTE_LABELS = { production: 'Production', printing: 'Printing', assembling: 'Assembly' };
 /** The teams this task hands its goods to; empty for the last team. */
@@ -53,23 +54,27 @@ export const showsEdd = (task) => Boolean(task?.kind && SHOWS_EDD_KINDS.includes
 export const givesEdd = (task) => Boolean(task?.kind && EDD_TASK_KINDS.includes(task.kind));
 
 /**
- * What a task says about the EDD, in one chip: the date; "EDD needed" on an open task whose
- * department is to give it; "EDD not given yet" on a dispatch request waiting for it. Null on a
- * task that does not work to one, and on a finished task with no date.
+ * What a task says about its dates, in one chip: a team that still owes its own date says so
+ * (hand-over date, or completion date); otherwise marketing's EDD, which everybody works to;
+ * failing that, the team's own completion date. Null on a task that works to no date, and on a
+ * finished task with none.
  */
 export function eddChipOf(task) {
   if (!showsEdd(task)) return null;
   if (needsRouting(task)) return { tone: 'needed', label: 'Printing / assembly to decide' };
+  const edd = eddOf(task.enquiry);
   const teams = handsOnOf(task);
   if (teams.length) {
     const day = task.routing?.handOverDate;
-    if (day) return { tone: 'set', label: `To ${teamWords(teams)} ${formatDate(day)}` };
-    return task.completed ? null : { tone: 'needed', label: 'Hand-over date needed' };
+    if (!day) return task.completed ? null : { tone: 'needed', label: 'Hand-over date needed' };
+    return edd ? { tone: 'set', label: `EDD ${formatDate(edd.date)}`, edd } : { tone: 'set', label: `To ${teamWords(teams)} ${formatDate(day)}` };
   }
-  const edd = eddOf(task.enquiry);
+  const own = (task.modelDates || []).map((row) => row.date).filter(Boolean).sort().at(-1);
+  if (givesEdd(task) && !own && !task.completed) return { tone: 'needed', label: 'Completion date needed' };
   if (edd) return { tone: 'set', label: `EDD ${formatDate(edd.date)}`, edd };
+  if (own) return { tone: 'set', label: `Completes ${formatDate(own)}` };
   if (task.completed) return null;
-  return givesEdd(task) ? { tone: 'needed', label: 'EDD needed' } : { tone: 'missing', label: 'EDD not given yet' };
+  return { tone: 'missing', label: 'No EDD yet' };
 }
 
 export const EDD_CHIP = {
@@ -112,7 +117,7 @@ export function modelsForStep(task, step) {
 /** The date this task gave for each model [server: Todo `modelDates`], as `{ model: 'YYYY-MM-DD' }`. */
 export const datesOfTask = (task) => Object.fromEntries((task?.modelDates || []).map((row) => [row.model, row.date]));
 
-/** Each model's EDD on the enquiry — the latest its teams gave — or [] [server: Enquiry `eddByModel`]. */
+/** Each model's dates on the enquiry — marketing's EDD for it, the teams' hand-over and completion dates — or [] [server: Enquiry `eddByModel`]. */
 export const eddByModelOf = (enquiry) => (enquiry && typeof enquiry === 'object' && Array.isArray(enquiry.eddByModel) ? enquiry.eddByModel : []);
 
 /**
