@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { files as filesApi, quotations as quotationsApi, workspace } from '../api/endpoints.js';
 import TaskPdfLink from './TaskPdfLink.jsx';
 import TaskWorkflow from './TaskWorkflow.jsx';
 import TaskStepper from './TaskStepper.jsx';
@@ -25,6 +26,77 @@ import { EDD_CHIP, eddChipOf } from '../utils/edd.js';
  *
  * A finished task keeps to its one line until it is opened.
  */
+/** A blob the session can read, handed to a new tab — the file routes need the token. */
+const openBlob = async (load) => {
+  const url = URL.createObjectURL(await load());
+  window.open(url, '_blank', 'noopener');
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+};
+
+/**
+ * A finished sample task, at a glance: how the sample went — the courier, AWB, pieces and day — or
+ * who received it, with the hand-over photo; and the courier copy, opened from here or uploaded by
+ * whoever works the task [server: handoff.controller `withRecords`].
+ */
+function SampleSent({ task, mayAct, onChanged }) {
+  const sample = task.sample;
+  const picker = useRef(null);
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState(null);
+  if (!sample) return null;
+  const given = sample.collection || {};
+  const copy = (task.documents || []).find((paper) => paper.docType === 'courier_copy');
+  const photo = given.photo?.key ? given.photo : null;
+  const couriered = sample.deliveryMethod === 'courier' || (sample.courier && sample.deliveryMethod !== 'direct');
+  const received = given.collectedAt || sample.deliveryMethod === 'direct';
+  if (!couriered && !received) return null;
+  const upload = async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    if (file.size > 1024 * 1024) { setProblem('Over 1 MB — take a smaller photo'); return; }
+    setBusy(true);
+    setProblem(null);
+    try {
+      await workspace.todos.addDocument({ id: task._id, docType: 'courier_copy', file });
+      onChanged?.();
+    } catch (failure) {
+      setProblem(failure.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 pb-2.5 pl-14 text-xs" aria-label={`How ${sample.number} reached the buyer`}>
+      {couriered ? (
+        <span className="text-steel-300">
+          <span className="font-semibold text-steel-100">{sample.courier || 'Courier'}</span>
+          {sample.awbNumber && <> · AWB <span className="font-semibold text-steel-100">{sample.awbNumber}</span></>}
+          {sample.dispatchedQuantity ? ` · ${sample.dispatchedQuantity} pcs` : ''}
+          {sample.dispatchedAt ? ` · sent ${formatDate(sample.dispatchedAt)}` : ''}
+        </span>
+      ) : (
+        <span className="text-steel-300">
+          Received by <span className="font-semibold text-steel-100">{given.collectorName || sample.handedTo || '—'}</span>
+          {(given.collectorPhone || sample.recipientPhone) ? ` · ${given.collectorPhone || sample.recipientPhone}` : ''}
+          {given.pieces || sample.dispatchedQuantity ? ` · ${given.pieces || sample.dispatchedQuantity} pcs` : ''}
+          {given.collectedAt || sample.dispatchedAt ? ` · ${formatDate(given.collectedAt || sample.dispatchedAt)}` : ''}
+        </span>
+      )}
+      {photo && <button type="button" className="font-semibold text-accent hover:underline" onClick={() => openBlob(() => filesApi.blob(photo.key))}>Hand-over photo</button>}
+      {couriered && (copy ? (
+        <button type="button" className="font-semibold text-accent hover:underline" onClick={() => openBlob(() => filesApi.blob(copy.key))}>Courier copy</button>
+      ) : mayAct ? (
+        <>
+          <button type="button" className="link-muted text-xs" disabled={busy} onClick={() => picker.current?.click()}>{busy ? 'Uploading…' : 'Upload courier copy'}</button>
+          <input ref={picker} type="file" accept="application/pdf,image/jpeg,image/png" capture="environment" className="hidden" aria-label="Choose the courier copy" onChange={upload} />
+        </>
+      ) : <span className="text-steel-500">No courier copy</span>)}
+      {problem && <span className="text-danger-400">{problem}</span>}
+    </div>
+  );
+}
+
 const EDGE = {
   progress: 'border-line/[0.08]',
   blocked: 'border-danger-500/40',
@@ -50,53 +122,76 @@ export default function TaskCard({ task, mayAct = false, open: openAtFirst = fal
 
   return (
     <li className={`rounded-xl border bg-ink-850 ${EDGE[state.tone]} ${task.completed ? 'opacity-80' : ''}`}>
-      <button
-        type="button"
-        aria-expanded={open}
-        aria-controls={bodyId}
-        onClick={() => setOpen((value) => !value)}
-        className="flex w-full items-start gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-line/[0.03]"
-      >
-        <span
-          aria-hidden
-          title={who?.name}
-          className={`mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full text-xs font-bold ${who?.name ? 'bg-line/[0.1] text-steel-200' : 'border border-dashed border-line/30 text-steel-500'}`}
+      <div className="flex items-start">
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-controls={bodyId}
+          onClick={() => setOpen((value) => !value)}
+          className="flex min-w-0 flex-1 items-start gap-3 rounded-xl py-2.5 pl-3 pr-2 text-left transition-colors hover:bg-line/[0.03]"
         >
-          {who?.name ? initialsOf(who.name) : '?'}
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span className="text-sm font-semibold text-steel-100">{button?.label || task.title}</span>
-            <span className="text-xs text-steel-400">
-              {departmentLabel(task.department)}
-              {who?.name ? ` · ${who.name}` : task.completed ? '' : ' · not picked up'}
+          <span
+            aria-hidden
+            title={who?.name}
+            className={`mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full text-xs font-bold ${who?.name ? 'bg-line/[0.1] text-steel-200' : 'border border-dashed border-line/30 text-steel-500'}`}
+          >
+            {who?.name ? initialsOf(who.name) : '?'}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span className="text-sm font-semibold text-steel-100">{button?.label || task.title}</span>
+              <span className="text-xs text-steel-400">
+                {departmentLabel(task.department)}
+                {who?.name ? ` · ${who.name}` : task.completed ? '' : ' · not picked up'}
+              </span>
+              <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${CHIP[state.tone]}`}>{state.label}</span>
+              {edd && <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${EDD_CHIP[edd.tone]}`}>{edd.label}</span>}
+              {/* Nothing left to do on it [server: taskClosable.service] — the workflow below offers to close it. */}
+              {!task.completed && task.closable?.why && (
+                <span className="rounded-full bg-success-500/15 px-2 py-0.5 text-xs font-semibold text-success-400" title={task.closable.why}>Can be closed</span>
+              )}
+              {/* With Admin: escalated and not yet answered [HandoffTaskActions]. */}
+              {task.adminEscalation?.at && !task.adminEscalation.resolvedAt && !task.completed && (
+                <span className="rounded-full bg-danger-500/15 px-2 py-0.5 text-xs font-semibold text-danger-400" title={task.adminEscalation.reason}>With Admin</span>
+              )}
             </span>
-            <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${CHIP[state.tone]}`}>{state.label}</span>
-            {edd && <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${EDD_CHIP[edd.tone]}`}>{edd.label}</span>}
-            {/* Nothing left to do on it [server: taskClosable.service] — the workflow below offers to close it. */}
-            {!task.completed && task.closable?.why && (
-              <span className="rounded-full bg-success-500/15 px-2 py-0.5 text-xs font-semibold text-success-400" title={task.closable.why}>Can be closed</span>
-            )}
-            {/* With Admin: escalated and not yet answered [HandoffTaskActions]. */}
-            {task.adminEscalation?.at && !task.adminEscalation.resolvedAt && !task.completed && (
-              <span className="rounded-full bg-danger-500/15 px-2 py-0.5 text-xs font-semibold text-danger-400" title={task.adminEscalation.reason}>With Admin</span>
+            {latest && (
+              <span className="mt-0.5 block truncate text-sm text-steel-300">
+                {latest.text || latest.statusLabel}
+                <span className="text-xs text-steel-500">{` · ${latest.by?.name || 'Someone'}, ${formatRelative(latest.at)}`}</span>
+              </span>
             )}
           </span>
-          {latest && (
-            <span className="mt-0.5 block truncate text-sm text-steel-300">
-              {latest.text || latest.statusLabel}
-              <span className="text-xs text-steel-500">{` · ${latest.by?.name || 'Someone'}, ${formatRelative(latest.at)}`}</span>
+          {when && (
+            <span className={`hidden shrink-0 rounded-lg border px-2 py-1 text-right sm:block ${when.late ? 'border-danger-500/40 text-danger-400' : 'border-line/[0.08] text-steel-300'}`}>
+              <span className="block text-xs">{when.late ? 'Late' : when.label}</span>
+              <span className="block text-sm font-bold leading-tight">{formatDate(when.date)}</span>
             </span>
           )}
-        </span>
-        {when && (
-          <span className={`hidden shrink-0 rounded-lg border px-2 py-1 text-right sm:block ${when.late ? 'border-danger-500/40 text-danger-400' : 'border-line/[0.08] text-steel-300'}`}>
-            <span className="block text-xs">{when.late ? 'Late' : when.label}</span>
-            <span className="block text-sm font-bold leading-tight">{formatDate(when.date)}</span>
-          </span>
+        </button>
+        {/* The quotation the task answered, opened as its PDF beside the arrow [server: handoff.controller `withRecords`]. */}
+        {task.quotation?._id && (task.completed || task.quotation.sentAt) && (
+          <button
+            type="button"
+            className="btn-secondary mt-2.5 shrink-0 px-2.5 py-1 text-xs"
+            title={`Open ${task.quotation.number} as a PDF`}
+            onClick={() => openBlob(() => quotationsApi.pdf(task.quotation._id))}
+          >
+            Quote PDF
+          </button>
         )}
-        <span aria-hidden className={`mt-1 text-xs text-steel-500 transition-transform ${open ? 'rotate-180' : ''}`}>▼</span>
-      </button>
+        <button
+          type="button"
+          aria-label={open ? 'Hide the task' : 'Show the task'}
+          aria-expanded={open}
+          aria-controls={bodyId}
+          onClick={() => setOpen((value) => !value)}
+          className="shrink-0 rounded-lg px-3 py-3 text-xs text-steel-500 hover:text-steel-200"
+        >
+          <span aria-hidden className={`inline-block transition-transform ${open ? 'rotate-180' : ''}`}>▼</span>
+        </button>
+      </div>
+      {task.completed && <SampleSent task={task} mayAct={mayAct} onChanged={onChanged} />}
 
       {(!task.completed || open) && <TaskStepper button={button} task={task} className="px-3 pb-2.5" />}
 
