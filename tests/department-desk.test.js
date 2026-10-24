@@ -75,3 +75,13 @@ test('the Mould department has its desk and workspace', async () => {
   assert.ok(workspaceFor('mould').pages.some((page) => page.to === '/enquiries?stage=mould'));
   assert.deepEqual(deskActionsFor('mould', row()).map((action) => action.label), ['Mould register']);
 });
+
+test('only marketing’s and Admin’s desks list enquiries; every other desk is its tasks, with no enquiry links', () => {
+  const page = read('pages/DepartmentDashboard.jsx');
+  assert.match(page, /const ENQUIRY_DESKS = \['marketing', 'management'\];/);
+  assert.match(page, /const seesEnquiries = canRead\('enquiries'\) && enquiryDesk;/);
+  assert.match(page, /\.\.\.\(seesEnquiries\s*\? \[\{ key: 'all'/);
+  assert.match(page, /<WorkspaceLinks department=\{figures\.department\} label=\{figures\.label\} atStages=\{enquiryDesk \? atStages : \[\]\} enquiries=\{enquiryDesk\} \/>/);
+  const links = read('components/DepartmentWorkspace.jsx');
+  assert.match(links, /\.filter\(\(page\) => enquiries \|\| !page\.to\.startsWith\('\/enquiries'\)\)/);
+});
