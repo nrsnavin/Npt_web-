@@ -15,7 +15,7 @@ test('Escalate to Admin is on every open task — in the menu and the row — un
   const actions = read('components/HandoffTaskActions.jsx');
   assert.match(actions, /const withAdmin = Boolean\(todo\.adminEscalation\?\.at && !todo\.adminEscalation\.resolvedAt\);/);
   assert.match(actions, /\{ key: 'escalate', label: 'Escalate to Admin', hint: 'An issue only Admin can settle — Admin alone sees it', onSelect: \(\) => setMode\('escalate'\) \}/);
-  assert.match(actions, /\.\.\.escalate,\s*\.\.\.adminClose,/, 'in the menu for everyone, before Admin’s own');
+  assert.match(actions, /\.concat\(escalate, adminClose\)/, 'in the menu for everyone — whatever else the form allows — before Admin’s own');
   assert.match(actions, /: <button type="button" className="row-action" onClick=\{\(\) => setMode\('escalate'\)\}>Escalate to Admin<\/button>\}/);
   assert.match(actions, />With Admin<\/span>/);
   assert.match(actions, /escalate: `Escalate to Admin — \$\{name\}`/);

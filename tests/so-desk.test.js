@@ -31,18 +31,24 @@ test('the desk reads each request for what to do with it: readiness, size, EDD, 
   assert.match(desk, />Got it<\/button>/);
 });
 
-test('cards only — no lanes, no table, no view toggle — with the week’s bookings, held orders, and a printable prep sheet', () => {
+test('cards only — no lanes, no table, no view toggle, no prep sheet — with the week’s bookings and held orders', () => {
   const desk = read('components/SoDesk.jsx');
   assert.doesNotMatch(desk, /VIEWS|aria-label="Lanes"|function SoTable|localStorage|aria-label="View"/);
   assert.match(desk, /<div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">\s*\{rows\.map\(\(row\) => <SoCard key=\{row\.task\._id\}/);
   assert.match(desk, /aria-label="Booked this week"/);
   assert.match(desk, /aria-label="Prepared, not yet in production"/);
-  assert.match(desk, /id="so-prep-sheet"/);
-  assert.match(desk, /window\.print\(\)/);
+  assert.doesNotMatch(desk, /so-prep-sheet|window\.print\(\)|Print prep sheet|PrepSheet/);
 });
 
 test('an order is sized in words', () => {
   assert.equal(sizeWords({ models: 2, pieces: 15000, value: 39500 }), '2 models · 15,000 pcs · ₹39,500');
   assert.equal(sizeWords({ models: 1, pieces: 0, value: 0 }), '1 model');
   assert.equal(sizeWords({ models: 0, pieces: 0, value: 0 }), '');
+});
+
+test('the SO task offers only Escalate to Admin beside its workflow — the form says so, the actions follow it', () => {
+  const actions = read('components/HandoffTaskActions.jsx');
+  assert.match(actions, /const allowed = buttonFor\(catalogue, todo\.kind\)\?\.form\?\.taskActions;/);
+  assert.match(actions, /\]\.filter\(\(choice\) => allows\(choice\.key\)\)\.concat\(escalate, adminClose\);/);
+  for (const key of ['update', 'back', 'date']) assert.match(actions, new RegExp(`\\{allows\\('${key}'\\) && <button`));
 });

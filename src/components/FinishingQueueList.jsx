@@ -87,6 +87,8 @@ export default function FinishingQueueList({ team, compact = false, onRows, onCh
   const [asOf, setAsOf] = useState(null);
   const [band, setBand] = useState('all');
   const [risk, setRisk] = useState('all');
+  /* The "Against the EDD" chips: folded under More filters, as the less-used filter. */
+  const [showMore, setShowMore] = useState(false);
   const [search, setSearch] = useState('');
   const [stage, setStageState] = useState(() => keptStage(team, compact));
   const [opened, setOpened] = useState(null);
@@ -175,7 +177,7 @@ export default function FinishingQueueList({ team, compact = false, onRows, onCh
             type="button"
             aria-pressed={band === entry.key}
             onClick={() => setBand(entry.key)}
-            className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${band === entry.key ? 'border-flame-500 bg-flame-500/10 text-flame-400' : 'border-line/[0.1] text-steel-400 hover:text-steel-200'}`}
+            className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold transition ${band === entry.key ? 'border-flame-500 bg-flame-500/10 text-flame-400' : 'border-line/[0.1] text-steel-300 hover:text-steel-100'}`}
           >
             {entry.label} <span className="tabular-nums opacity-75">{entry.count}</span>
           </button>
@@ -189,8 +191,11 @@ export default function FinishingQueueList({ team, compact = false, onRows, onCh
           onChange={(event) => setSearch(event.target.value)}
         />
       </div>
-      {/* The same four colours as the production queue, against the date this team works to. */}
-      <RiskChips value={risk} onChange={setRisk} counts={meta?.risk} />
+      <button type="button" className="link-muted text-sm print:hidden" aria-expanded={showMore} onClick={() => setShowMore((value) => !value)}>
+        {showMore ? 'Fewer filters' : 'More filters'}{risk !== 'all' ? ' (1 on)' : ''}
+      </button>
+      {/* The same four colours as the production queue, against the date this team works to — folded, as the less-used filter. */}
+      {showMore && <RiskChips value={risk} onChange={setRisk} counts={meta?.risk} />}
 
       {shown.length === 0 ? (
         <div className="card px-6 py-10 text-center">
@@ -271,7 +276,7 @@ export default function FinishingQueueList({ team, compact = false, onRows, onCh
                     <button type="button" className={`${mayWork(row.task) && goods.toQueue?.length > 0 ? 'btn-secondary' : 'btn-primary'} justify-center px-3 py-2 text-sm`} onClick={() => setOpened(row.task)}>
                       {mayWork(row.task) ? 'Update' : 'Open'}
                     </button>
-                    {row.link && <Link to={row.link} className="btn-secondary justify-center px-3 py-2 text-sm">Workflow →</Link>}
+                    {row.link && <Link to={row.link} className="btn-secondary justify-center px-3 py-2 text-sm">Open job →</Link>}
                   </div>
                 </div>
               </li>

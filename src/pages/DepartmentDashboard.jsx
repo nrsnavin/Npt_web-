@@ -49,20 +49,6 @@ import DeskTables, { DESK_TABLE_KINDS, takesTable } from '../components/DeskTabl
 const DAY = 24 * 60 * 60 * 1000;
 const daysSince = (date) => Math.max(0, Math.floor((Date.now() - new Date(date).getTime()) / DAY));
 
-function Tile({ label, value, hint, tone = 'text-steel-50', active, onClick }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`card p-4 text-left transition hover:border-flame-500/40 ${active ? 'border-flame-500/60 ring-1 ring-flame-500/30' : ''}`}
-    >
-      <p className="eyebrow">{label}</p>
-      <p className={`mt-1 text-3xl font-bold tabular-nums ${tone}`}>{value ?? '—'}</p>
-      {hint && <p className="mt-1 text-xs text-steel-400">{hint}</p>}
-    </button>
-  );
-}
-
 /** When it is due, as a coloured pill. */
 function DuePill({ row }) {
   if (row.late) {
@@ -206,7 +192,7 @@ function EnquiryCard({ row, department, me, onChanged, query = false }) {
       <p className="text-xs text-steel-500">
         Here {days === 0 ? 'since today' : days === 1 ? '1 day' : `${days} days`}
         {' · '}
-        {holder ? `with ${String(holder._id) === me ? 'you' : holder.name}` : 'nobody has picked it up'}
+        {holder ? `with ${String(holder._id) === me ? 'you' : holder.name}` : 'not assigned yet'}
         {enquiry?.assignedTo?.name && department !== 'marketing' ? ` · ${enquiry.assignedTo.name}’s buyer` : ''}
       </p>
 
@@ -232,7 +218,7 @@ function EnquiryCard({ row, department, me, onChanged, query = false }) {
         )))}
         {!holder && (
           <button type="button" className="btn-secondary px-3 py-1.5 text-xs" onClick={claim}>
-            I’ll take it
+            Take this job
           </button>
         )}
       </div>
@@ -251,8 +237,15 @@ function EnquiryCard({ row, department, me, onChanged, query = false }) {
 const viewKeyOf = (department) => (department === 'despatch' ? 'npt.dispatchView' : `npt.deskView.${department}`);
 /* The desks that read as tables [DispatchTable, DeskTables]. */
 const TABLE_DESKS = ['despatch', ...Object.keys(DESK_TABLE_KINDS)];
+/* With no choice kept: a table on a desktop, cards on a phone — a table there scrolls sideways. */
+const wideScreen = () => {
+  try { return window.matchMedia('(min-width: 768px)').matches; } catch { return true; }
+};
 const readView = (department) => {
-  try { return localStorage.getItem(viewKeyOf(department)) === 'cards' ? 'cards' : 'table'; } catch { return 'table'; }
+  let kept = null;
+  try { kept = localStorage.getItem(viewKeyOf(department)); } catch { /* nothing kept */ }
+  if (kept) return kept === 'cards' ? 'cards' : 'table';
+  return wideScreen() ? 'table' : 'cards';
 };
 /* The desks that list enquiries — marketing's and Admin's; every other desk is its tasks alone. */
 const ENQUIRY_DESKS = ['marketing', 'management'];
@@ -263,8 +256,8 @@ const FILTERS = [
   { key: 'all', label: 'All' },
   { key: 'late', label: 'Late' },
   { key: 'today', label: 'Due today' },
-  { key: 'unclaimed', label: 'Not picked up' },
-  { key: 'mine', label: 'Mine' },
+  { key: 'unclaimed', label: 'Not assigned' },
+  { key: 'mine', label: 'My jobs' },
 ];
 
 function DepartmentDesk() {
@@ -352,8 +345,14 @@ function DepartmentDesk() {
   const late = enquiries.filter((row) => (isProduction ? eddBandOf(row) === 'late' : row.late)).length;
   const today = enquiries.filter((row) => (isProduction ? eddBandOf(row) === 'today' : row.dueToday)).length;
   const unclaimed = enquiries.filter((row) => !row.task.user).length;
-  const undated = enquiries.filter((row) => eddBandOf(row) === 'none').length;
+  const mine = enquiries.filter((row) => String(row.task.user?._id || '') === me).length;
+  /* Each filter carries its count, so the chips are the summary — no tiles above them to read twice. */
+  const filterCounts = { all: enquiries.length, late, today, unclaimed, mine };
   const filters = isProduction ? PRODUCTION_FILTERS : FILTERS;
+  /* A shared desk (Quality · Printing · Assembling) is titled by the team on screen. */
+  const deskLabel = deskTab ? departmentLabel(deskTab) : figures.label;
+  /* The links and notes under the desk: open for Admin and marketing, folded for everyone else. */
+  const helpFolded = !everyone && !enquiryDesk;
 
   /*
    * One "Tasks" tab for every desk [TaskSections]: To do (what was sent to the department), We
@@ -381,17 +380,12 @@ function DepartmentDesk() {
   const fallback = opening === 'enquiries' ? (isProduction ? 'pqueue' : queueTeam ? 'fqueue' : 'tasks') : opening;
   const tab = TABS.some((entry) => entry.key === chosenTab) ? chosenTab : TABS.some((entry) => entry.key === fallback) ? fallback : 'tasks';
 
-  const pick = (next) => {
-    setTab('tasks');
-    setFilter(next);
-  };
-
   return (
     <div className="mx-auto max-w-7xl space-y-5">
       <PageHeader
-        title={`${figures.label} dashboard`}
-        subtitle={isProduction ? 'The queue in EDD order — open an enquiry’s workflow to give its statuses, hand-overs and EDD'
-          : queueTeam ? `${TEAM_WORDS[queueTeam].queue} in EDD order — what is in hand to ${TEAM_WORDS[queueTeam].verb}, and what is still with ${TEAM_WORDS[queueTeam].from}` : seesEnquiries ? 'Your department’s tasks, and every enquiry you can see' : 'The tasks raised for your department'}
+        title={seesEnquiries ? `${figures.label} dashboard` : deskLabel}
+        subtitle={isProduction || queueTeam ? 'Your jobs, the most urgent first. Press Open job to update one.'
+          : seesEnquiries ? 'Your department’s tasks, and every enquiry you can see' : 'Your jobs, the most urgent first. Use the buttons on each job to update it.'}
         actions={
           <div className="flex flex-wrap gap-2">
             {otherDesks.map((entry) => (
@@ -455,7 +449,7 @@ function DepartmentDesk() {
 
       {tab === 'tasks' && (
         <div className="space-y-6">
-          <TaskSection title="To do" count={toDoCount} hint={`Work sent to ${figures.label}`}>
+          <TaskSection title="To do" count={toDoCount} hint={`Work sent to ${deskLabel}`}>
             {isProduction || queueTeam ? (
               /* Production, Printing and Assembly work their orders from their queue tab. */
               <p className="rounded-lg bg-line/[0.04] px-3 py-2 text-sm text-steel-300">
@@ -469,23 +463,6 @@ function DepartmentDesk() {
               <SoDesk me={me} onChanged={reload} />
             ) : (
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                  <Tile label="Open tasks" value={enquiries.length} hint={`${figures.open} on the department in all`} active={filter === 'all'} onClick={() => pick('all')} />
-                  <Tile label="Late" value={late} tone={late ? 'text-danger-400' : 'text-success-400'} hint={isProduction ? 'Past the EDD' : 'Past the day they were due'} active={filter === 'late'} onClick={() => pick('late')} />
-                  <Tile label="Due today" value={today} tone={today ? 'text-warn-400' : 'text-steel-50'} hint={isProduction ? 'EDD is today' : 'By the end of today'} active={filter === 'today'} onClick={() => pick('today')} />
-                  {isProduction ? (
-                    <Tile label="No EDD yet" value={undated} tone={undated ? 'text-warn-400' : 'text-success-400'} hint="Give the date on the task" active={filter === 'none'} onClick={() => pick('none')} />
-                  ) : (
-                    <Tile
-                      label="Not picked up"
-                      value={unclaimed}
-                      tone={unclaimed ? 'text-warn-400' : 'text-steel-50'}
-                      hint={figures.onTimePercent !== null ? `${figures.doneThisWeek} done this week · ${figures.onTimePercent}% on time` : `${figures.doneThisWeek} done this week`}
-                      active={filter === 'unclaimed'}
-                      onClick={() => pick('unclaimed')}
-                    />
-                  )}
-                </div>
                 <section className="space-y-4">
                   <div className="flex flex-wrap items-center gap-2">
                     {filters.map((entry) => (
@@ -493,11 +470,15 @@ function DepartmentDesk() {
                         key={entry.key}
                         type="button"
                         onClick={() => setFilter(entry.key)}
-                        className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
-                          filter === entry.key ? 'border-flame-500 bg-flame-500/10 text-flame-400' : 'border-line/[0.1] text-steel-400 hover:text-steel-200'
+                        aria-pressed={filter === entry.key}
+                        className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold transition ${
+                          filter === entry.key ? 'border-flame-500 bg-flame-500/10 text-flame-400' : 'border-line/[0.1] text-steel-300 hover:text-steel-100'
                         }`}
                       >
                         {entry.label}
+                        {filterCounts[entry.key] !== undefined && (
+                          <span className={`ml-1.5 tabular-nums ${entry.key === 'late' && filterCounts.late ? 'text-danger-400' : entry.key === 'today' && filterCounts.today ? 'text-warn-400' : 'text-steel-500'}`}>{filterCounts[entry.key]}</span>
+                        )}
                       </button>
                     ))}
                     {TABLE_DESKS.includes(figures.department) && (
@@ -592,6 +573,9 @@ function DepartmentDesk() {
             <button type="button" className="link-muted text-sm" aria-expanded={showDone} onClick={() => setShowDone((value) => !value)}>
               {showDone ? 'Hide' : 'Show'} done this week ({recentlyDone.length})
             </button>
+            {figures.onTimePercent !== null && figures.onTimePercent !== undefined && (
+              <span className="ml-2 text-xs text-steel-500">{figures.onTimePercent}% on time</span>
+            )}
             {showDone && (recentlyDone.length ? (
               <div className="card mt-2 p-4"><HandoffTaskList tasks={recentlyDone} /></div>
             ) : <p className="mt-1 text-sm text-steel-500">Nothing finished this week yet.</p>)}
@@ -619,8 +603,20 @@ function DepartmentDesk() {
         </section>
       )}
 
-      <WorkspaceLinks department={figures.department} label={figures.label} atStages={enquiryDesk ? atStages : []} enquiries={enquiryDesk} />
-      <WorkspaceBrief department={figures.department} label={figures.label} />
+      {helpFolded ? (
+        <details className="rounded-xl border border-line/[0.06] px-4 py-3">
+          <summary className="cursor-pointer text-sm font-semibold text-steel-300">Help and links</summary>
+          <div className="mt-3 space-y-5">
+            <WorkspaceLinks department={figures.department} label={figures.label} atStages={enquiryDesk ? atStages : []} enquiries={enquiryDesk} />
+            <WorkspaceBrief department={figures.department} label={figures.label} />
+          </div>
+        </details>
+      ) : (
+        <>
+          <WorkspaceLinks department={figures.department} label={figures.label} atStages={enquiryDesk ? atStages : []} enquiries={enquiryDesk} />
+          <WorkspaceBrief department={figures.department} label={figures.label} />
+        </>
+      )}
     </div>
   );
 }

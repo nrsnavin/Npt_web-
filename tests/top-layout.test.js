@@ -61,12 +61,13 @@ test('the lit item is the longest match', () => {
   assert.equal(litItem('/profile', items), undefined, 'a screen on no item lights nothing');
 });
 
-test('the layout: the bar, account bar with email · role and initials, no sidebar', () => {
+test('the layout: the bar, account bar with name · role and initials, no sidebar', () => {
   const layout = read('components/Layout.jsx');
   assert.match(layout, /<header className="[^"]*bg-ink-850/, "the bar keeps the app’s own theme");
   assert.match(layout, /<BarItem key=\{item\.key\} item=\{item\} lit=\{lit === item\.key\} \/>/);
   assert.match(layout, /<AccountBar/);
-  assert.match(layout, /\{who\}\{roleLabel \? ` · \$\{roleLabel\}` : ''\}/);
+  assert.match(layout, /\{user\?\.name \|\| who\}\{roleLabel \? ` · \$\{roleLabel\}` : ''\}/, 'the name the person knows, then the role');
+  assert.match(layout, /\{user\?\.email \? <span className="block">\{user\.email\}<\/span> : null\}/, 'the email in the menu');
   assert.match(layout, /initialsOf\(user\?\.name, who\)/);
   assert.doesNotMatch(layout, /<aside/, 'no left sidebar');
   assert.doesNotMatch(layout, /ModuleTabs/);
@@ -178,7 +179,7 @@ test('Quality, Printing and Assembly are one desk: one choice on the board, each
   const tabs = read('components/DeskTabs.jsx');
   assert.match(tabs, /role="tablist"/);
   assert.match(tabs, /role="tab"\s+aria-selected=\{active\}/);
-  assert.match(tabs, /export const firstDeskTab = \(desk, departments = \[\]\) => desk\.find\(\(key\) => departments\.includes\(key\)\) \|\| desk\[0\];/);
+  assert.match(tabs, /export const firstDeskTab = \(desk, departments = \[\]\) => departments\.find\(\(key\) => desk\.includes\(key\)\) \|\| desk\[0\];/, 'the person’s main team first — their departments are main-first');
   const board = read('components/DepartmentTasksBoard.jsx');
   assert.match(board, /const desk = department && deskOf\(department\)\?\.key === department \? deskOf\(department\) : null;/);
   assert.match(board, /<DeskTabs departments=\{desk\.departments\} counts=\{deskCounts\} value=\{deskTab\}/);

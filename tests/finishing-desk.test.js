@@ -11,12 +11,12 @@ import { readFileSync } from 'node:fs';
 
 const read = (path) => readFileSync(new URL(`../src/${path}`, import.meta.url), 'utf8');
 
-test('one line a task: EDD, enquiry, buyer, summary, Update and Workflow →', () => {
+test('one line a task: EDD, enquiry, buyer, summary, Update and Open job →', () => {
   const list = read('components/FinishingDeskList.jsx');
   assert.match(list, /byEdd\(rows\)/, 'in EDD order');
   assert.match(list, /\{row\.summary \|\| row\.task\.title\}/);
   assert.match(list, /row\.summaryBy === 'model' && <span[^>]*>AI<\/span>/);
-  assert.match(list, /\{row\.workflow && <Link to=\{row\.workflow\} className="btn-primary[^"]*">Workflow →<\/Link>\}/);
+  assert.match(list, /\{row\.workflow && <Link to=\{row\.workflow\} className="btn-primary[^"]*">Open job →<\/Link>\}/);
   assert.match(list, /<TaskPanel/);
   const desk = read('pages/DepartmentDashboard.jsx');
   assert.match(desk, /\{deskList && shown\.length > 0 \? \(\s*<FinishingDeskList rows=\{shown\} onChanged=\{reload\} \/>/);

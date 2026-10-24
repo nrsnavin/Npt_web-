@@ -34,14 +34,14 @@ test('the queue is in EDD order, soonest first and the undated last; the due tim
   assert.deepEqual(PRODUCTION_FILTERS.map((entry) => entry.key), ['all', 'late', 'today', 'week', 'later', 'none', 'unclaimed', 'mine']);
 });
 
-test('the Production desk is the queue alone — no enquiries tab — banded by EDD, with its own tiles and filters', () => {
+test('the Production desk is the queue alone — no enquiries tab — banded by EDD, with its own filters', () => {
   const page = read('pages/DepartmentDashboard.jsx');
   assert.match(page, /const isProduction = data\?\.figures\?\.department === 'production';/);
   assert.match(page, /const seesEnquiries = canRead\('enquiries'\) && enquiryDesk;/);
   assert.match(page, /\.\.\.\(isProduction \? \[\{ key: 'pqueue', label: 'Production queue', count: null \}\] : \[\]\)/);
   assert.match(page, /\? eddBands\(shown\)\.map\(/);
   assert.match(page, /const filters = isProduction \? PRODUCTION_FILTERS : FILTERS;/);
-  assert.match(page, /<Tile label="No EDD yet" value=\{undated\}/);
+  assert.doesNotMatch(page, /<Tile /, 'the filter chips carry the counts — no tiles above them');
   assert.match(page, /EDD_BANDS\.some\(\(band\) => band\.key === filter\) && eddBandOf\(row\) !== filter/);
 });
 

@@ -275,11 +275,13 @@ export default function DepartmentDesk({ enquiry, onChanged }) {
   /* How a several-model order goes out, and which models are ready [server: handoff.service `modelReadiness`]. */
   const readiness = history?.readiness || { ready: [], waiting: [] };
   const modelCount = readiness.ready.length + readiness.waiting.length;
+  /* Several models go each on its own way unless marketing chose one consignment [server: utils/dispatchPlan.js]. */
   const plan = history?.dispatchPlan?.mode || 'together';
+  const planChosen = Boolean(history?.dispatchPlan?.chosen);
   const setPlan = async (mode) => {
     try {
       await enquiriesApi.setDispatchPlan({ id: enquiry._id, mode });
-      toast(mode === 'by_model' ? 'Each model goes as it is ready' : 'All models go together', 'Dispatch and the teams are told.');
+      toast(mode === 'by_model' ? 'Each model goes on its own' : 'All models go in one consignment', 'Dispatch and the teams are told.');
       refresh();
     } catch (failure) {
       warn('Dispatch plan not saved', failure.message);
@@ -442,7 +444,7 @@ export default function DepartmentDesk({ enquiry, onChanged }) {
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line/[0.1] bg-line/[0.02] px-3 py-2.5" aria-label="Dispatch plan">
             <div className="text-sm text-steel-100">
               <span className="font-bold">Dispatch plan</span>
-              <span className="text-steel-300"> · {plan === 'by_model' ? 'each model as it is ready' : 'all models together'}</span>
+              <span className="text-steel-300"> · {plan === 'by_model' ? 'each model goes on its own, when it is ready' : 'all models in one consignment'}{planChosen ? '' : ' (default)'}</span>
               <p className="text-xs text-steel-400">
                 {readiness.sent?.length > 0 && `Sent: ${readiness.sent.join(', ')} · `}
                 Ready: {readiness.ready.filter((model) => !(readiness.sent || []).includes(model)).join(', ') || 'none yet'}
@@ -451,8 +453,8 @@ export default function DepartmentDesk({ enquiry, onChanged }) {
             </div>
             {canWrite('enquiries') && !closed && (
               <select className="input w-auto py-1.5 text-sm" aria-label="Dispatch plan" value={plan} onChange={(event) => setPlan(event.target.value)}>
-                <option value="together">Dispatch all together</option>
-                <option value="by_model">Dispatch each model as it is ready</option>
+                <option value="by_model">Each model on its own, when ready</option>
+                <option value="together">All models in one consignment</option>
               </select>
             )}
           </div>

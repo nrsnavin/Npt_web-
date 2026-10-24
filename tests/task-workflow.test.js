@@ -24,7 +24,7 @@ test('the statuses come from the server; a comment status asks, the PDF status u
 test('it is on the dashboard card and the enquiry; the PDF task has no plain Done', () => {
   assert.match(read('pages/DepartmentDashboard.jsx'), /<TaskWorkflow todo=\{task\} onChanged=\{onChanged\} \/>/);
   assert.match(read('components/TaskCard.jsx'), /<TaskWorkflow todo=\{task\} onChanged=\{onChanged\} \/>/);
-  assert.match(read('components/HandoffTaskActions.jsx'), /\{!byUpload && <button type="button" className="row-action" onClick=\{\(\) => setMode\('done'\)\}>/);
+  assert.match(read('components/HandoffTaskActions.jsx'), /\{!byUpload && allows\('done'\) && <button type="button" className="row-action" onClick=\{\(\) => setMode\('done'\)\}>/);
   const endpoints = read('api/endpoints.js');
   assert.match(endpoints, /api\.post\(`\/workspace\/todos\/\$\{id\}\/status`, payload\)/);
   assert.match(endpoints, /api\.post\(`\/workspace\/todos\/\$\{id\}\/result`, form, \{ feedback: false \}\)/);

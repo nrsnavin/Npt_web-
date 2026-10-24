@@ -366,7 +366,29 @@ function LrRow({ row, button, mayWork, onOpen, onChanged }) {
   const { task } = row;
   const move = useRowMove({ task, button, onChanged });
   const brief = task.brief || {};
-  const sent = SENT_ON.includes(task.status) || (task.statusHistory || []).some((entry) => entry.status === 'sent');
+  /* Sent is where the task stands — a later load's LR copy from Dispatch puts it back at LR Copy Received, to send again. */
+  const sent = SENT_ON.includes(task.status);
+  const { toast, warn } = useToast();
+  const [sending, setSending] = useState(false);
+  const [sendProblem, setSendProblem] = useState(null);
+  /* The LR copy Dispatch uploaded with the load: Reception sends it from the row [server: `handoffSendResult`]. */
+  const sendToBuyer = async () => {
+    setSending(true);
+    setSendProblem(null);
+    try {
+      const answer = await workspace.todos.sendResult(task._id);
+      const went = (answer.sent || []).filter((entry) => entry.status === 'sent');
+      const missed = (answer.sent || []).filter((entry) => entry.status !== 'sent');
+      const channel = (entry) => (entry.channel === 'email' ? 'Email' : 'WhatsApp');
+      if (went.length) toast('LR copy sent to the buyer', went.map((entry) => `${channel(entry)} to ${entry.recipient}`).join(' · '));
+      if (missed.length) warn(`${missed.map(channel).join(' and ')} not sent`, missed.map((entry) => `${channel(entry)}: ${String(entry.reason || entry.status).replaceAll('_', ' ')}`).join(' · '));
+      onChanged?.(answer.data);
+    } catch (failure) {
+      setSendProblem(failure.message);
+    } finally {
+      setSending(false);
+    }
+  };
   const notSent = !sent && [...(task.updates || [])].reverse().find((entry) => entry.kind === 'notice');
   const editable = (button?.asks || []).some((field) => field.editable);
   return (
@@ -399,9 +421,13 @@ function LrRow({ row, button, mayWork, onOpen, onChanged }) {
         <p className={`text-xs ${sent ? 'font-semibold text-success-400' : notSent ? 'text-warn-400' : 'text-steel-500'}`}>
           {sent ? 'Sent to buyer' : notSent ? `Not sent — ${notSent.text || notSent.note}` : 'Not sent to buyer'}
         </p>
-        {mayWork && move.resultStep && (
-          <button type="button" className="btn-primary mt-1 px-2.5 py-1 text-xs" onClick={move.upload}>{task.resultFile ? 'Upload again' : 'Upload LR'}</button>
+        {mayWork && task.resultFile && !sent && (
+          <button type="button" className="btn-primary mt-1 px-2.5 py-1 text-xs" disabled={sending} onClick={sendToBuyer}>{sending ? 'Sending…' : 'Send to buyer'}</button>
         )}
+        {mayWork && move.resultStep && (
+          <button type="button" className={`${task.resultFile ? 'link-muted mt-1 block text-xs' : 'btn-primary mt-1 px-2.5 py-1 text-xs'}`} onClick={move.upload}>{task.resultFile ? 'Upload again' : 'Upload LR'}</button>
+        )}
+        {sendProblem && <p className="text-xs text-danger-400">{sendProblem}</p>}
       </td>
       <td className={td}><DueCell row={row} /></td>
       <OpenCell onOpen={onOpen} mayWork={mayWork} />

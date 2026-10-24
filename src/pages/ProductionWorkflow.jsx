@@ -16,6 +16,7 @@ import { ErrorState, PageHeader, Section, TableSkeleton } from '../components/ui
 import { formatDate } from '../utils/format.js';
 import { departmentLabel } from '../utils/pipeline.js';
 import { dueWords } from '../utils/productionQueue.js';
+import { dateLabelFor, givenDateOf } from '../utils/edd.js';
 import { WORK_ORDER_STATUS } from '../utils/workOrders.js';
 import { DeliveryReading } from '../components/DeliveryRisk.jsx';
 
@@ -24,10 +25,11 @@ import { DeliveryReading } from '../components/DeliveryRisk.jsx';
  * `productionWorkflow`] — opened from its line on the production queue.
  *
  * At the top, where it stands in at most thirty words and each model on a row: what follows
- * moulding, Production's status, Printing's and Assembly's with the day the goods reached them,
- * its EDD and its work orders. Below, the updates themselves: Production decides printing and
- * assembly and gives its dates, moves each model's status — Handed to Printing, Handed to
- * Assembly — and Printing and Assembly move theirs; then the work orders and the presses.
+ * moulding, Production's status, its EDD and completion, and its work orders. Below, Production's
+ * own updates — it decides printing and assembly, gives its dates and moves each model's status —
+ * and, beside them, the updates of the teams after it, to read: Printing, Assembly, Quality and
+ * Dispatch work on their own desks, and give their own dates, which show here. Then the work
+ * orders and the presses.
  */
 
 const STATUS_TONE = (status) => (!status ? 'text-steel-500' : status.issue ? 'text-danger-400' : status.done ? 'text-success-400' : 'text-steel-100');
@@ -47,30 +49,25 @@ function StatusCell({ status, received, needed }) {
   );
 }
 
-/** A team after Production on the enquiry: its status, who has it — and its own updates, for its people. */
-function TeamCard({ title, task, mayWork, onChanged }) {
+/**
+ * A team after Production on the enquiry, to read: where it stands, who has it, the date it gave
+ * — a hand-over to the next team, or its own completion date — and its updates. Its work is done
+ * on its own desk; Production does not move it, nor give or confirm its date.
+ */
+function TeamUpdates({ title, task }) {
   const catalogue = useHandoffCatalogue();
   if (!task) return null;
   const button = buttonFor(catalogue, task.kind);
   const label = (button?.form?.statuses || []).find((entry) => entry.key === task.status)?.label || (task.completed ? 'Done' : 'Asked');
+  const given = givenDateOf(task);
   return (
-    <div className="rounded-xl border border-line/[0.08] bg-line/[0.02] p-3">
+    <div className="rounded-xl border border-line/[0.08] bg-line/[0.02] p-3" aria-label={`${title} updates`}>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <p className="text-sm font-bold text-steel-100">{title}</p>
         <p className="text-xs text-steel-400">{task.completed ? 'Done' : label}{task.user?.name ? ` · ${task.user.name}` : ' · not picked up'}</p>
       </div>
-      {mayWork && !task.completed ? (
-        <div className="mt-2 space-y-2">
-          <TaskEdd todo={task} mayAct onChanged={onChanged} />
-          <TaskWorkflow todo={task} onChanged={onChanged} />
-        </div>
-      ) : (
-        <>
-          {/* Printing's or Assembly's EDD, for the Production in charge to confirm (or give their own) [TaskEdd]. */}
-          {!task.completed && ['ask_printing', 'ask_assembling_edd'].includes(task.kind) && <div className="mt-2"><TaskEdd todo={task} onChanged={onChanged} /></div>}
-          <TaskTimeline task={task} button={button} compact className="mt-2" />
-        </>
-      )}
+      {given && <p className="mt-1 text-xs font-semibold text-steel-200">{dateLabelFor(task, 'Completion date')} {formatDate(given)}</p>}
+      <TaskTimeline task={task} button={button} compact className="mt-2" />
     </div>
   );
 }
@@ -145,8 +142,6 @@ export default function ProductionWorkflow() {
                   <th className="px-3 py-2">Model</th>
                   <th className="px-3 py-2">After moulding</th>
                   <th className="px-3 py-2">Production</th>
-                  <th className="px-3 py-2">Printing</th>
-                  <th className="px-3 py-2">Assembly</th>
                   <th className="px-3 py-2">EDD</th>
                   <th className="px-3 py-2" title="The last team’s completion date for the model">Completion</th>
                   <th className="px-3 py-2">Work order</th>
@@ -161,8 +156,6 @@ export default function ProductionWorkflow() {
                       {row.decided ? ['Moulding', row.printing && 'Printing', row.assembly && 'Assembly'].filter(Boolean).join(' → ') : <span className="font-semibold text-warn-400">Not decided</span>}
                     </td>
                     <td className="px-3 py-2.5"><StatusCell status={row.production} needed /></td>
-                    <td className="px-3 py-2.5"><StatusCell status={row.printingStatus} received={row.printingReceived} needed={row.printing} /></td>
-                    <td className="px-3 py-2.5"><StatusCell status={row.assemblyStatus} received={row.assemblyReceived} needed={row.assembly} /></td>
                     <td className="whitespace-nowrap px-3 py-2.5 text-steel-200">{row.edd ? formatDate(row.edd) : <span className="text-xs text-steel-500">—</span>}</td>
                     <td className={`whitespace-nowrap px-3 py-2.5 ${row.completion && row.edd && row.completion > row.edd ? 'font-semibold text-danger-400' : 'text-steel-200'}`}>
                       {row.completion ? formatDate(row.completion) : <span className="text-xs text-steel-500">—</span>}
@@ -203,13 +196,13 @@ export default function ProductionWorkflow() {
           </div>
         </Section>
 
-        {/* The teams after Production — each moves its own status here too. */}
-        <Section title="Printing, Assembly and after">
+        {/* The teams after Production, to read: their updates and the dates they gave — worked on their own desks. */}
+        <Section title="Updates from the teams after Production">
           <div className="space-y-3">
-            <TeamCard title="Printing" task={teams.printing} mayWork={mayWork(teams.printing)} onChanged={changed} />
-            <TeamCard title="Assembly" task={teams.assembling} mayWork={mayWork(teams.assembling)} onChanged={changed} />
-            <TeamCard title="Quality" task={teams.quality} mayWork={false} onChanged={changed} />
-            <TeamCard title="Dispatch" task={teams.despatch} mayWork={false} onChanged={changed} />
+            <TeamUpdates title="Printing" task={teams.printing} />
+            <TeamUpdates title="Assembly" task={teams.assembling} />
+            <TeamUpdates title="Quality" task={teams.quality} />
+            <TeamUpdates title="Dispatch" task={teams.despatch} />
             {!teams.printing && !teams.assembling && !teams.quality && !teams.despatch && (
               <p className="text-sm text-steel-500">No team after Production yet — printing and assembly are decided on the left.</p>
             )}

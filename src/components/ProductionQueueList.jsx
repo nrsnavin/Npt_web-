@@ -170,6 +170,8 @@ export default function ProductionQueueList({ compact = false, onRows }) {
   const [stage, setStageState] = useState(() => keptStage(compact));
   const [adding, setAdding] = useState(null);
   const [deleting, setDeleting] = useState(null);
+  /* The less-used filters — in the queue or not, against the EDD — folded, unless one is in use. */
+  const [showMore, setShowMore] = useState(() => keptStage(compact) !== 'all');
   const { isAdmin, mayPlanProduction } = useAuth();
   /* Production plans its own press; Admin may too. */
   /* Adding to the queue routes, plans and dates the task: the Production in charge's (or Admin's) to do. */
@@ -208,6 +210,8 @@ export default function ProductionQueueList({ compact = false, onRows }) {
   const bands = meta?.bands || {};
   const hiddenByStage = stage === 'in_production' ? (rows || []).filter((row) => !row.production?.taken).length
     : stage === 'not_taken' ? (rows || []).filter((row) => row.production?.taken).length : 0;
+  /* How many of the folded filters are in use, so a closed fold still says so. */
+  const moreOn = (stage !== 'all' ? 1 : 0) + (risk !== 'all' ? 1 : 0);
   const chips = [
     { key: 'all', label: 'All', count: rows.length },
     ...EDD_BANDS.map((entry) => ({ key: entry.key, label: BAND_TONE[entry.key]?.label || entry.label, count: bands[entry.key] || 0 })),
@@ -218,19 +222,6 @@ export default function ProductionQueueList({ compact = false, onRows }) {
     <section className="space-y-3" aria-label="Production queue">
       {/* Who plans the queue — a warning when nobody does. */}
       <ProductionInChargeLine className="print:hidden" />
-      <div className="flex flex-wrap gap-1 rounded-xl border border-line/[0.06] bg-line/[0.02] p-1 print:hidden" role="group" aria-label="Taken for production">
-        {STAGES.map((entry) => (
-          <button
-            key={entry.key}
-            type="button"
-            aria-pressed={stage === entry.key}
-            onClick={() => setStage(entry.key)}
-            className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${stage === entry.key ? 'fill-primary shadow' : 'text-steel-300 hover:bg-line/[0.06]'}`}
-          >
-            {entry.label} <span className="tabular-nums opacity-75">{entry.count(meta, rows) ?? 0}</span>
-          </button>
-        ))}
-      </div>
       {/* A kept choice that hides tasks says so — a new task sent to Production is in "Not in the production queue". */}
       {stage !== 'all' && hiddenByStage > 0 && (
         <p className="flex flex-wrap items-center gap-2 rounded-lg border border-warn-500/40 bg-warn-500/[0.07] px-3 py-2 text-sm text-steel-100 print:hidden" role="status">
@@ -246,7 +237,7 @@ export default function ProductionQueueList({ compact = false, onRows }) {
             type="button"
             aria-pressed={band === entry.key}
             onClick={() => setBand(entry.key)}
-            className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${band === entry.key ? 'border-flame-500 bg-flame-500/10 text-flame-400' : 'border-line/[0.1] text-steel-400 hover:text-steel-200'}`}
+            className={`rounded-full border px-3.5 py-1.5 text-sm font-semibold transition ${band === entry.key ? 'border-flame-500 bg-flame-500/10 text-flame-400' : 'border-line/[0.1] text-steel-300 hover:text-steel-100'}`}
           >
             {entry.label} <span className="tabular-nums opacity-75">{entry.count}</span>
           </button>
@@ -260,8 +251,28 @@ export default function ProductionQueueList({ compact = false, onRows }) {
           onChange={(event) => setSearch(event.target.value)}
         />
       </div>
-      {/* Will it make the EDD, from the quantity: one reading per row, the four counted here. */}
-      <RiskChips value={risk} onChange={setRisk} counts={meta?.risk} />
+      <button type="button" className="link-muted text-sm print:hidden" aria-expanded={showMore} onClick={() => setShowMore((value) => !value)}>
+        {showMore ? 'Fewer filters' : 'More filters'}{moreOn ? ` (${moreOn} on)` : ''}
+      </button>
+      {showMore && (
+        <div className="space-y-3">
+          <div className="flex flex-wrap gap-1 rounded-xl border border-line/[0.06] bg-line/[0.02] p-1 print:hidden" role="group" aria-label="Taken for production">
+            {STAGES.map((entry) => (
+              <button
+                key={entry.key}
+                type="button"
+                aria-pressed={stage === entry.key}
+                onClick={() => setStage(entry.key)}
+                className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition ${stage === entry.key ? 'fill-primary shadow' : 'text-steel-300 hover:bg-line/[0.06]'}`}
+              >
+                {entry.label} <span className="tabular-nums opacity-75">{entry.count(meta, rows) ?? 0}</span>
+              </button>
+            ))}
+          </div>
+          {/* Will it make the EDD, from the quantity: one reading per row, the four counted here. */}
+          <RiskChips value={risk} onChange={setRisk} counts={meta?.risk} />
+        </div>
+      )}
 
       {shown.length === 0 ? (
         <div className="card px-6 py-10 text-center">
@@ -327,7 +338,7 @@ export default function ProductionQueueList({ compact = false, onRows }) {
                     {mayPlan && row.production && !row.production.taken && (
                       <button type="button" className="btn-primary justify-center px-3 py-2 text-sm" onClick={() => setAdding(row)}>Add to production queue</button>
                     )}
-                    <Link to={row.link} className={`${mayPlan && row.production && !row.production.taken ? 'btn-secondary' : 'btn-primary'} justify-center px-3 py-2 text-sm`}>Workflow →</Link>
+                    <Link to={row.link} className={`${mayPlan && row.production && !row.production.taken ? 'btn-secondary' : 'btn-primary'} justify-center px-3 py-2 text-sm`}>Open job →</Link>
                     {/* Admin only, in the queue or not: closed with a reason, never wiped. */}
                     {isAdmin && (
                       <button type="button" className="btn-ghost justify-center px-3 py-1.5 text-xs text-danger-400" onClick={() => setDeleting(row)}>Delete task</button>

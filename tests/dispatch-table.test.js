@@ -29,10 +29,11 @@ test('the urgency is set from the row by Admin or the marketing person; Update s
   assert.match(table, /<TaskPanel/);
 });
 
-test('the Dispatch desk opens on the table, with a remembered Table / Cards toggle', () => {
+test('the Dispatch desk opens on the table (cards on a phone), with a remembered Table / Cards toggle', () => {
   const dashboard = read('pages/DepartmentDashboard.jsx');
   assert.match(dashboard, /const viewKeyOf = \(department\) => \(department === 'despatch' \? 'npt\.dispatchView' : `npt\.deskView\.\$\{department\}`\);/);
-  assert.match(dashboard, /localStorage\.getItem\(viewKeyOf\(department\)\) === 'cards' \? 'cards' : 'table'/);
+  assert.match(dashboard, /kept = localStorage\.getItem\(viewKeyOf\(department\)\);/);
+  assert.match(dashboard, /if \(kept\) return kept === 'cards' \? 'cards' : 'table';/, 'the kept choice; with none, a table on a desktop and cards on a phone');
   assert.match(dashboard, /figures\.department === 'despatch' \? 'Dispatch view'/);
   assert.match(dashboard, /figures\.department === 'despatch' && viewOf\('despatch'\) === 'table' && shown\.length > 0 \? \(\s*<DispatchTable rows=\{shown\} me=\{me\} onChanged=\{reload\} \/>/);
 });
