@@ -12,7 +12,7 @@ const read = (path) => readFileSync(new URL(`../src/${path}`, import.meta.url), 
 
 test('the prompt closes with the task’s own Task Closed, with a remark, or keeps it open', () => {
   const prompt = read('components/CloseTaskPrompt.jsx');
-  assert.match(prompt, /workspace\.todos\.status\(\{ id: task\._id, status: 'closed', note: note\.trim\(\) \}\)/);
+  assert.match(prompt, /workspace\.todos\.status\(\{ id: task\._id, status: task\.closable\?\.status \|\| 'closed', note: note\.trim\(\) \}\)/, 'Task Closed — or QC Passed on a Quality Check, as the server says');
   assert.match(prompt, /title="Close this task\?"/);
   assert.match(prompt, />Keep it open</);
   assert.match(prompt, /\{busy \? 'Closing…' : 'Close the task'\}/);

@@ -13,7 +13,7 @@ import { useToast } from '../context/ToastContext.jsx';
 import { todayInIndia } from '../utils/taskForm.js';
 import { ladderOf } from '../utils/taskState.js';
 import { departmentLabel } from '../utils/pipeline.js';
-import { ROUTE_LABELS, dateLabelFor, datesOfTask, givenDateOf, modelStatusesOf, modelThrough, modelsForStep, modelsOfTask, movesByModel, needsRouting, nextStepForModel, pathOf, routeOf, statusesFor, statusesForModel } from '../utils/edd.js';
+import { ROUTE_LABELS, dateLabelFor, datesOfTask, givenDateOf, goodsOf, modelStatusesOf, modelThrough, modelsForStep, modelsOfTask, movesByModel, needsRouting, nextStepForModel, pathOf, routeOf, statusesFor, statusesForModel } from '../utils/edd.js';
 import { formatDate } from '../utils/format.js';
 
 /**
@@ -415,7 +415,7 @@ function ModelWorkflows({ todo, form, statuses, offered, noDates, onMoved }) {
             {after && !closed && (
               <p className="mt-1 text-xs text-steel-400">
                 {received[row.model]
-                  ? `Goods came ${formatDate(received[row.model])} from ${ROUTE_LABELS[fromOf(route)]}`
+                  ? `Goods came ${formatDate(received[row.model])} from ${ROUTE_LABELS[fromOf(route)]}${goodsOf(todo, row.model, statuses, row.status)?.stage === 'received' ? ' — not yet in the work queue' : ''}`
                   : `Still with ${ROUTE_LABELS[fromOf(route)]}${incoming[fromOf(route)] ? `, due ${formatDate(incoming[fromOf(route)])}` : ''}`}
               </p>
             )}
@@ -471,6 +471,58 @@ function ModelWorkflows({ todo, form, statuses, offered, noDates, onMoved }) {
 /** The status list and the workflow's actions, for a task whose department has a workflow. */
 /** What became of the sales order the SO request booked [server: soFromTask.service]. */
 const orderWords = (order) => (order?.said ? `Sales order ${order.said}.` : '');
+
+/**
+ * Printing's and Assembly's goods coming in [server: handoff.service `handOn`, `addToWorkQueue`]:
+ * the models received and not yet taken on, with Add to work queue; and, on a task Production
+ * routed, the models still with the team before — no work is offered on them until they come.
+ */
+function GoodsIn({ todo, statuses, onMoved }) {
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState(null);
+  if (!['ask_printing', 'ask_assembling_edd'].includes(todo.kind)) return null;
+  const models = modelsOfTask(todo);
+  if (!models.length) return null;
+  const rows = modelStatusesOf(todo);
+  const statusOfModel = (model) => rows.find((row) => row.model === model)?.status || todo.status;
+  const goods = models.map((model) => ({ model, ...goodsOf(todo, model, statuses, statusOfModel(model)) }));
+  const toQueue = goods.filter((entry) => entry.stage === 'received');
+  const toCome = todo.routing?.byProduction ? goods.filter((entry) => entry.stage === 'to_come') : [];
+  if (!toQueue.length && !toCome.length) return null;
+  const from = todo.kind === 'ask_assembling_edd' ? 'Production or Printing' : 'Production';
+  const add = async () => {
+    setBusy(true);
+    setProblem(null);
+    try {
+      onMoved(await workspace.todos.workQueue({ id: todo._id, models: toQueue.map((entry) => entry.model) }));
+    } catch (failure) {
+      setProblem(failure.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="space-y-1.5 rounded-lg border border-line/[0.08] bg-line/[0.02] px-3 py-2 text-xs" aria-label="Goods">
+      {toQueue.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-steel-200">
+            <span className="font-semibold text-accent">Goods received</span>
+            {' — '}{toQueue.map((entry) => `${entry.model} (${formatDate(entry.came)})`).join(', ')}
+          </p>
+          <button type="button" className="btn-primary px-3 py-1 text-xs" disabled={busy} onClick={add}>
+            {busy ? 'Adding…' : 'Add to work queue'}
+          </button>
+        </div>
+      )}
+      {toCome.length > 0 && (
+        <p className="text-warn-400">
+          Still with {from}: {toCome.map((entry) => entry.model).join(', ')} — work on {toCome.length > 1 ? 'them' : 'it'} once the goods come (handed over, or mark Goods Received when they reach you).
+        </p>
+      )}
+      {problem && <p className="text-danger-400" role="alert">{problem}</p>}
+    </div>
+  );
+}
 
 export default function TaskWorkflow({ todo, onChanged, startWith }) {
   const { canWrite, mayPlanProduction } = useAuth();
@@ -562,6 +614,8 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
           <button type="button" className="btn-primary px-3 py-1 text-xs" onClick={() => setOffer(todo)}>Close the task</button>
         </div>
       )}
+      {/* Printing / Assembly: what came and is waiting to be taken on, and what is still to come. */}
+      <GoodsIn todo={todo} statuses={button?.form?.statuses || []} onMoved={moved} />
       {/* Several models: one workflow each — a model moulded and handed to Printing while another has not started. */}
       {movesByModel(todo) && !waiting.length && (
         <>

@@ -23,7 +23,8 @@ export default function CloseTaskPrompt({ task, why, onClose, onClosed }) {
     setBusy(true);
     setProblem(null);
     try {
-      const saved = await workspace.todos.status({ id: task._id, status: 'closed', note: note.trim() });
+      /* The status that closes it — Task Closed, or QC Passed on a Quality Check [server: taskClosable `status`]. */
+      const saved = await workspace.todos.status({ id: task._id, status: task.closable?.status || 'closed', note: note.trim() });
       onClosed?.(saved);
       onClose();
     } catch (failure) {

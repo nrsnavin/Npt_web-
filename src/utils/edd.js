@@ -129,7 +129,32 @@ export function givenDateOf(task) {
  * The statuses a task may move to: "Handed to Printing / Assembly" only where Production (or
  * Printing) routed a model there [server: handoff.service `setTaskStatus`].
  */
-export const statusesFor = (task, statuses = []) => statuses.filter((step) => !step.handsTo || handsOnOf(task).includes(step.handsTo));
+export const statusesFor = (task, statuses = []) => {
+  const handed = statuses.filter((step) => !step.handsTo || handsOnOf(task).includes(step.handsTo));
+  /* Nothing of the task's has come yet: only what may be said before the goods [goodsAwaited]. */
+  const models = modelsOfTask(task);
+  return models.length && models.every((model) => goodsAwaited(task, model)) ? handed.filter(beforeGoods(statuses)) : handed;
+};
+
+/**
+ * Printing's and Assembly's goods come from the team before [server: handoff.service `handOn`,
+ * `movesFor`]: on a task Production routed, a model whose goods have not come yet moves no further
+ * than Goods Received — the issues and closing the task excepted.
+ */
+const GOODS_KINDS = ['ask_printing', 'ask_assembling_edd'];
+export const goodsAwaited = (task, model) => GOODS_KINDS.includes(task?.kind) && Boolean(task?.routing?.byProduction)
+  && !task?.routing?.receivedModels?.[model];
+/** The statuses that may be said before the goods have come: the first, Goods Received, an issue, closing it. */
+const beforeGoods = (statuses) => (step) => step.key === statuses[0]?.key || step.receives || step.issue || step.done;
+/** Where a model's goods stand on Printing's or Assembly's task: still to come, received, or in the work queue. */
+export function goodsOf(task, model, statuses = [], status = task?.status) {
+  if (!GOODS_KINDS.includes(task?.kind)) return null;
+  const came = task?.routing?.receivedModels?.[model] || null;
+  if (!came) return { stage: 'to_come', came: null };
+  const rank = (key) => statuses.findIndex((step) => step.key === key);
+  const queued = Boolean(task?.routing?.queuedModels?.[model]) || (rank('in_queue') >= 0 && rank(status) >= rank('in_queue'));
+  return { stage: queued ? 'in_queue' : 'received', came };
+}
 
 /** Production's decision for one model — printing, assembly — or null when it has none [server: Todo `routing.models`]. */
 export const routeOf = (task, model) => (task?.routing?.models || []).find((row) => row && typeof row === 'object' && row.model === model) || null;
@@ -142,8 +167,13 @@ export const routeOf = (task, model) => (task?.routing?.models || []).find((row)
  */
 export function statusesForModel(task, statuses = [], model) {
   const route = routeOf(task, model);
+  /* A model whose goods have not reached this team: nothing it cannot say before they come. */
+  if (goodsAwaited(task, model)) return statuses.filter((step) => !step.handsTo).filter(beforeGoods(statuses));
   if (!route) return statusesFor(task, statuses);
+  /* Ready for Dispatch only for a model that ends here — one that goes on is handed over instead [server: handoff.service `movesFor`]. */
+  const goesOn = task?.kind === 'ask_edd' && Boolean(route.printing || route.assembly);
   return statuses.filter((step) => {
+    if (step.readyForDispatch && goesOn) return false;
     if (!step.handsTo) return true;
     if (step.handsTo === 'printing') return task?.kind === 'ask_edd' && Boolean(route.printing);
     if (step.handsTo === 'assembling') return Boolean(route.assembly) && (task?.kind === 'ask_printing' || !route.printing);
