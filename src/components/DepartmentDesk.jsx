@@ -7,6 +7,7 @@ import { useToast } from '../context/ToastContext.jsx';
 import TaskCard from './TaskCard.jsx';
 import EnquiryPayments from './EnquiryPayments.jsx';
 import Menu from './Menu.jsx';
+import DeliveryUrgencyPrompt from './DeliveryUrgencyPrompt.jsx';
 import DepartmentTaskDialog from './DepartmentTaskDialog.jsx';
 import HandoffTaskActions from './HandoffTaskActions.jsx';
 import { TaskTimeline } from './TaskHistory.jsx';
@@ -264,6 +265,8 @@ export default function DepartmentDesk({ enquiry, onChanged }) {
     setSettingFinal(false);
     refresh();
   };
+  /* The open Dispatch request, whose delivery urgency marketing or Admin gives [DeliveryUrgencyPrompt]. */
+  const dispatchRequest = tasks.find((task) => task.kind === 'invoice_dispatch' && !task.completed) || null;
   /* How a several-model order goes out, and which models are ready [server: handoff.service `modelReadiness`]. */
   const readiness = history?.readiness || { ready: [], waiting: [] };
   const modelCount = readiness.ready.length + readiness.waiting.length;
@@ -417,6 +420,10 @@ export default function DepartmentDesk({ enquiry, onChanged }) {
               );
             })}
           </div>
+        )}
+        {/* With Dispatch: how soon the buyer needs it — Today (the day it reached Dispatch) until marketing or Admin confirms or changes it. */}
+        {dispatchRequest && (
+          <DeliveryUrgencyPrompt task={dispatchRequest} maySet={isManagement || owner === me} about={`Invoice & Dispatch — ${enquiry.number}`} onSaved={refresh} />
         )}
         {modelCount > 1 && (
           <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line/[0.1] bg-line/[0.02] px-3 py-2.5" aria-label="Dispatch plan">

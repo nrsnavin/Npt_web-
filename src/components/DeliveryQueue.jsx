@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { dispatchPlanning } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import DeliveryUrgencyDialog from './DeliveryUrgencyDialog.jsx';
+import TaskPanel from './TaskPanel.jsx';
 import { EmptyState, ErrorState, TableSkeleton } from './ui.jsx';
 import { dueWords, urgencyTone } from '../utils/deliveryUrgency.js';
 
@@ -10,20 +11,24 @@ import { dueWords, urgencyTone } from '../utils/deliveryUrgency.js';
  * The Dispatch desk's delivery queue [server: deliveryUrgency.service `deliveryQueue`]: every open
  * Dispatch request in the order it has to go — late first, then Top Most Urgent, then by cut-off
  * (Today Morning by noon, Today Evening and Today by 7 PM, Tomorrow by 7 PM tomorrow), and last the
- * requests whose urgency marketing has not given yet. Read in the order shown; nothing here holds a
- * dispatch. Marketing and Admin set or change the urgency from the row.
+ * A request nobody has given an urgency reads Today — the day it reached Dispatch — marked as the
+ * default. Read in the order shown; nothing here holds a dispatch. Dispatch moves each request's
+ * status from its row ("Update status", the task's own workflow); only Admin and the request's
+ * marketing person set or change the urgency [server: row `maySetUrgency`].
  */
 
 const REFRESH_MS = 60 * 1000;
-const bandOf = (row) => (!row.delivery ? 'Urgency not given yet' : row.delivery.late ? 'Late' : row.delivery.label);
+const bandOf = (row) => (!row.delivery ? 'Today' : row.delivery.late ? 'Late' : row.delivery.label);
 
 export default function DeliveryQueue() {
-  const { isAdmin, departments = [] } = useAuth();
-  /* The server says yes only to the enquiry's own marketing person or Admin; the button is offered to both. */
-  const maySet = isAdmin || departments.includes('marketing');
+  const { isAdmin, departments = [], user } = useAuth();
+  const me = String(user?.id || user?._id || '');
+  /* Whoever works the Dispatch desk, Admin, or the person the request is with moves its status. */
+  const mayWork = (task) => isAdmin || departments.includes(task.department) || String(task.user?._id || task.user || '') === me;
   const [rows, setRows] = useState(null);
   const [error, setError] = useState(null);
   const [setting, setSetting] = useState(null);
+  const [opened, setOpened] = useState(null);
 
   const load = useCallback(() => dispatchPlanning.queue()
     .then((data) => { setRows(data || []); setError(null); })
@@ -60,7 +65,7 @@ export default function DeliveryQueue() {
               return (
                 <li key={row.task._id} className={`card grid gap-3 p-4 sm:grid-cols-[11rem_minmax(0,1fr)_auto] sm:items-center ${row.delivery?.late ? 'border-danger-500/40' : ''}`}>
                   <div className="space-y-1">
-                    <span className={`inline-block rounded-full px-2.5 py-1 text-xs font-semibold ${urgencyTone(row.delivery)}`}>{row.delivery?.label || 'Not given'}</span>
+                    <span className={`inline-block rounded-full px-2.5 py-1 text-xs font-semibold ${urgencyTone(row.delivery)}`}>{row.delivery?.label || 'Today'}{row.delivery?.default ? ' · default' : ''}</span>
                     <p className={`text-xs ${row.delivery?.late ? 'font-semibold text-danger-400' : 'text-steel-400'}`}>{dueWords(row.delivery)}</p>
                   </div>
                   <div className="min-w-0 space-y-0.5">
@@ -72,16 +77,22 @@ export default function DeliveryQueue() {
                       {[row.model, row.quantity && `${row.quantity} pcs`, row.task.statusLabel, row.task.with ? `with ${row.task.with.name}` : 'not picked up'].filter(Boolean).join(' · ')}
                     </p>
                     <p className="text-xs text-steel-500">
-                      {row.delivery
-                        ? `Set by ${row.delivery.by || 'marketing'}${row.delivery.note ? ` — “${row.delivery.note}”` : ''}`
-                        : `Asked of ${row.owner?.name || 'the marketing person'}`}
+                      {!row.delivery || row.delivery.default
+                        ? `Default: the day it reached Dispatch — waiting for ${row.owner?.name || 'the marketing person'} to confirm`
+                        : `Set by ${row.delivery.by || 'marketing'}${row.delivery.note ? ` — “${row.delivery.note}”` : ''}`}
                     </p>
                   </div>
-                  {maySet && (
-                    <button type="button" className={row.delivery ? 'btn-secondary px-3 py-1.5 text-xs' : 'btn-primary px-3 py-1.5 text-xs'} onClick={() => setSetting({ row, about })}>
-                      {row.delivery ? 'Change urgency' : 'Set urgency'}
+                  <div className="flex flex-wrap gap-2 sm:flex-col">
+                    {/* The request's own workflow, from the queue: Goods Ready, Dispatched, Task Closed. */}
+                    <button type="button" className="btn-primary justify-center px-3 py-1.5 text-xs" onClick={() => setOpened(row.task)}>
+                      {mayWork(row.task) ? 'Update status' : 'Open'}
                     </button>
-                  )}
+                    {row.maySetUrgency && (
+                      <button type="button" className="btn-secondary justify-center px-3 py-1.5 text-xs" onClick={() => setSetting({ row, about })}>
+                        {!row.delivery || row.delivery.default ? 'Confirm urgency' : 'Change urgency'}
+                      </button>
+                    )}
+                  </div>
                 </li>
               );
             })}
@@ -91,10 +102,19 @@ export default function DeliveryQueue() {
       {setting && (
         <DeliveryUrgencyDialog
           taskId={setting.row.task._id}
-          current={setting.row.delivery?.urgency}
+          current={setting.row.delivery?.urgency || 'today'}
+          isDefault={!setting.row.delivery || Boolean(setting.row.delivery.default)}
           about={setting.about}
           onClose={() => setSetting(null)}
           onSaved={load}
+        />
+      )}
+      {opened && (
+        <TaskPanel
+          task={opened}
+          mayWork={mayWork(opened)}
+          onClose={() => setOpened(null)}
+          onChanged={() => { setOpened(null); load(); }}
         />
       )}
     </div>
