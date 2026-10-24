@@ -165,10 +165,10 @@ function AskMarketing({ row, onClose, onChanged }) {
 
 function Tile({ label, value, hint, tone = 'text-steel-50' }) {
   return (
-    <div className="card px-4 py-3">
+    <div className="card px-3 py-2.5 sm:px-4 sm:py-3">
       <p className="text-xs font-semibold text-steel-400">{label}</p>
-      <p className={`text-2xl font-bold ${tone}`}>{value}</p>
-      {hint && <p className="text-xs text-steel-500">{hint}</p>}
+      <p className={`text-xl font-bold sm:text-2xl ${tone}`}>{value}</p>
+      {hint && <p className="hidden text-xs text-steel-500 sm:block">{hint}</p>}
     </div>
   );
 }
@@ -196,7 +196,7 @@ export default function SoDesk({ onChanged }) {
 
   return (
     <section className="space-y-4" aria-label="SO desk">
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-5">
         <Tile label="Waiting to be booked" value={rupees(summary.value)} hint={`${pieces(summary.pieces)} across ${summary.requests} request${summary.requests === 1 ? '' : 's'}`} />
         <Tile label="Ready to prepare" value={summary.ready} tone="text-success-400" hint="Every line priced, terms given" />
         <Tile label="Missing details" value={summary.missing} tone={summary.missing ? 'text-warn-400' : 'text-steel-50'} hint="Ask marketing from the card" />
