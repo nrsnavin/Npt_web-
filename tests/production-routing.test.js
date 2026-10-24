@@ -39,7 +39,7 @@ test('the task shows the routing first and the move form gives no date until it 
   assert.match(edd, /<HandOverDate todo=\{todo\}/);
   const workflow = read('components/TaskWorkflow.jsx');
   assert.match(workflow, /const unrouted = needsRouting\(todo\)/);
-  assert.match(workflow, /dateLabelFor\(todo, form\.statusDate\?\.label \|\| 'Ready date'\)/);
+  assert.match(workflow, /dateLabelFor\(todo, form\.statusDate\?\.label \|\| 'Ready date', fixedModels \|\| \(byModel \? picked : \[\]\)\)/);
   const routing = read('components/TaskRouting.jsx');
   assert.match(routing, /workspace\.todos\.route\(/);
   assert.match(routing, /aria-label=\{`Printing for \$\{row\.model\}`\}/);

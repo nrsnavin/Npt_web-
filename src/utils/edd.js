@@ -41,9 +41,21 @@ export const teamWords = (teams) => teams.map((team) => ROUTE_LABELS[team] || te
 /* With or without an enquiry: a Production task raised from the customer goes through the same cycle [server: journey.service `jobFilter`]. */
 export const needsRouting = (task) => Boolean(task?.kind === 'ask_edd' && !task.completed && !task.routing?.decidedAt);
 /** The label of the date a task gives: a hand-over date while it hands on. */
-export const dateLabelFor = (task, fallback) => {
+/**
+ * The date a move gives, in words: a hand-over date to the next team for a model that goes on from
+ * here, else the team's own date (`fallback` — Printing's and Assembly's completion date). With
+ * `models`, read by their route [routeEndOf]: a printed model with no assembly after ends on
+ * Printing, so its date is the completion date, never a hand-over to Assembly. Without, or for
+ * models not routed yet, by the task — it hands on if anything on it does.
+ */
+export const dateLabelFor = (task, fallback, models = []) => {
   const teams = handsOnOf(task);
-  return teams.length ? `Hand-over date to ${teamWords(teams)}` : fallback;
+  if (!teams.length) return fallback;
+  const named = (Array.isArray(models) ? models : [models]).filter(Boolean);
+  const ends = [...new Set(named.map((model) => routeEndOf(task, model)))];
+  if (named.length && ends.length === 1 && ends[0] === 'dispatch') return fallback;
+  if (named.length && ends.length === 1 && ends[0] && teams.includes(ends[0])) return `Hand-over date to ${teamWords([ends[0]])}`;
+  return `Hand-over date to ${teamWords(teams)}`;
 };
 /** "Production → Printing → Assembly" — the path one model takes after moulding. */
 export const pathOf = (row) => ['Production', row.printing && 'Printing', row.assembly && 'Assembly'].filter(Boolean).join(' → ');

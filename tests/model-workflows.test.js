@@ -110,3 +110,15 @@ test('Printing’s and Assembly’s strips say where each model’s goods are, a
   assert.match(workflow, /Goes to Dispatch as soon as it is ready — dispatch plan: each model as it is ready\./);
   assert.match(workflow, /Waits for the other models — dispatch plan: all together\. Marketing or Admin can change it on the enquiry\./);
 });
+
+test('a printed model with no assembly after gives Printing’s completion date, never a hand-over date to Assembly', async () => {
+  const { dateLabelFor } = await import('../src/utils/edd.js');
+  const printing = { kind: 'ask_printing', routing: { byProduction: true, handsTo: ['assembling'], goesOn: ['CRF-30'] } };
+  assert.equal(dateLabelFor(printing, 'Completion date', 'CRF-SET'), 'Completion date', 'ends on Printing — Ready for Dispatch');
+  assert.equal(dateLabelFor(printing, 'Completion date', 'CRF-30'), 'Hand-over date to Assembly', 'goes on to Assembly');
+  assert.equal(dateLabelFor(printing, 'Completion date', ['CRF-SET', 'CRF-30']), 'Hand-over date to Assembly', 'a move with both reads by the task');
+  assert.equal(dateLabelFor(printing, 'Completion date'), 'Hand-over date to Assembly', 'no model named: by the task');
+  const workflow = readFileSync(new URL('../src/components/TaskWorkflow.jsx', import.meta.url), 'utf8');
+  assert.match(workflow, /dateLabelFor\(todo, form\.statusDate\?\.label \|\| 'Ready date', fixedModels \|\| \(byModel \? picked : \[\]\)\)/);
+  assert.match(workflow, /dateLabelFor\(todo, form\.statusDate\?\.label \|\| 'Ready date', row\.model\)/);
+});

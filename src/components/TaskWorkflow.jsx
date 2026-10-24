@@ -62,7 +62,8 @@ export function MoveForm({ todo, form, step, onCancel, onMoved, noDates = false,
   const unrouted = needsRouting(todo) && Boolean(form.statusDate);
   /* On Production's task only the Production in charge gives a date [server: `assertPlansProduction`]. */
   const dated = Boolean(form.statusDate) && !unrouted && !noDates;
-  const dateLabel = dateLabelFor(todo, form.statusDate?.label || 'Ready date');
+  /* Per model: a model that ends on this team gives its completion date, not a hand-over [utils/edd.js `dateLabelFor`]. */
+  const dateLabel = dateLabelFor(todo, form.statusDate?.label || 'Ready date', fixedModels || (byModel ? picked : []));
   const dateNeeded = step.date === 'required' && !date;
   const remarkNeeded = form.remarkRequired && note.trim().length < 3;
   const fieldMissing = asks.find((field) => field.required && !String(answers[field.key] || '').trim());
@@ -409,7 +410,7 @@ function ModelWorkflows({ todo, form, statuses, offered, noDates, onMoved }) {
                 {current?.label || 'Not started'}
               </span>
               {route && <span className="text-xs text-steel-400">{pathOf(route)}</span>}
-              {date && <span className="text-xs text-steel-300">{dateLabelFor(todo, form.statusDate?.label || 'Ready date')} {formatDate(date)}</span>}
+              {date && <span className="text-xs text-steel-300">{dateLabelFor(todo, form.statusDate?.label || 'Ready date', row.model)} {formatDate(date)}</span>}
               {closed && !current?.done && <span className="text-xs font-semibold text-success-400">closed here for this model</span>}
             </div>
             {/* Where the goods are for this model: came on a day, or still with the team before. */}
