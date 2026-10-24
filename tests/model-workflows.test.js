@@ -37,9 +37,35 @@ test('each model is offered only the hand-overs it goes to', () => {
   assert.ok(!keys('CRF40').includes('handed_printing') && !keys('CRF40').includes('handed_assembly'), 'nothing follows moulding');
   assert.deepEqual(routeOf(task, 'CRF30'), { model: 'CRF30', assembly: true });
   /* Printing's task: a model with assembly after it is handed on; one without is not. */
-  const printing = { kind: 'ask_printing', routing: { models: [{ model: 'CRF25', printing: true, assembly: true }, { model: 'CRF26', printing: true }] } };
+  const printing = { kind: 'ask_printing', routing: { byProduction: true, models: ['CRF25', 'CRF26'], handsTo: ['assembling'], goesOn: ['CRF25'], receivedModels: { CRF25: '2026-10-24', CRF26: '2026-10-24' } } };
   assert.ok(statusesForModel(printing, PRODUCTION, 'CRF25').some((step) => step.key === 'handed_assembly'));
   assert.ok(!statusesForModel(printing, PRODUCTION, 'CRF26').some((step) => step.key === 'handed_assembly'));
+});
+
+test('each model’s workflow ends where its route leaves this team — nothing after it', () => {
+  const keys = (model) => statusesForModel(task, PRODUCTION, model).map((step) => step.key);
+  /* Printing (and printing then assembly): up to Handed to Printing. */
+  assert.deepEqual(keys('CRF25'), ['received', 'started', 'mould_issue', 'completed', 'handed_printing']);
+  /* Assembly only: up to Handed to Assembly. */
+  assert.deepEqual(keys('CRF30'), ['received', 'started', 'mould_issue', 'completed', 'handed_assembly']);
+  /* Neither: up to Ready for Dispatch, which closes it — no Task Closed after. */
+  assert.deepEqual(keys('CRF40'), ['received', 'started', 'mould_issue', 'completed', 'ready_dispatch']);
+  /* Production's own Assembling is gone once the route is decided. */
+  const withAssembling = [...PRODUCTION.slice(0, 6), { key: 'assembling', label: 'Assembling' }, ...PRODUCTION.slice(6)];
+  assert.ok(!statusesForModel(task, withAssembling, 'CRF40').some((step) => step.key === 'assembling'));
+  /* Printing: a model assembled after ends at Handed to Assembly, the rest at Ready for Dispatch. */
+  const printing = { kind: 'ask_printing', routing: { byProduction: true, models: ['CRF25', 'CRF26'], handsTo: ['assembling'], goesOn: ['CRF25'], receivedModels: { CRF25: '2026-10-24', CRF26: '2026-10-24' } } };
+  assert.deepEqual(statusesForModel(printing, PRODUCTION, 'CRF25').slice(-1)[0].key, 'handed_assembly');
+  assert.deepEqual(statusesForModel(printing, PRODUCTION, 'CRF26').slice(-1)[0].key, 'ready_dispatch');
+  assert.ok(!statusesForModel(printing, PRODUCTION, 'CRF26').some((step) => step.done));
+  /* Not routed yet: the whole list. */
+  assert.equal(statusesForModel({ kind: 'ask_edd', routing: {} }, PRODUCTION, 'X').length, PRODUCTION.length - 2, 'no hand-over offered before routing');
+});
+
+test('one model, one route: the task’s own workflow ends there too', async () => {
+  const { statusesFor } = await import('../src/utils/edd.js');
+  const one = { kind: 'ask_edd', status: 'started', brief: { model: 'CRF25' }, routing: { decidedAt: '2026-10-01', handsTo: ['printing'], models: [{ model: 'CRF25', printing: true, assembly: true }] } };
+  assert.deepEqual(statusesFor(one, PRODUCTION).map((step) => step.key), ['received', 'started', 'mould_issue', 'completed', 'handed_printing']);
 });
 
 test('the next step is the model’s own: past Completed it is the hand-over it goes to, or Ready for Dispatch', () => {

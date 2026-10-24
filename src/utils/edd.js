@@ -127,14 +127,58 @@ export function givenDateOf(task) {
 
 /**
  * The statuses a task may move to: "Handed to Printing / Assembly" only where Production (or
- * Printing) routed a model there [server: handoff.service `setTaskStatus`].
+ * Printing) routed a model there [server: handoff.service `setTaskStatus`]. Where every model on
+ * the task ends at the same place, the workflow ends there too [routeEndOf, trimToRoute].
  */
 export const statusesFor = (task, statuses = []) => {
   const handed = statuses.filter((step) => !step.handsTo || handsOnOf(task).includes(step.handsTo));
   /* Nothing of the task's has come yet: only what may be said before the goods [goodsAwaited]. */
   const models = modelsOfTask(task);
-  return models.length && models.every((model) => goodsAwaited(task, model)) ? handed.filter(beforeGoods(statuses)) : handed;
+  if (models.length && models.every((model) => goodsAwaited(task, model))) return handed.filter(beforeGoods(statuses));
+  const ends = [...new Set((models.length ? models : [null]).map((model) => routeEndOf(task, model)))];
+  return ends.length === 1 && ends[0] ? trimToRoute(task, handed, ends[0], task?.status) : handed;
 };
+
+/**
+ * Where one model's workflow ends on this team, by its route — the move that closes it here
+ * [server: handoff.service `closesModel`]:
+ *   Production  Handed to Printing for a printed model, Handed to Assembly for one only assembled,
+ *               Ready for Dispatch for one with neither;
+ *   Printing    Handed to Assembly for a model assembled after (`routing.goesOn`), else Ready for Dispatch;
+ *   Assembly    Ready for Dispatch.
+ * `'printing'`, `'assembling'` or `'dispatch'` — null while the route is not known.
+ */
+export function routeEndOf(task, model) {
+  if (task?.kind === 'ask_edd') {
+    const route = model ? routeOf(task, model) : null;
+    if (!route) return null;
+    if (route.printing) return 'printing';
+    return route.assembly ? 'assembling' : 'dispatch';
+  }
+  if (task?.kind === 'ask_printing') {
+    const goesOn = task.routing?.goesOn;
+    if (Array.isArray(goesOn)) return model && goesOn.includes(model) ? 'assembling' : 'dispatch';
+    /* Routed before Printing knew which models go on: only "nothing goes on" is certain. */
+    return task.routing?.byProduction && !handsOnOf(task).includes('assembling') ? 'dispatch' : null;
+  }
+  return task?.kind === 'ask_assembling_edd' ? 'dispatch' : null;
+}
+
+/**
+ * A workflow cut to where it ends: the one hand-over (or Ready for Dispatch) that closes the
+ * model here, nothing after it — no Task Closed, which that move does by itself, and on
+ * Production no Assembling for a model that goes to the Assembly team or is not assembled at
+ * all. `keep`: the status it stands at, always listed so the list reads it.
+ */
+export function trimToRoute(task, statuses = [], end, keep) {
+  const ends = (step) => (end === 'dispatch' ? Boolean(step.readyForDispatch) : step.handsTo === end);
+  return statuses.filter((step) => {
+    if (keep && step.key === keep) return true;
+    if (step.handsTo || step.readyForDispatch) return ends(step);
+    if (step.done) return false;
+    return !(task?.kind === 'ask_edd' && step.key === 'assembling');
+  });
+}
 
 /**
  * Printing's and Assembly's goods come from the team before [server: handoff.service `handOn`,
@@ -160,25 +204,18 @@ export function goodsOf(task, model, statuses = [], status = task?.status) {
 export const routeOf = (task, model) => (task?.routing?.models || []).find((row) => row && typeof row === 'object' && row.model === model) || null;
 
 /**
- * The statuses one model may move to on its own workflow: Handed to Printing only for a model
- * Production routed to Printing, Handed to Assembly only for one that is assembled after this
- * team — Production's model with no printing, Printing's with assembly [server: handoff.service
- * `goesTo`]. A model with no decision yet keeps the task's own list.
+ * The statuses one model may move to on its own workflow, cut to where its route ends here
+ * [routeEndOf]: on Production, up to Handed to Printing for a printed model (printed and assembled
+ * included — Printing hands it on), up to Handed to Assembly for one only assembled, up to Ready
+ * for Dispatch for one with neither; on Printing, up to Handed to Assembly or Ready for Dispatch;
+ * on Assembly, up to Ready for Dispatch [server: handoff.service `goesTo`, `movesFor`]. A model
+ * with no decision yet keeps the task's own list.
  */
 export function statusesForModel(task, statuses = [], model) {
-  const route = routeOf(task, model);
   /* A model whose goods have not reached this team: nothing it cannot say before they come. */
   if (goodsAwaited(task, model)) return statuses.filter((step) => !step.handsTo).filter(beforeGoods(statuses));
-  if (!route) return statusesFor(task, statuses);
-  /* Ready for Dispatch only for a model that ends here — one that goes on is handed over instead [server: handoff.service `movesFor`]. */
-  const goesOn = task?.kind === 'ask_edd' && Boolean(route.printing || route.assembly);
-  return statuses.filter((step) => {
-    if (step.readyForDispatch && goesOn) return false;
-    if (!step.handsTo) return true;
-    if (step.handsTo === 'printing') return task?.kind === 'ask_edd' && Boolean(route.printing);
-    if (step.handsTo === 'assembling') return Boolean(route.assembly) && (task?.kind === 'ask_printing' || !route.printing);
-    return false;
-  });
+  const end = routeEndOf(task, model);
+  return end ? trimToRoute(task, statuses, end) : statusesFor(task, statuses);
 }
 
 /** The rung after a model's status on its own ladder — issues and hand-overs it cannot take left out; null at the end. */

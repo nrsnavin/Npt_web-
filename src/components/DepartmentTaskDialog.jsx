@@ -260,9 +260,14 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
               : <input className="input" value={enquiry.customer?.name || prefill?.customer?.name || ''} readOnly />}
           </Field>
           <Field label="Workflow / Department">
-            <select className="input" value={optionOf(button)} disabled={Boolean(fromTask)} onChange={(event) => pickDepartment(event.target.value)}>
-              {choices.map((choice) => <option key={choice.value} value={choice.value}>{choice.label}</option>)}
-            </select>
+            {/* Asked from a task, the department is the ask's own — a readiness query is not one of the tiles. */}
+            {fromTask
+              ? <input className="input" value={form.team || button?.label || ''} readOnly aria-label="Department asked" />
+              : (
+                <select className="input" value={optionOf(button)} onChange={(event) => pickDepartment(event.target.value)}>
+                  {choices.map((choice) => <option key={choice.value} value={choice.value}>{choice.label}</option>)}
+                </select>
+              )}
           </Field>
 
           {!prefill && <p className="text-sm text-steel-400 sm:col-span-2">Filling the form from the enquiry…</p>}

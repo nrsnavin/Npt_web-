@@ -184,6 +184,26 @@ export default function HandoffTaskActions({ todo, onChanged, layout = 'row', pr
   const urgencyDialog = urgencyOpen && (
     <DeliveryUrgencyDialog taskId={todo._id} current={todo.delivery?.urgency} about={todo.title} onClose={() => setUrgencyOpen(false)} onSaved={onChanged} />
   );
+  /*
+   * A readiness query from another team is answered on its own short workflow — Ready Now closes
+   * it [server: config/departmentTaskForms.js `readinessQuery`]: nothing to send back, no due date
+   * to move, no Done beside Ready Now. An update, and Admin's close, are all it needs.
+   */
+  if (buttonFor(catalogue, todo.kind)?.form?.query) {
+    return (
+      <>
+        {layout === 'menu'
+          ? <Menu label="⋯" srLabel="More actions" align="right" items={[{ key: 'update', label: 'Update', hint: 'A word to the team that asked — the query stays open', onSelect: () => setMode('update') }, ...adminClose]} buttonClassName="btn-secondary min-w-9 px-2.5 py-1.5 text-sm leading-none" />
+          : (
+            <>
+              <button type="button" className="row-action" onClick={() => setMode('update')}>Update</button>
+              {isAdmin && <button type="button" className="row-action" onClick={() => setMode('admin')}>Close task</button>}
+            </>
+          )}
+        <HandoffDialog todo={todo} mode={mode} onClose={() => setMode(null)} onChanged={onChanged} />
+      </>
+    );
+  }
   if (layout === 'menu' && !isTheEnquiry(todo, buttonFor(catalogue, todo.kind))) {
     const byUpload = (buttonFor(catalogue, todo.kind)?.form?.statuses || []).some((entry) => entry.pdf && entry.done);
     const choices = [

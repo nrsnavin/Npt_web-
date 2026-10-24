@@ -166,14 +166,15 @@ test('Printing / Assembly: a model whose goods have not come is offered nothing 
   assert.equal(goodsAwaited(task, 'A-1'), true);
   assert.equal(goodsAwaited(task, 'B-2'), false);
   assert.deepEqual(statusesForModel(task, statuses, 'A-1').map((step) => step.key), ['asked', 'goods_received', 'closed']);
-  assert.deepEqual(statusesForModel(task, statuses, 'B-2').map((step) => step.key), statuses.map((step) => step.key));
+  /* Goods in: Assembly's workflow, up to Ready for Dispatch — which closes the model, so no Task Closed after it. */
+  assert.deepEqual(statusesForModel(task, statuses, 'B-2').map((step) => step.key), ['asked', 'goods_received', 'in_queue', 'started', 'ready_dispatch']);
   assert.deepEqual(goodsOf(task, 'B-2', statuses, 'goods_received'), { stage: 'received', came: '2026-10-24' });
   assert.equal(goodsOf(task, 'B-2', statuses, 'started').stage, 'in_queue', 'started straight away is in the work queue');
   assert.equal(goodsOf(task, 'A-1', statuses).stage, 'to_come');
   /* Nothing has come: the whole task offers only those. */
   assert.deepEqual(statusesFor({ ...task, routing: { ...task.routing, receivedModels: {} } }, statuses).map((step) => step.key), ['asked', 'goods_received', 'closed']);
   /* A task Dispatch asked by hand (not routed by Production) is not held. */
-  assert.equal(statusesFor({ ...task, routing: {} }, statuses).length, statuses.length);
+  assert.deepEqual(statusesFor({ ...task, routing: {} }, statuses).map((step) => step.key), ['asked', 'goods_received', 'in_queue', 'started', 'ready_dispatch']);
 });
 
 test('Production: Ready for Dispatch is not offered for a model that goes on to Printing or Assembly', async () => {

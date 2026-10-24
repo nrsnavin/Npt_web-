@@ -76,7 +76,7 @@ function Chip({ children }) {
 }
 
 /** One enquiry on the desk. */
-function EnquiryCard({ row, department, me, onChanged }) {
+function EnquiryCard({ row, department, me, onChanged, query = false }) {
   const { enquiry, task } = row;
   const catalogue = useHandoffCatalogue();
   const button = buttonFor(catalogue, task.kind);
@@ -84,7 +84,10 @@ function EnquiryCard({ row, department, me, onChanged }) {
   const lastUpdate = (task.updates || []).at(-1);
   /* A team task raised without an enquiry has no enquiry screens to open. */
   /* A team task has no enquiry screens — but a customer's Create Quotation task has the quotation it raised [server: raiseTeamTask]. */
-  const actions = enquiry
+  /* A readiness query is answered on its own short workflow below; the enquiry is there to read. */
+  const actions = query
+    ? (enquiry ? [{ label: 'Open enquiry', href: `/enquiries/${enquiry._id}` }] : [])
+    : enquiry
     ? deskActionsFor(department, row)
     : row.records?.quotation ? [{ label: 'Cost the quotation', href: `/quotations/${row.records.quotation._id}`, primary: true }] : [];
   const days = daysSince(row.since);
@@ -124,7 +127,9 @@ function EnquiryCard({ row, department, me, onChanged }) {
         <DuePill row={row} />
       </header>
 
-      <p className="text-sm font-semibold text-steel-100">{button?.label || task.title}</p>
+      <p className="text-sm font-semibold text-steel-100">
+        {query ? `${departmentLabel(task.fromDepartment) || 'Another team'} asks — when will it be ready?` : button?.label || task.title}
+      </p>
       {/* An order going out model by model [server: handoff.controller `withReadiness`]: what may go now, what has gone, what is still being made. */}
       {row.readiness?.plan === 'by_model' && (
         <p className="-mt-1 rounded-lg bg-line/[0.04] px-2.5 py-1.5 text-xs text-steel-200" aria-label="Models to dispatch">
@@ -206,6 +211,9 @@ function EnquiryCard({ row, department, me, onChanged }) {
   );
 }
 
+/* The desks other teams ask "when will it be ready?" — Production's, and Assembly's (Dispatch asks it). */
+const QUERY_DESKS = ['production', 'assembling'];
+
 const FILTERS = [
   { key: 'all', label: 'All' },
   { key: 'late', label: 'Late' },
@@ -266,8 +274,11 @@ function DepartmentDesk() {
   if (loading && !data) return <DashboardSkeleton label="Loading the department" tiles={4} />;
   if (error) return <ErrorState error={error} onRetry={reload} />;
 
-  const { figures, requests: everyRequest = [], recentlyDone, waitingOnOthers, cameBack, atStages } = data;
+  const { figures, requests: everyRequest = [], queries: everyQuery = [], recentlyDone, waitingOnOthers, cameBack, atStages } = data;
   const requests = deskTab ? everyRequest.filter((task) => task.department === deskTab) : everyRequest;
+  /* Readiness queries from other teams [server: config/departmentTaskForms.js `readinessQuery`]: their own tab, apart from the order's work. */
+  const queries = deskTab ? everyQuery.filter((row) => row.task.department === deskTab) : everyQuery;
+  const takesQueries = queries.length > 0 || QUERY_DESKS.includes(deskTab || figures.department);
   const deskCounts = deskList ? Object.fromEntries(deskList.map((key) => [key, everyRow.filter((row) => row.task.department === key).length])) : {};
   /* Sampling works from its own queue — the sample requests, as the team designed it. */
   const isSampling = figures.department === 'sampling';
@@ -298,6 +309,7 @@ function DepartmentDesk() {
     ...(data.baskets ? [{ key: 'delivery', label: 'Delivery queue', count: null }] : []),
     /* Dispatch plans its trips here: ready requests grouped by transporter, route and place [TripPlanner]. */
     ...(data.baskets ? [{ key: 'baskets', label: 'Plan trips', count: null }] : []),
+    ...(takesQueries ? [{ key: 'queries', label: 'Asked by other teams', count: queries.length }] : []),
     { key: 'requests', label: 'Requests', count: requests.length },
     { key: 'waiting', label: 'Waiting on others', count: waitingOnOthers.length },
     { key: 'back', label: 'Came back', count: cameBack.length },
@@ -466,6 +478,26 @@ function DepartmentDesk() {
         </section>
       )}
 
+      {tab === 'queries' && (
+        <section className="space-y-3" aria-label="Asked by other teams">
+          <p className="text-sm text-steel-400">
+            Printing, Assembly or Dispatch asking when the goods will be ready — a short workflow of its own: Query Received, Planning,
+            Will Be Ready On (with the date), Ready Now. Each move answers the team that asked; Ready Now closes it.
+          </p>
+          {queries.length ? (
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {queries.map((row) => (
+                <EnquiryCard key={row.task._id} row={row} department={row.task.department} me={me} onChanged={reload} query />
+              ))}
+            </div>
+          ) : (
+            <div className="card px-6 py-10 text-center">
+              <p className="text-base font-semibold text-steel-200">No team is waiting on an answer.</p>
+              <p className="mt-1 text-sm text-steel-500">When Printing, Assembly or Dispatch asks when goods will be ready, it appears here.</p>
+            </div>
+          )}
+        </section>
+      )}
       {tab === 'requests' && (
         <section className="card space-y-4 p-5">
           {requests.length ? bySection(requests, (task) => task.department).map((section) => (
