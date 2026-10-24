@@ -227,6 +227,8 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
       if (team) toast(`Sent to ${form.team || 'the team'}`, 'It is on their dashboard now — no enquiry needed.');
       /* A sample the buyer collects at reception is internal: Reception has it, not the sampling queue. */
       if (!team && sent.task?.kind === 'sample_collect' && !sent.addedTo) toast('Sent to Reception', 'An internal sample — Reception gets it ready and hands it over; it does not go to the sampling queue.');
+      /* Handed over by the marketing person from the rack: noted on the enquiry, no task for Sampling. */
+      if (!team && sent.task?.kind === 'sample_request' && sent.task?.completed) toast('Noted on the enquiry', 'No task for Sampling — the sample is ready from the rack. Mark it handed over on the enquiry once it is with the buyer.');
       if (fromTask && !sent.addedTo) toast(`${form.team || 'The department'} asked`, 'Their task is raised, and this task says so.');
       if (sent.addedTo) {
         toast(`Added to ${form.team || 'the department'}’s open task`, 'They already had this task — your request is on it as an update.');

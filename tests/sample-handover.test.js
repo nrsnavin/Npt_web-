@@ -28,7 +28,8 @@ test('the request form asks how it reaches the buyer, only when raising', () => 
 test('the sample page offers the hand-over to marketing, not on a collection', () => {
   const page = read('pages/SampleDetail.jsx');
   assert.match(page, /sample\.handover !== 'collect'/);
-  assert.match(page, /samplesApi\.handOver\(/);
+  assert.match(page, /<SampleHandOverForm sample=\{sample\}/);
+  assert.match(read('components/SampleHandOverForm.jsx'), /samplesApi\.handOver\(/);
   assert.match(page, /<HandoverCard sample=\{sample\} \/>/);
   const api = read('api/endpoints.js');
   assert.match(api, /handOver: \(\{ id, photo, \.\.\.fields \}\)/);
@@ -51,4 +52,14 @@ test('Reception’s desk links the samples a buyer comes in for', () => {
   assert.ok(workspaceFor('reception').pages.some((page) => page.to === '/samples?handover=collect'));
   const list = read('pages/Samples.jsx');
   assert.match(list, /searchParams\.get\('handover'\)/);
+});
+
+test('the enquiry confirms a rack sample as handed over — the marketing person, from the sample list', () => {
+  const page = read('pages/EnquiryDetail.jsx');
+  assert.match(page, /const toHandOver = \(sample\) => sample\.handover === 'in_person' && !sample\.collection\?\.collectedAt && sample\.status === 'sample_ready';/);
+  assert.match(page, /To be handed over by \{sample\.requestedBy\?\.name \|\| 'the marketing person'\} from the sample rack/);
+  assert.match(page, />Mark handed over<\/button>/);
+  assert.match(page, /<SampleHandOverForm\s+sample=\{handing\}/);
+  const dialog = read('components/DepartmentTaskDialog.jsx');
+  assert.match(dialog, /sent\.task\?\.kind === 'sample_request' && sent\.task\?\.completed\) toast\('Noted on the enquiry'/);
 });

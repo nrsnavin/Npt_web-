@@ -56,7 +56,7 @@ export default function DispatchTable({ rows = [], me, onChanged }) {
   const maySetUrgency = (row) => isManagement || idOf(row.enquiry ? row.enquiry.assignedTo : row.task.createdBy) === me;
 
   return (
-    <div className="card overflow-x-auto p-0">
+    <div className="card relative overflow-x-auto p-0">
       <table className="w-full min-w-[68rem] text-left text-sm" aria-label="Dispatch requests">
         <thead className="border-b border-line/[0.08] text-xs font-semibold uppercase tracking-wide text-steel-400">
           <tr>

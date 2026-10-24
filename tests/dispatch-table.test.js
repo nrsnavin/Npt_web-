@@ -31,7 +31,8 @@ test('the urgency is set from the row by Admin or the marketing person; Update s
 
 test('the Dispatch desk opens on the table, with a remembered Table / Cards toggle', () => {
   const dashboard = read('pages/DepartmentDashboard.jsx');
-  assert.match(dashboard, /localStorage\.getItem\(DISPATCH_VIEW_KEY\) === 'cards' \? 'cards' : 'table'/);
-  assert.match(dashboard, /aria-label="Dispatch view"/);
-  assert.match(dashboard, /figures\.department === 'despatch' && dispatchView === 'table' && shown\.length > 0 \? \(\s*<DispatchTable rows=\{shown\} me=\{me\} onChanged=\{reload\} \/>/);
+  assert.match(dashboard, /const viewKeyOf = \(department\) => \(department === 'despatch' \? 'npt\.dispatchView' : `npt\.deskView\.\$\{department\}`\);/);
+  assert.match(dashboard, /localStorage\.getItem\(viewKeyOf\(department\)\) === 'cards' \? 'cards' : 'table'/);
+  assert.match(dashboard, /figures\.department === 'despatch' \? 'Dispatch view'/);
+  assert.match(dashboard, /figures\.department === 'despatch' && viewOf\('despatch'\) === 'table' && shown\.length > 0 \? \(\s*<DispatchTable rows=\{shown\} me=\{me\} onChanged=\{reload\} \/>/);
 });

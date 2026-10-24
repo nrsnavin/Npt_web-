@@ -43,7 +43,7 @@ test('the rack is a stock list: counted by the bench, read before a visit, shown
   const api = read('api/endpoints.js');
   assert.match(api, /rack: \(\) => api\.get\('\/samples\/rack'\)/);
   assert.match(api, /setRack: \(rows\) => api\.put\('\/samples\/rack', \{ rows \}\)/);
-  const detail = read('pages/SampleDetail.jsx');
+  const detail = read('components/SampleHandOverForm.jsx');
   assert.match(detail, /On the rack: \{rack\.map/);
   assert.match(detail, /the rack is empty for one of these/);
 });

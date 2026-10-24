@@ -32,6 +32,7 @@ import { EDD_CHIP, eddChipOf } from '../utils/edd.js';
 import { EDD_BANDS, PRODUCTION_FILTERS, eddBandOf, eddBands } from '../utils/productionQueue.js';
 import { DeliveryBadge, DeliveryRiskPanel, inDanger } from '../components/DeliveryRisk.jsx';
 import DispatchTable from '../components/DispatchTable.jsx';
+import DeskTables, { DESK_TABLE_KINDS, takesTable } from '../components/DeskTables.jsx';
 
 /**
  * A department's dashboard [server: handoff.service `enquiriesHeldBy`, `departmentDashboard`].
@@ -219,8 +220,13 @@ function EnquiryCard({ row, department, me, onChanged, query = false }) {
 
 /* The desks other teams ask "when will it be ready?" — Production's, and Assembly's (Dispatch asks it). */
 const QUERY_DESKS = ['production', 'assembling'];
-/* Where the Dispatch desk's Table / Cards choice is kept, on this device. */
-const DISPATCH_VIEW_KEY = 'npt.dispatchView';
+/* Where a desk's Table / Cards choice is kept, on this device — Dispatch's under its first key. */
+const viewKeyOf = (department) => (department === 'despatch' ? 'npt.dispatchView' : `npt.deskView.${department}`);
+/* The desks that read as tables [DispatchTable, DeskTables]. */
+const TABLE_DESKS = ['despatch', ...Object.keys(DESK_TABLE_KINDS)];
+const readView = (department) => {
+  try { return localStorage.getItem(viewKeyOf(department)) === 'cards' ? 'cards' : 'table'; } catch { return 'table'; }
+};
 /* The desks that see the orders at risk of missing the EDD [components/DeliveryRisk.jsx]. */
 const RISK_DESKS = ['production', 'marketing', 'management'];
 
@@ -251,13 +257,12 @@ function DepartmentDesk() {
    * [components/DeskTabs.jsx] — each team's tasks fill the screen instead of being stacked.
    */
   const [deskChoice, setDeskChoice] = useState(null);
-  /* Dispatch's desk: a table of requests by default, or the cards — remembered on this device [DispatchTable]. */
-  const [dispatchView, setDispatchView] = useState(() => {
-    try { return localStorage.getItem(DISPATCH_VIEW_KEY) === 'cards' ? 'cards' : 'table'; } catch { return 'table'; }
-  });
-  const chooseDispatchView = (value) => {
-    setDispatchView(value);
-    try { localStorage.setItem(DISPATCH_VIEW_KEY, value); } catch { /* the choice just is not kept */ }
+  /* Dispatch, Reception, Payment Collection, PRT and Accounts: a table by default, or the cards — remembered per desk on this device [DispatchTable, DeskTables]. */
+  const [views, setViews] = useState({});
+  const viewOf = (department) => views[department] || readView(department);
+  const chooseView = (department, value) => {
+    setViews((current) => ({ ...current, [department]: value }));
+    try { localStorage.setItem(viewKeyOf(department), value); } catch { /* the choice just is not kept */ }
   };
   const deskList = data?.desk ? (deskOf(data.desk.departments[0])?.departments || data.desk.departments) : null;
   const deskTab = deskList ? (deskList.includes(deskChoice) ? deskChoice : firstDeskTab(deskList, departments)) : null;
@@ -440,11 +445,11 @@ function DepartmentDesk() {
                 {entry.label}
               </button>
             ))}
-            {figures.department === 'despatch' && (
-              <div className="ml-auto flex rounded-lg border border-line/[0.1] p-0.5" role="group" aria-label="Dispatch view">
+            {TABLE_DESKS.includes(figures.department) && (
+              <div className="ml-auto flex rounded-lg border border-line/[0.1] p-0.5" role="group" aria-label={figures.department === 'despatch' ? 'Dispatch view' : `${figures.label} view`}>
                 {[['table', 'Table'], ['cards', 'Cards']].map(([value, label]) => (
-                  <button key={value} type="button" aria-pressed={dispatchView === value} onClick={() => chooseDispatchView(value)}
-                    className={`rounded-md px-2.5 py-1 text-xs font-semibold ${dispatchView === value ? 'fill-primary' : 'text-steel-400 hover:text-steel-200'}`}>
+                  <button key={value} type="button" aria-pressed={viewOf(figures.department) === value} onClick={() => chooseView(figures.department, value)}
+                    className={`rounded-md px-2.5 py-1 text-xs font-semibold ${viewOf(figures.department) === value ? 'fill-primary' : 'text-steel-400 hover:text-steel-200'}`}>
                     {label}
                   </button>
                 ))}
@@ -462,8 +467,20 @@ function DepartmentDesk() {
           {/* Quality · Printing · Assembly: one line a task — enquiry, buyer, EDD, the state in 20–30 words, the workflow page. */}
           {deskList && shown.length > 0 ? (
             <FinishingDeskList rows={shown} onChanged={reload} />
-          ) : figures.department === 'despatch' && dispatchView === 'table' && shown.length > 0 ? (
+          ) : figures.department === 'despatch' && viewOf('despatch') === 'table' && shown.length > 0 ? (
             <DispatchTable rows={shown} me={me} onChanged={reload} />
+          ) : DESK_TABLE_KINDS[figures.department] && viewOf(figures.department) === 'table' && shown.some((row) => takesTable(figures.department, row)) ? (
+            <div className="space-y-5">
+              <DeskTables department={figures.department} rows={shown.filter((row) => takesTable(figures.department, row))} me={me} onChanged={reload} />
+              {/* Anything else on the desk — a task of another kind — stays a card below the tables. */}
+              {shown.some((row) => !takesTable(figures.department, row)) && (
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {shown.filter((row) => !takesTable(figures.department, row)).map((row) => (
+                    <EnquiryCard key={row.task._id} row={row} department={row.task.department || figures.department} me={me} onChanged={reload} />
+                  ))}
+                </div>
+              )}
+            </div>
           ) : shown.length ? (
             (isProduction
               ? eddBands(shown).map((band) => ({ key: band.key, label: band.label, tone: band.tone, rows: band.rows }))
