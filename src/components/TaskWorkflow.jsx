@@ -394,7 +394,8 @@ function ModelWorkflows({ todo, form, statuses, offered, noDates, onMoved }) {
         const own = statusesForModel(todo, offered, row.model);
         const current = statuses.find((entry) => entry.key === row.status) || null;
         const through = modelThrough(statuses, row.status);
-        const closed = Boolean(current?.done);
+        /* Closed here: Task Closed, or the model gone on from this team — handed over, or ready for dispatch from the last team [server: handoff.service `closesModel`]. */
+        const closed = Boolean(current?.done || current?.handsTo || current?.readyForDispatch);
         const next = nextStepForModel(todo, statuses, row.model, row.status);
         const nextIsButton = next && own.some((entry) => entry.key === next.key) && !next.pdf && !(noDates && (next.date || next.plans));
         const route = routeOf(todo, row.model);
@@ -409,7 +410,7 @@ function ModelWorkflows({ todo, form, statuses, offered, noDates, onMoved }) {
               </span>
               {route && <span className="text-xs text-steel-400">{pathOf(route)}</span>}
               {date && <span className="text-xs text-steel-300">{dateLabelFor(todo, form.statusDate?.label || 'Ready date')} {formatDate(date)}</span>}
-              {through && !closed && <span className="text-xs text-success-400">done here for this model</span>}
+              {closed && !current?.done && <span className="text-xs font-semibold text-success-400">closed here for this model</span>}
             </div>
             {/* Where the goods are for this model: came on a day, or still with the team before. */}
             {after && !closed && (
@@ -420,7 +421,7 @@ function ModelWorkflows({ todo, form, statuses, offered, noDates, onMoved }) {
               </p>
             )}
             {/* Ready here: whether it goes to Dispatch on its own, or waits for the rest — marketing's plan on the enquiry. */}
-            {current?.readyForDispatch && !closed && todo.enquiry && (
+            {current?.readyForDispatch && todo.enquiry && (
               <p className={`mt-1 text-xs ${eachAsReady ? 'text-success-400' : 'text-warn-400'}`}>
                 {eachAsReady ? 'Goes to Dispatch as soon as it is ready — dispatch plan: each model as it is ready.' : 'Waits for the other models — dispatch plan: all together. Marketing or Admin can change it on the enquiry.'}
               </p>
@@ -457,7 +458,7 @@ function ModelWorkflows({ todo, form, statuses, offered, noDates, onMoved }) {
                   noDates={noDates}
                   fixedModels={[row.model]}
                   onCancel={() => setMoving(null)}
-                  onMoved={(saved) => { setMoving(null); onMoved(saved, open); }}
+                  onMoved={(saved) => { setMoving(null); onMoved(saved, open, row.model); }}
                 />
               </div>
             )}
@@ -625,8 +626,10 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
             statuses={statuses}
             offered={offered}
             noDates={noDates}
-            onMoved={(saved, step) => {
-              if (saved?.completed) toast(step.label, 'The task is finished.');
+            onMoved={(saved, step, model) => {
+              if (saved?.completed) toast(step.label, 'The task is finished — every model has gone on from this team.');
+              /* The model has left this team: its share of the task closes, and marketing and Admin are alerted [server: `closesModel`]. */
+              else if (step.handsTo || step.readyForDispatch) toast(`${model} closed here`, `${step.label} — marketing and Admin are told.`);
               moved(saved);
             }}
           />

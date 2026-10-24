@@ -62,7 +62,10 @@ test('the workflow draws one strip per model, each moving on its own; every mode
   assert.match(workflow, /\{byModel && !fixedModels && \(/, 'no tick-boxes on one model’s own form');
   assert.match(workflow, /\{movesByModel\(todo\) && !waiting\.length && \(/);
   assert.match(workflow, /\{allAtOnce \? 'Hide the move for every model' : 'Move every model together'\}/);
-  assert.match(workflow, /done here for this model/);
+  /* A model gone on from this team (handed over, or ready for dispatch from the last team) is closed here, and its move alerts [server: closesModel]. */
+  assert.match(workflow, /const closed = Boolean\(current\?\.done \|\| current\?\.handsTo \|\| current\?\.readyForDispatch\);/);
+  assert.match(workflow, /closed here for this model/);
+  assert.match(workflow, /else if \(step\.handsTo \|\| step\.readyForDispatch\) toast\(`\$\{model\} closed here`/);
 });
 
 test('Printing’s and Assembly’s strips say where each model’s goods are, and whether a ready model goes on its own', () => {
@@ -77,7 +80,7 @@ test('Printing’s and Assembly’s strips say where each model’s goods are, a
   /* Assembly takes a printed model from Printing, an unprinted one from Production. */
   assert.match(workflow, /const fromOf = \(route\) => \(todo\.kind === 'ask_assembling_edd' && route\?\.printing \? 'printing' : 'production'\);/);
   assert.match(workflow, /const eachAsReady = todo\.enquiry\?\.dispatchPlan\?\.mode === 'by_model';/);
-  assert.match(workflow, /\{current\?\.readyForDispatch && !closed && todo\.enquiry && \(/);
+  assert.match(workflow, /\{current\?\.readyForDispatch && todo\.enquiry && \(/);
   assert.match(workflow, /Goes to Dispatch as soon as it is ready — dispatch plan: each model as it is ready\./);
   assert.match(workflow, /Waits for the other models — dispatch plan: all together\. Marketing or Admin can change it on the enquiry\./);
 });
