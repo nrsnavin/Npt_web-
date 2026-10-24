@@ -36,7 +36,7 @@ const tomorrowInIndia = () => todayInIndia(new Date(Date.now() + 24 * 60 * 60 * 
  * The move itself, beside the list: the ready date and the remark, then Update status
  * [server: handoff.service `setTaskStatus`].
  */
-function MoveForm({ todo, form, step, onCancel, onMoved, noDates = false, fixedModels = null }) {
+export function MoveForm({ todo, form, step, onCancel, onMoved, noDates = false, fixedModels = null }) {
   /*
    * The date already given starts the box: the hand-over date to Printing / Assembly while this
    * team hands on, else the date it gave its models — if it is not past. Sent again only when
@@ -163,7 +163,7 @@ function MoveForm({ todo, form, step, onCancel, onMoved, noDates = false, fixedM
 
 const PDF_LIMIT = 1024 * 1024;
 
-function CommentDialog({ step, target, onClose, onSave }) {
+export function CommentDialog({ step, target, onClose, onSave }) {
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState(null);
@@ -206,7 +206,7 @@ function CommentDialog({ step, target, onClose, onSave }) {
   );
 }
 
-function UploadDialog({ title, step, todo, form, reads = false, onClose, onDone }) {
+export function UploadDialog({ title, step, todo, form, reads = false, onClose, onDone }) {
   const [file, setFile] = useState(null);
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
@@ -262,7 +262,7 @@ function UploadDialog({ title, step, todo, form, reads = false, onClose, onDone 
   );
 }
 
-function ContactDialog({ fields, todo, title = 'Edit contact details', onClose, onSaved }) {
+export function ContactDialog({ fields, todo, title = 'Edit contact details', onClose, onSaved }) {
   const [values, setValues] = useState(() => Object.fromEntries(fields.map((field) => [field.key, todo.brief?.[field.key] || ''])));
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState(null);

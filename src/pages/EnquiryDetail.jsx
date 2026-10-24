@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import SampleLog from '../components/SampleLog.jsx';
+import SampleHandOverForm from '../components/SampleHandOverForm.jsx';
 import AuthedImage from '../components/AuthedImage.jsx';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
@@ -348,12 +349,18 @@ function PromoteForm({ enquiry, onClose, onSaved }) {
   );
 }
 
+/** A sample the marketing person takes from the rack and has not yet put in the buyer's hands. */
+const toHandOver = (sample) => sample.handover === 'in_person' && !sample.collection?.collectedAt && sample.status === 'sample_ready';
+
 /**
  * The samples raised against this enquiry, so an enquiry reads as one record rather than
  * sending marketing to another screen to find out where its sample got to [§2].
  */
 function EnquirySamples({ enquiryId }) {
+  const { user } = useAuth();
   const [rows, setRows] = useState(null);
+  /* The sample the marketing person is confirming as handed over from the rack [server: handoff.service `raiseRackSample`]. */
+  const [handing, setHanding] = useState(null);
   /* The sample team's log, on the enquiry: the newest sample's open, the others a click away. */
   const [open, setOpen] = useState(() => new Set());
   const toggle = (id) => setOpen((current) => {
@@ -397,6 +404,16 @@ function EnquirySamples({ enquiryId }) {
                 {sample.colour && ` · ${sample.colour}`}
                 {sample.requiredDate && ` · due ${formatDate(sample.requiredDate)}`}
               </p>
+              {toHandOver(sample) && (
+                <p className="text-xs font-semibold text-warn-400">
+                  To be handed over by {sample.requestedBy?.name || 'the marketing person'} from the sample rack — not with the buyer yet
+                </p>
+              )}
+              {sample.handover === 'in_person' && sample.collection?.collectedAt && (
+                <p className="text-xs text-success-400">
+                  Handed over{sample.handedTo ? ` to ${sample.handedTo}` : ''} on {formatDate(sample.collection.collectedAt)}
+                </p>
+              )}
               {/* The finished pieces, so the salesperson has them on the phone with the buyer. */}
               {sample.items?.some((row) => row.photo?.key) && (
                 <ul className="mt-1.5 flex flex-wrap gap-1.5" aria-label={`Finished pieces on ${sample.number}`}>
@@ -409,6 +426,9 @@ function EnquirySamples({ enquiryId }) {
               )}
             </div>
             <div className="flex items-center gap-2">
+              {toHandOver(sample) && String(sample.requestedBy?._id || sample.requestedBy || '') === String(user?.id || '') && (
+                <button type="button" className="btn-primary px-2.5 py-1 text-xs" onClick={() => setHanding(sample)}>Mark handed over</button>
+              )}
               {sample.isOverdue && <Badge tone="danger">Overdue</Badge>}
               <Badge status={sample.status}>{sampleStageLabel(sample.status)}</Badge>
               <button type="button" className="btn-ghost px-2 py-1 text-xs" aria-expanded={open.has(sample._id)} onClick={() => toggle(sample._id)}>
@@ -443,6 +463,20 @@ function EnquirySamples({ enquiryId }) {
           </li>
         ))}
       </ul>
+      <Modal
+        open={Boolean(handing)}
+        title="Hand over to the buyer"
+        description={handing ? `${handing.number} — from the sample rack, without a courier` : ''}
+        onClose={() => setHanding(null)}
+      >
+        {handing && (
+          <SampleHandOverForm
+            sample={handing}
+            onClose={() => setHanding(null)}
+            onSaved={(saved) => setRows((current) => current.map((row) => (row._id === saved._id ? { ...row, ...saved } : row)))}
+          />
+        )}
+      </Modal>
     </Section>
   );
 }
