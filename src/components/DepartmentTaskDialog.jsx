@@ -7,6 +7,7 @@ import { Field, Modal, Notice } from './ui.jsx';
 import { CustomerSelect } from './pickers.jsx';
 import RegisterPick from './RegisterPick.jsx';
 import { SAMPLE_HANDOVERS } from '../utils/pipeline.js';
+import { EDD_ASK_KINDS } from '../utils/edd.js';
 import {
   briefToSend, departmentOptions, missingAnswer, noteNeeded, optionOf, optionsOf, prefillValue, startingAnswers, todayInIndia,
 } from '../utils/taskForm.js';
@@ -136,7 +137,9 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState(null);
   const { toast, warn } = useToast();
-  const { canWrite } = useAuth();
+  const { canWrite, isAdmin, departments = [] } = useAuth();
+  /* The EDD — marketing's — asked on the form of a task the queues run by [server: eddAsk.service]. */
+  const [edd, setEdd] = useState('');
   const navigate = useNavigate();
   /* No enquiry: a team task, with an optional customer instead of the enquiry's answers. */
   const team = !enquiry;
@@ -160,7 +163,7 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
   useEffect(() => {
     let live = true;
     (team ? workspace.teamTasks.prefill(customer || undefined) : handoffsApi.prefill(enquiry._id))
-      .then((data) => { if (live) setPrefill(data || {}); })
+      .then((data) => { if (live) { setPrefill(data || {}); setEdd((current) => current || data?.edd || ''); } })
       .catch(() => { if (live) setPrefill({}); });
     return () => { live = false; };
   }, [team, enquiry?._id, customer]);
@@ -194,7 +197,13 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
   const mustExplain = (noteNeeded(button, answers) || Boolean(fromTask)) && note.trim().length < 3;
   const tooBig = file && file.size > PDF_LIMIT;
   const notPdf = file && file.type !== 'application/pdf';
-  const blocked = !prefill || Boolean(missing) || mustExplain || tooBig || notPdf || (orders.length > 1 && !order && !fromTask && !team);
+  /*
+   * Production, Printing, Assembly, Dispatch: their queues run by the EDD, so marketing or Admin
+   * raising one gives it here — the enquiry's EDD filled in, required when there is none yet.
+   */
+  const asksEdd = EDD_ASK_KINDS.includes(kind) && !fromTask && (isAdmin || departments.includes('marketing'));
+  const eddMissing = asksEdd && !edd;
+  const blocked = !prefill || Boolean(missing) || mustExplain || tooBig || notPdf || eddMissing || (orders.length > 1 && !order && !fromTask && !team);
 
   const submit = async (event) => {
     event.preventDefault();
@@ -206,6 +215,9 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
         kind, note, brief: briefToSend(button, answers),
         ...(form.priority ? { priority } : {}),
         ...(requiredDate ? { requiredDate } : {}),
+        /* Sent when given here or changed from the enquiry's — it becomes the enquiry's (or the job's) EDD. */
+        ...(asksEdd && edd && edd !== (prefill?.edd || '') ? { edd } : {}),
+        ...(asksEdd && edd && team ? { edd } : {}),
       };
       const sent = fromTask
         ? await workspace.todos.ask({ id: fromTask._id, ...payload }).then((answer) => ({ task: answer.raised, addedTo: answer.addedTo }))
@@ -260,9 +272,14 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
               : <input className="input" value={enquiry.customer?.name || prefill?.customer?.name || ''} readOnly />}
           </Field>
           <Field label="Workflow / Department">
-            <select className="input" value={optionOf(button)} disabled={Boolean(fromTask)} onChange={(event) => pickDepartment(event.target.value)}>
-              {choices.map((choice) => <option key={choice.value} value={choice.value}>{choice.label}</option>)}
-            </select>
+            {/* Asked from a task, the department is the ask's own — a readiness query is not one of the tiles. */}
+            {fromTask
+              ? <input className="input" value={form.team || button?.label || ''} readOnly aria-label="Department asked" />
+              : (
+                <select className="input" value={optionOf(button)} onChange={(event) => pickDepartment(event.target.value)}>
+                  {choices.map((choice) => <option key={choice.value} value={choice.value}>{choice.label}</option>)}
+                </select>
+              )}
           </Field>
 
           {!prefill && <p className="text-sm text-steel-400 sm:col-span-2">Filling the form from the enquiry…</p>}
@@ -308,6 +325,18 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
             );
           })}
 
+          {asksEdd && (
+            <Field
+              label="EDD — the date the buyer is promised"
+              required
+              hint={prefill?.edd
+                ? 'The enquiry’s EDD — change it here if the buyer agreed another day'
+                : 'Needed: Production, Printing, Assembly and Dispatch queue the work by it'}
+              error={eddMissing && prefill ? 'Set the EDD to send this task' : undefined}
+            >
+              <input type="date" className="input" aria-label="EDD" min={todayInIndia()} value={edd} onChange={(event) => setEdd(event.target.value)} required />
+            </Field>
+          )}
           <Field label="Attach PDF" hint="Optional, 1 MB at most" className="sm:col-span-2" error={tooBig ? 'That PDF is over 1 MB' : notPdf ? 'Attach a PDF' : undefined}>
             <input type="file" accept="application/pdf" className="input" onChange={(event) => setFile(event.target.files?.[0] || null)} />
           </Field>

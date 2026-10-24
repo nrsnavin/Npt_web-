@@ -9,6 +9,8 @@
  * any whose name says it is waiting on somebody, read as waiting; everything else is progress.
  */
 
+import { statusesFor } from './edd.js';
+
 export const TONES = ['progress', 'blocked', 'done', 'waiting'];
 
 const WAITING_WORDS = /\b(waiting|awaiting|asked|pending|received|assigned|request)\b/i;
@@ -38,7 +40,8 @@ export const toneOfKind = (kind) => ({
  * how far it got, in the blocked colour; `next` is the rung after that, the obvious move.
  */
 export function ladderOf(button, task) {
-  const all = button?.form?.statuses || [];
+  /* Cut to where the task's route ends on this team [edd.js `statusesFor`]. */
+  const all = statusesFor(task, button?.form?.statuses || []);
   if (!all.length) return null;
   const steps = all.filter((step) => !step.issue);
   const current = all.find((step) => step.key === task.status) || null;

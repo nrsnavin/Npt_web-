@@ -567,7 +567,7 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
 
   const current = statuses.find((entry) => entry.key === todo.status);
   /* The readiness tasks this one asked for and are still open. */
-  const waiting = (todo.waitingOn || []).filter((task) => (button.form.actions || []).some((action) => action.kind === task.kind && action.waits));
+  const waiting = (todo.waitingOn || []).filter((task) => (button.form.actions || []).some((action) => (action.kind === task.kind || action.was === task.kind) && action.waits));
   const resultStep = statuses.find((entry) => entry.pdf);
   const editable = (button.asks || []).filter((field) => field.editable);
   /* The hanger's details — model, material, parts, pieces — filled on a task raised without them. */

@@ -102,6 +102,8 @@ export const workspace = {
     edd: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/edd`, payload, { feedback: false }).then(unwrap),
     /** The Production in charge confirms the EDD Printing or Assembly gave. */
     confirmEdd: (id) => api.post(`/workspace/todos/${id}/edd/confirm`, {}, { feedback: false }).then(unwrap),
+    /** A job raised from the customer: its EDD, marketing's, set from any of its tasks [server: eddAsk.service `setJobEdd`]. */
+    jobEdd: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/job-edd`, payload, { feedback: false }).then(unwrap),
     /* Production's call, model by model: printing, assembly, both or neither [server: `decideRouting`]. */
     routing: (id) => api.get(`/workspace/todos/${id}/routing`).then(unwrap),
     route: ({ id, models }) => api.post(`/workspace/todos/${id}/routing`, { models }, { feedback: false }).then(unwrap),
@@ -685,6 +687,8 @@ export const production = {
   queue: () => api.get('/production/queue').then((response) => response.data),
   /** Printing's or Assembly's queue in EDD order, with where the goods are model by model — `{ data, meta }`. */
   teamQueue: (team) => api.get(`/production/queue/${team}`).then((response) => response.data),
+  /** The orders in danger of missing marketing's EDD, worst first — `{ data, meta }` [server: deliveryRisk.service]. */
+  atRisk: () => api.get('/production/at-risk').then((response) => response.data),
   /** One Production task worked whole: models, hand-overs, EDD, work orders and the teams after it. */
   workflow: (taskId) => api.get(`/production/workflow/${taskId}`).then(unwrap),
   /**

@@ -18,13 +18,13 @@ test('the auth context says who plans Production: Admin, or the Production in ch
   assert.match(auth, /\|\| user\?\.productionInCharge === true,/);
 });
 
-test('on Production’s task the routing, the hand-over date and the EDD are the planner’s; the rest read them', () => {
+test('on Production’s task the routing, the hand-over and completion dates are the planner’s; the rest read them', () => {
   const edd = read('components/TaskEdd.jsx');
   assert.match(edd, /const plans = mayAct && mayPlanProduction;/);
   assert.match(edd, /<TaskRouting todo=\{todo\} mayAct=\{plans\}/);
   assert.match(edd, /<HandOverDate todo=\{todo\} mayAct=\{plans\}/);
   assert.match(edd, /<EddBox todo=\{todo\} mayAct=\{plans\}/);
-  assert.match(edd, /The Production in charge gives the EDD and decides printing and assembly — you update the status\./);
+  assert.match(edd, /The Production in charge gives the completion and hand-over dates and decides printing and assembly — you update the status\./);
   assert.match(read('components/TaskRouting.jsx'), /The Production in charge decides this\./);
 });
 
@@ -79,12 +79,12 @@ test('the Production desks name who is in charge, or warn that nobody is', () =>
   assert.match(read('api/endpoints.js'), /productionInCharge: \(\) => api\.get\('\/workspace\/production-in-charge'\)/);
 });
 
-test('the EDD Printing or Assembly gives is confirmed by the in charge, who may also give their own', () => {
+test('the completion date Printing or Assembly gives is confirmed by the in charge, who may also give their own', () => {
   const edd = read('components/TaskEdd.jsx');
   assert.match(edd, /const inChain = todo\.kind !== 'ask_edd' && Boolean\(todo\.routing\?\.byProduction\);/);
   assert.match(edd, /const gives = givesEdd\(todo\) && \(mayAct \|\| confirms\) && !todo\.completed;/);
   assert.match(edd, /workspace\.todos\.confirmEdd\(todo\._id\)/);
-  assert.match(edd, />Confirm EDD<\/button>/);
+  assert.match(edd, />Confirm completion date<\/button>/);
   assert.match(edd, /Waiting for the Production in charge to confirm/);
   assert.match(read('api/endpoints.js'), /confirmEdd: \(id\) => api\.post\(`\/workspace\/todos\/\$\{id\}\/edd\/confirm`/);
 });

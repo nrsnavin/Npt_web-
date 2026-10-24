@@ -52,12 +52,15 @@ test('only Admin is offered "Hand to someone" on the enquiry', () => {
   assert.match(read('pages/EnquiryDetail.jsx'), /\{isAdmin && <DelegateEnquiry enquiry=\{enquiry\} onDone=\{afterHandover\} \/>\}/);
 });
 
-test('in Production the enquiry shows the EDD, or that it was asked and not given', () => {
+test('the enquiry shows marketing’s EDD, the plant’s completion beside it, and the delivery risk', () => {
   const desk = read('components/DepartmentDesk.jsx');
   assert.match(desk, /const inProduction = \['production_edd', 'assembling'\]\.includes\(stage\) \|\| Boolean\(production\?\.asked\);/);
   assert.match(desk, /<EddLine edd=\{\{ date: production\.edd\.edd, department: production\.edd\.department/);
   assert.match(desk, /EDD not set yet/);
-  assert.match(desk, /asked \{formatDate\(production\.asked\.at\)\}, not given yet/);
+  assert.match(desk, /set the date the buyer is promised — the production queue runs by it/);
+  /* The plant's dates beside it, and whether the order is in danger [DeliveryReading]. */
+  assert.match(desk, /Plant’s completion \{formatDate\(production\.completion\.date\)\}/);
+  assert.match(desk, /<DeliveryReading risk=\{history\?\.risk\} className="mt-2" \/>/);
   assert.match(desk, /plant expects \$\{formatDate\(line\.expectedCompletion\)\}/);
 });
 
@@ -107,7 +110,7 @@ test('a task’s own asks (Dispatch’s Ask Production) open that department’s
   assert.match(workflow, /fromTask=\{todo\}/);
   const dialog = read('components/DepartmentTaskDialog.jsx');
   assert.match(dialog, /fromTask\s*\? await workspace\.todos\.ask\(\{ id: fromTask\._id, \.\.\.payload \}\)/);
-  assert.match(dialog, /disabled=\{Boolean\(fromTask\)\}/);
+  assert.match(dialog, /\{fromTask\s+\? <input className=\"input\" value=\{form\.team \|\| button\?\.label \|\| ''\} readOnly aria-label=\"Department asked\" \/>/, 'the department asked is fixed — shown, not picked');
   assert.match(dialog, /\(noteNeeded\(button, answers\) \|\| Boolean\(fromTask\)\) && note\.trim\(\)\.length < 3/);
   assert.match(read('api/endpoints.js'), /ask: \(\{ id, \.\.\.payload \}\) => api\.post\(`\/workspace\/todos\/\$\{id\}\/ask`/);
 });
@@ -127,7 +130,7 @@ test('Admin and marketing raise a team task with no enquiry; the desk shows it w
   assert.match(dashboard, /\(isAdmin \|\| departments\?\.includes\('marketing'\)\) && firstTask &&/);
   assert.match(dashboard, /<DepartmentTaskDialog enquiry=\{null\}/);
   /* No enquiry links — only the quotation a customer's Create Quotation task raised [tests/quotation-task-models.test.js]. */
-  assert.match(dashboard, /const actions = enquiry\s+\? deskActionsFor\(department, row\)\s+: row\.records\?\.quotation \?/);
+  assert.match(dashboard, /: enquiry\s+\? deskActionsFor\(department, row\)\s+: row\.records\?\.quotation \?/);
   assert.match(dashboard, /<p className="text-base font-bold text-steel-50">Team task<\/p>/);
   const dialog = read('components/DepartmentTaskDialog.jsx');
   assert.match(dialog, /const team = !enquiry;/);

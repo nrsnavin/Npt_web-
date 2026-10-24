@@ -17,6 +17,7 @@ import { formatDate } from '../utils/format.js';
 import { departmentLabel } from '../utils/pipeline.js';
 import { dueWords } from '../utils/productionQueue.js';
 import { WORK_ORDER_STATUS } from '../utils/workOrders.js';
+import { DeliveryReading } from '../components/DeliveryRisk.jsx';
 
 /**
  * One enquiry's production, worked in one place [server: productionQueue.controller
@@ -87,7 +88,7 @@ export default function ProductionWorkflow() {
   if (error) return <ErrorState error={error} onRetry={reload} />;
   if (loading && !data) return <div className="mx-auto max-w-6xl"><TableSkeleton rows={6} columns={5} /></div>;
 
-  const { task, enquiry, models = [], teams = {}, workOrders = [], specs = [], floor = {}, summary, band } = data;
+  const { task, enquiry, models = [], teams = {}, workOrders = [], specs = [], floor = {}, summary, band, delivery } = data;
   /* What each model is made with, from its sales order line: hook, clip, print and the print reference. */
   const modelKey = (model) => String(model || '').toLowerCase().replace(/\s+/g, '');
   const specOf = (model) => specs.find((spec) => modelKey(spec.model) === modelKey(model)) || null;
@@ -125,10 +126,12 @@ export default function ProductionWorkflow() {
       <div className={`card border-l-4 ${tone.edge} flex flex-wrap items-center gap-4 p-4`}>
         <div>
           <p className={`text-lg font-bold tabular-nums ${band === 'late' ? 'text-danger-400' : 'text-steel-50'}`}>{edd ? formatDate(edd) : 'No EDD yet'}</p>
-          <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${tone.chip}`}>{edd ? dueWords(edd) : mayPlanProduction ? 'give the date below' : 'the Production in charge gives it'}</span>
+          <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${tone.chip}`}>{edd ? dueWords(edd) : 'marketing gives it on the enquiry'}</span>
         </div>
         <p className="min-w-0 flex-1 text-sm leading-snug text-steel-200">{summary}</p>
       </div>
+      {/* Will it make marketing's EDD — every model and team counted [server: deliveryRisk.service]. */}
+      <DeliveryReading risk={delivery} />
 
       {/* Each model on a row: the route after moulding, each team's status, the EDD and the work orders. */}
       <Section title={`Models (${models.length})`}>
@@ -145,6 +148,7 @@ export default function ProductionWorkflow() {
                   <th className="px-3 py-2">Printing</th>
                   <th className="px-3 py-2">Assembly</th>
                   <th className="px-3 py-2">EDD</th>
+                  <th className="px-3 py-2" title="The last team’s completion date for the model">Completion</th>
                   <th className="px-3 py-2">Work order</th>
                   <th className="px-3 py-2">Made with</th>
                 </tr>
@@ -160,6 +164,9 @@ export default function ProductionWorkflow() {
                     <td className="px-3 py-2.5"><StatusCell status={row.printingStatus} received={row.printingReceived} needed={row.printing} /></td>
                     <td className="px-3 py-2.5"><StatusCell status={row.assemblyStatus} received={row.assemblyReceived} needed={row.assembly} /></td>
                     <td className="whitespace-nowrap px-3 py-2.5 text-steel-200">{row.edd ? formatDate(row.edd) : <span className="text-xs text-steel-500">—</span>}</td>
+                    <td className={`whitespace-nowrap px-3 py-2.5 ${row.completion && row.edd && row.completion > row.edd ? 'font-semibold text-danger-400' : 'text-steel-200'}`}>
+                      {row.completion ? formatDate(row.completion) : <span className="text-xs text-steel-500">—</span>}
+                    </td>
                     <td className="px-3 py-2.5 text-xs text-steel-300">{row.workOrders.length ? row.workOrders.join(', ') : '—'}</td>
                     <td className="min-w-[13rem] px-3 py-2.5">
                       {specOf(row.model) ? (

@@ -46,5 +46,5 @@ test('the Production desk is the queue alone — no enquiries tab — banded by 
 });
 
 test('a readiness ask holds the asking task; Production’s hand-ons do not', () => {
-  assert.match(read('components/TaskWorkflow.jsx'), /action\.kind === task\.kind && action\.waits/);
+  assert.match(read('components/TaskWorkflow.jsx'), /\(action\.kind === task\.kind \|\| action\.was === task\.kind\) && action\.waits/);
 });

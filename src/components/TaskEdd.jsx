@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { workspace } from '../api/endpoints.js';
+import { enquiries as enquiriesApi, workspace } from '../api/endpoints.js';
 import { Field, Notice } from './ui.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import { todayInIndia } from '../utils/taskForm.js';
@@ -10,12 +10,11 @@ import TaskRouting from './TaskRouting.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 
 /**
- * The expected delivery date on a department task [server: handoff.service `setTaskEdd`].
- *
- * On Production's, Assembly's and Printing's tasks it is asked for at the top of the task until
- * it is given — the thing the task was raised for — and given right there, without a status move.
- * On the dispatch request it is read: the date the goods are to go by, or that Production has
- * not given one yet. Marketing's own date, set on the enquiry, shows the same way, named as theirs.
+ * The dates on a department task. The EDD is marketing's [server: Enquiry `edd`] — read here,
+ * never given. Production, Printing and Assembly give their own date from the task
+ * [server: handoff.service `setTaskEdd`]: a hand-over date where their goods go on to the next
+ * team, a completion date where the model ends with them — asked for at the top of the task
+ * until it is given, and shown on the enquiry beside the EDD.
  */
 
 /**
@@ -84,12 +83,12 @@ export function EddForm({ onSave, onCancel, initial = '', label = 'Give EDD', bu
 }
 
 /** "EDD 12 Nov 2026 · Production · Sivakumar, 10 Oct 2026 — two presses on it" */
-export function EddLine({ edd, className = '' }) {
+export function EddLine({ edd, className = '', label = 'EDD' }) {
   if (!edd?.date) return null;
   const by = edd.by && typeof edd.by === 'object' ? edd.by.name : null;
   return (
     <p className={`text-sm text-steel-100 ${className}`}>
-      <span className="font-bold">EDD {formatDate(edd.date)}</span>
+      <span className="font-bold">{label} {formatDate(edd.date)}</span>
       <span className="text-steel-400">
         {edd.department ? ` · ${departmentLabel(edd.department)}` : ''}
         {by ? ` · ${by}` : ''}
@@ -101,28 +100,35 @@ export function EddLine({ edd, className = '' }) {
 }
 
 /**
- * Each model's EDD — the latest date its teams gave — and this task's own date for it, so a team
- * sees where its date stands beside the others' [server: handoff.service `refreshModelEdds`].
+ * Each model's dates: marketing's EDD for it (set for the model, else the enquiry's), each team's
+ * own date — "Production hands over 26 Oct", "Assembly completes 29 Oct" — and a warning where the
+ * plant's date is after the EDD [server: handoff.service `refreshModelEdds`].
  */
-export function ModelEdds({ todo, rows, className = '' }) {
+export function ModelEdds({ todo, rows, edd = null, className = '' }) {
   const own = datesOfTask(todo);
   const models = todo ? modelsOfTask(todo) : [];
   const all = rows || eddByModelOf(todo?.enquiry);
+  const enquiryEdd = edd || eddOfTask(todo)?.date || null;
   const shown = models.length ? all.filter((row) => models.includes(row.model)) : all;
   const extra = models.filter((model) => own[model] && !shown.some((row) => row.model === model)).map((model) => ({ model }));
   const list = [...shown, ...extra];
   if (!list.length || (list.length === 1 && !Object.keys(own).length && !rows)) return null;
   return (
-    <ul className={`space-y-0.5 text-xs text-steel-300 ${className}`} aria-label="EDD by model">
-      {list.map((row) => (
-        <li key={row.model}>
-          <span className="font-semibold text-steel-100">{row.model}</span>
-          {row.date ? ` · EDD ${formatDate(row.date)}${row.final?.date ? ' (final, marketing)' : row.department ? ` (${departmentLabel(row.department)})` : ''}` : ' · EDD not complete yet'}
-          {row.final?.date && row.suggested && row.suggested !== row.final.date ? ` · teams say ${formatDate(row.suggested)}` : ''}
-          {own[row.model] ? ` · this team: ${formatDate(own[row.model])}` : ''}
-          {!own[row.model] && row.teams?.length ? ` · ${row.teams.map((team) => `${departmentLabel(team.department)} ${formatDate(team.date)}`).join(', ')}` : ''}
-        </li>
-      ))}
+    <ul className={`space-y-0.5 text-xs text-steel-300 ${className}`} aria-label="Dates by model">
+      {list.map((row) => {
+        const modelEdd = row.final?.date || enquiryEdd;
+        const teams = row.teams?.length ? row.teams : own[row.model] ? [{ department: todo?.department, date: own[row.model], kind: 'completion' }] : [];
+        const late = Boolean(modelEdd && teams.some((team) => team.date > modelEdd));
+        return (
+          <li key={row.model}>
+            <span className="font-semibold text-steel-100">{row.model}</span>
+            {modelEdd ? ` · EDD ${formatDate(modelEdd)}${row.final?.date && row.final.date !== enquiryEdd ? ' (set for this model)' : ''}` : ' · no EDD from marketing yet'}
+            {teams.map((team) => ` · ${departmentLabel(team.department)} ${team.kind === 'handover' ? 'hands over' : 'completes'} ${formatDate(team.date)}`).join('')}
+            {!teams.length ? ' · no team date yet' : ''}
+            {late && <span className="font-semibold text-danger-400"> — after the EDD</span>}
+          </li>
+        );
+      })}
     </ul>
   );
 }
@@ -166,11 +172,11 @@ function HandOverDate({ todo, mayAct, onChanged }) {
       ) : (
         <p className="text-sm text-steel-100">
           <span className="font-bold text-warn-400">Hand-over date needed</span>
-          <span className="text-steel-300"> — say when the goods reach {teamWords(teams)}. The last team in the chain gives the EDD.</span>
+          <span className="text-steel-300"> — say when the goods reach {teamWords(teams)}. The last team in the chain gives the completion date; the EDD is marketing’s.</span>
         </p>
       )}
       <Incoming todo={todo} />
-      <EddReadOnly todo={todo} />
+      <EddReadOnly todo={todo} onChanged={onChanged} />
       <ModelEdds todo={todo} className="mt-1" />
       {gives && day && !editing && <button type="button" className="row-action mt-1" onClick={() => setEditing(true)}>Change hand-over date</button>}
       {gives && (!day || editing) && (
@@ -180,11 +186,45 @@ function HandOverDate({ todo, mayAct, onChanged }) {
   );
 }
 
-/** The enquiry's EDD, read beside a hand-over date: the last team's word. */
-function EddReadOnly({ todo }) {
+/** Marketing's EDD, read beside the team's own date — or, with none, asked for [EddNeeded]. */
+function EddReadOnly({ todo, onChanged }) {
   const edd = eddOfTask(todo);
-  if (!edd) return null;
+  if (!edd) return <EddNeeded todo={todo} onChanged={onChanged} className="mt-1" />;
   return <EddLine edd={edd} className="mt-1 text-xs" />;
+}
+
+/**
+ * No EDD on the job: the queues have no place for the work until marketing sets one
+ * [server: eddAsk.service]. Marketing and Admin set it right here — on the enquiry, or on a job
+ * raised from the customer, the job's; everybody else is told who sets it.
+ */
+export function EddNeeded({ todo, onChanged, className = '' }) {
+  const { isAdmin, departments = [] } = useAuth();
+  const { toast } = useToast();
+  const [setting, setSetting] = useState(false);
+  if (!todo || eddOfTask(todo) || todo.completed) return null;
+  const sets = isAdmin || departments.includes('marketing');
+  const enquiryId = todo.enquiry?._id || (typeof todo.enquiry === 'string' ? todo.enquiry : null);
+  const save = async ({ date, note }) => {
+    if (enquiryId) {
+      const saved = await enquiriesApi.setEdd({ id: enquiryId, date, note });
+      onChanged?.({ ...todo, enquiry: { ...(typeof todo.enquiry === 'object' ? todo.enquiry : { _id: enquiryId }), edd: saved } });
+    } else {
+      onChanged?.(await workspace.todos.jobEdd({ id: todo._id, date, note }));
+    }
+    toast(`EDD ${formatDate(date)}`, 'Production, Printing, Assembly and Dispatch queue the work by it.');
+    setSetting(false);
+  };
+  return (
+    <div className={`rounded-lg border border-danger-500/40 bg-danger-500/[0.06] px-3 py-2 ${className}`} aria-label="EDD needed">
+      <p className="text-sm text-steel-100">
+        <span className="font-bold text-danger-400">EDD needed</span>
+        <span className="text-steel-300"> — the Production, Printing, Assembly and Dispatch queues run by it; this work has no place in them until it is set.{sets ? '' : ' Marketing or Admin sets it.'}</span>
+      </p>
+      {sets && !setting && <button type="button" className="btn-primary mt-1.5 px-3 py-1.5 text-xs" onClick={() => setSetting(true)}>Set EDD</button>}
+      {setting && <EddForm onSave={save} onCancel={() => setSetting(false)} label="Set EDD" />}
+    </div>
+  );
 }
 
 export default function TaskEdd({ todo, mayAct = false, onChanged }) {
@@ -199,11 +239,13 @@ export default function TaskEdd({ todo, mayAct = false, onChanged }) {
     const plans = mayAct && mayPlanProduction;
     return (
       <div className="space-y-2">
+        {/* No EDD: asked for before anything else — the queue runs by it [EddNeeded]. */}
+        {!routed && <EddNeeded todo={todo} onChanged={onChanged} />}
         <TaskRouting todo={todo} mayAct={plans} onChanged={onChanged} />
         {routed && handsOnOf(todo).length > 0 && <HandOverDate todo={todo} mayAct={plans} onChanged={onChanged} />}
         {routed && !handsOnOf(todo).length && <EddBox todo={todo} mayAct={plans} onChanged={onChanged} toast={toast} editing={editing} setEditing={setEditing} />}
         {mayAct && !plans && !todo.completed && (
-          <p className="text-xs text-steel-400">The Production in charge gives the EDD and decides printing and assembly — you update the status.</p>
+          <p className="text-xs text-steel-400">The Production in charge gives the completion and hand-over dates and decides printing and assembly — you update the status.</p>
         )}
       </div>
     );
@@ -214,62 +256,63 @@ export default function TaskEdd({ todo, mayAct = false, onChanged }) {
 
 function EddBox({ todo, mayAct, onChanged, toast, editing, setEditing }) {
   const { mayPlanProduction } = useAuth();
+  /* The EDD: marketing's, read here. */
   const edd = eddOfTask(todo);
   /*
-   * Printing's or Assembly's EDD, last in a chain Production routed: the Production in charge
-   * confirms it or gives their own [server: handoff.service `confirmTaskEdd`].
+   * Printing's or Assembly's completion date, last in a chain Production routed: the Production
+   * in charge confirms it or gives their own [server: handoff.service `confirmTaskEdd`].
    */
   const inChain = todo.kind !== 'ask_edd' && Boolean(todo.routing?.byProduction);
   const confirms = inChain && mayPlanProduction && !todo.completed;
   const gives = givesEdd(todo) && (mayAct || confirms) && !todo.completed;
-  const needed = !edd && !todo.completed;
   const givenHere = (todo.modelDates || []).map((row) => row.date).filter(Boolean).sort().at(-1);
+  const needed = givesEdd(todo) && !givenHere && !todo.completed;
+  const afterEdd = Boolean(givenHere && edd?.date && givenHere > edd.date);
   const confirm = async () => {
     const saved = await workspace.todos.confirmEdd(todo._id);
-    toast(`EDD ${formatDate(saved.eddConfirmed?.date)} confirmed`, 'The team that gave it sees your confirmation on its task.');
+    toast(`Completion date ${formatDate(saved.eddConfirmed?.date)} confirmed`, 'The team that gave it sees your confirmation on its task.');
     onChanged?.(saved);
   };
 
   const save = async ({ date, note, models }) => {
     const saved = await workspace.todos.edd({ id: todo._id, date, models, note });
     const latest = date || (models || []).map((row) => row.date).sort().at(-1);
-    toast(models?.length ? `EDD given for ${models.length} models` : `EDD ${formatDate(latest)}`, 'Each model’s EDD is the latest its teams give; marketing and Admin are told.');
+    toast(models?.length ? `Completion date given for ${models.length} models` : `Completion date ${formatDate(latest)}`, 'It shows on the enquiry beside marketing’s EDD.');
     setEditing(false);
     onChanged?.(saved);
   };
 
-  const tone = needed && givesEdd(todo) ? 'border-warn-500/40 bg-warn-500/[0.07]' : 'border-accent/30 bg-accent/[0.05]';
+  const tone = needed || afterEdd ? 'border-warn-500/40 bg-warn-500/[0.07]' : 'border-accent/30 bg-accent/[0.05]';
   return (
-    <div className={`rounded-xl border px-3 py-2.5 ${tone}`} aria-label="Expected delivery date">
-      {edd ? (
-        <EddLine edd={edd} />
-      ) : givesEdd(todo) ? (
-        <p className="text-sm text-steel-100">
-          <span className="font-bold text-warn-400">EDD needed</span>
-          <span className="text-steel-300"> — {todo.enquiry ? 'the enquiry has' : 'this job has'} no expected delivery date yet.{gives ? ' Give it here; marketing and Admin are told.' : ''}</span>
+    <div className={`rounded-xl border px-3 py-2.5 ${tone}`} aria-label="Completion date">
+      {edd ? <EddLine edd={edd} /> : <EddNeeded todo={todo} onChanged={onChanged} />}
+      {givesEdd(todo) && (givenHere ? (
+        <p className={`mt-1 text-sm ${afterEdd ? 'font-semibold text-danger-400' : 'text-steel-100'}`}>
+          <span className="font-bold">Completion date {formatDate(givenHere)}</span>
+          {afterEdd ? ' — after the EDD: marketing and Admin see it on the enquiry' : ''}
         </p>
       ) : (
-        <p className="text-sm text-steel-100">
-          <span className="font-bold">EDD not given yet</span>
-          <span className="text-steel-400"> — Production has not said when the goods will be ready.</span>
+        <p className="mt-1 text-sm text-steel-100">
+          <span className="font-bold text-warn-400">Completion date needed</span>
+          <span className="text-steel-300"> — say when this team will be finished.{gives ? ' It shows on the enquiry beside the EDD.' : ''}</span>
         </p>
-      )}
+      ))}
       {inChain && givenHere && (
         todo.eddConfirmed
           ? <p className="mt-1 text-xs font-semibold text-success-400">✓ Confirmed by the Production in charge — {formatDate(todo.eddConfirmed.date)}</p>
           : <p className="mt-1 text-xs font-semibold text-warn-400">Waiting for the Production in charge to confirm</p>
       )}
       {confirms && givenHere && !todo.eddConfirmed && !editing && (
-        <button type="button" className="btn-primary mt-1 px-3 py-1.5 text-xs" onClick={confirm}>Confirm EDD</button>
+        <button type="button" className="btn-primary mt-1 px-3 py-1.5 text-xs" onClick={confirm}>Confirm completion date</button>
       )}
       {/* Wanted: the form is right there. Given: a Change button, and the form on request. */}
-      {gives && edd && !editing && (
-        <button type="button" className="row-action mt-1" onClick={() => setEditing(true)}>Change EDD</button>
+      {gives && givenHere && !editing && (
+        <button type="button" className="row-action mt-1" onClick={() => setEditing(true)}>Change completion date</button>
       )}
       <Incoming todo={todo} />
       <ModelEdds todo={todo} className="mt-1" />
       {gives && (needed || editing) && (
-        <EddForm onSave={save} onCancel={editing ? () => setEditing(false) : undefined} label={edd ? 'Change EDD' : 'Give EDD'} models={modelsOfTask(todo)} given={datesOfTask(todo)} />
+        <EddForm onSave={save} onCancel={editing ? () => setEditing(false) : undefined} label={givenHere ? 'Change completion date' : 'Give completion date'} dateLabel="Completion date" models={modelsOfTask(todo)} given={datesOfTask(todo)} />
       )}
     </div>
   );

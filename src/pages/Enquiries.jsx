@@ -22,6 +22,7 @@ import {
 } from '../utils/pipeline.js';
 import useOpenFromLink from '../hooks/useOpenFromLink.js';
 import { useHandoffCatalogue } from '../hooks/useHandoffCatalogue.js';
+import { DeliveryBadge, inDanger } from '../components/DeliveryRisk.jsx';
 
 /**
  * What the list hook fetches while the board is showing: nothing.
@@ -344,7 +345,7 @@ export default function Enquiries({ embedded = false }) {
                     {/* Where it is with the departments [server: handoff.service `enquiryProgress`]. */}
                     <th className="px-1.5 py-3">Stage</th>
                     <th className="px-1.5 py-3" title="Expected ready date of the mould">ERD</th>
-                    <th className="px-1.5 py-3" title="Expected delivery date — set by marketing on the enquiry, or given by Production">EDD</th>
+                    <th className="px-1.5 py-3" title="Expected delivery date — marketing’s; under it, the plant’s completion date and whether the order is in danger of missing it">EDD</th>
                     <th className="px-1.5 py-3">Issues</th>
                     <SortHeader field="status" label="Sales stage" sort={sort} onToggle={sortBy} padding="px-1.5" />
                   </tr>
@@ -399,8 +400,15 @@ export default function Enquiries({ embedded = false }) {
                         <td className="min-w-[3.5rem] px-1.5 py-3.5 text-steel-300" aria-label={`ERD of ${enquiry.number}`}>
                           {enquiry.progress?.erd ? formatDate(enquiry.progress.erd.date) : '—'}
                         </td>
-                        <td className="min-w-[3.5rem] px-1.5 py-3.5 text-steel-300" aria-label={`EDD of ${enquiry.number}`}>
+                        <td className="min-w-[5.5rem] px-1.5 py-3.5 text-steel-300" aria-label={`EDD of ${enquiry.number}`}>
                           {enquiry.progress?.edd ? formatDate(enquiry.progress.edd.date) : '—'}
+                          {/* The plant's completion date beside it, red when after the EDD [server: enquiryProgress]. */}
+                          {enquiry.progress?.completion && (
+                            <span className={`block text-xs ${enquiry.progress.edd && enquiry.progress.completion.date > enquiry.progress.edd.date ? 'font-semibold text-danger-400' : 'text-steel-500'}`}>
+                              Plant {formatDate(enquiry.progress.completion.date)}
+                            </span>
+                          )}
+                          {inDanger(enquiry.progress?.risk) && <DeliveryBadge risk={enquiry.progress.risk} className="mt-1" compact />}
                         </td>
                         <td className="min-w-[6.5rem] px-1.5 py-3.5" aria-label={`Issues on ${enquiry.number}`}>
                           {enquiry.progress?.issues?.length ? (
