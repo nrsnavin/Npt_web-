@@ -450,7 +450,7 @@ function DepartmentDesk() {
         <section className="card space-y-3 p-5">
           <p className="text-sm text-steel-300">
             Every open request in the order it has to go: late first, then Top Most Urgent, Today Morning (by noon), Today Evening and Today (by 7 PM),
-            Tomorrow — and last, those whose urgency marketing has not given yet. Nothing here holds a dispatch.
+            Tomorrow. A request marketing has not confirmed reads Today — the day it reached Dispatch. Update each request’s status from its row; nothing here holds a dispatch.
           </p>
           <DeliveryQueue />
         </section>

@@ -34,12 +34,33 @@ test('the Dispatch desk has a Delivery queue tab; marketing and Admin set the ur
   assert.match(dashboard, /\{tab === 'delivery' && \([\s\S]*<DeliveryQueue \/>/);
   const queue = read('components/DeliveryQueue.jsx');
   assert.match(queue, /dispatchPlanning\.queue\(\)/);
-  assert.match(queue, /const maySet = isAdmin \|\| departments\.includes\('marketing'\)/);
-  assert.match(queue, /!row\.delivery \? 'Urgency not given yet' : row\.delivery\.late \? 'Late' : row\.delivery\.label/);
+  /* Only Admin or the request's marketing person is offered the urgency — the server says which row [row `maySetUrgency`]. */
+  assert.match(queue, /\{row\.maySetUrgency && \(/);
+  assert.match(queue, /!row\.delivery \? 'Today' : row\.delivery\.late \? 'Late' : row\.delivery\.label/, 'no urgency given reads Today');
+  assert.match(queue, /\{row\.delivery\?\.label \|\| 'Today'\}\{row\.delivery\?\.default \? ' · default' : ''\}/);
   const dialog = read('components/DeliveryUrgencyDialog.jsx');
   assert.match(dialog, /workspace\.todos\.setDelivery\(\{ id: taskId, urgency/);
   assert.match(dialog, /const ready = urgency && \(!changing \|\| \(urgency !== current && note\.trim\(\)\.length >= 3\)\)/, 'a change says why');
   const actions = read('components/HandoffTaskActions.jsx');
   assert.match(actions, /todo\.kind === 'invoice_dispatch' && \(isAdmin \|\| departments\.includes\('marketing'\)\)/);
   assert.match(read('api/endpoints.js'), /setDelivery: \(\{ id, \.\.\.payload \}\) => api\.post\(`\/workspace\/todos\/\$\{id\}\/delivery`/);
+});
+
+test('Dispatch updates each request’s status from the delivery queue — the task’s own workflow in its panel', () => {
+  const queue = read('components/DeliveryQueue.jsx');
+  assert.match(queue, /onClick=\{\(\) => setOpened\(row\.task\)\}/);
+  assert.match(queue, /\{mayWork\(row\.task\) \? 'Update status' : 'Open'\}/);
+  assert.match(queue, /<TaskPanel\s+task=\{opened\}/);
+});
+
+test('the urgency is asked on the enquiry page and the task: Today by default, confirmed or changed by marketing or Admin only', () => {
+  const prompt = read('components/DeliveryUrgencyPrompt.jsx');
+  assert.match(prompt, /const isDefault = !delivery \|\| Boolean\(delivery\.default\);/);
+  assert.match(prompt, /\{maySet && \(/, 'Dispatch reads it, never sets it');
+  assert.match(prompt, /\{isDefault \? 'Confirm or change' : 'Change urgency'\}/);
+  assert.match(read('components/DepartmentDesk.jsx'), /<DeliveryUrgencyPrompt task=\{dispatchRequest\} maySet=\{isManagement \|\| owner === me\}/);
+  assert.match(read('components/TaskPanel.jsx'), /<DeliveryUrgencyPrompt task=\{task\}/);
+  const dialog = read('components/DeliveryUrgencyDialog.jsx');
+  assert.match(dialog, /const changing = Boolean\(current\) && !isDefault;/, 'the default is changed without a reason');
+  assert.match(dialog, /confirming \? 'Confirm Today'/);
 });

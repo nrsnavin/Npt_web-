@@ -5,6 +5,7 @@ import HandoffTaskActions from './HandoffTaskActions.jsx';
 import TaskWorkflow from './TaskWorkflow.jsx';
 import TaskPdfLink from './TaskPdfLink.jsx';
 import TaskEdd from './TaskEdd.jsx';
+import DeliveryUrgencyPrompt from './DeliveryUrgencyPrompt.jsx';
 import { Modal, Notice } from './ui.jsx';
 import { TaskFacts, TaskTimeline } from './TaskHistory.jsx';
 import { buttonFor, useHandoffCatalogue } from '../hooks/useHandoffCatalogue.js';
@@ -19,7 +20,7 @@ import { departmentLabel } from '../utils/pipeline.js';
  * department's desk; an update Admin writes leaves the task on the department's queue.
  */
 export default function TaskPanel({ task, startWith, mayWork, onClose, onChanged }) {
-  const { user } = useAuth();
+  const { user, isManagement, departments = [] } = useAuth();
   const catalogue = useHandoffCatalogue();
   const button = buttonFor(catalogue, task.kind);
   const me = String(user?.id || user?._id || '');
@@ -66,6 +67,8 @@ export default function TaskPanel({ task, startWith, mayWork, onClose, onChanged
 
         {/* The EDD on the tasks that give it or work to it; asked for at the top until it is given. */}
         <TaskEdd todo={task} mayAct={mayWork} onChanged={onChanged} />
+        {/* A Dispatch request: its delivery urgency, confirmed or changed by marketing or Admin — Dispatch reads it [server: deliveryUrgency.service]. */}
+        <DeliveryUrgencyPrompt task={task} maySet={isManagement || (departments.includes('marketing') && !departments.includes(task.department))} onSaved={onChanged} />
 
         {/* The rule's proposal on a collection case — the collector or Admin presses Escalated to PRT, or not. */}
         {!task.completed && task.suggestion?.kind === 'escalate_prt' && (
