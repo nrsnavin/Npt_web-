@@ -49,13 +49,10 @@ function CustomerCell({ row }) {
   return (
     <div className="min-w-0">
       <div className="flex flex-wrap items-center gap-2">
-        {row.enquiry ? (
-          <Link to={`/enquiries/${row.enquiry._id}`} className="font-semibold text-steel-50 hover:text-accent">
-            {row.customer?.name || 'No buyer named'}
-          </Link>
-        ) : (
-          <span className="font-semibold text-steel-50">{row.customer?.name || 'No buyer named'}</span>
-        )}
+        {/* The sample's own page: its photos, the buyer's reference, the log [pages/SampleDetail.jsx]. */}
+        <Link to={row.link} className="font-semibold text-steel-50 hover:text-accent">
+          {row.customer?.name || 'No buyer named'}
+        </Link>
         {row.fresh && <span className="rounded-full bg-flame-500/15 px-2 py-0.5 text-[0.75rem] font-bold uppercase tracking-wide text-flame-400">New Enquiry</span>}
       </div>
       {row.requestedBy && <p className="mt-0.5 text-xs text-steel-400">Requested by: {row.requestedBy}</p>}
@@ -80,7 +77,10 @@ function CustomerCell({ row }) {
       {row.photos && row.queueStatus === 'ready' && row.photos.taken < row.photos.of && (
         <p className="mt-1 text-[0.75rem] font-semibold text-warn-400">Ready without a photo of every piece ({row.photos.taken} of {row.photos.of})</p>
       )}
-      <Link to={row.link} className="mt-0.5 inline-block text-[0.75rem] text-steel-500 hover:text-accent">{row.number}</Link>
+      <p className="mt-0.5 text-[0.75rem] text-steel-500">
+        <Link to={row.link} className="hover:text-accent">{row.number}</Link>
+        {row.enquiry && <> · <Link to={`/enquiries/${row.enquiry._id}`} className="hover:text-accent">{row.enquiry.number}</Link></>}
+      </p>
     </div>
   );
 }
