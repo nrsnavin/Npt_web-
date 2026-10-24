@@ -254,6 +254,8 @@ const TABLE_DESKS = ['despatch', ...Object.keys(DESK_TABLE_KINDS)];
 const readView = (department) => {
   try { return localStorage.getItem(viewKeyOf(department)) === 'cards' ? 'cards' : 'table'; } catch { return 'table'; }
 };
+/* The desks that list enquiries — marketing's and Admin's; every other desk is its tasks alone. */
+const ENQUIRY_DESKS = ['marketing', 'management'];
 /* The desks that see the orders at risk of missing the EDD [components/DeliveryRisk.jsx]. */
 const RISK_DESKS = ['production', 'marketing', 'management'];
 
@@ -333,9 +335,13 @@ function DepartmentDesk() {
   const deskCounts = deskList ? Object.fromEntries(deskList.map((key) => [key, everyRow.filter((row) => row.task.department === key).length])) : {};
   /* Sampling works from its own queue — the sample requests, as the team designed it. */
   const isSampling = figures.department === 'sampling';
-  /* Every enquiry this person may see — all of them for Admin, their own for marketing. Not on
-     the Production desk: that is the queue, in EDD order, and nothing else. */
-  const seesEnquiries = canRead('enquiries') && !isProduction;
+  /*
+   * Enquiries are marketing's and Admin's: only their desks list them. Every other department works
+   * from its tasks, which carry what it needs — anyone given enquiry access opens them from the top
+   * navigation, and a task still links to its enquiry.
+   */
+  const enquiryDesk = ENQUIRY_DESKS.includes(figures.department);
+  const seesEnquiries = canRead('enquiries') && enquiryDesk;
   const everyone = isAdmin || figures.department === 'management';
   const seesAll = mayDelete;
   /* A shared desk: the tab above has picked the team, so its rows are one list. */
@@ -613,7 +619,7 @@ function DepartmentDesk() {
         </section>
       )}
 
-      <WorkspaceLinks department={figures.department} label={figures.label} atStages={atStages} />
+      <WorkspaceLinks department={figures.department} label={figures.label} atStages={enquiryDesk ? atStages : []} enquiries={enquiryDesk} />
       <WorkspaceBrief department={figures.department} label={figures.label} />
     </div>
   );

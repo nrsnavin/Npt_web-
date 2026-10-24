@@ -12,10 +12,13 @@ import { Section } from './ui.jsx';
  */
 
 /** The screens this department works from, and the enquiries at its stages. */
-export function WorkspaceLinks({ department, label, atStages = [] }) {
+export function WorkspaceLinks({ department, label, atStages = [], enquiries = true }) {
   const { canRead, isAdmin } = useAuth();
   const workspace = workspaceFor(department);
-  const pages = (workspace?.pages || []).filter((page) => !page.module || isAdmin || canRead(page.module));
+  /* A desk that is not marketing's or Admin's links no enquiry lists — its tasks are its work [pages/DepartmentDashboard.jsx]. */
+  const pages = (workspace?.pages || [])
+    .filter((page) => !page.module || isAdmin || canRead(page.module))
+    .filter((page) => enquiries || !page.to.startsWith('/enquiries'));
   if (!pages.length && !atStages.length) return null;
 
   return (
