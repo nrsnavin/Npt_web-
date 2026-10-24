@@ -27,32 +27,37 @@ test('the tasks that give the EDD are Production’s, Assembly’s and Printing�
   /* A Production, Printing or Assembly task raised from the customer, with no enquiry, gives its own. */
   assert.equal(showsEdd({ kind: 'ask_edd', enquiry: null }), true);
   assert.equal(givesEdd({ kind: 'ask_printing', enquiry: null }), true);
-  assert.equal(showsEdd({ kind: 'invoice_dispatch', enquiry: null }), false, 'a team dispatch request has no EDD of its own');
-  assert.equal(eddOfTask({ kind: 'ask_edd', modelDates: [{ model: 'A', date: '2026-10-24' }, { model: 'B', date: '2026-10-26' }] }).date, '2026-10-26');
+  assert.equal(showsEdd({ kind: 'invoice_dispatch', enquiry: null }), true, 'a team dispatch request works to the job’s EDD');
+  /* With no enquiry the EDD is the job's, marketing's — never a team's own dates. */
+  assert.equal(eddOfTask({ kind: 'ask_edd', modelDates: [{ model: 'A', date: '2026-10-24' }, { model: 'B', date: '2026-10-26' }] }), null);
+  assert.deepEqual(eddOfTask({ kind: 'ask_edd', jobEdd: { date: '2026-11-02' } }), { date: '2026-11-02', department: 'marketing' });
   assert.equal(eddOfTask({ kind: 'ask_edd', enquiry: bare, modelDates: [{ model: 'A', date: '2026-10-24' }] }), null, 'an enquiry’s task reads the enquiry’s EDD');
 });
 
-test('the chip: a team that owes its own date says so; else marketing’s EDD; Dispatch says when marketing has given none', () => {
+test('the chip: no EDD from marketing first; then a team that owes its own date; else marketing’s EDD', () => {
   assert.equal(eddOf(enquiry).department, 'marketing');
   assert.equal(eddOf(bare), null);
   assert.equal(eddOf('e1'), null);
-  /* Production decides printing and assembly first [TaskRouting]; until then the chip says so. */
+  const needed = { tone: 'needed', label: 'EDD needed from marketing' };
+  /* With no EDD the work has no place in the queues: that is said before anything else. */
+  assert.deepEqual(eddChipOf({ kind: 'ask_edd', enquiry: bare }), needed);
+  assert.deepEqual(eddChipOf({ kind: 'ask_assembling_edd', enquiry: bare }), needed);
+  assert.deepEqual(eddChipOf({ kind: 'invoice_dispatch', enquiry: bare }), needed);
+  assert.deepEqual(eddChipOf({ kind: 'ask_edd', jobEdd: null }), needed, 'a job raised from the customer too');
+  /* With the EDD set: Production decides printing and assembly first [TaskRouting]. */
   const routed = { decidedAt: '2026-10-18T05:00:00Z', models: [{ model: 'NPT-410V' }], handsTo: [] };
-  assert.deepEqual(eddChipOf({ kind: 'ask_edd', enquiry: bare }), { tone: 'needed', label: 'Printing / assembly to decide' });
+  assert.deepEqual(eddChipOf({ kind: 'ask_edd', enquiry }), { tone: 'needed', label: 'Printing / assembly to decide' });
   /* The last team owes its completion date until it gives one; then the chip reads marketing's EDD. */
   assert.deepEqual(eddChipOf({ kind: 'ask_edd', enquiry, routing: routed }), { tone: 'needed', label: 'Completion date needed' });
   const set = eddChipOf({ kind: 'ask_edd', enquiry, routing: routed, modelDates: [{ model: 'NPT-410V', date: '2026-11-10' }] });
   assert.equal(set.tone, 'set');
   assert.match(set.label, /^EDD 12 Nov 2026$/);
-  assert.equal(eddChipOf({ kind: 'ask_edd', enquiry: bare, routing: routed, modelDates: [{ model: 'NPT-410V', date: '2026-11-10' }] }).label, 'Completes 10 Nov 2026', 'no EDD from marketing: the team’s own date');
+  assert.equal(eddChipOf({ kind: 'ask_edd', jobEdd: { date: '2026-11-15' }, routing: routed, modelDates: [{ model: 'NPT-410V', date: '2026-11-10' }] }).label, 'EDD 15 Nov 2026', 'the job’s EDD');
   /* A team that hands on owes its hand-over date. */
   const handing = { ...routed, handsTo: ['printing'] };
   assert.deepEqual(eddChipOf({ kind: 'ask_edd', enquiry, routing: handing }), { tone: 'needed', label: 'Hand-over date needed' });
-  assert.equal(eddChipOf({ kind: 'ask_edd', enquiry: bare, routing: { ...handing, handOverDate: '2026-11-05' } }).label, 'To Printing 05 Nov 2026');
   assert.equal(eddChipOf({ kind: 'ask_edd', enquiry, routing: { ...handing, handOverDate: '2026-11-05' } }).label, 'EDD 12 Nov 2026');
-  assert.deepEqual(eddChipOf({ kind: 'ask_printing', enquiry: bare, routing: { handsTo: ['assembling'] } }), { tone: 'needed', label: 'Hand-over date needed' });
-  assert.deepEqual(eddChipOf({ kind: 'ask_assembling_edd', enquiry: bare }), { tone: 'needed', label: 'Completion date needed' });
-  assert.deepEqual(eddChipOf({ kind: 'invoice_dispatch', enquiry: bare }), { tone: 'missing', label: 'No EDD yet' });
+  assert.deepEqual(eddChipOf({ kind: 'ask_printing', enquiry, routing: { handsTo: ['assembling'] } }), { tone: 'needed', label: 'Hand-over date needed' });
   /* A finished task with no date says nothing; a finished one with a date still shows it. */
   assert.equal(eddChipOf({ kind: 'ask_edd', enquiry: bare, completed: true }), null);
   assert.equal(eddChipOf({ kind: 'ask_edd', enquiry, completed: true }).tone, 'set');
@@ -62,8 +67,12 @@ test('the chip: a team that owes its own date says so; else marketing’s EDD; D
 test('the Production, Printing or Assembly task asks for its completion date until it is given — the EDD it reads is marketing’s', () => {
   const taskEdd = read('components/TaskEdd.jsx');
   assert.match(taskEdd, /Completion date needed/);
-  assert.match(taskEdd, /No EDD yet/);
-  assert.match(taskEdd, /marketing gives the date the buyer is promised; the queue runs by it/);
+  /* No EDD: asked for right there — marketing and Admin set it, everybody else is told who does. */
+  assert.match(taskEdd, /export function EddNeeded\(\{ todo, onChanged, className = '' \}\)/);
+  assert.match(taskEdd, /\{edd \? <EddLine edd=\{edd\} \/> : <EddNeeded todo=\{todo\} onChanged=\{onChanged\} \/>\}/);
+  assert.match(taskEdd, /enquiriesApi\.setEdd\(\{ id: enquiryId, date, note \}\)/);
+  assert.match(taskEdd, /workspace\.todos\.jobEdd\(\{ id: todo\._id, date, note \}\)/);
+  assert.match(taskEdd, / Marketing or Admin sets it\./);
   assert.match(taskEdd, /workspace\.todos\.edd\(\{ id: todo\._id, date, models, note \}\)/);
   /* Wanted: the form is right there; given: a Change button. */
   assert.match(taskEdd, /\{gives && \(needed \|\| editing\) && \(/);

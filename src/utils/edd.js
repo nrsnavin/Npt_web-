@@ -15,15 +15,17 @@ export const SHOWS_EDD_KINDS = [...EDD_TASK_KINDS, 'invoice_dispatch'];
 /** The enquiry's EDD as the server sends it — `{ date, department, at, by, note }` — or null. */
 export const eddOf = (enquiry) => (enquiry && typeof enquiry === 'object' && enquiry.edd?.date ? enquiry.edd : null);
 /**
- * A task's EDD: its enquiry's, or — raised from the customer with no enquiry — the latest date
- * the task itself gave [server: Todo `modelDates`].
+ * A task's EDD — marketing's: its enquiry's, or on a job raised from the customer, the job's
+ * [server: Todo `jobEdd`]. Null until marketing or Admin sets it; a team's own dates are not it.
  */
 export const eddOfTask = (task) => {
   const fromEnquiry = eddOf(task?.enquiry);
   if (fromEnquiry || task?.enquiry) return fromEnquiry;
-  const latest = (task?.modelDates || []).map((row) => row.date).filter(Boolean).sort().at(-1);
-  return latest ? { date: latest, department: task.department || null } : null;
+  return task?.jobEdd?.date ? { ...task.jobEdd, department: 'marketing' } : null;
 };
+
+/** The tasks on the queues the EDD orders: the form asks marketing for it when raising one [server: eddAsk.service]. */
+export const EDD_ASK_KINDS = ['ask_edd', 'ask_printing', 'ask_assembling_edd', 'invoice_dispatch'];
 
 /*
  * What follows moulding, decided by Production model by model [server: handoff.service
@@ -50,7 +52,8 @@ export const incomingOf = (task) => Object.entries(task?.routing?.incoming || {}
   .filter(([, day]) => day)
   .map(([from, day]) => ({ from, label: ROUTE_LABELS[from] || from, day }));
 
-export const showsEdd = (task) => Boolean(task?.kind && SHOWS_EDD_KINDS.includes(task.kind) && (task.enquiry || EDD_TASK_KINDS.includes(task.kind)));
+/* With or without an enquiry: a job raised from the customer has its EDD too [server: Todo `jobEdd`]. */
+export const showsEdd = (task) => Boolean(task?.kind && SHOWS_EDD_KINDS.includes(task.kind));
 export const givesEdd = (task) => Boolean(task?.kind && EDD_TASK_KINDS.includes(task.kind));
 
 /**
@@ -61,8 +64,10 @@ export const givesEdd = (task) => Boolean(task?.kind && EDD_TASK_KINDS.includes(
  */
 export function eddChipOf(task) {
   if (!showsEdd(task)) return null;
+  const edd = eddOfTask(task);
+  /* No EDD first: the queues have no place for the work until marketing sets one [server: eddAsk.service]. */
+  if (!edd && !task.completed) return { tone: 'needed', label: 'EDD needed from marketing' };
   if (needsRouting(task)) return { tone: 'needed', label: 'Printing / assembly to decide' };
-  const edd = eddOf(task.enquiry);
   const teams = handsOnOf(task);
   if (teams.length) {
     const day = task.routing?.handOverDate;
@@ -74,7 +79,8 @@ export function eddChipOf(task) {
   if (edd) return { tone: 'set', label: `EDD ${formatDate(edd.date)}`, edd };
   if (own) return { tone: 'set', label: `Completes ${formatDate(own)}` };
   if (task.completed) return null;
-  return { tone: 'missing', label: 'No EDD yet' };
+  /* No EDD: the queues have no place for it until marketing sets one [server: eddAsk.service]. */
+  return { tone: 'needed', label: 'EDD needed from marketing' };
 }
 
 export const EDD_CHIP = {

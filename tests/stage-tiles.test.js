@@ -28,7 +28,7 @@ test('the task form: department list, filled from the enquiry, the common fields
   assert.match(dialog, /const PDF_LIMIT = 1024 \* 1024;/);
   assert.match(dialog, /handoffsApi\.attach\(\{ id: enquiry\._id, taskId: sent\.task\._id, file \}\)/);
   assert.match(dialog, /disabled=\{busy \|\| blocked\}/);
-  assert.match(dialog, /const blocked = !prefill \|\| Boolean\(missing\) \|\| mustExplain \|\| tooBig \|\| notPdf \|\| \(orders\.length > 1 && !order && !fromTask && !team\);/);
+  assert.match(dialog, /const blocked = !prefill \|\| Boolean\(missing\) \|\| mustExplain \|\| tooBig \|\| notPdf \|\| eddMissing \|\| \(orders\.length > 1 && !order && !fromTask && !team\);/);
 });
 
 test('a closed enquiry, or someone who may not raise tasks, gets plain tiles; open tasks show on their tile', () => {

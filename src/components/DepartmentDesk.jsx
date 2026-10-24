@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import TaskPdfLink from './TaskPdfLink.jsx';
 import { EddForm, EddLine, ModelEdds } from './TaskEdd.jsx';
 import { DeliveryReading } from './DeliveryRisk.jsx';
+import { EDD_ASK_KINDS } from '../utils/edd.js';
 import { useToast } from '../context/ToastContext.jsx';
 import TaskCard from './TaskCard.jsx';
 import EnquiryPayments from './EnquiryPayments.jsx';
@@ -258,7 +259,10 @@ export default function DepartmentDesk({ enquiry, onChanged }) {
    */
   const fromOrder = !['enquiry', 'sample', 'pricing_quote'].includes(stage);
   const maySetEdd = canWrite('enquiries') && !closed;
-  const showEdd = !closed && production && (inProduction || fromOrder || Boolean(production.edd));
+  /* Queue tasks open with no EDD: they have no place in the Production, Printing, Assembly and Dispatch queues until it is set [server: eddAsk.service]. */
+  const queueTasks = tasks.filter((task) => EDD_ASK_KINDS.includes(task.kind) && !task.completed);
+  const eddNeeded = !production?.edd && queueTasks.length > 0;
+  const showEdd = !closed && production && (inProduction || fromOrder || Boolean(production.edd) || eddNeeded);
   const setFinal = async ({ date, models, note }) => {
     const rows = models || production.byModel.map((row) => ({ model: row.model, date }));
     await enquiriesApi.setModelEdds({ id: enquiry._id, models: rows, note });
@@ -350,14 +354,16 @@ export default function DepartmentDesk({ enquiry, onChanged }) {
       <div className="space-y-4">
         <JourneyStrip journey={history?.journey} floor={history?.floor} />
         {showEdd && (
-          <div className={`rounded-xl border px-3 py-2.5 ${production.edd ? 'border-accent/40 bg-accent/[0.07]' : 'border-warn-500/40 bg-warn-500/[0.07]'}`} aria-label="Expected delivery">
+          <div className={`rounded-xl border px-3 py-2.5 ${production.edd ? 'border-accent/40 bg-accent/[0.07]' : eddNeeded ? 'border-danger-500/50 bg-danger-500/[0.07]' : 'border-warn-500/40 bg-warn-500/[0.07]'}`} aria-label="Expected delivery">
             <div className="flex flex-wrap items-start justify-between gap-2">
               {production.edd ? (
                 <EddLine edd={{ date: production.edd.edd, department: production.edd.department, by: production.edd.by ? { name: production.edd.by } : null, at: production.edd.at, note: production.edd.note || (production.edd.pending ? `${Number(production.edd.pending).toLocaleString('en-IN')} pcs pending` : '') }} />
               ) : (
                 <p className="text-sm text-steel-100">
-                  <span className="font-bold text-warn-400">EDD not set yet</span>
-                  <span className="text-steel-400"> · {maySetEdd ? 'set the date the buyer is promised — the production queue runs by it' : 'marketing gives the date the buyer is promised'}</span>
+                  <span className={`font-bold ${eddNeeded ? 'text-danger-400' : 'text-warn-400'}`}>{eddNeeded ? 'EDD needed' : 'EDD not set yet'}</span>
+                  <span className="text-steel-400"> · {eddNeeded
+                    ? `${queueTasks.map((task) => departmentLabel(task.department)).filter((label, at, all) => all.indexOf(label) === at).join(', ')} ${queueTasks.length > 1 ? 'have tasks' : 'has a task'} on this enquiry with no place in the queue until it is set${maySetEdd ? '' : ' — marketing or Admin sets it'}`
+                    : maySetEdd ? 'set the date the buyer is promised — the production queue runs by it' : 'marketing gives the date the buyer is promised'}</span>
                 </p>
               )}
               {maySetEdd && !settingEdd && (

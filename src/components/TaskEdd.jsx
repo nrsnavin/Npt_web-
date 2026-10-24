@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { workspace } from '../api/endpoints.js';
+import { enquiries as enquiriesApi, workspace } from '../api/endpoints.js';
 import { Field, Notice } from './ui.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import { todayInIndia } from '../utils/taskForm.js';
@@ -176,7 +176,7 @@ function HandOverDate({ todo, mayAct, onChanged }) {
         </p>
       )}
       <Incoming todo={todo} />
-      <EddReadOnly todo={todo} />
+      <EddReadOnly todo={todo} onChanged={onChanged} />
       <ModelEdds todo={todo} className="mt-1" />
       {gives && day && !editing && <button type="button" className="row-action mt-1" onClick={() => setEditing(true)}>Change hand-over date</button>}
       {gives && (!day || editing) && (
@@ -186,11 +186,45 @@ function HandOverDate({ todo, mayAct, onChanged }) {
   );
 }
 
-/** Marketing's EDD, read beside the team's own date. */
-function EddReadOnly({ todo }) {
+/** Marketing's EDD, read beside the team's own date — or, with none, asked for [EddNeeded]. */
+function EddReadOnly({ todo, onChanged }) {
   const edd = eddOfTask(todo);
-  if (!edd) return null;
+  if (!edd) return <EddNeeded todo={todo} onChanged={onChanged} className="mt-1" />;
   return <EddLine edd={edd} className="mt-1 text-xs" />;
+}
+
+/**
+ * No EDD on the job: the queues have no place for the work until marketing sets one
+ * [server: eddAsk.service]. Marketing and Admin set it right here — on the enquiry, or on a job
+ * raised from the customer, the job's; everybody else is told who sets it.
+ */
+export function EddNeeded({ todo, onChanged, className = '' }) {
+  const { isAdmin, departments = [] } = useAuth();
+  const { toast } = useToast();
+  const [setting, setSetting] = useState(false);
+  if (!todo || eddOfTask(todo) || todo.completed) return null;
+  const sets = isAdmin || departments.includes('marketing');
+  const enquiryId = todo.enquiry?._id || (typeof todo.enquiry === 'string' ? todo.enquiry : null);
+  const save = async ({ date, note }) => {
+    if (enquiryId) {
+      const saved = await enquiriesApi.setEdd({ id: enquiryId, date, note });
+      onChanged?.({ ...todo, enquiry: { ...(typeof todo.enquiry === 'object' ? todo.enquiry : { _id: enquiryId }), edd: saved } });
+    } else {
+      onChanged?.(await workspace.todos.jobEdd({ id: todo._id, date, note }));
+    }
+    toast(`EDD ${formatDate(date)}`, 'Production, Printing, Assembly and Dispatch queue the work by it.');
+    setSetting(false);
+  };
+  return (
+    <div className={`rounded-lg border border-danger-500/40 bg-danger-500/[0.06] px-3 py-2 ${className}`} aria-label="EDD needed">
+      <p className="text-sm text-steel-100">
+        <span className="font-bold text-danger-400">EDD needed</span>
+        <span className="text-steel-300"> — the Production, Printing, Assembly and Dispatch queues run by it; this work has no place in them until it is set.{sets ? '' : ' Marketing or Admin sets it.'}</span>
+      </p>
+      {sets && !setting && <button type="button" className="btn-primary mt-1.5 px-3 py-1.5 text-xs" onClick={() => setSetting(true)}>Set EDD</button>}
+      {setting && <EddForm onSave={save} onCancel={() => setSetting(false)} label="Set EDD" />}
+    </div>
+  );
 }
 
 export default function TaskEdd({ todo, mayAct = false, onChanged }) {
@@ -205,6 +239,8 @@ export default function TaskEdd({ todo, mayAct = false, onChanged }) {
     const plans = mayAct && mayPlanProduction;
     return (
       <div className="space-y-2">
+        {/* No EDD: asked for before anything else — the queue runs by it [EddNeeded]. */}
+        {!routed && <EddNeeded todo={todo} onChanged={onChanged} />}
         <TaskRouting todo={todo} mayAct={plans} onChanged={onChanged} />
         {routed && handsOnOf(todo).length > 0 && <HandOverDate todo={todo} mayAct={plans} onChanged={onChanged} />}
         {routed && !handsOnOf(todo).length && <EddBox todo={todo} mayAct={plans} onChanged={onChanged} toast={toast} editing={editing} setEditing={setEditing} />}
@@ -249,14 +285,7 @@ function EddBox({ todo, mayAct, onChanged, toast, editing, setEditing }) {
   const tone = needed || afterEdd ? 'border-warn-500/40 bg-warn-500/[0.07]' : 'border-accent/30 bg-accent/[0.05]';
   return (
     <div className={`rounded-xl border px-3 py-2.5 ${tone}`} aria-label="Completion date">
-      {edd ? (
-        <EddLine edd={edd} />
-      ) : (
-        <p className="text-sm text-steel-100">
-          <span className="font-bold">No EDD yet</span>
-          <span className="text-steel-400"> — marketing gives the date the buyer is promised; the queue runs by it.</span>
-        </p>
-      )}
+      {edd ? <EddLine edd={edd} /> : <EddNeeded todo={todo} onChanged={onChanged} />}
       {givesEdd(todo) && (givenHere ? (
         <p className={`mt-1 text-sm ${afterEdd ? 'font-semibold text-danger-400' : 'text-steel-100'}`}>
           <span className="font-bold">Completion date {formatDate(givenHere)}</span>
