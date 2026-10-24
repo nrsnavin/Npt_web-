@@ -35,7 +35,7 @@ const STATUS_TONE = {
 function Tile({ label, hint, value, tone = 'text-steel-50', to, onClick, active, hideOnPhone = false }) {
   const body = (
     <>
-      <p className="eyebrow text-[0.65rem] leading-tight sm:text-xs">{label}</p>
+      <p className="eyebrow leading-tight">{label}</p>
       <p className={`mt-1 text-2xl font-bold tabular-nums sm:text-3xl ${tone}`}>{value ?? '—'}</p>
       <p className="mt-1 hidden text-xs text-steel-400 sm:block">{hint}</p>
     </>
