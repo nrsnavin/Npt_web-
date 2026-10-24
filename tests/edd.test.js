@@ -119,7 +119,7 @@ test('an order of several models: a date for each, one box fills them all; the e
   assert.deepEqual(datesOfTask({ modelDates: [{ model: 'CRF25', date: '2026-11-05' }] }), { CRF25: '2026-11-05' });
   const taskEdd = readFileSync(new URL('../src/components/TaskEdd.jsx', import.meta.url), 'utf8');
   assert.match(taskEdd, /models=\{modelsOfTask\(todo\)\} given=\{datesOfTask\(todo\)\}/);
-  assert.match(taskEdd, /aria-label=\{`\$\{dateLabel\} for \$\{model\}`\}/);
+  assert.match(taskEdd, /aria-label=\{`\$\{hintOf \? hintOf\(model\) : dateLabel\} for \$\{model\}`\}/);
   assert.match(taskEdd, /same for all/);
   const desk = readFileSync(new URL('../src/components/DepartmentDesk.jsx', import.meta.url), 'utf8');
   assert.match(desk, /<ModelEdds rows=\{production\.byModel\}/);
@@ -198,4 +198,11 @@ test('Production: Ready for Dispatch is not offered for a model that goes on to 
   const task = { kind: 'ask_edd', routing: { handsTo: ['printing'], models: [{ model: 'A-1', printing: true }, { model: 'C-3' }] } };
   assert.deepEqual(statusesForModel(task, statuses, 'A-1').map((step) => step.key), ['started', 'handed_printing']);
   assert.deepEqual(statusesForModel(task, statuses, 'C-3').map((step) => step.key), ['started', 'ready_dispatch']);
+});
+
+test('the hand-over date form says, model by model, whether its date is a hand-over or the completion date', () => {
+  const edd = readFileSync(new URL('../src/components/TaskEdd.jsx', import.meta.url), 'utf8');
+  assert.match(edd, /hintOf=\{\(model\) => dateLabelFor\(todo, 'Completion date', model\)\}/);
+  assert.match(edd, /const endsHere = modelsOfTask\(todo\)\.filter\(\(model\) => routeEndOf\(todo, model\) === 'dispatch'\);/);
+  assert.match(edd, /date is the completion date, then Ready for Dispatch\./);
 });
