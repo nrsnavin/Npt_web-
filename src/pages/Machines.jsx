@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { Badge, EmptyState, ErrorState, Field, FormError, Modal, PageHeader, TableSkeleton } from '../components/ui.jsx';
 import { formatDate } from '../utils/format.js';
 import PlantCalendarCard from '../components/PlantCalendarCard.jsx';
+import HandoverLeadCard from '../components/HandoverLeadCard.jsx';
 import { MACHINE_STATUSES, labelOf, toneOf } from '../utils/records.js';
 
 /**
@@ -139,6 +140,7 @@ export default function Machines() {
         </div>
       )}
       <PlantCalendarCard mayEdit={mayEdit} />
+      <HandoverLeadCard />
       {error && <ErrorState error={error} onRetry={load} />}
       {!machines && !error && <TableSkeleton rows={5} columns={6} />}
       {machines && !machines.length && <EmptyState title="No machines yet" description={mayAddMachine ? 'Add each press once — its maintenance and runs are kept against it.' : 'The Production in charge adds the machines.'} />}

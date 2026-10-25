@@ -8,6 +8,7 @@ import { formatDate } from '../utils/format.js';
 import { dateLabelFor, datesOfTask, eddByModelOf, eddOfTask, givesEdd, handOverDefault, handOverWarning, handsOnOf, incomingOf, modelsOfTask, needsRouting, routeEndOf, showsEdd, teamWords } from '../utils/edd.js';
 import TaskRouting from './TaskRouting.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
+import { plantLead } from '../utils/plantSettings.js';
 
 /**
  * The dates on a department task. The EDD is marketing's [server: Enquiry `edd`] — read here,
@@ -194,9 +195,9 @@ function HandOverDate({ todo, mayAct, onChanged }) {
         <EddForm
           onSave={save} onCancel={editing ? () => setEditing(false) : undefined} dateLabel={label} label={day ? 'Change hand-over date' : 'Give hand-over date'}
           models={modelsOfTask(todo)} given={datesOfTask(todo)} hintOf={(model) => dateLabelFor(todo, 'Completion date', model)}
-          initial={day ? '' : handOverDefault(todo, modelsOfTask(todo).length === 1 ? modelsOfTask(todo)[0] : null)}
-          initialOf={(model) => (/^Hand-over/.test(dateLabelFor(todo, 'Completion date', model)) ? handOverDefault(todo, model) : '')}
-          warningOf={(model, value) => (/^Hand-over/.test(dateLabelFor(todo, 'Completion date', model)) ? handOverWarning(todo, model, value) : null)}
+          initial={day ? '' : handOverDefault(todo, modelsOfTask(todo).length === 1 ? modelsOfTask(todo)[0] : null, undefined, plantLead())}
+          initialOf={(model) => (/^Hand-over/.test(dateLabelFor(todo, 'Completion date', model)) ? handOverDefault(todo, model, undefined, plantLead()) : '')}
+          warningOf={(model, value) => (/^Hand-over/.test(dateLabelFor(todo, 'Completion date', model)) ? handOverWarning(todo, model, value, plantLead()) : null)}
         />
       )}
     </div>

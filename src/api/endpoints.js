@@ -1322,4 +1322,6 @@ export const settings = {
   /* The plant calendar capacity is worked out from: press hours a day, shifts, weekly off. */
   plant: () => api.get('/settings/plant').then(unwrap),
   setPlant: (payload) => api.put('/settings/plant', payload).then(unwrap),
+  /** The days each finishing team gets before the EDD — the Production in charge, Admin or marketing. */
+  setHandoverLead: (days) => api.put('/settings/handover-lead', { days }).then(unwrap),
 };

@@ -17,6 +17,7 @@ import { ladderOf } from '../utils/taskState.js';
 import { departmentLabel } from '../utils/pipeline.js';
 import { ROUTE_LABELS, dateLabelFor, datesOfTask, givenDateOf, goodsOf, handOverDefault, handOverWarning, modelStatusesOf, modelThrough, modelsForStep, modelsOfTask, movesByModel, needsRouting, nextStepForModel, pathOf, routeOf, statusesFor, statusesForModel } from '../utils/edd.js';
 import { formatDate } from '../utils/format.js';
+import { plantLead } from '../utils/plantSettings.js';
 
 /**
  * A department's own workflow on its task [server: config/departmentTaskForms.js `statuses`]:
@@ -48,10 +49,10 @@ export function MoveForm({ todo, form, step, onCancel, onMoved, noDates = false,
   /* A hand-over with no date yet starts five days before the EDD [utils/edd.js `handOverDefault`]. */
   const handing = Boolean(step.handsTo);
   const fresh = (day) => (day && day >= todayInIndia() ? day : '');
-  const initialDate = step.date === 'tomorrow' ? tomorrowInIndia() : fresh(given) || (handing ? handOverDefault(todo, fixedModels?.length === 1 ? fixedModels[0] : null) : '');
+  const initialDate = step.date === 'tomorrow' ? tomorrowInIndia() : fresh(given) || (handing ? handOverDefault(todo, fixedModels?.length === 1 ? fixedModels[0] : null, undefined, plantLead()) : '');
   const [date, setDate] = useState(initialDate);
   /* Several models on the move: a date for each, with one box to set them all [server: `setTaskStatus` dates]. */
-  const [perModel, setPerModel] = useState(() => Object.fromEntries(modelsOfTask(todo).map((model) => [model, fresh(datesOfTask(todo)[model]) || (handing ? handOverDefault(todo, model) : '') || initialDate])));
+  const [perModel, setPerModel] = useState(() => Object.fromEntries(modelsOfTask(todo).map((model) => [model, fresh(datesOfTask(todo)[model]) || (handing ? handOverDefault(todo, model, undefined, plantLead()) : '') || initialDate])));
   const [note, setNote] = useState('');
   /* What this move records [server: departmentTaskForms `statuses[].fields`] — who collected a sample, say. */
   const asks = step.fields || [];
@@ -152,7 +153,7 @@ export function MoveForm({ todo, form, step, onCancel, onMoved, noDates = false,
           </Field>
         ))}
         {dated && !eachModel && (
-          <Field label={dateLabel} required={step.date === 'required'} hint={handing ? handOverWarning(todo, fixedModels?.[0] || null, date) || undefined : undefined}>
+          <Field label={dateLabel} required={step.date === 'required'} hint={handing ? handOverWarning(todo, fixedModels?.[0] || null, date, plantLead()) || undefined : undefined}>
             <input type="date" className="input" min={todayInIndia()} value={date} onChange={(event) => setDate(event.target.value)} />
           </Field>
         )}
@@ -166,7 +167,7 @@ export function MoveForm({ todo, form, step, onCancel, onMoved, noDates = false,
             </label>
             {dateModels.map((model) => {
               const label = dateLabelFor(todo, form.statusDate?.label || 'Ready date', model);
-              const warning = /^Hand-over/.test(label) ? handOverWarning(todo, model, perModel[model]) : null;
+              const warning = /^Hand-over/.test(label) ? handOverWarning(todo, model, perModel[model], plantLead()) : null;
               return (
                 <label key={model} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 text-sm text-steel-200">
                   <span className="min-w-0">

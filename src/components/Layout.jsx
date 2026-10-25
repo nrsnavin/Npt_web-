@@ -13,6 +13,7 @@ import { humanise } from '../utils/format.js';
 import { departmentLabel } from '../utils/pipeline.js';
 import { simpleNavFor } from '../config/simpleNav.js';
 import { barItems, litItem, usesShortBar } from '../config/topBar.js';
+import { loadPlant } from '../utils/plantSettings.js';
 
 /**
  * The plant's own layout: a dark bar across the top with Dashboard · Enquiries · Department
@@ -360,6 +361,9 @@ export default function Layout() {
   useEffect(() => {
     setMenuOpen(false);
   }, [location.pathname]);
+
+  /* The plant's settings, read once: the hand-over days every date form starts from [utils/plantSettings.js]. */
+  useEffect(() => { if (user) loadPlant(); }, [user]);
 
   /* "Lock the app" from the command palette lands on `?lock=1` [utils/commands.js]. */
   useEffect(() => {
