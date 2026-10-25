@@ -162,10 +162,10 @@ test('the prefill fills empty boxes, swaps its own figures when the line changes
 
 test('the enquiry page shows its SOs, QC records and dispatch details', () => {
   const panel = read('components/EnquiryRecords.jsx');
-  assert.match(panel, /enquiryRecords\(enquiry\._id\)/);
+  assert.match(panel, /enquiryRecords\(enquiryId\)/);
   assert.match(panel, /<DispatchBody data=\{data\.dispatch\}/);
   assert.match(panel, /\/qc-records\/new\?enquiry=\$\{enquiry\._id\}/);
-  assert.match(read('pages/EnquiryDetail.jsx'), /<EnquiryRecords enquiry=\{enquiry\} \/>/);
+  assert.match(read('pages/EnquiryDetail.jsx'), /<EnquiryRecords enquiry=\{enquiry\} records=\{records\} dispatchAbove=\{dispatchStarted\(records\.data\)\} \/>/);
   assert.match(read('components/OrderDispatchDetails.jsx'), /export function DispatchBody\(\{ data, showOrder = false \}\)/);
   assert.match(read('api/endpoints.js'), /api\.get\(`\/enquiries\/\$\{enquiryId\}\/records`\)/);
   assert.match(read('api/endpoints.js'), /api\.get\('\/qc-records\/prefill', \{ params, feedback: false \}\)/);

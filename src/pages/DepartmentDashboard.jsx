@@ -164,7 +164,7 @@ function EnquiryCard({ row, department, me, onChanged, query = false }) {
           <span className="font-semibold text-success-400">Ready to go: {row.readiness.ready.filter((model) => !(row.readiness.sent || []).includes(model)).join(', ') || 'none yet'}</span>
           {row.readiness.sent?.length > 0 && <span className="text-steel-400"> · Sent: {row.readiness.sent.join(', ')}</span>}
           {row.readiness.partSent?.length > 0 && <span className="text-steel-400"> · Part sent: {row.readiness.partSent.map((entry) => `${entry.model} (${entry.sent.toLocaleString('en-IN')}${entry.ordered ? ` of ${entry.ordered.toLocaleString('en-IN')}` : ''} pcs)`).join(', ')}</span>}
-          {row.readiness.waiting?.length > 0 && <span className="text-warn-400"> · Still being made: {row.readiness.waiting.map((entry) => `${entry.model} (${entry.team === 'assembling' ? 'Assembly' : entry.team === 'printing' ? 'Printing' : 'Production'})`).join(', ')}</span>}
+          {row.readiness.waiting?.length > 0 && <span className="text-warn-400"> · Still being made: {row.readiness.waiting.map((entry) => `${entry.model} (${entry.team === 'assembling' ? 'Assembly' : entry.team === 'printing' ? 'Printing' : 'Production'}${entry.status ? ` · ${entry.status}` : ''})`).join(', ')}</span>}
           <span className="block text-steel-500">Dispatch plan: each model as it is ready — dispatch each load with its models; the app marks it Part or Fully Dispatched.</span>
         </p>
       )}

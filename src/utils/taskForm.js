@@ -263,3 +263,31 @@ export function describeBrief(button, brief) {
   if (plain.length) lines.unshift(plain.join(' · '));
   return lines.filter(Boolean);
 }
+
+/** The model details a form may change, and their words [server: itemDetails.service `DETAIL_KEYS`]. */
+const DETAIL_WORDS = { material: 'material', colour: 'colour', hook: 'hook', clip: 'clip', print: 'print', packing: 'packing' };
+
+/**
+ * What the person changed in the form's model rows from what it started with — the enquiry's (or
+ * the job's latest) details: `[{ model, field, from, to }]`. Only a detail given a new value counts;
+ * a row added, or a detail cleared, is not a change to the enquiry.
+ */
+export function changedDetails(started = {}, answers = {}) {
+  const changes = [];
+  for (const [key, rows] of Object.entries(answers)) {
+    if (!Array.isArray(rows) || !Array.isArray(started[key])) continue;
+    for (const row of rows) {
+      const model = String(row?.model || '').trim();
+      if (!model) continue;
+      const before = started[key].find((entry) => String(entry?.model || '').trim().toLowerCase() === model.toLowerCase());
+      if (!before) continue;
+      for (const field of Object.keys(DETAIL_WORDS)) {
+        if (!(field in row)) continue;
+        const from = String(before[field] ?? '').trim();
+        const to = String(row[field] ?? '').trim();
+        if (to && to.toLowerCase() !== from.toLowerCase()) changes.push({ model, field: DETAIL_WORDS[field], from, to });
+      }
+    }
+  }
+  return changes;
+}

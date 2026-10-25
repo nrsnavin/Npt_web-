@@ -35,7 +35,8 @@ test('a Production member is not offered a dated status, the date box, or Add to
   assert.match(workflow, /\{offered\.map\(\(entry\) => <option/);
   assert.match(workflow, /!\(noDates && \(next\.date \|\| next\.plans\)\)/, 'EDD Accepted or Ready Tomorrow is not the one-press next step for them');
   assert.match(workflow, /const dated = Boolean\(form\.statusDate\) && !unrouted && !noDates;/);
-  assert.match(workflow, /\{dated && \(\s*<Field label=\{dateLabel\}/);
+  assert.match(workflow, /\{dated && !eachModel && \(\s*<Field label=\{dateLabel\}/);
+  assert.match(workflow, /const eachModel = dated && dateModels\.length > 1;/, 'nor the date for each model');
   assert.match(read('components/ProductionQueueList.jsx'), /const mayPlan = mayPlanProduction;/);
   assert.match(read('pages/ProductionWorkflow.jsx'), /works && mayPlanProduction && !task\.completed/);
 });

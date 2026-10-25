@@ -74,8 +74,12 @@ test('raising a task the department already has adds to it, and says so', () => 
 test('a workflow whose moves need a remark asks for it, with the ready date, before the move', () => {
   const workflow = read('components/TaskWorkflow.jsx');
   assert.match(workflow, /if \(button\.form\.remarkRequired \|\| button\.form\.statusDate \|\| step\.fields\?\.length \|\| step\.tellBuyer \|\| movesByModel\(todo\)\) return setMoving/);
-  assert.match(workflow, /status: step\.key, note, \.\.\.\(date && dated && \(date !== given \|\| step\.date\) \? \{ date \} : \{\}\)/);
-  assert.match(workflow, /step\.date === 'tomorrow' \? tomorrowInIndia\(\) : given && given >= todayInIndia\(\) \? given : ''/);
+  assert.match(workflow, /: \(date && dated && \(date !== given \|\| step\.date\) \? \{ date \} : \{\}\)\)/);
+  assert.match(workflow, /step\.date === 'tomorrow' \? tomorrowInIndia\(\) : fresh\(given\) \|\| \(handing \? handOverDefault\(todo/);
+  /* Several models: a date each, or one for all; a hand-over starts five days before the EDD. */
+  assert.match(workflow, /\{ dates: dateModels\.filter\(\(model\) => perModel\[model\]\)\.map\(\(model\) => \(\{ model, date: perModel\[model\] \}\)\) \}/);
+  assert.match(workflow, /— each model, or one for all/);
+  assert.match(read('components/TaskEdd.jsx'), /initialOf=\{\(model\) => \(\/\^Hand-over\/\.test\(dateLabelFor\(todo, 'Completion date', model\)\) \? handOverDefault\(todo, model, undefined, plantLead\(\)\) : ''\)\}/);
   assert.match(workflow, /disabled=\{busy \|\| dateNeeded \|\| remarkNeeded \|\| noModel \|\| Boolean\(fieldMissing\) \|\| \(unrouted && Boolean\(step\.date\)\)\}/);
 });
 
@@ -168,4 +172,54 @@ test('Reception is a department of its own, with its desk, menu and the dispatch
   const workflow = read('components/TaskWorkflow.jsx');
   assert.match(workflow, /\{button\.form\.editLabel \|\| 'Edit contact details'\}/);
   assert.match(workflow, /type=\{field\.type === 'date' \? 'date' : field\.type === 'number' \? 'number' : 'text'\}/);
+});
+
+test('a hand-over steps back from the EDD by the teams after it: printed and assembled, to Printing 10 days, to Assembly 5', async () => {
+  const { handOverDefault, handOverWarning, teamsAfter, HANDOVER_LEAD_DAYS } = await import('../src/utils/edd.js');
+  const production = {
+    kind: 'ask_edd',
+    enquiry: { edd: { date: '2026-11-20' }, eddByModel: [{ model: 'C', final: { date: '2026-11-30' } }] },
+    routing: { handsTo: ['printing', 'assembling'], models: [{ model: 'A', printing: true, assembly: true }, { model: 'B', assembly: true }, { model: 'C', printing: true }] },
+  };
+  const printing = { kind: 'ask_printing', enquiry: { edd: { date: '2026-11-20' } }, routing: { handsTo: ['assembling'], incoming: { production: '2026-11-10' } } };
+  assert.equal(HANDOVER_LEAD_DAYS, 5);
+  assert.deepEqual([teamsAfter(production, 'A'), teamsAfter(production, 'B'), teamsAfter(printing, 'A')], [2, 1, 1]);
+  assert.equal(handOverDefault(production, 'A', '2026-10-25'), '2026-11-10', 'printed and assembled: to Printing 10 days before');
+  assert.equal(handOverDefault(printing, 'A', '2026-10-25'), '2026-11-15', 'then to Assembly 5 days before');
+  assert.equal(handOverDefault(production, 'B', '2026-10-25'), '2026-11-15', 'assembled only: 5 days');
+  assert.equal(handOverDefault(production, 'C', '2026-10-25'), '2026-11-25', 'its own EDD');
+  assert.equal(handOverDefault(production, null, '2026-10-25'), '2026-11-10', 'every model at once: the earliest');
+  assert.equal(handOverDefault(production, 'A', '2026-10-25', 6), '2026-11-08', 'the plant’s days, when changed');
+  assert.equal(handOverDefault(production, 'A', '2026-11-18'), '2026-11-18', 'never before today');
+  assert.equal(handOverDefault({ kind: 'ask_edd', enquiry: {} }, null, '2026-10-25'), '', 'no EDD, no default');
+  assert.match(handOverWarning(production, 'A', '2026-11-13'), /Only 7 days before the EDD .* 10 is the usual \(5 for Printing, 5 for Assembly\)/);
+  assert.match(handOverWarning(printing, 'A', '2026-11-13'), /Only 3 days for printing after Production hands over/);
+  assert.match(handOverWarning(printing, 'A', '2026-11-20'), /On or after the EDD/);
+  assert.equal(handOverWarning(printing, 'A', '2026-11-15'), null);
+  const card = read('components/HandoverLeadCard.jsx');
+  assert.match(card, /const mayEdit = mayPlanProduction \|\| departments\.includes\('marketing'\);/);
+  assert.match(read('api/endpoints.js'), /setHandoverLead: \(days\) => api\.put\('\/settings\/handover-lead', \{ days \}\)/);
+  assert.match(read('components/TaskWorkflow.jsx'), /handOverDefault\(todo, model, undefined, plantLead\(\)\)/);
+});
+
+test('a task form says which model details were changed from the enquiry and offers to change the enquiry too', async () => {
+  const { changedDetails } = await import('../src/utils/taskForm.js');
+  const started = { items: [{ model: 'CRF-35', material: 'HIPS : NATURAL', print: '3 COLOUR', quantity: '3' }, { model: 'CRF-44', hook: '' }] };
+  const answers = { items: [{ model: 'CRF-35', material: 'hips : natural', print: '1 COLOUR', quantity: '6' }, { model: 'CRF-44', hook: 'Chrome hook' }, { model: 'NEW-1', print: 'x' }] };
+  assert.deepEqual(changedDetails(started, answers), [
+    { model: 'CRF-35', field: 'print', from: '3 COLOUR', to: '1 COLOUR' },
+    { model: 'CRF-44', field: 'hook', from: '', to: 'Chrome hook' },
+  ], 'case alone is no change; pieces are not a detail; a new row is not a change');
+  const dialog = read('components/DepartmentTaskDialog.jsx');
+  assert.match(dialog, /Also update the enquiry with these changes/);
+  assert.match(dialog, /\.\.\.\(changes\.length && updateEnquiry \? \{ updateEnquiry: true \} : \{\}\)/);
+});
+
+test('dispatching a sample of several models: each model with its details, its photo and the pieces of it sent', () => {
+  const page = read('pages/SampleDetail.jsx');
+  assert.match(page, /aria-label="Models in the bag"/);
+  assert.match(page, /\{ itemQuantities: rows\.map\(\(row\) => \(\{ item: row\._id, quantity: Number\(pieces\[row\._id\]\) \|\| 0 \}\)\) \}/);
+  assert.match(page, /emptyText="Add the photo — camera or gallery"/);
+  assert.match(page, /\{!several && \(\s*<Field label="Quantity sent" required>/, 'one total only for a single model');
+  assert.match(read('components/SampleReadyForm.jsx'), /One slot per model row/, 'Sample Ready asks a photo of each');
 });

@@ -257,3 +257,76 @@ export const modelThrough = (statuses = [], status) => {
   const step = statuses.find((entry) => entry.key === status);
   return Boolean(step?.handsTo || step?.readyForDispatch || step?.done);
 };
+
+/**
+ * Days each finishing team gets before the EDD by default [server: settings.service
+ * `handoverLeadDays` — the Production in charge, Admin or marketing may change it; callers pass
+ * the plant's, utils/plantSettings.js `plantLead`].
+ */
+export const HANDOVER_LEAD_DAYS = 5;
+const daysBefore = (day, count) => {
+  const at = new Date(`${day}T12:00:00Z`);
+  at.setUTCDate(at.getUTCDate() - count);
+  /* A calendar day in, a calendar day out — noon Greenwich keeps it the same day. */
+  return `${at.getUTCFullYear()}-${String(at.getUTCMonth() + 1).padStart(2, '0')}-${String(at.getUTCDate()).padStart(2, '0')}`;
+};
+const daysApart = (from, to) => Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400000);
+const indiaToday = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
+
+/** Marketing's EDD for one model — the one set for it, else the task's [server: Enquiry `eddByModel`]. */
+export function eddForModel(task, model) {
+  const row = model ? eddByModelOf(task?.enquiry).find((entry) => entry.model === model) : null;
+  return row?.final?.date || eddOfTask(task)?.date || null;
+}
+
+/**
+ * The finishing teams still to work on a model after this hand-over — the next one included:
+ * from Production, Printing and Assembly for a model routed through both (2), else one; from
+ * Printing, Assembly (1). Without a model, the most any of the task's models has.
+ */
+export function teamsAfter(task, model = null) {
+  if (task?.kind === 'ask_edd') {
+    const count = (row) => (row?.printing ? 1 : 0) + (row?.assembly ? 1 : 0);
+    if (model) return count(routeOf(task, model));
+    const rows = (task.routing?.models || []).filter((row) => row && typeof row === 'object');
+    return rows.length ? Math.max(...rows.map(count)) : handsOnOf(task).length;
+  }
+  if (task?.kind === 'ask_printing') return handsOnOf(task).includes('assembling') ? 1 : 0;
+  return 0;
+}
+
+/**
+ * The hand-over day a form starts with: the days each team after this one gets, back from the
+ * model's EDD — printed and assembled, to Printing 2 × `lead` before and to Assembly `lead`
+ * before; never before `today`; '' with no EDD or no team after. The server refuses a hand-over
+ * on or after the EDD.
+ */
+export function handOverDefault(task, model = null, today = indiaToday(), lead = HANDOVER_LEAD_DAYS) {
+  const edd = eddForModel(task, model);
+  const teams = teamsAfter(task, model) || 1;
+  if (!edd) return '';
+  const day = daysBefore(edd, lead * teams);
+  return day < today ? today : day;
+}
+
+/**
+ * How a hand-over day sits: on or after the EDD; fewer days before it than the teams after this
+ * one get; or — Printing handing to Assembly — fewer days for printing than a team gets since
+ * Production handed the goods over. Null when it is fine.
+ */
+export function handOverWarning(task, model, day, lead = HANDOVER_LEAD_DAYS) {
+  const edd = eddForModel(task, model);
+  if (!day) return null;
+  if (edd && day >= edd) return `On or after the EDD (${formatDate(edd)}) — hand over before it`;
+  const teams = teamsAfter(task, model) || 1;
+  const gap = edd ? daysApart(day, edd) : null;
+  if (gap != null && gap < lead * teams) {
+    return `Only ${gap} day${gap === 1 ? '' : 's'} before the EDD (${formatDate(edd)}) — ${lead * teams} is the usual${teams > 1 ? ` (${lead} for Printing, ${lead} for Assembly)` : ''}`;
+  }
+  const from = task?.kind === 'ask_printing' ? task.routing?.incoming?.production : null;
+  if (from) {
+    const printing = daysApart(String(from).slice(0, 10), day);
+    if (printing < lead) return `Only ${Math.max(printing, 0)} day${printing === 1 ? '' : 's'} for printing after Production hands over (${formatDate(from)}) — ${lead} is the usual`;
+  }
+  return null;
+}

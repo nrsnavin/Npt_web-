@@ -8,6 +8,7 @@ import { setStartPage, startPage } from '../utils/startPage.js';
 import { disablePush, enablePush, pushState } from '../utils/push.js';
 import { settings as settingsApi } from '../api/endpoints.js';
 import { SetPinDialog, PinInput } from '../components/PinGate.jsx';
+import HandoverLeadCard from '../components/HandoverLeadCard.jsx';
 
 const SIGN_IN_METHODS = {
   password: 'Email and password',
@@ -618,6 +619,8 @@ export default function Profile() {
       <DevicePin />
       <DeviceAccounts />
       <SecurityPolicy />
+      {/* The days each finishing team gets before the EDD — the Production in charge, Admin or marketing set it. */}
+      <HandoverLeadCard />
 
       <section className="card mt-5 flex flex-wrap items-center justify-between gap-4 p-6">
         <div>

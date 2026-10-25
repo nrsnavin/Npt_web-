@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form';
 import { moulds as mouldsApi } from '../api/endpoints.js';
 import { Field, FormError } from './ui.jsx';
 import { CustomerSelect } from './pickers.jsx';
+import { MachinePicks } from './MachineSelect.jsx';
 import { MouldPhotoField } from './MouldPhoto.jsx';
 import { formatCurrency, formatNumber } from '../utils/format.js';
 import { GRAM_STEP, formatGrams } from '../utils/grams.js';
@@ -69,6 +70,13 @@ export default function MouldForm({ mould, onClose, onSaved }) {
           machineHourRate: mould.machine?.hourRate ?? '',
           ownedByCustomer: mould.ownedByCustomer?._id ?? mould.ownedByCustomer ?? '',
           commissionedOn: mould.commissionedOn ? mould.commissionedOn.slice(0, 10) : '',
+          widthMm: mould.widthMm ?? '',
+          heightMm: mould.heightMm ?? '',
+          thicknessMm: mould.thicknessMm ?? '',
+          hotRunnerZones: mould.hotRunnerZones ?? '',
+          needsDryer: mould.needsDryer === true ? 'yes' : mould.needsDryer === false ? 'no' : '',
+          changeoverMinutes: mould.changeoverMinutes ?? '',
+          preferredMachines: (mould.preferredMachines || []).map((entry) => String(entry?._id || entry)),
         }
       : {
           material: 'pp',
@@ -81,6 +89,8 @@ export default function MouldForm({ mould, onClose, onSaved }) {
           efficiencyPercent: 100,
           regrindRecoveryPercent: 0,
           runnerWeightGrams: 0,
+          needsDryer: '',
+          preferredMachines: [],
         },
   });
 
@@ -176,6 +186,14 @@ export default function MouldForm({ mould, onClose, onSaved }) {
       commissionedOn: values.commissionedOn || undefined,
       location: values.location || undefined,
       notes: values.notes || undefined,
+      /* What a press must take to hold it [server: planning.service `fitOf`]; null clears a figure. */
+      widthMm: number(values.widthMm) ?? null,
+      heightMm: number(values.heightMm) ?? null,
+      thicknessMm: number(values.thicknessMm) ?? null,
+      hotRunnerZones: number(values.hotRunnerZones) ?? null,
+      needsDryer: values.needsDryer === '' || values.needsDryer == null ? null : values.needsDryer === 'yes',
+      changeoverMinutes: number(values.changeoverMinutes) ?? null,
+      preferredMachines: values.preferredMachines || [],
     };
 
     try {
@@ -418,6 +436,31 @@ export default function MouldForm({ mould, onClose, onSaved }) {
           <input type="number" step="0.01" className="input" {...register('machineHourRate')} />
         </Field>
       </div>
+
+      {/* What a press must take to hold it — the board checks each press against these before suggesting it. */}
+      <fieldset className="space-y-3 rounded-lg border border-line/[0.08] p-3">
+        <legend className="px-1 text-sm font-semibold text-steel-100">What press it needs</legend>
+        <p className="text-xs text-steel-400">Leave blank what you have not measured — the app only checks what is filled in.</p>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Field label="Mould width, mm"><input type="number" min={0} className="input" {...register('widthMm')} /></Field>
+          <Field label="Mould height, mm"><input type="number" min={0} className="input" {...register('heightMm')} /></Field>
+          <Field label="Mould thickness, mm" hint="Platen to platen"><input type="number" min={0} className="input" {...register('thicknessMm')} /></Field>
+          <Field label="Hot-runner zones" hint="Blank or 0 for a cold runner"><input type="number" min={0} max={64} className="input" {...register('hotRunnerZones')} /></Field>
+          <Field label="Resin must be dried">
+            <select className="input" {...register('needsDryer')}>
+              <option value="">Not said</option>
+              <option value="yes">Yes</option>
+              <option value="no">No</option>
+            </select>
+          </Field>
+          <Field label="Mould change, minutes" hint="Out, in, heat-up, first piece OK. Blank uses the plant's time."><input type="number" min={0} max={1440} className="input" {...register('changeoverMinutes')} /></Field>
+        </div>
+        <div>
+          <span className="label">Presses it usually runs on</span>
+          <p className="mb-1.5 text-xs text-steel-500">The board prefers these when it suggests a press.</p>
+          <MachinePicks label="Presses it usually runs on" value={watched.preferredMachines || []} onChange={(ids) => setValue('preferredMachines', ids, { shouldDirty: true })} />
+        </div>
+      </fieldset>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Whose tool" hint="A buyer-funded model is not ours to offer around">

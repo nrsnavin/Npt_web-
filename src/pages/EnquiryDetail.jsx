@@ -21,7 +21,9 @@ import BuyerContactCard from '../components/BuyerContactCard.jsx';
 import TradingBadge, { isTradingLine } from '../components/TradingBadge.jsx';
 import DelegateEnquiry from '../components/DelegateEnquiry.jsx';
 import DepartmentDesk from '../components/DepartmentDesk.jsx';
-import EnquiryRecords from '../components/EnquiryRecords.jsx';
+import EnquiryRecords, { EnquiryDispatch, dispatchStarted, useEnquiryRecords } from '../components/EnquiryRecords.jsx';
+import ModelStatusGlance from '../components/ModelStatus.jsx';
+import { journeyFor } from '../utils/journey.js';
 import HistoryPanel from '../components/HistoryPanel.jsx';
 import QuotationPdf from '../components/QuotationPdf.jsx';
 import ItemList from '../components/ItemList.jsx';
@@ -582,6 +584,11 @@ export default function EnquiryDetail() {
 
   const fetch = useCallback((enquiryId) => enquiriesApi.get(enquiryId), []);
   const { data: enquiry, setData, loading, error, reload } = useRecord(fetch, id);
+  /* Its orders, QC and dispatch, read once for the page and again whenever the enquiry moves. */
+  const records = useEnquiryRecords(id, { auto: false });
+  const { load: loadRecords } = records;
+  const moved = enquiry?.updatedAt;
+  useEffect(() => { if (moved) loadRecords(); }, [moved, loadRecords]);
 
   /* Only the first load blanks the page; a reload after an action keeps it, and what is typed in it. */
   if (loading && !enquiry) return <Spinner label="Loading enquiry" />;
@@ -700,6 +707,10 @@ export default function EnquiryDetail() {
               department. The sales actions below still move the quote along. */}
           {/* Read off a photo and not yet checked: corrected and checked before any department is asked. */}
           {enquiry.checkPending && <EnquiryCheckCard enquiry={enquiry} canWrite={mayWrite} onSaved={reload} />}
+          {/* Once the order is with the plant: where each model is, at a glance — the first thing on the page. */}
+          <ModelStatusGlance journeys={records.data?.journeys} />
+          {/* At the dispatch stage, how the goods went comes next, not at the bottom. */}
+          {dispatchStarted(records.data) && <EnquiryDispatch data={records.data} highlight />}
           <DepartmentDesk enquiry={enquiry} onChanged={reload} />
 
 
@@ -722,7 +733,7 @@ export default function EnquiryDetail() {
               the database; a screen that depends on a script having been run is a screen that
               is blank for whoever runs it second.
             */}
-            <ItemList items={enquiry.items?.length ? enquiry.items : [firstItem]} />
+            <ItemList items={enquiry.items?.length ? enquiry.items : [firstItem]} statusOf={(item) => journeyFor(records.data?.journeys, item.modelNumber || item.mould?.mouldCode)} />
 
             {/* What belongs to the enquiry rather than to any one model. A buyer names one
                 delivery date for the call, not one per hanger. */}
@@ -741,7 +752,7 @@ export default function EnquiryDetail() {
           {mayReadSamples && <EnquirySamples enquiryId={enquiry._id} />}
 
           {/* What it led to: the SOs, the QC test sheets and the dispatch, trips and LR — each with its SO. */}
-          <EnquiryRecords enquiry={enquiry} />
+          <EnquiryRecords enquiry={enquiry} records={records} dispatchAbove={dispatchStarted(records.data)} />
 
           {/* What this enquiry has been priced and quoted at — the commercial half of its story. */}
           {(mayReadPricing || mayReadQuotes) && (

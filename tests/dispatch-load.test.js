@@ -31,7 +31,9 @@ test('models ticked with Select all — the ready ones first when it goes model 
 
 test('only a model ready can go: one not ready cannot be ticked and names the team that has it', () => {
   assert.match(dialog, /<input type="checkbox" disabled=\{!row\.ready \|\| togetherWaiting\.length > 0\} checked=\{Boolean\(ticked\[row\.model\]\) && row\.ready && !togetherWaiting\.length\}/);
-  assert.match(dialog, /not ready — still with \{WAITING_WORDS\[row\.waitingOn\] \|\| 'the plant'\}/);
+  assert.match(dialog, /not ready — \{whereNow\(row\)\}/);
+  /* Where the model is now — "in Production · EDD Request Received", not the team that finishes it. */
+  assert.match(dialog, /const whereNow = \(row\) => `\$\{row\.waitingOn === 'production' \? 'in' : 'with'\} \$\{WAITING_WORDS\[row\.waitingOn\] \|\| 'the plant'\}\$\{row\.waitingStatus \? ` · \$\{row\.waitingStatus\}` : ''\}`;/);
   assert.match(dialog, /const chosen = togetherWaiting\.length \? \[\] : models\.filter\(\(row\) => ticked\[row\.model\] && row\.ready\);/);
   assert.match(dialog, /Nothing is ready to dispatch yet/);
 });

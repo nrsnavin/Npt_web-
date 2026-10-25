@@ -9,7 +9,7 @@ import RegisterPick from './RegisterPick.jsx';
 import { SAMPLE_HANDOVERS } from '../utils/pipeline.js';
 import { EDD_ASK_KINDS } from '../utils/edd.js';
 import {
-  briefToSend, departmentOptions, missingAnswer, noteNeeded, optionOf, optionsOf, prefillValue, startingAnswers, todayInIndia,
+  briefToSend, changedDetails, departmentOptions, missingAnswer, noteNeeded, optionOf, optionsOf, prefillValue, startingAnswers, todayInIndia,
 } from '../utils/taskForm.js';
 
 /**
@@ -174,11 +174,16 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
    * the person has already typed stays.
    */
   const startedFor = useRef(null);
+  /* What the form started with — the enquiry's details, or the job's latest — to tell a change from it. */
+  const [started, setStarted] = useState({});
+  /* A detail changed here: the enquiry follows when this stays ticked [server: itemDetails.service]. */
+  const [updateEnquiry, setUpdateEnquiry] = useState(true);
   useEffect(() => {
     if (!button || !prefill) return;
     const fresh = startingAnswers(button, prefill);
     if (startedFor.current !== button.key) {
       startedFor.current = button.key;
+      setStarted(fresh);
       setAnswers(fresh);
       setRequiredDate(button.key === 'invoice_dispatch' ? todayInIndia() : '');
       return;
@@ -203,6 +208,7 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
    */
   const asksEdd = EDD_ASK_KINDS.includes(kind) && !fromTask && (isAdmin || departments.includes('marketing'));
   const eddMissing = asksEdd && !edd;
+  const changes = team ? [] : changedDetails(started, answers);
   const blocked = !prefill || Boolean(missing) || mustExplain || tooBig || notPdf || eddMissing || (orders.length > 1 && !order && !fromTask && !team);
 
   const submit = async (event) => {
@@ -213,6 +219,7 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
       /* A department that already has this task open gets the request added to it. */
       const payload = {
         kind, note, brief: briefToSend(button, answers),
+        ...(changes.length && updateEnquiry ? { updateEnquiry: true } : {}),
         ...(form.priority ? { priority } : {}),
         ...(requiredDate ? { requiredDate } : {}),
         /* Sent when given here or changed from the enquiry's — it becomes the enquiry's (or the job's) EDD. */
@@ -367,6 +374,23 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
           </Field>
         </div>
 
+        {/* Details changed from the enquiry: said, with the choice to change the enquiry too. Later forms start from these either way. */}
+        {changes.length > 0 && (
+          <div className="rounded-xl border border-accent/30 bg-accent/[0.05] p-3 text-sm" aria-label="Changed from the enquiry">
+            <p className="font-semibold text-steel-100">Changed from the enquiry</p>
+            <ul className="mt-1 space-y-0.5 text-xs text-steel-300">
+              {changes.map((change) => (
+                <li key={`${change.model}-${change.field}`}>
+                  <span className="font-semibold text-steel-100">{change.model}</span> · {change.field}: {change.from ? <span className="line-through">{change.from}</span> : 'not set'} → <span className="font-semibold text-accent">{change.to}</span>
+                </li>
+              ))}
+            </ul>
+            <label className="mt-2 flex items-start gap-2 text-sm text-steel-200">
+              <input type="checkbox" className="mt-0.5" checked={updateEnquiry} onChange={(event) => setUpdateEnquiry(event.target.checked)} />
+              <span>Also update the enquiry with these changes <span className="block text-xs text-steel-400">Every later task starts from them either way; untick to keep the enquiry as the buyer first asked.</span></span>
+            </label>
+          </div>
+        )}
         {missing && prefill && <p className="text-xs text-warn-400">Still needed: {missing}</p>}
         {mustExplain && <p className="text-xs text-warn-400">{fromTask ? 'Say what you need from them' : button.form.noteRequired.message}</p>}
         {problem && <Notice tone="danger">{problem}</Notice>}

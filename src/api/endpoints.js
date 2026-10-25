@@ -720,6 +720,8 @@ export const production = {
   shortages: () => api.get('/production/shortages').then(unwrap),
   /** A press's queue light to dark — `{ before, after }` colour changes. */
   sequenceByColour: (machineId) => api.post(`/production/plan/${machineId}/sequence-by-colour`).then(unwrap),
+  /** Every press ranked for one work order, lowest score best: `{ choices, cannot, sized, why }`. */
+  choices: (workOrderId) => api.get(`/production/plan/choices/${workOrderId}`, { feedback: false }).then(unwrap),
   /** Whether a mould can go on a press: `{ ok, blocks, warnings }`. */
   fit: (params) => api.get('/production/fit', { params }).then(unwrap),
   /** OEE for a span of days, by press, mould, shift and day, with the losses behind it. */
@@ -1320,4 +1322,6 @@ export const settings = {
   /* The plant calendar capacity is worked out from: press hours a day, shifts, weekly off. */
   plant: () => api.get('/settings/plant').then(unwrap),
   setPlant: (payload) => api.put('/settings/plant', payload).then(unwrap),
+  /** The days each finishing team gets before the EDD — the Production in charge, Admin or marketing. */
+  setHandoverLead: (days) => api.put('/settings/handover-lead', { days }).then(unwrap),
 };

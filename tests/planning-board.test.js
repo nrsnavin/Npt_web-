@@ -43,7 +43,8 @@ test('moves offered from the status; lateness against the due date and the plan'
 
 test('the board drags onto a press, steps a job, sorts light to dark; runs start from a work order', () => {
   const board = read('pages/PlanningBoard.jsx');
-  assert.match(board, /onDrop=\{\(\) => dropOn\(press\.machine\._id\)\}/);
+  assert.match(read('components/planning/TimelineView.jsx'), /onDrop=\{\(\) => dropOn\(press\.machine\._id\)\}/);
+  assert.match(read('components/planning/PressCard.jsx'), /onDrop=\{\(event\) => \{ event\.preventDefault\(\); setOver\(false\); onPlace\(press\.machine\); \}\}/);
   assert.match(board, /send\(\{ step: -1 \}/);
   assert.match(board, /productionApi\.sequenceByColour\(/);
   assert.match(read('pages/MouldRuns.jsx'), /workOrder: params\.get\('workOrder'\)/);

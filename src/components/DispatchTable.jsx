@@ -32,7 +32,8 @@ function GoodsCell({ goods, status }) {
         <>
           {goods.ready.length > 0 && <p className="text-success-400">Ready: {goods.ready.join(', ')}</p>}
           <p className="text-warn-400">
-            {waiting.length ? `Still with ${[...new Set(waiting.map((row) => ROUTE_WORDS[row.team] || row.team))].join(' / ')}: ${waiting.map((row) => row.model).join(', ')}` : 'Not ready yet'}
+            {/* Each model where it is now — in Production, with Printing or Assembly — and its status there [server: modelReadiness]. */}
+            {waiting.length ? `Not ready: ${waiting.map((row) => `${row.model} (${row.team === 'production' ? 'in' : 'with'} ${ROUTE_WORDS[row.team] || row.team}${row.status ? ` · ${row.status}` : ''})`).join(', ')}` : 'Not ready yet'}
           </p>
         </>
       )}
