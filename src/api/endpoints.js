@@ -166,6 +166,12 @@ export const workspace = {
     shipments: (id) => api.get(`/workspace/todos/${id}/shipments`).then(unwrap),
     /** What a payment on a Payment Collection or PRT task can go against: the buyer's dues, or on account [server: `duesOfTask`]. */
     dues: (id) => api.get(`/workspace/todos/${id}/dues`).then(unwrap),
+    /** A Production task with no enquiry: the buyer's open enquiries to link, and the start points [server: teamProduction.service]. */
+    linkOptions: (id) => api.get(`/workspace/todos/${id}/link-options`).then(unwrap),
+    /** Joins the buyer's enquiry — or closes onto the Production task it already has; keeps `mergedInto`. */
+    linkEnquiry: ({ id, enquiry }) => api.post(`/workspace/todos/${id}/link-enquiry`, { enquiry }, { feedback: false }).then((response) => response.data),
+    /** Each model started from where it is now. */
+    startFrom: ({ id, models }) => api.post(`/workspace/todos/${id}/start-from`, { models }, { feedback: false }).then(unwrap),
     /** Papers a department keeps on its task — Dispatch's invoice and dispatch details, Reception's. */
     documents: (id) => api.get(`/workspace/todos/${id}/documents`).then(unwrap),
     addDocument: ({ id, docType, file }) => {
