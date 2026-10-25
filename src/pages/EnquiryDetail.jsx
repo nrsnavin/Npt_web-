@@ -729,7 +729,7 @@ export default function EnquiryDetail() {
           <ModelStatusGlance journeys={records.data?.journeys} />
           {/* At the dispatch stage, how the goods went comes next, not at the bottom. */}
           {/* Each shipment on its own line: the models and pieces, the day, the LR for that quantity [EnquiryShipments]. */}
-          <EnquiryShipments data={records.data} />
+          <EnquiryShipments data={records.data} onChanged={records.load} />
           {dispatchStarted(records.data) && <EnquiryDispatch data={records.data} highlight />}
           <DepartmentDesk enquiry={enquiry} onChanged={reload} />
 

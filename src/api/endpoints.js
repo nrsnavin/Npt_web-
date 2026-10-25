@@ -160,6 +160,14 @@ export const workspace = {
       if (file) form.append('file', file);
       return api.post(`/workspace/todos/${id}/loads/${loadId}`, form, { feedback: false }).then(unwrap);
     },
+    /** One shipment's proof of delivery or LR, by the load, from anywhere it is seen — Dispatch or Reception [server: `shipmentPaper`]; keeps `completed`. */
+    shipmentPaper: ({ loadId, file, details = {}, from }) => {
+      const form = new FormData();
+      if (from) form.append('from', from);
+      for (const [key, value] of Object.entries(details)) if (String(value || '').trim()) form.append(key, String(value).trim());
+      if (file) form.append('file', file);
+      return api.post(`/workspace/loads/${loadId}/paper`, form, { feedback: false }).then((response) => response.data);
+    },
     /** The file already on the task sent to the buyer — Reception sending the LR copy Dispatch uploaded; keeps `sent`. */
     sendResult: (id, loadId) => api.post(`/workspace/todos/${id}/result/send`, loadId ? { loadId } : {}, { feedback: false }).then((response) => response.data),
     /** The job's shipments, each with its own LR or proof [server: handoff.service `shipmentsOf`]. */
@@ -168,6 +176,10 @@ export const workspace = {
     dues: (id) => api.get(`/workspace/todos/${id}/dues`).then(unwrap),
     /** A Production task with no enquiry: the buyer's open enquiries to link, and the start points [server: teamProduction.service]. */
     linkOptions: (id) => api.get(`/workspace/todos/${id}/link-options`).then(unwrap),
+    /** Team jobs — the tasks Admin and marketing gave with no enquiry [server: teamJobs.service]: open / done / all, with a search. */
+    teamJobs: (params) => api.get('/workspace/team-jobs', { params }).then(unwrap),
+    /** One team job, whole: what was asked, where it is now, each team's step, every move, money, shipments, files. */
+    teamJob: (id) => api.get(`/workspace/team-jobs/${id}`).then(unwrap),
     /** Joins the buyer's enquiry — or closes onto the Production task it already has; keeps `mergedInto`. */
     linkEnquiry: ({ id, enquiry }) => api.post(`/workspace/todos/${id}/link-enquiry`, { enquiry }, { feedback: false }).then((response) => response.data),
     /** Each model started from where it is now. */

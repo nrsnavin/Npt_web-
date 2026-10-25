@@ -106,12 +106,12 @@ test('Department Tasks: a status list only for whoever works the task, and the m
 
 test('Admin filters Department Tasks by any department, and open / done / all', () => {
   const board = read('components/DepartmentTasksBoard.jsx');
-  assert.match(board, /\{isAdmin && \(\s*<select\s+aria-label="Department"/);
+  assert.match(board, /\{isAdmin && !assignedToMe && \(\s*<select\s+aria-label="Department"/, 'on Department Tasks — the home board reads only the tasks assigned to the reader');
   assert.match(board, /\{DEPARTMENT_CHOICES\.map\(\(entry\) => <option key=\{entry\.key\} value=\{entry\.key\}>\{entry\.label\}<\/option>\)\}/, 'every department listed, even with nothing open — a shared desk as one');
   assert.match(board, /aria-label="Open or done"/);
   /* A department chip picked on Open may have nothing under Done: the chips start over. */
   assert.match(board, /setFilter\(\{ state: event\.target\.value \}\); setChip\('all'\);/);
-  assert.match(board, /overview\.tasks\(\{ \.\.\.\(department \? \{ department \} : \{\}\), state \}\)/);
+  assert.match(board, /overview\.tasks\(\{ \.\.\.\(department \? \{ department \} : \{\}\), state, \.\.\.\(assignedToMe \? \{ assigned: 'me' \} : \{\}\) \}\)/);
   assert.match(board, /if \(!statuses\.length \|\| !mayWork \|\| task\.completed\)/, 'a finished task is read, not moved');
   assert.match(board, /const isLate = \(task\) => Boolean\(!task\.completed &&/);
   assert.match(read('api/endpoints.js'), /tasks: \(params\) => api\.get\('\/dashboard\/tasks', \{ params \}\)/);

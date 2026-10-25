@@ -87,6 +87,8 @@ export default function DepartmentTasksBoard({
   department: chosenDepartment = '',
   state: chosenState = 'open',
   onFilter,
+  /* The home page's board: only the tasks assigned to this person — Admin too [server: overview.service `trackedTasks`]. */
+  assignedToMe = false,
 }) {
   const { isManagement: isAdmin, departments = [], user } = useAuth();
   const me = String(user?.id || user?._id || '');
@@ -102,10 +104,10 @@ export default function DepartmentTasksBoard({
     return null;
   };
   const fetch = useCallback(
-    () => overview.tasks({ ...(department ? { department } : {}), state }),
-    [department, state],
+    () => overview.tasks({ ...(department ? { department } : {}), state, ...(assignedToMe ? { assigned: 'me' } : {}) }),
+    [department, state, assignedToMe],
   );
-  const { data, loading, error, reload } = useRecord(fetch, `overview-tasks-${department}-${state}`);
+  const { data, loading, error, reload } = useRecord(fetch, `overview-tasks-${department}-${state}-${assignedToMe ? 'me' : 'all'}`);
   const catalogue = useHandoffCatalogue();
   const [chip, setChip] = useState('all');
   const [search, setSearch] = useState('');
@@ -183,7 +185,7 @@ export default function DepartmentTasksBoard({
             {entry.label} <span className="tabular-nums opacity-75">{entry.count}</span>
           </button>
         ))}
-        {isAdmin && (
+        {isAdmin && !assignedToMe && (
           <select
             aria-label="Department"
             className="input w-auto py-1.5 text-sm sm:ml-auto"
@@ -196,7 +198,7 @@ export default function DepartmentTasksBoard({
         )}
         <select
           aria-label="Open or done"
-          className={`input w-auto py-1.5 text-sm ${isAdmin ? '' : 'sm:ml-auto'}`}
+          className={`input w-auto py-1.5 text-sm ${isAdmin && !assignedToMe ? '' : 'sm:ml-auto'}`}
           value={state}
           onChange={(event) => { setFilter({ state: event.target.value }); setChip('all'); }}
         >

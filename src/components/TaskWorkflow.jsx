@@ -758,7 +758,12 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
       )}
       {(!movesByModel(todo) || allAtOnce || waiting.length > 0) && (
         <div className="flex flex-wrap items-center gap-2">
-          {nextIsButton && !movesByModel(todo) && (
+          {/* A Dispatch request: each load is said from the dispatch form — the models and pieces of this one; the app reads Part or Fully [DispatchLoadDialog]. */}
+          {todo.kind === 'invoice_dispatch' ? (
+            <button type="button" className="btn-primary px-3 py-1.5 text-xs" onClick={() => choose(statuses.find((entry) => entry.key === 'part_dispatched') ? 'part_dispatched' : next?.key)}>
+              + Add a dispatch
+            </button>
+          ) : nextIsButton && !movesByModel(todo) && (
             <button type="button" className="btn-primary px-3 py-1.5 text-xs" onClick={() => choose(next.key)}>
               {next.label} →
             </button>
