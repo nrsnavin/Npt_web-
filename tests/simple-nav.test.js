@@ -43,7 +43,7 @@ test('the desk and the enquiries are one dashboard; nothing is taken away', () =
   assert.doesNotMatch(layout, /key: 'desk'/);
   assert.match(layout, /to: '\/enquiries', label: 'All enquiries', end: true, module: 'enquiries'/);
   /* The bar [config/topBar.js]: the department's own modules beside the five, the rest under More. */
-  assert.match(layout, /barItems\(readable, simpleNavFor\(departments, \{ isAdmin \}\) \|\| \[\], \{ short: usesShortBar\(departments, \{ isAdmin \}\) \}\)/);
+  assert.match(layout, /barItems\(readable, simpleNavFor\(departments, \{ isAdmin \}\) \|\| \[\], \{ short: usesShortBar\(departments, \{ isAdmin \}\), productionFloor \}\)/);
   assert.match(read('config/topBar.js'), /\{ key: 'more', label: 'More', features: moreFeatures \}/);
 
   const app = read('App.jsx');

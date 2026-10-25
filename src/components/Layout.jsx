@@ -413,9 +413,11 @@ export default function Layout() {
    * The bar [the plant's own layout]: Dashboard · Enquiries · Department Tasks · Quotations ·
    * Masters & Access, the department's own modules beside them, and the rest under More.
    */
+  /* The Production in charge gets the floor — planning board and presses — on the bar [topBar `PRODUCTION_FLOOR`]. */
+  const productionFloor = user?.productionInCharge === true && canRead('production');
   const items = useMemo(
-    () => barItems(readable, simpleNavFor(departments, { isAdmin }) || [], { short: usesShortBar(departments, { isAdmin }) }),
-    [readable, departments, isAdmin],
+    () => barItems(readable, simpleNavFor(departments, { isAdmin }) || [], { short: usesShortBar(departments, { isAdmin }), productionFloor }),
+    [readable, departments, isAdmin, productionFloor],
   );
   const lit = litItem(location.pathname, items);
 

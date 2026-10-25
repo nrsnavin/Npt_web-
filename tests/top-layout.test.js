@@ -202,3 +202,16 @@ test('My Payment Follow-up is a chip on the board; the dashboard lists every ope
   assert.match(read('App.jsx'), /<Route path="dashboard\/marketing" element=\{<Navigate to="\/departments\/mine" replace \/>\} \/>/);
   assert.doesNotMatch(read('components/Layout.jsx'), /My figures/);
 });
+
+test('the Production in charge has the floor on the bar, right after My work: planning board and the presses', () => {
+  const production = ADMIN
+    .filter((entry) => ['dashboard', 'queries', 'production'].includes(entry.key))
+    .map((entry) => (entry.key === 'dashboard' ? { ...entry, features: entry.features.filter((feature) => feature.to === '/departments/mine') } : entry));
+  const items = barItems(production, ['dashboard', 'production', 'queries'], { short: true, productionFloor: true });
+  assert.deepEqual(items.map((item) => item.label).slice(0, 2), ['My work', 'Production floor']);
+  assert.deepEqual(items.find((item) => item.key === 'floor').features.map((feature) => feature.to), ['/production/plan', '/floor']);
+  assert.equal(litItem('/production/plan', items), 'floor');
+  assert.equal(barItems(production, ['dashboard', 'production', 'queries'], { short: true }).some((item) => item.key === 'floor'), false, 'not for the rest of Production');
+  const layout = readFileSync(new URL('../src/components/Layout.jsx', import.meta.url), 'utf8');
+  assert.match(layout, /const productionFloor = user\?\.productionInCharge === true && canRead\('production'\);/);
+});
