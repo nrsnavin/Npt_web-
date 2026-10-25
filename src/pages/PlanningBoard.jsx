@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { production as productionApi, workOrdersApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { loadPlant } from '../utils/plantSettings.js';
+import { boardAttention } from '../utils/floorPlanning.js';
 import { ErrorState, Field, FormError, Modal, Notice, PageHeader, Spinner } from '../components/ui.jsx';
 import MachineSelect from '../components/MachineSelect.jsx';
 import PressChoices from '../components/PressChoices.jsx';
@@ -106,6 +107,20 @@ const savedView = () => {
 };
 
 /** A figure across the top that is also the filter it describes. */
+/** One thing that needs the in charge on the board: a tap filters the waiting jobs to it. */
+function AttentionChip({ tone, active, onClick, children }) {
+  const tones = {
+    warn: active ? 'bg-warn-500 text-white ring-warn-500' : 'text-warn-400 ring-warn-500/30 hover:bg-warn-500/10',
+    danger: active ? 'bg-danger-500 text-white ring-danger-500' : 'text-danger-400 ring-danger-500/30 hover:bg-danger-500/10',
+  };
+  return (
+    <button type="button" aria-pressed={active} onClick={onClick} className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset transition ${tones[tone]}`}>
+      <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${active ? 'bg-current' : tone === 'warn' ? 'bg-warn-400' : 'bg-danger-400'}`} />
+      {children}
+    </button>
+  );
+}
+
 function StatTile({ label, value, hint, tone = 'text-steel-50', active, onClick }) {
   return (
     <button
@@ -153,6 +168,7 @@ export default function PlanningBoard() {
   const [search, setSearch] = useState('');
   const [order, setOrder] = useState('late');
   const [lateOnly, setLateOnly] = useState(false);
+  const [only, setOnly] = useState(null);
   const wallRef = useRef(null);
 
   /* Admin's switch [Profile → Production floor planning]: off, Production tasks are not on this board. */
@@ -250,7 +266,9 @@ export default function PlanningBoard() {
   };
 
   const stats = board ? boardStats(board) : null;
-  const waiting = board ? sortWaiting(board.unplanned, { search, order, lateOnly }) : [];
+  const waiting = board ? sortWaiting(board.unplanned, { search, order, lateOnly, only }) : [];
+  const needs = board ? boardAttention(board) : null;
+  const needsAny = needs && (needs.tasksWaiting || needs.late || needs.blocked || needs.firstPiece);
   const summaries = board ? new Map(board.presses.map((press) => [String(press.machine._id), pressSummary(press)])) : new Map();
   const shown = board ? board.presses.filter((press) => wall === 'all' || summaries.get(String(press.machine._id)).state === wall
     || (wall === 'down' && summaries.get(String(press.machine._id)).state === 'service')) : [];
@@ -260,7 +278,7 @@ export default function PlanningBoard() {
     <div className="space-y-5">
       <PageHeader
         title="Planning board"
-        subtitle="Put each waiting job on a machine. Tap “Put on…” for the best machine, or pick a machine yourself."
+        subtitle={mayPlan ? 'Put each waiting job on a machine. Tap “Put on…” for the best machine, or pick a machine yourself.' : 'Where every job runs and when. The Production in charge plans the presses.'}
         actions={(
           <>
             <div role="group" aria-label="View" className="inline-flex rounded-xl border border-line/[0.1] bg-ink-850 p-1 shadow-raised">
@@ -283,6 +301,28 @@ export default function PlanningBoard() {
       {!board && !error && <Spinner label="Loading the board" />}
       {board && (
         <>
+          {/* What needs the Production in charge, one tap from each — only they plan the presses. */}
+          {mayPlan && needsAny ? (
+            <div role="group" aria-label="Needs you" className="flex flex-wrap items-center gap-2 rounded-2xl border border-line/[0.08] bg-ink-850 px-4 py-2.5 shadow-raised">
+              <span className="mr-1 text-xs font-semibold uppercase tracking-wide text-steel-400">Needs you</span>
+              {needs.tasksWaiting > 0 && (
+                <AttentionChip tone="warn" active={only === 'tasks'} onClick={() => setOnly(only === 'tasks' ? null : 'tasks')}>
+                  {needs.tasksWaiting} task model{needs.tasksWaiting === 1 ? '' : 's'} need{needs.tasksWaiting === 1 ? 's' : ''} a press
+                </AttentionChip>
+              )}
+              {needs.late > 0 && <AttentionChip tone="danger" active={lateOnly} onClick={() => setLateOnly(!lateOnly)}>{needs.late} will end late</AttentionChip>}
+              {needs.blocked > 0 && (
+                <AttentionChip tone="danger" active={only === 'blocked'} onClick={() => setOnly(only === 'blocked' ? null : 'blocked')}>{needs.blocked} no press can take</AttentionChip>
+              )}
+              {needs.firstPiece > 0 && (
+                <Link to="/floor" className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold text-aqua-300 ring-1 ring-inset ring-aqua-500/30 transition hover:bg-aqua-500/10">
+                  {needs.firstPiece} first piece{needs.firstPiece === 1 ? '' : 's'} to approve →
+                </Link>
+              )}
+            </div>
+          ) : null}
+          {mayPlan && !needsAny && <p className="text-sm text-success-400">✓ Nothing needs you right now.</p>}
+
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <StatTile label="Running" value={`${stats.running} of ${stats.presses}`} hint="Machines making a job now" tone="text-success-400" active={wall === 'running'} onClick={() => toggleWall('running')} />
             <StatTile label="Free" value={stats.free} hint={stats.down ? `${stats.down} stopped` : 'Ready for a job'} active={wall === 'free'} onClick={() => toggleWall('free')} />

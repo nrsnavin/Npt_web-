@@ -27,7 +27,7 @@ export default function JobCard({ job, picked = false, mayPlan, busy, onPick, on
             <span className="truncate text-sm text-steel-300">{job.colour || '—'}</span>
           </p>
           <p className="mt-0.5 text-xs text-steel-400">
-            <span className="font-semibold tabular-nums text-steel-200">{formatNumber(job.toMake)} pcs</span>
+            <span className="font-semibold tabular-nums text-steel-200">{job.forTask && !job.quantity ? 'Pieces not known' : `${formatNumber(job.toMake)} pcs`}</span>
             {job.pressDays ? ` · ${job.pressDays} day${job.pressDays === 1 ? '' : 's'}` : ''}
             {job.customer ? ` · ${job.customer}` : ''}
           </p>

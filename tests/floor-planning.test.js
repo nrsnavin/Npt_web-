@@ -26,10 +26,13 @@ test('the Production task shows each routed model’s press, and draws nothing w
   assert.match(plan, /if \(!plan\?\.on \|\| !plan\.models\?\.length\) return null;/);
   assert.match(plan, /productionApi\.placeTaskModel\(\{ taskId: todo\._id, model: row\.model, machine: machine\._id \}\)/);
   assert.match(plan, /Put on \{row\.best\.machine\.code\}/);
-  assert.match(plan, /Choose press/);
+  assert.match(plan, /Other press/);
   assert.match(plan, /productionApi\.choices\(choosing\.workOrder\._id\)/);
   assert.match(plan, /<PressChoices /);
-  assert.match(plan, /after moulding is due/);
+  /* Only the in charge sees the buttons that plan; the rest read who plans it. */
+  assert.match(plan, /\{mayPlan && state\.key === 'waiting' && row\.best\?\.machine && \(/);
+  assert.match(plan, /\{mayPlan && onPress && \(/);
+  assert.match(plan, /Planned by the Production in charge\./);
   assert.match(read('components/TaskEdd.jsx'), /\{routed && <TaskPressPlan todo=\{todo\} mayPlan=\{plans\} onChanged=\{onChanged\} \/>\}/);
   const endpoints = read('api/endpoints.js');
   assert.match(endpoints, /taskPlan: \(taskId\) => api\.get\(`\/production\/task-plan\/\$\{taskId\}`\)/);
@@ -45,6 +48,52 @@ test('the board says which enquiry a job is for and where it goes, and says so w
   const board = read('pages/PlanningBoard.jsx');
   assert.match(board, /loadPlant\(\)\.then\(\(plant\) => setFloorPlanning\(Boolean\(plant\?\.floorPlanning\)\)\)/);
   assert.match(board, /Production floor planning is off/);
+});
+
+test('a model’s place on the presses, and what of it needs the in charge', async () => {
+  const { modelPress, pressAttention, lateWords, afterMoulding, setupDone } = await import('../src/utils/floorPlanning.js');
+  const waiting = { model: 'A', workOrder: { status: 'planned' }, best: { machine: { code: 'IM-08' } } };
+  const noPress = { model: 'B', workOrder: { status: 'planned' }, best: { machine: null, why: 'too big' } };
+  const noMould = { model: 'C', workOrder: { status: 'planned', mouldMissing: true } };
+  const planned = { model: 'D', workOrder: { status: 'released', machine: { code: 'IM-02' } } };
+  const late = { model: 'E', workOrder: { status: 'planned', machine: { code: 'IM-03' }, late: true, plannedEnd: '2026-11-12T00:00:00+05:30', dueDay: '2026-11-09' } };
+  const running = { model: 'F', workOrder: { status: 'running', machine: { code: 'IM-04' } } };
+  const made = { model: 'G', workOrder: { status: 'completed', machine: { code: 'IM-04' } } };
+  assert.deepEqual([waiting, noPress, noMould, planned, late, running, made].map((row) => [modelPress(row).key, modelPress(row).tone]), [
+    ['waiting', 'warn'], ['blocked', 'danger'], ['blocked', 'danger'], ['planned', 'neutral'], ['late', 'danger'], ['running', 'success'], ['made', 'success'],
+  ]);
+  assert.equal(modelPress({ model: 'H' }), null, 'no work order: nothing drawn');
+  assert.deepEqual(pressAttention([waiting, noPress, noMould, planned, late, running, made]), { waiting: 1, blocked: 2, late: 1, planned: 4, total: 7 });
+  assert.match(lateWords(late.workOrder), /^Ends 12 Nov — after moulding is due 9 Nov$/);
+  assert.equal(lateWords(planned.workOrder), null);
+  assert.equal(afterMoulding({ printing: true, assembly: true }), 'Printing → Assembly');
+  assert.equal(afterMoulding({}), 'Straight to dispatch');
+  assert.equal(setupDone({ setup: { mouldOff: { at: 'x' }, heated: { at: 'y' }, firstPiece: {} } }), 2);
+});
+
+test('the board tells the in charge what needs them, and filters to it', async () => {
+  const { boardAttention } = await import('../src/utils/floorPlanning.js');
+  const { sortWaiting } = await import('../src/utils/planningBoard.js');
+  const board = {
+    unplanned: [
+      { _id: 1, forTask: { route: 'Moulding' }, best: { machine: { code: 'IM-1' } } },
+      { _id: 2, late: true, best: { machine: { code: 'IM-1' } } },
+      { _id: 3, best: { machine: null, why: 'too big' } },
+    ],
+    presses: [
+      { queue: [{ _id: 4, status: 'released', forTask: { firstPiece: false } }] },
+      { queue: [{ _id: 5, status: 'running', forTask: { firstPiece: true } }, { _id: 6, status: 'planned', forTask: { firstPiece: false }, late: true }] },
+      { queue: [{ _id: 7, status: 'planned', forTask: { firstPiece: true } }] },
+    ],
+  };
+  assert.deepEqual(boardAttention(board), { tasksWaiting: 1, late: 2, blocked: 1, firstPiece: 1 });
+  assert.deepEqual(sortWaiting(board.unplanned, { only: 'tasks' }).map((job) => job._id), [1]);
+  assert.deepEqual(sortWaiting(board.unplanned, { only: 'blocked' }).map((job) => job._id), [3]);
+  const page = read('pages/PlanningBoard.jsx');
+  assert.match(page, /\{mayPlan && needsAny \? \(/, 'only the in charge sees what needs them');
+  assert.match(page, /aria-label="Needs you"/);
+  assert.match(page, /The Production in charge plans the presses\./);
+  assert.match(read('components/planning/PressCard.jsx'), /index === 0 && !running && job\.forTask && !job\.forTask\.firstPiece/);
 });
 
 test('the floor tablet ticks the mould change, and a run before the first piece says why', () => {

@@ -89,12 +89,16 @@ export default function PressCard({ press, summary, moving, choice, cannot, onPl
         {/* Next: the jobs after it. */}
         {upcoming.length > 0 && (
           <ul className="mt-2.5 space-y-1" aria-label={`Next on ${press.machine.code}`}>
-            {upcoming.slice(0, 3).map((job) => (
+            {upcoming.slice(0, 3).map((job, index) => (
               <li key={job._id}>
                 <button type="button" disabled={target} onClick={() => onOpenJob(job)} className="flex w-full items-center gap-2 rounded-lg px-1.5 py-1 text-left text-xs transition hover:bg-line/[0.05] disabled:hover:bg-transparent">
                   <Swatch colour={job.colour} className="h-2.5 w-2.5" />
                   <span className="shrink-0 whitespace-nowrap font-semibold text-steel-200">{job.mould?.mouldCode || job.modelNumber}</span>
                   <span className="truncate text-steel-400" title={job.forTask?.route}>{job.colour} · {formatNumber(job.toMake)}{job.forTask?.enquiry ? ` · ${job.forTask.enquiry}` : ''}</span>
+                  {/* A task job next on an idle press whose first piece the floor has not approved [floor planning]. */}
+                  {index === 0 && !running && job.forTask && !job.forTask.firstPiece && (
+                    <span className="shrink-0 rounded-full bg-aqua-500/10 px-1.5 text-xs font-semibold text-aqua-300" title="Mould change and first piece not approved on the floor tablet yet">first piece</span>
+                  )}
                   <span className={`ml-auto shrink-0 tabular-nums ${job.late ? 'font-semibold text-danger-400' : 'text-steel-500'}`}>
                     {job.plannedEnd ? `till ${shortDay(job.plannedEnd)}` : ''}{job.late ? ' · late' : ''}
                   </span>
