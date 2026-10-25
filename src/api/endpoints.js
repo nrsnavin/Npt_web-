@@ -1293,6 +1293,8 @@ export const maintenanceApi = {
 export const mouldRunsApi = {
   list: (params) => api.get('/mould-runs', { params }).then(unwrap),
   start: (payload) => api.post('/mould-runs', payload).then(unwrap),
+  /** The models a run for this enquiry (and SO) may make, each with its mould, the pieces ordered and the most a run may plan. */
+  models: (params) => api.get('/mould-runs/models', { params }).then(unwrap),
   finish: ({ id, ...payload }) => api.post(`/mould-runs/${id}/finish`, payload).then(unwrap),
   /** A line on a running job: counter read, a coded stop, or rejects by defect. */
   log: ({ id, ...payload }) => api.post(`/mould-runs/${id}/log`, payload).then(unwrap),
