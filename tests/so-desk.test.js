@@ -66,3 +66,13 @@ test('marketing’s answers stay on the SO card, and on the enquiry for marketin
   const page = read('pages/EnquiryDetail.jsx');
   assert.match(page, /<EnquiryClarifications clarifications=\{enquiry\.clarifications\} \/>/);
 });
+
+test('a new SO request on an enquiry in production alerts first and is sent only once ticked', () => {
+  const dialog = read('components/DepartmentTaskDialog.jsx');
+  assert.match(dialog, /kind === 'po_so' \? runningOrder \|\| prefill\?\.orderInProduction \|\| null : null/);
+  assert.match(dialog, /\(running && !stopOk\)/, 'blocked until ticked');
+  assert.match(dialog, /running && stopOk \? \{ revise: true \}/);
+  assert.match(dialog, /Stop that production and send this SO request/);
+  assert.match(dialog, /failure\.details\?\.code === 'SO_IN_PRODUCTION'/, 'a refusal from the server opens the same alert');
+  assert.match(dialog, /'Stop production & send'/);
+});

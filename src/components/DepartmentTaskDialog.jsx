@@ -129,6 +129,8 @@ function Rows({ field, rows, prefill, onChange }) {
 export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKind, fromTask, title, customer: startCustomer, onClose, onSent }) {
   const [kind, setKind] = useState(startKind);
   const [prefill, setPrefill] = useState(null);
+  const [runningOrder, setRunningOrder] = useState(null);
+  const [stopOk, setStopOk] = useState(false);
   const [answers, setAnswers] = useState({});
   const [note, setNote] = useState('');
   const [priority, setPriority] = useState('normal');
@@ -209,7 +211,13 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
   const asksEdd = EDD_ASK_KINDS.includes(kind) && !fromTask && (isAdmin || departments.includes('marketing'));
   const eddMissing = asksEdd && !edd;
   const changes = team ? [] : changedDetails(started, answers);
-  const blocked = !prefill || Boolean(missing) || mustExplain || tooBig || notPdf || eddMissing || (orders.length > 1 && !order && !fromTask && !team);
+  /*
+   * A new SO request on an enquiry whose order is already in production [server: handoff.service
+   * `sendHandoff`]: said before anything else, and sent only once ticked — that production stops,
+   * marketing and Admin are told, and the plant follows the revised SO.
+   */
+  const running = !team && !fromTask && kind === 'po_so' ? runningOrder || prefill?.orderInProduction || null : null;
+  const blocked = !prefill || Boolean(missing) || mustExplain || tooBig || notPdf || eddMissing || (orders.length > 1 && !order && !fromTask && !team) || (running && !stopOk);
 
   const submit = async (event) => {
     event.preventDefault();
@@ -225,6 +233,7 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
         /* Sent when given here or changed from the enquiry's — it becomes the enquiry's (or the job's) EDD. */
         ...(asksEdd && edd && edd !== (prefill?.edd || '') ? { edd } : {}),
         ...(asksEdd && edd && team ? { edd } : {}),
+        ...(running && stopOk ? { revise: true } : {}),
       };
       const sent = fromTask
         ? await workspace.todos.ask({ id: fromTask._id, ...payload }).then((answer) => ({ task: answer.raised, addedTo: answer.addedTo }))
@@ -264,7 +273,9 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
        */
       if (sent.quotation?._id && canWrite('pricing')) navigate(`/quotations/${sent.quotation._id}`);
     } catch (failure) {
-      setProblem(failure.message);
+      /* Production started since the form opened: the alert, rather than a bare refusal. */
+      if (failure.details?.code === 'SO_IN_PRODUCTION') setRunningOrder({ ...failure.details.order, words: failure.message });
+      else setProblem(failure.message);
     } finally {
       setBusy(false);
     }
@@ -291,6 +302,17 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
               )}
           </Field>
 
+          {running && (
+            <div className="rounded-xl border border-danger-500/50 bg-danger-500/[0.08] p-3 sm:col-span-2" role="alert" aria-label="Order already in production">
+              <p className="text-sm font-bold text-danger-400">⚠ {running.number} is already in production</p>
+              <p className="mt-1 text-xs text-steel-200">{running.words}</p>
+              <p className="mt-1 text-xs text-steel-400">The enquiry’s marketing person and Admin are told. The same SO is revised from this request — no second order.</p>
+              <label className="mt-2 flex items-start gap-2 text-sm font-semibold text-steel-100">
+                <input type="checkbox" className="mt-0.5" checked={stopOk} onChange={(event) => setStopOk(event.target.checked)} />
+                Stop that production and send this SO request
+              </label>
+            </div>
+          )}
           {!prefill && <p className="text-sm text-steel-400 sm:col-span-2">Filling the form from the enquiry…</p>}
           {/* A team task for a buyer: the rows come from their latest enquiry [server: `teamTaskPrefill`]. */}
           {team && prefill?.from?.enquiry && (
@@ -397,7 +419,7 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
         <div className="flex justify-end gap-2">
           <button type="button" className="btn-ghost" onClick={onClose} disabled={busy}>Cancel</button>
           <button type="submit" className="btn-primary" disabled={busy || blocked}>
-            {busy ? 'Sending…' : form.submit || 'Assign to Team'}
+            {busy ? 'Sending…' : running ? 'Stop production & send' : form.submit || 'Assign to Team'}
           </button>
         </div>
       </form>
