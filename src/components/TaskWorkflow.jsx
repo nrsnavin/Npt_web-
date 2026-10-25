@@ -19,6 +19,8 @@ import { ROUTE_LABELS, dateLabelFor, datesOfTask, givenDateOf, goodsOf, handOver
 import { formatDate } from '../utils/format.js';
 import { plantLead } from '../utils/plantSettings.js';
 import LoadPaper from './LoadPaper.jsx';
+import DispatchModels from './DispatchModels.jsx';
+import TaskReceipts, { RECEIPT_TASK_KINDS } from './NotInBank.jsx';
 
 /**
  * A department's own workflow on its task [server: config/departmentTaskForms.js `statuses`]:
@@ -690,6 +692,10 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
           <button type="button" className="btn-primary px-3 py-1 text-xs" onClick={() => setOffer(todo)}>Close the task</button>
         </div>
       )}
+      {/* A Dispatch request: each model on its own — in the plant, ready, part sent, fully sent [DispatchModels]. */}
+      {todo.kind === 'invoice_dispatch' && <DispatchModels todo={todo} />}
+      {/* A payment task, or Accounts' A/C Clarify on one: the receipts by RCV number for Accounts to confirm [TaskReceipts]. */}
+      {RECEIPT_TASK_KINDS.includes(todo.kind) && <TaskReceipts todo={todo} onChanged={() => onChanged?.(todo)} />}
       {/* Printing / Assembly: what came and is waiting to be taken on, and what is still to come. */}
       <GoodsIn todo={todo} statuses={button?.form?.statuses || []} onMoved={moved} />
       {/* Several models: one workflow each — a model moulded and handed to Printing while another has not started. */}

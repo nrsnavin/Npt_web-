@@ -6,6 +6,7 @@ import { useToast } from '../context/ToastContext.jsx';
 import { Field, FormError, Modal } from './ui.jsx';
 import { formatCurrency } from '../utils/format.js';
 import { todayInIndia } from '../utils/taskForm.js';
+import { NotInBankBanner } from './NotInBank.jsx';
 
 /**
  * Goods ready, the dispatch held for the money due before it [server: paymentGates.service
@@ -92,6 +93,8 @@ export default function DispatchPaymentHold({ holds = [], mayEnter, onChanged })
               </p>
               {hold.chase && !logged && <p className="text-xs text-steel-400">Payment Collection is chasing it{hold.chase.with && hold.chase.with !== 'Payment Collection' ? ` (${hold.chase.with})` : ''}.</p>}
               {logged && <p className="text-xs text-steel-400">Dispatch gets the request as soon as Accounts confirms it in the bank.</p>}
+              {/* Logged, and Accounts did not find it: red, with why [NotInBankBanner]. */}
+              {hold.notInBank?.length > 0 && <div className="mt-1.5"><NotInBankBanner rows={hold.notInBank} compact /></div>}
             </div>
             <div className="flex flex-wrap items-center gap-2">
               {hold.receivable && canRead('payments') && <Link to={`/payments/${hold.receivable._id}`} className="row-action text-xs">Payment receipt {hold.receivable.number}</Link>}

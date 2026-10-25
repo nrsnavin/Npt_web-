@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { Field, FormError, Modal, Section } from './ui.jsx';
 import { formatCurrency, formatDate } from '../utils/format.js';
 import { describePlan } from '../utils/paymentTerms.js';
+import { NotInBankBanner } from './NotInBank.jsx';
 
 /**
  * Money before work, on the order's payment terms [server: services/paymentGates.service.js]:
@@ -29,6 +30,7 @@ export default function OrderPayment({ order }) {
   }, [load, order.updatedAt]);
 
   if (!standing) return null;
+  const notInBank = standing.notInBank || [];
   const plan = order.paymentPlan || {};
   const asksNothing = !plan.advancePercent && !plan.beforeDispatchPercent;
 
@@ -49,6 +51,8 @@ export default function OrderPayment({ order }) {
 
   return (
     <Section title="Payment before work">
+      {/* A payment Accounts did not find in the bank on this order: red, until it is confirmed late or logged again [NotInBankBanner]. */}
+      {notInBank.length > 0 && <div className="mb-3"><NotInBankBanner rows={notInBank} /></div>}
       <p className="text-sm text-steel-300">
         <span className="font-semibold text-steel-100">{describePlan(plan)}</span>
         {order.paymentTerms && order.paymentTerms !== describePlan(plan) && <span className="text-steel-500"> · “{order.paymentTerms}”</span>}

@@ -86,6 +86,8 @@ export const workspace = {
      * a dropdown filling itself in does not raise "Record updated" at somebody.
      */
     suggest: (id) => api.get(`/workspace/todos/${id}/suggest`).then(unwrap),
+    /** The payments behind a Payment Collection, PRT or A/C Clarify task — by RCV number, where each stands [web: TaskReceipts]. */
+    receipts: (id) => api.get(`/workspace/todos/${id}/receipts`).then(unwrap),
     create: (payload) => api.post('/workspace/todos', payload).then(unwrap),
     update: ({ id, ...payload }) => api.patch(`/workspace/todos/${id}`, payload).then(unwrap),
     escalate: ({ id, ...payload }) =>
@@ -713,8 +715,13 @@ export const payments = {
   ownerReceipt: ({ id, ...payload }) => api.post(`/payments/${id}/owner-receipts`, payload).then(unwrap),
   /** Accounts has seen a logged payment in the bank — with the bank line: UTR, amount, day credited, account, remark. */
   confirmReceipt: ({ id, receiptId, ...bankLine }) => api.post(`/payments/${id}/receipts/${receiptId}/confirm`, bankLine).then(unwrap),
-  /** Accounts did not find a logged payment in the bank — with the reason; whoever logged it is told. */
-  rejectReceipt: ({ id, receiptId, reason }) => api.post(`/payments/${id}/receipts/${receiptId}/reject`, { reason }).then(unwrap),
+  /**
+   * Accounts did not find a logged payment in the bank — which of the reasons (not received yet,
+   * UTR / amount mismatch, cheque bounced) and a note; the task it came from reopens and its people are told.
+   */
+  rejectReceipt: ({ id, receiptId, reasonKey, reason }) => api.post(`/payments/${id}/receipts/${receiptId}/reject`, { reasonKey, ...(reason ? { reason } : {}) }).then(unwrap),
+  /** The money came after all: Accounts confirms a payment marked Not in bank on that same entry, with the bank line. */
+  confirmLate: ({ id, receiptId, ...bankLine }) => api.post(`/payments/${id}/rejected/${receiptId}/confirm`, bankLine).then(unwrap),
   /** Disputed or on hold, and clearing it again. Both stop the escalation ladder. */
   judgement: ({ id, ...payload }) => api.post(`/payments/${id}/judgement`, payload).then(unwrap),
   /** The advance a buyer owes before anything is made, against the order it belongs to. */

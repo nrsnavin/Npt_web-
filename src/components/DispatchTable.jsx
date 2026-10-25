@@ -6,6 +6,7 @@ import { formatDate } from '../utils/format.js';
 import { dueWords, urgencyTone } from '../utils/deliveryUrgency.js';
 import DeliveryUrgencyDialog from './DeliveryUrgencyDialog.jsx';
 import TaskPanel from './TaskPanel.jsx';
+import { DispatchModelList } from './DispatchModels.jsx';
 
 /**
  * The Dispatch desk as a table — one line a request, where the cards ran long. Each row: the
@@ -36,11 +37,6 @@ function GoodsCell({ goods, status }) {
             {waiting.length ? `Not ready: ${waiting.map((row) => `${row.model} (${row.team === 'production' ? 'in' : 'with'} ${ROUTE_WORDS[row.team] || row.team}${row.status ? ` · ${row.status}` : ''})`).join(', ')}` : 'Not ready yet'}
           </p>
         </>
-      )}
-      {/* What has gone already, on this request or an earlier one [server: modelReadiness `sent` `partSent`]. */}
-      {goods.sent?.length > 0 && <p className="text-steel-400">Sent: {goods.sent.join(', ')}</p>}
-      {goods.partSent?.length > 0 && (
-        <p className="text-steel-400">Part sent: {goods.partSent.map((row) => `${row.model} (${row.sent.toLocaleString('en-IN')}${row.ordered ? ` of ${row.ordered.toLocaleString('en-IN')}` : ''})`).join(', ')}</p>
       )}
       {goods.qc?.required && (
         goods.qc.atQc?.length
@@ -118,8 +114,16 @@ export default function DispatchTable({ rows = [], me, onChanged }) {
                     </button>
                   )}
                 </td>
-                <td className="px-3 py-2.5">
-                  <span className={`text-xs font-semibold ${status?.issue ? 'text-danger-400' : 'text-steel-100'}`}>{status?.label || 'Received'}</span>
+                <td className="min-w-[14rem] px-3 py-2.5">
+                  {/* Several models: each its own state — one part sent never reads as all of them part sent [server: `dispatchStateOf`]. */}
+                  {row.dispatchModels?.length > 1 ? (
+                    <DispatchModelList models={row.dispatchModels} compact />
+                  ) : (
+                    <>
+                      <span className={`text-xs font-semibold ${status?.issue ? 'text-danger-400' : 'text-steel-100'}`}>{status?.label || 'Received'}</span>
+                      {row.dispatchModels?.[0] && <span className="block text-xs text-steel-400">{row.dispatchModels[0].words}</span>}
+                    </>
+                  )}
                 </td>
                 <td className="px-3 py-2.5"><GoodsCell goods={row.goods} status={status} /></td>
                 <td className="whitespace-nowrap px-3 py-2.5 text-xs text-steel-300">{task.brief?.booking || '—'}</td>
