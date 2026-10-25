@@ -328,7 +328,7 @@ export default function PaymentDetail() {
                 </Link>
               </>
             ) : null}
-            {receivable.kind === 'advance' ? ' · advance' : ''}
+            {receivable.kind === 'advance' ? ' · advance' : receivable.kind === 'on_account' ? ' · on account' : ''}
           </>
         }
         actions={

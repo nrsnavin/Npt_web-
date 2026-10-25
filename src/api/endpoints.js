@@ -164,6 +164,8 @@ export const workspace = {
     sendResult: (id, loadId) => api.post(`/workspace/todos/${id}/result/send`, loadId ? { loadId } : {}, { feedback: false }).then((response) => response.data),
     /** The job's shipments, each with its own LR or proof [server: handoff.service `shipmentsOf`]. */
     shipments: (id) => api.get(`/workspace/todos/${id}/shipments`).then(unwrap),
+    /** What a payment on a Payment Collection or PRT task can go against: the buyer's dues, or on account [server: `duesOfTask`]. */
+    dues: (id) => api.get(`/workspace/todos/${id}/dues`).then(unwrap),
     /** Papers a department keeps on its task — Dispatch's invoice and dispatch details, Reception's. */
     documents: (id) => api.get(`/workspace/todos/${id}/documents`).then(unwrap),
     addDocument: ({ id, docType, file }) => {

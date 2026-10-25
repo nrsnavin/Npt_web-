@@ -131,7 +131,9 @@ export function MoveForm({ todo, form, step, onCancel, onMoved, noDates = false,
             {step.done && picked.length < allModels.length && <p className="mt-1 text-xs text-steel-400">The task stays open until every model is closed.</p>}
           </fieldset>
         )}
-        {asks.map((field) => (
+        {asks.map((field) => (field.type === 'dues' ? (
+          <DuesPicker key={field.key} todo={todo} value={answers[field.key]} onChange={(value) => setAnswers((current) => ({ ...current, [field.key]: value }))} />
+        ) : (
           <Field key={field.key} label={field.label} required={field.required}>
             {field.options ? (
               <select
@@ -155,7 +157,7 @@ export function MoveForm({ todo, form, step, onCancel, onMoved, noDates = false,
             />
             )}
           </Field>
-        ))}
+        )))}
         {dated && !eachModel && (
           <Field label={dateLabel} required={step.date === 'required'} hint={handing ? handOverWarning(todo, fixedModels?.[0] || null, date, plantLead()) || undefined : undefined}>
             <input type="date" className="input" min={todayInIndia()} value={date} onChange={(event) => setDate(event.target.value)} />
@@ -256,6 +258,35 @@ export function CommentDialog({ step, target, onClose, onSave }) {
         </div>
       </form>
     </Modal>
+  );
+}
+
+/**
+ * What money taken on a Payment Collection or PRT task goes against [server: paymentGates
+ * `duesOfTask`]: one of the buyer's dues, or — a task with no sales order — a new receipt on
+ * account for what came in. Left empty, the oldest due takes it (on account when nothing is owed).
+ */
+function DuesPicker({ todo, value, onChange }) {
+  const [state, setState] = useState(null);
+  useEffect(() => {
+    let live = true;
+    workspace.todos.dues(todo._id).then((data) => { if (live) setState(data); }).catch(() => setState({ dues: [], onAccount: false }));
+    return () => { live = false; };
+  }, [todo._id]);
+  if (!state || (!state.dues.length && !state.onAccount)) return null;
+  const money = (amount) => `₹${Math.round(amount || 0).toLocaleString('en-IN')}`;
+  return (
+    <Field label="Against" hint={state.dues.length ? 'Which of the buyer’s dues this pays — or a new receipt on account' : 'Nothing is owed on record — the payment gets its own receipt on account for Accounts to confirm'}>
+      <select className="input" value={value} onChange={(event) => onChange(event.target.value)} aria-label="Against">
+        <option value="">{state.dues.length ? 'The oldest due first' : 'On account — a new receipt'}</option>
+        {state.dues.map((row) => (
+          <option key={row._id} value={row._id}>
+            {[row.number, row.invoiceNumber && row.invoiceNumber !== 'On account' ? row.invoiceNumber : row.kind === 'advance' ? 'advance' : null, row.order?.number].filter(Boolean).join(' · ')} — {money(row.balance)} left
+          </option>
+        ))}
+        {state.onAccount && state.dues.length > 0 && <option value="on_account">On account — a new receipt</option>}
+      </select>
+    </Field>
   );
 }
 

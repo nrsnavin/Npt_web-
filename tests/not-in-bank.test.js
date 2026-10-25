@@ -45,3 +45,12 @@ test('the receipts on Payment Collection, PRT and A/C Clarify tasks, by RCV numb
   assert.match(receipts, /seesTheBank && row\.state === 'awaiting'/);
   assert.match(read('components/TaskWorkflow.jsx'), /\{RECEIPT_TASK_KINDS\.includes\(todo\.kind\) && <TaskReceipts todo=\{todo\}/);
 });
+
+test('a payment on a task with no sales order: Against picks a due of the buyer, or on account', () => {
+  const flow = read('components/TaskWorkflow.jsx');
+  assert.match(flow, /\{asks\.map\(\(field\) => \(field\.type === 'dues' \? \(\s*<DuesPicker/);
+  assert.match(flow, /workspace\.todos\.dues\(todo\._id\)/);
+  assert.match(flow, /<option value="on_account">On account — a new receipt<\/option>/);
+  assert.match(read('api/endpoints.js'), /dues: \(id\) => api\.get\(`\/workspace\/todos\/\$\{id\}\/dues`\)/);
+  assert.match(read('pages/PaymentDetail.jsx'), /receivable\.kind === 'on_account' \? ' · on account'/);
+});
