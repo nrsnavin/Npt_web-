@@ -3,6 +3,7 @@ import { Badge } from './ui.jsx';
 import { MouldThumb } from './MouldPhoto.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { HANGER_CATEGORIES, HOOK_TYPES, MATERIALS, optionLabel } from '../utils/pipeline.js';
+import { ModelStatusStrip } from './ModelStatus.jsx';
 
 /**
  * What was asked for, read back — every model as a peer.
@@ -90,7 +91,7 @@ function Tool({ item, withMould }) {
 }
 
 /** One model, in full. */
-function Item({ item, index, count, withMould, withQuantity, bagTotal }) {
+function Item({ item, index, count, withMould, withQuantity, bagTotal, status }) {
   /* The model number is the card's heading, so it is not repeated here as a fact. */
   const facts = [
     { label: 'Category', value: optionLabel(HANGER_CATEGORIES, item.category) },
@@ -131,6 +132,9 @@ function Item({ item, index, count, withMould, withQuantity, bagTotal }) {
         ) : null}
       </div>
 
+      {/* Where this model is, once the order is with the plant [utils/journey.js]. */}
+      {status && <ModelStatusStrip row={status} />}
+
       <div className="grid gap-3 sm:grid-cols-2">
         <Tool item={item} withMould={withMould} />
         {facts.map((fact) => (
@@ -161,6 +165,7 @@ export default function ItemList({
   withMould = true,
   withQuantity = false,
   bagTotal,
+  statusOf,
 }) {
   if (!items.length) {
     return <p className="text-sm text-steel-500">Nothing recorded yet.</p>;
@@ -177,6 +182,7 @@ export default function ItemList({
           withMould={withMould}
           withQuantity={withQuantity}
           bagTotal={bagTotal}
+          status={statusOf ? statusOf(item) : null}
         />
       ))}
     </ol>
