@@ -46,6 +46,21 @@ export function StartRun({ onClose, onStarted, initial = {} }) {
     return () => { live = false; };
   }, [values.enquiry]);
   const chosenOrder = orders.find((row) => row._id === values.order) || (orders.length === 1 ? orders[0] : null);
+  /*
+   * For an enquiry, only its models — each with the most a run may plan, 10% over the pieces
+   * ordered [server: records.service `runModelsOf`]. An enquiry naming no moulds keeps the full list.
+   */
+  const [models, setModels] = useState([]);
+  useEffect(() => {
+    let live = true;
+    if (!values.enquiry || workOrder) { setModels([]); return undefined; }
+    mouldRunsApi.models({ enquiry: values.enquiry, ...(chosenOrder?._id ? { order: chosenOrder._id } : {}) })
+      .then((rows) => live && setModels((rows || []).filter((row) => row.mould?._id)))
+      .catch(() => live && setModels([]));
+    return () => { live = false; };
+  }, [values.enquiry, chosenOrder?._id, workOrder]);
+  const chosenModel = models.find((row) => row.mould._id === values.mould) || null;
+  const tooMany = Boolean(chosenModel?.most && values.plannedQuantity !== '' && Number(values.plannedQuantity) > chosenModel.most);
   const needsOrder = orders.length > 1 && !values.order;
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState(null);
@@ -100,7 +115,16 @@ export function StartRun({ onClose, onStarted, initial = {} }) {
           </div>
         )}
         <div className="grid gap-4 sm:grid-cols-2">
-          {!workOrder && <Field label="Mould" required><MouldSelect value={values.mould} onChange={set('mould')} allowCreate={false} /></Field>}
+          {!workOrder && (models.length ? (
+            <Field label="Model" required hint="Only this enquiry’s models">
+              <select className="input" value={values.mould} onChange={(event) => setValues((current) => ({ ...current, mould: event.target.value }))}>
+                <option value="">Pick the model…</option>
+                {models.map((row) => (
+                  <option key={row.mould._id} value={row.mould._id}>{[row.mould.mouldCode, row.modelNumber && row.modelNumber !== row.mould.mouldCode ? row.modelNumber : null, row.quantity ? `${formatNumber(row.quantity)} pcs ordered` : null].filter(Boolean).join(' · ')}</option>
+                ))}
+              </select>
+            </Field>
+          ) : <Field label="Mould" required><MouldSelect value={values.mould} onChange={set('mould')} allowCreate={false} /></Field>)}
           <Field label="Machine"><MachineSelect value={values.machine} onChange={set('machine')} emptyLabel="Pick the machine…" /></Field>
           {!workOrder && <Field label="For enquiry / order" className="sm:col-span-2"><EnquirySelect value={values.enquiry} onChange={(value) => setValues((current) => ({ ...current, enquiry: value, order: '', orderLine: '' }))} won emptyLabel="Stock run — no order" fallbackLabel={values.enquiry && values.enquiry === initial.enquiry ? initial.label : undefined} /></Field>}
           {!workOrder && orders.length > 0 && (
@@ -120,7 +144,13 @@ export function StartRun({ onClose, onStarted, initial = {} }) {
             </Field>
           )}
           <Field label="Colour"><input className="input" value={values.colour} onChange={set('colour')} maxLength={60} /></Field>
-          <Field label="Pieces planned"><input type="number" min={0} className="input" value={values.plannedQuantity} onChange={set('plannedQuantity')} /></Field>
+          <Field
+            label="Pieces planned"
+            hint={chosenModel?.most ? `At most ${formatNumber(chosenModel.most)} — 10% over the ${formatNumber(chosenModel.quantity)} ordered` : undefined}
+            error={tooMany ? `More than 10% over the ${formatNumber(chosenModel.quantity)} ordered — plan ${formatNumber(chosenModel.most)} at most` : undefined}
+          >
+            <input type="number" min={0} max={chosenModel?.most || undefined} className="input" value={values.plannedQuantity} onChange={set('plannedQuantity')} />
+          </Field>
           <Field label="Shift">
             <select className="input" value={values.shift} onChange={set('shift')}>
               <option value="">—</option>
@@ -138,7 +168,7 @@ export function StartRun({ onClose, onStarted, initial = {} }) {
         {problem && <FormError error={problem} />}
         <div className="flex justify-end gap-2">
           <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
-          <button type="submit" className="btn-primary" disabled={busy || (!workOrder && (!values.mould || needsOrder))}>{busy ? 'Starting…' : 'Start the run'}</button>
+          <button type="submit" className="btn-primary" disabled={busy || tooMany || (!workOrder && (!values.mould || needsOrder))}>{busy ? 'Starting…' : 'Start the run'}</button>
         </div>
       </form>
     </Modal>

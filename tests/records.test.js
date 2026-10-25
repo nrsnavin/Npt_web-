@@ -241,11 +241,11 @@ test('reject report, runs on an SO line, the resin store, and the SO on a task',
 
 test('several open SOs: every form asks which, and the planner can ask unpinned buyers for their location in one go', () => {
   const dialog = read('components/DepartmentTaskDialog.jsx');
-  assert.match(dialog, /\|\| \(orders\.length > 1 && !order && !fromTask && !team\);/);
+  assert.match(dialog, /\|\| \(orders\.length > 1 && !order && !fromTask && !team\) \|\| \(running && !stopOk\);/);
   assert.match(dialog, /<option value="">Pick the SO…<\/option>/);
   const form = read('pages/QcRecordForm.jsx');
   assert.match(form, /prefill\?\.orderChoices\?\.length > 0 && !sheet\.order/);
-  assert.match(read('pages/MouldRuns.jsx'), /disabled=\{busy \|\| \(!workOrder && \(!values\.mould \|\| needsOrder\)\)\}/);
+  assert.match(read('pages/MouldRuns.jsx'), /disabled=\{busy \|\| tooMany \|\| \(!workOrder && \(!values\.mould \|\| needsOrder\)\)\}/);
   const planner = read('components/TripPlanner.jsx');
   assert.match(planner, /canPlan && plan\.unpinned\?\.length > 0 && <AskAllUnpinned buyers=\{plan\.unpinned\} \/>/);
   assert.match(planner, /await askCustomerLocation\(buyer\._id\)/);

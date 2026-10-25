@@ -593,6 +593,12 @@ export const orders = {
   payment: (id) => api.get(`/orders/${id}/payment`).then(unwrap),
   /** Admin lets production or dispatch go on before the money is in: `{ stage, reason }`. */
   waivePayment: ({ id, ...payload }) => api.post(`/orders/${id}/payment-waiver`, payload).then(unwrap),
+  /** What new payment terms would do, before they are saved: `{ needsDecision, sendsNow, message, … }`. */
+  termsPreview: ({ id, terms }) => api.get(`/orders/${id}/payment-terms`, { params: { terms } }).then(unwrap),
+  /** New payment terms — `decision` 'hold' | 'keep' when it is in production and the advance is not in. Keeps the envelope (`said`, `held`, `released`). */
+  changeTerms: ({ id, ...payload }) => api.post(`/orders/${id}/payment-terms`, payload).then((r) => r.data),
+  /** New pieces on the lines, after release too: `{ lines: [{ _id, quantity }], note }`. Keeps the envelope (`said`). */
+  changeQuantities: ({ id, ...payload }) => api.post(`/orders/${id}/quantities`, payload).then((r) => r.data),
   /** The customer's own paperwork. Multipart, so it goes as a form rather than JSON. */
   setPo: (id, file) => {
     const form = new FormData();
@@ -692,6 +698,8 @@ export const payments = {
   setContact: ({ id, ...payload }) => api.put(`/payments/${id}/contact`, payload).then(unwrap),
   /** Money in — Accounts, Payment Collection or PRT; only Accounts' counts at the payment gate until confirmed. */
   receipt: ({ id, ...payload }) => api.post(`/payments/${id}/receipts`, payload).then(unwrap),
+  /** The buyer's marketing person enters a payment the buyer made — logged, for Accounts to confirm [server: `ownerMayLogReceipt`]. */
+  ownerReceipt: ({ id, ...payload }) => api.post(`/payments/${id}/owner-receipts`, payload).then(unwrap),
   /** Accounts has seen a logged payment in the bank — with the bank line: UTR, amount, day credited, account, remark. */
   confirmReceipt: ({ id, receiptId, ...bankLine }) => api.post(`/payments/${id}/receipts/${receiptId}/confirm`, bankLine).then(unwrap),
   /** Accounts did not find a logged payment in the bank — with the reason; whoever logged it is told. */
@@ -1287,6 +1295,8 @@ export const maintenanceApi = {
 export const mouldRunsApi = {
   list: (params) => api.get('/mould-runs', { params }).then(unwrap),
   start: (payload) => api.post('/mould-runs', payload).then(unwrap),
+  /** The models a run for this enquiry (and SO) may make, each with its mould, the pieces ordered and the most a run may plan. */
+  models: (params) => api.get('/mould-runs/models', { params }).then(unwrap),
   finish: ({ id, ...payload }) => api.post(`/mould-runs/${id}/finish`, payload).then(unwrap),
   /** A line on a running job: counter read, a coded stop, or rejects by defect. */
   log: ({ id, ...payload }) => api.post(`/mould-runs/${id}/log`, payload).then(unwrap),

@@ -52,3 +52,27 @@ test('the SO task offers only Escalate to Admin beside its workflow — the form
   assert.match(actions, /\]\.filter\(\(choice\) => allows\(choice\.key\)\)\.concat\(escalate, adminClose\);/);
   for (const key of ['update', 'back', 'date']) assert.match(actions, new RegExp(`\\{allows\\('${key}'\\) && <button`));
 });
+
+test('marketing’s answers stay on the SO card, and on the enquiry for marketing and Admin', () => {
+  const desk = read('components/SoDesk.jsx');
+  assert.match(desk, /function Answered\(\{ answered, question \}\)/);
+  assert.match(desk, /<Answered answered=\{so\.answered\} question=\{so\.question\} \/>/);
+  assert.match(desk, /Marketing’s answers \(\{list\.length\}\)/);
+  /* The answer already shown under the question is not listed twice. */
+  assert.match(desk, /question\?\.answer \? \(answered \|\| \[\]\)\.slice\(0, -1\)/);
+  const panel = read('components/EnquiryClarifications.jsx');
+  assert.match(panel, /Questions answered \(\$\{list\.length\}\)/);
+  assert.match(panel, /pair\.answeredBy\?\.name/);
+  const page = read('pages/EnquiryDetail.jsx');
+  assert.match(page, /<EnquiryClarifications clarifications=\{enquiry\.clarifications\} \/>/);
+});
+
+test('a new SO request on an enquiry in production alerts first and is sent only once ticked', () => {
+  const dialog = read('components/DepartmentTaskDialog.jsx');
+  assert.match(dialog, /kind === 'po_so' \? runningOrder \|\| prefill\?\.orderInProduction \|\| null : null/);
+  assert.match(dialog, /\(running && !stopOk\)/, 'blocked until ticked');
+  assert.match(dialog, /running && stopOk \? \{ revise: true \}/);
+  assert.match(dialog, /Stop that production and send this SO request/);
+  assert.match(dialog, /failure\.details\?\.code === 'SO_IN_PRODUCTION'/, 'a refusal from the server opens the same alert');
+  assert.match(dialog, /'Stop production & send'/);
+});

@@ -1,6 +1,7 @@
 import { formatNumber } from '../../utils/format.js';
 import { shortDay } from '../../utils/planningBoard.js';
 import Swatch from './Swatch.jsx';
+import { WeightTag } from './Weightage.jsx';
 
 /**
  * A job waiting for a machine [pages/PlanningBoard.jsx]. Three ways to place it, all on the
@@ -27,6 +28,7 @@ export default function JobCard({ job, picked = false, mayPlan, busy, onPick, on
             <Swatch colour={job.colour} />
             <span className="truncate text-base font-bold tracking-tight text-steel-50">{job.mould?.mouldCode || job.modelNumber || 'No mould'}</span>
             <span className="truncate text-sm text-steel-300">{job.colour || '—'}</span>
+            <WeightTag job={job} />
           </p>
           <p className="mt-0.5 text-xs text-steel-400">
             <span className="font-semibold tabular-nums text-steel-200">{job.forTask && !job.quantity ? 'Pieces not known' : `${formatNumber(job.toMake)} pcs`}</span>

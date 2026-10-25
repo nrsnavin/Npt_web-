@@ -1,7 +1,8 @@
 import { Badge } from '../ui.jsx';
 import { formatDate, formatNumber } from '../../utils/format.js';
-import { BAR_TONE, RANK_TONE, barSpan, dayHeading, loadShare, rankWords, shortDay } from '../../utils/planningBoard.js';
+import { BAR_TONE, RANK_TONE, barSpan, boardColumns, boardWidth, dayHeading, loadShare, monthMark, rankWords, shortDay } from '../../utils/planningBoard.js';
 import Swatch from './Swatch.jsx';
+import { WeightTag } from './Weightage.jsx';
 
 /** While a job is dragged: how this press ranks for it, or why it cannot take it. */
 function PressRankTag({ pressId, ranked }) {
@@ -26,12 +27,16 @@ function PressRankTag({ pressId, ranked }) {
 }
 
 /**
- * The timeline [pages/PlanningBoard.jsx]: every machine by day for the next two weeks, its jobs
- * back to back as bars, and the load on each day. A job being moved can be dropped on a row, or
- * the row tapped.
+ * The timeline [pages/PlanningBoard.jsx]: every machine by day — two weeks at least, and on to the
+ * last day any press is booked [server: planning.service `planningBoard`] — its jobs back to back
+ * as bars, and the load on each day. A fixed width a day, so it scrolls across with the press
+ * column held on the left; each press says how far it is booked. A job being moved can be dropped
+ * on a row, or the row tapped.
  */
 export default function TimelineView({ board, ranked, moving, mayPlan, startDrag, endDrag, onPlace, onOpen, onSortColour }) {
-  const columns = `11rem repeat(${board.days.length}, minmax(3.25rem, 1fr))`;
+  const columns = boardColumns(board.days.length);
+  /* The press column stays put while the days scroll under it. */
+  const pinned = 'sticky left-0 z-10 bg-ink-850';
   const dragging = moving;
   const dropOn = (pressId) => {
     const press = board.presses.find((entry) => String(entry.machine._id) === String(pressId));
@@ -40,12 +45,15 @@ export default function TimelineView({ board, ranked, moving, mayPlan, startDrag
   const setOpen = ({ job, press }) => onOpen(job, press);
   const sortByColour = onSortColour;
   return (
-          <div className="card overflow-x-auto" role="grid" aria-label="Presses by day">
-            <div className="min-w-[56rem]">
+          <div className="card overflow-x-auto overscroll-x-contain" role="grid" aria-label="Presses by day">
+            <div style={{ width: boardWidth(board.days.length), minWidth: '100%' }}>
               <div className="grid border-b border-line/[0.08] text-xs text-steel-400" style={{ gridTemplateColumns: columns }}>
-                <div className="px-3 py-2 font-semibold">Press</div>
+                <div className={`${pinned} px-3 py-2 font-semibold`}>Press{board.days.length > 14 ? <span className="block font-normal text-steel-500">{board.days.length} days — scroll across →</span> : null}</div>
                 {board.days.map((entry, index) => (
-                  <div key={entry.day} className={`px-1 py-2 text-center ${entry.off ? 'bg-line/[0.04] text-steel-600' : ''} ${index === 0 ? 'font-bold text-accent' : ''}`}>{index === 0 ? 'Today' : dayHeading(entry.day)}</div>
+                  <div key={entry.day} className={`px-1 py-2 text-center ${entry.off ? 'bg-line/[0.04] text-steel-600' : ''} ${index === 0 ? 'font-bold text-accent' : ''} ${monthMark(entry.day) && index ? 'border-l border-line/[0.12]' : ''}`}>
+                    <span className="block text-[0.75rem] font-semibold uppercase tracking-wide text-steel-500">{monthMark(entry.day, index === 0) || '\u00a0'}</span>
+                    {index === 0 ? 'Today' : dayHeading(entry.day)}
+                  </div>
                 ))}
               </div>
               {board.presses.map((press) => (
@@ -58,12 +66,13 @@ export default function TimelineView({ board, ranked, moving, mayPlan, startDrag
                   aria-label={press.machine.code}
                 >
                   <div className="grid items-center" style={{ gridTemplateColumns: columns }}>
-                    <div className="px-3 py-2">
+                    <div className={`${pinned} self-stretch px-3 py-2`}>
                       <p className="font-semibold text-steel-100">{press.machine.code}{press.machine.tonnage ? <span className="font-normal text-steel-400"> · {press.machine.tonnage}T</span> : null}</p>
                       <p className="text-xs text-steel-500">
                         {press.queue.length} {press.queue.length === 1 ? 'job' : 'jobs'}
                         {press.changeovers ? ` · ${press.changeovers} colour ${press.changeovers === 1 ? 'change' : 'changes'}` : ''}
                       </p>
+                      {press.bookedUntil && <p className="text-xs font-semibold text-steel-300">Booked till {shortDay(press.bookedUntil)}</p>}
                       {press.machine.status !== 'idle' && press.machine.status !== 'running' && <Badge tone="danger">{press.machine.status}</Badge>}
                       {dragging && <PressRankTag pressId={String(press.machine._id)} ranked={ranked} />}
                       {mayPlan && press.changeoversIfSorted < press.changeovers && (
@@ -81,7 +90,7 @@ export default function TimelineView({ board, ranked, moving, mayPlan, startDrag
                     const span = barSpan(job, board.days);
                     return (
                       <div key={job._id} className="grid items-center pb-1" style={{ gridTemplateColumns: columns }}>
-                        <div className="truncate px-3 text-xs text-steel-500">{job.sequence ? `${job.sequence}. ` : ''}{job.number}</div>
+                        <div className={`${pinned} flex items-center self-stretch px-3 text-xs text-steel-500`}><span className="truncate">{job.sequence ? `${job.sequence}. ` : ''}{job.number}</span></div>
                         {span ? (
                           <button
                             type="button"
@@ -93,11 +102,11 @@ export default function TimelineView({ board, ranked, moving, mayPlan, startDrag
                             style={{ gridColumn: `${span.from + 2} / ${span.to + 3}` }}
                             title={`${job.number} · ${job.colour || ''} · ${formatNumber(job.toMake)} pcs${job.late ? ' · ends after the due date' : job.predictedLate ? ' · history predicts it ends after the due date' : ''}`}
                           >
-                            <span className="inline-flex items-center gap-1.5"><Swatch colour={job.colour} className="h-2.5 w-2.5" />{job.fit?.warnings?.length || job.short?.length ? '⚠ ' : ''}{job.mould?.mouldCode || job.modelNumber} · {job.colour || '—'} · {formatNumber(job.toMake)}</span>
+                            <span className="inline-flex items-center gap-1.5"><Swatch colour={job.colour} className="h-2.5 w-2.5" /><WeightTag job={job} className="bg-white/20 text-white" />{job.fit?.warnings?.length || job.short?.length ? '⚠ ' : ''}{job.mould?.mouldCode || job.modelNumber} · {job.colour || '—'} · {formatNumber(job.toMake)}</span>
                           </button>
                         ) : (
-                          <button type="button" className="row-action text-left text-xs" style={{ gridColumn: '2 / -1' }} onClick={(event) => { event.stopPropagation(); setOpen({ job, press: press.machine }); }}>
-                            {job.plannedStart ? `Outside these days — ${formatDate(job.plannedStart)}` : 'Not dated yet'} · {job.mould?.mouldCode || job.modelNumber}
+                          <button type="button" className="row-action sticky left-44 w-max text-left text-xs" style={{ gridColumn: '2 / -1' }} onClick={(event) => { event.stopPropagation(); setOpen({ job, press: press.machine }); }}>
+                            {job.plannedStart ? `Starts ${formatDate(job.plannedStart)} — past the board’s ${board.days.length} days` : 'Not dated yet'} · {job.mould?.mouldCode || job.modelNumber}
                           </button>
                         )}
                       </div>

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { orders as ordersApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useRecord } from '../hooks/useRecords.js';
@@ -13,6 +13,7 @@ import { MouldThumb } from '../components/MouldPhoto.jsx';
 import AuthedImage from '../components/AuthedImage.jsx';
 import { PartsList, PrintReference } from '../components/OrderLineParts.jsx';
 import OrderForm from '../components/OrderForm.jsx';
+import EditSalesOrder from '../components/EditSalesOrder.jsx';
 import OrderPriority from '../components/OrderPriority.jsx';
 import OrderQuality from '../components/OrderQuality.jsx';
 import OrderPayment from '../components/OrderPayment.jsx';
@@ -600,6 +601,13 @@ export default function OrderDetail() {
   const [recording, setRecording] = useState(null);
   const [rePromising, setRePromising] = useState(null);
   const [editing, setEditing] = useState(false);
+  /* Edit sales order — payment terms and pieces, released included; opened from the enquiry with ?edit=1. */
+  const [params, setParams] = useSearchParams();
+  const [correcting, setCorrecting] = useState(params.get('edit') === '1');
+  const stopCorrecting = () => {
+    setCorrecting(false);
+    if (params.get('edit')) { params.delete('edit'); setParams(params, { replace: true }); }
+  };
 
   if (loading) return <Spinner label="Loading the order" />;
   if (error) return <ErrorState error={error} onRetry={reload} />;
@@ -669,10 +677,28 @@ export default function OrderDetail() {
                 Edit the order
               </button>
             )}
+            {mayRaise && !closed && (
+              <button type="button" className="btn-secondary" onClick={() => setCorrecting(true)}>
+                Edit sales order
+              </button>
+            )}
             <Badge status={order.status}>{orderStageLabel(order.status)}</Badge>
           </div>
         }
       />
+      {correcting && mayRaise && !closed && <EditSalesOrder order={order} onClose={stopCorrecting} onSaved={(reply) => { absorb(reply); reload(); }} />}
+      {/* Taken back from the plant: a new SO request revising it, or held for the advance after the terms changed. */}
+      {(order.revisionStop?.at || order.paymentHold?.at) && (
+        <div className="mb-5">
+          <Notice tone="warn">
+            <p className="font-semibold">
+              {order.revisionStop?.at
+                ? 'Production stopped — a new SO request revises this order. It goes back to the plant when the revised SO is prepared and released.'
+                : `Production held — the payment terms changed to ${order.paymentHold.terms || order.paymentTerms}. It goes back to the plant once the advance is confirmed.`}
+            </p>
+          </Notice>
+        </div>
+      )}
 
       {/*
         How the draft was made [server: soFromTask.service]: read off the SO PDF the SO team uploaded,

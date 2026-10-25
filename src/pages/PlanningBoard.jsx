@@ -14,6 +14,7 @@ import JobCard from '../components/planning/JobCard.jsx';
 import PressCard from '../components/planning/PressCard.jsx';
 import Swatch from '../components/planning/Swatch.jsx';
 import TimelineView from '../components/planning/TimelineView.jsx';
+import WeightagePicker from '../components/planning/Weightage.jsx';
 
 /** One job opened from the board: where it is, what the fit says, and what can be done. */
 function JobDialog({ job, press, mayPlan, mayRun, onClose, onChanged }) {
@@ -83,6 +84,7 @@ function JobDialog({ job, press, mayPlan, mayRun, onClose, onChanged }) {
                 {machine ? 'Move here' : 'Take off'}
               </button>
             </div>}
+            {mayPlan && job.status !== 'running' && <WeightagePicker job={job} busy={busy} onSave={send} />}
             {press && (
               <div className="flex flex-wrap gap-2">
                 {mayPlan && <button type="button" className="btn-secondary" disabled={busy || job.sequence <= 1} onClick={() => send({ step: -1 }, 'Runs earlier')}>Run earlier</button>}

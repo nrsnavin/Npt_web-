@@ -36,6 +36,7 @@ import {
   SAMPLE_PURPOSES, SOURCES, followUpState, inDays, nextStagesFrom, numeric,
   optionLabel, sampleStageLabel, stageLabel, text,
 } from '../utils/pipeline.js';
+import EnquiryClarifications from '../components/EnquiryClarifications.jsx';
 
 const TONE_TEXT = {
   danger: 'text-danger-400',
@@ -766,6 +767,9 @@ export default function EnquiryDetail() {
           </Section>
 
           {mayReadSamples && <EnquirySamples enquiryId={enquiry._id} />}
+
+          {/* What the SO team (or another department) asked marketing, and the answers given. */}
+          <EnquiryClarifications clarifications={enquiry.clarifications} />
 
           {/* What it led to: the SOs, the QC test sheets and the dispatch, trips and LR — each with its SO. */}
           <EnquiryRecords enquiry={enquiry} records={records} dispatchAbove={dispatchStarted(records.data)} />

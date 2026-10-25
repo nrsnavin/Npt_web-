@@ -44,8 +44,10 @@ export function EnquiryDispatch({ data, highlight = false }) {
  * at the top of the page, so it is not repeated here.
  */
 export default function EnquiryRecords({ enquiry, records, dispatchAbove = false }) {
-  const { canRead, canWrite } = useAuth();
+  const { canRead, canWrite, user, isAdmin } = useAuth();
   const { data, error, load } = records;
+  /* Edit sales order — Admin, or the enquiry's marketing person [server: orderEdits.service]. */
+  const mayEditOrder = canRead('orders') && (isAdmin || user?.department === 'management' || String(enquiry.assignedTo?._id || enquiry.assignedTo || '') === String(user?.id || user?._id || ''));
   if (error) return <Section title="Orders, QC and dispatch"><ErrorState error={error} onRetry={load} /></Section>;
   if (!data) return null;
   /* An enquiry that has not reached an order yet has nothing here to show. */
@@ -62,9 +64,14 @@ export default function EnquiryRecords({ enquiry, records, dispatchAbove = false
                   {canRead('orders')
                     ? <Link to={`/orders/${order._id}`} className="font-semibold text-steel-100 hover:text-accent">{order.number}</Link>
                     : <span className="font-semibold text-steel-100">{order.number}</span>}
-                  <span className="text-steel-400">{order.buyerPo ? ` · PO ${order.buyerPo}` : ''}{order.models ? ` · ${order.models}` : ''}{order.quantity ? ` · ${formatNumber(order.quantity)} pcs` : ''}</span>
+                  <span className="text-steel-400">{order.buyerPo ? ` · PO ${order.buyerPo}` : ''}{order.models ? ` · ${order.models}` : ''}{order.quantity ? ` · ${formatNumber(order.quantity)} pcs` : ''}{order.paymentTerms ? ` · ${order.paymentTerms}` : ''}</span>
                 </span>
-                <Badge status={order.status}>{orderStageLabel(order.status)}</Badge>
+                <span className="flex items-center gap-2">
+                  {mayEditOrder && !['closed', 'cancelled'].includes(order.status) && (
+                    <Link to={`/orders/${order._id}?edit=1`} className="row-action px-2 py-1 text-xs">Edit sales order</Link>
+                  )}
+                  <Badge status={order.status}>{orderStageLabel(order.status)}</Badge>
+                </span>
               </li>
             ))}
           </ul>
