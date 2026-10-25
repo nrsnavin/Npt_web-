@@ -128,10 +128,12 @@ export const workspace = {
     /** The registers a task's hanger details are picked from — anyone working tasks may read them. */
     registers: () => api.get('/workspace/registers').then(unwrap),
     /** The work as a PDF — the sales order — which finishes the task; keeps `next` / `nextProblem`. */
-    result: ({ id, file, note }) => {
+    result: ({ id, file, note, loadId }) => {
       const form = new FormData();
       form.append('file', file);
       if (note) form.append('note', note);
+      /* Reception's LR: which shipment it is for [server: handoff.service `shipmentForLr`]. */
+      if (loadId) form.append('loadId', loadId);
       /* Said by the screen itself, with whether Production was asked [TaskWorkflow]. */
       return api.post(`/workspace/todos/${id}/result`, form, { feedback: false }).then((response) => response.data);
     },
@@ -159,7 +161,9 @@ export const workspace = {
       return api.post(`/workspace/todos/${id}/loads/${loadId}`, form, { feedback: false }).then(unwrap);
     },
     /** The file already on the task sent to the buyer — Reception sending the LR copy Dispatch uploaded; keeps `sent`. */
-    sendResult: (id) => api.post(`/workspace/todos/${id}/result/send`, {}, { feedback: false }).then((response) => response.data),
+    sendResult: (id, loadId) => api.post(`/workspace/todos/${id}/result/send`, loadId ? { loadId } : {}, { feedback: false }).then((response) => response.data),
+    /** The job's shipments, each with its own LR or proof [server: handoff.service `shipmentsOf`]. */
+    shipments: (id) => api.get(`/workspace/todos/${id}/shipments`).then(unwrap),
     /** Papers a department keeps on its task — Dispatch's invoice and dispatch details, Reception's. */
     documents: (id) => api.get(`/workspace/todos/${id}/documents`).then(unwrap),
     addDocument: ({ id, docType, file }) => {

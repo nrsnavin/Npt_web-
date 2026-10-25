@@ -421,6 +421,25 @@ function LrRow({ row, button, mayWork, onOpen, onChanged }) {
       </td>
       <td className={td}><StatusCell task={task} move={move} mayWork={mayWork} /></td>
       <td className={`max-w-[12rem] ${td}`}>
+        {/* Several shipments: one LR each — which are up and sent, and how many still to upload [server: deskDetails `shipments`]. */}
+        {row.shipments?.length > 1 ? (
+          <div className="space-y-1 text-xs" aria-label="LR for each shipment">
+            {row.shipments.map((shipment) => (
+              <p key={shipment._id}>
+                <span className="text-steel-300">{formatDate(shipment.at)} · {shipment.lines.map((line) => `${line.model} ${Number(line.quantity || 0).toLocaleString('en-IN')}`).join(', ')} — </span>
+                {shipment.paper
+                  ? <><FileLink file={shipment.paper}>LR</FileLink>{shipment.lrSentAt ? <span className="text-success-400"> · sent</span> : <span className="text-warn-400"> · not sent</span>}</>
+                  : <span className="font-semibold text-warn-400">LR to upload</span>}
+              </p>
+            ))}
+            {mayWork && row.shipments.some((shipment) => !shipment.paper || !shipment.lrSentAt) && (
+              <button type="button" className="btn-primary mt-1 px-2.5 py-1 text-xs" onClick={onOpen}>
+                {(() => { const left = row.shipments.filter((shipment) => !shipment.paper).length; return left ? `Upload ${left} LR${left > 1 ? 's' : ''}` : 'Send to buyer'; })()}
+              </button>
+            )}
+          </div>
+        ) : (
+        <>
         {task.resultFile ? <FileLink file={task.resultFile}>LR copy</FileLink> : <span className="text-xs text-warn-400">No LR yet</span>}
         <p className={`text-xs ${sent ? 'font-semibold text-success-400' : notSent ? 'text-warn-400' : 'text-steel-500'}`}>
           {sent ? 'Sent to buyer' : notSent ? `Not sent — ${notSent.text || notSent.note}` : 'Not sent to buyer'}
@@ -430,6 +449,8 @@ function LrRow({ row, button, mayWork, onOpen, onChanged }) {
         )}
         {mayWork && move.resultStep && (
           <button type="button" className={`${task.resultFile ? 'link-muted mt-1 block text-xs' : 'btn-primary mt-1 px-2.5 py-1 text-xs'}`} onClick={move.upload}>{task.resultFile ? 'Upload again' : 'Upload LR'}</button>
+        )}
+        </>
         )}
         {sendProblem && <p className="text-xs text-danger-400">{sendProblem}</p>}
       </td>

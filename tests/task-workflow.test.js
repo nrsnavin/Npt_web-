@@ -16,7 +16,7 @@ test('the statuses come from the server; a comment status asks, the PDF status u
   assert.match(workflow, /if \(step\.pdf\) return setUploading\(true\);/);
   assert.match(workflow, /if \(step\.comment && !step\.fields\?\.length\) return setAsking\(step\);/);
   assert.match(workflow, /workspace\.todos\.status\(\{ id: todo\._id, status: asking\.key, note \}\)/);
-  assert.match(workflow, /workspace\.todos\.result\(\{ id: todo\._id, file, note \}\)/);
+  assert.match(workflow, /workspace\.todos\.result\(\{ id: todo\._id, file, note, loadId: shipment\?\._id \}\)/);
   assert.match(workflow, /Edit contact details/);
   assert.match(workflow, /const editable = \(button\.asks \|\| \[\]\)\.filter\(\(field\) => field\.editable\);/);
 });

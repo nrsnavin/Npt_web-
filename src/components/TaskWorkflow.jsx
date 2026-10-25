@@ -20,6 +20,7 @@ import { formatDate } from '../utils/format.js';
 import { plantLead } from '../utils/plantSettings.js';
 import LoadPaper from './LoadPaper.jsx';
 import DispatchModels from './DispatchModels.jsx';
+import { LrShipments } from './Shipments.jsx';
 import TaskReceipts, { RECEIPT_TASK_KINDS } from './NotInBank.jsx';
 
 /**
@@ -258,7 +259,7 @@ export function CommentDialog({ step, target, onClose, onSave }) {
   );
 }
 
-export function UploadDialog({ title, step, todo, form, reads = false, onClose, onDone }) {
+export function UploadDialog({ title, step, todo, form, reads = false, shipment = null, onClose, onDone }) {
   const [file, setFile] = useState(null);
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
@@ -274,7 +275,7 @@ export function UploadDialog({ title, step, todo, form, reads = false, onClose, 
     setBusy(true);
     setProblem(null);
     try {
-      const answer = await workspace.todos.result({ id: todo._id, file, note });
+      const answer = await workspace.todos.result({ id: todo._id, file, note, loadId: shipment?._id });
       onDone(answer);
       onClose();
     } catch (failure) {
@@ -288,7 +289,7 @@ export function UploadDialog({ title, step, todo, form, reads = false, onClose, 
       open
       title={title}
       description={form.sendResult
-        ? `Marks the task ${step.label}, and sends the ${what} to the buyer by email and WhatsApp.`
+        ? `${shipment ? `For the shipment of ${formatDate(shipment.at)} (${shipment.lines.map((line) => `${line.model} ${Number(line.quantity || 0).toLocaleString('en-IN')} pcs`).join(' · ')}). ` : ''}Marks the task ${step.label}, and sends the ${what} to the buyer by email and WhatsApp.`
         : `Marks the task ${step.label}${step.done ? ' and finishes it' : ''}${step.next ? ' — the enquiry moves on to Production' : ''}.`}
       onClose={onClose}
     >
@@ -593,7 +594,10 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
   const [moving, setMoving] = useState(null);
   /* Dispatch's "Ask Production": the other department's form, filled from the enquiry. */
   const [askingDepartment, setAskingDepartment] = useState(null);
+  /* The upload dialog: `true` for the task's file, or the shipment an LR is for [LrShipments]. */
   const [uploading, setUploading] = useState(false);
+  /* Reception's LR task with shipments: each shipment's own Upload LR / Send replaces the single buttons. */
+  const [lrShipments, setLrShipments] = useState(0);
   /* Part Quantity Dispatched, Fully Dispatched, Dispatched: the dispatch form [DispatchLoadDialog]. */
   const [loading, setLoading] = useState(null);
   const [sending, setSending] = useState(false);
@@ -696,6 +700,8 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
       {todo.kind === 'invoice_dispatch' && <DispatchModels todo={todo} />}
       {/* A payment task, or Accounts' A/C Clarify on one: the receipts by RCV number for Accounts to confirm [TaskReceipts]. */}
       {RECEIPT_TASK_KINDS.includes(todo.kind) && <TaskReceipts todo={todo} onChanged={() => onChanged?.(todo)} />}
+      {/* Reception's LR Copy task: one LR a shipment — upload and send each on its own [LrShipments]. */}
+      {todo.kind === 'lr_copy' && <LrShipments todo={todo} onUpload={setUploading} onChanged={moved} onCount={setLrShipments} />}
       {/* Printing / Assembly: what came and is waiting to be taken on, and what is still to come. */}
       <GoodsIn todo={todo} statuses={button?.form?.statuses || []} onMoved={moved} />
       {/* Several models: one workflow each — a model moulded and handed to Printing while another has not started. */}
@@ -794,13 +800,13 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
             Fill a QC record
           </Link>
         )}
-        {resultStep && (
+        {resultStep && !lrShipments && (
           <button type="button" className="btn-primary px-3 py-1.5 text-xs" onClick={() => setUploading(true)}>
             {todo.resultFile && button.form.sendResult ? 'Upload again' : button.form.resultLabel || `Upload PDF — ${resultStep.label}`}
           </button>
         )}
         {/* The LR copy Dispatch uploaded with the load, waiting on this task: Reception sends it to the buyer [server: `handoffSendResult`]. */}
-        {button.form.sendResult && todo.resultFile && !resultSent(todo, statuses) && (
+        {button.form.sendResult && todo.resultFile && !resultSent(todo, statuses) && !lrShipments && (
           <button type="button" className="btn-primary px-3 py-1.5 text-xs" disabled={sending} onClick={sendToBuyer}>
             {sending ? 'Sending…' : `Send ${(button.form.resultTitle || 'file').toLowerCase()} to buyer`}
           </button>
@@ -851,6 +857,7 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
           form={button.form}
           /* The SO is read and the order drafted from it while this waits [server: soRead.llm]. */
           reads={Boolean(button.booksOrder)}
+          shipment={uploading === true ? null : uploading}
           onClose={() => setUploading(false)}
           onDone={(answer) => {
             /* Said per channel: which went, and why another did not. */
