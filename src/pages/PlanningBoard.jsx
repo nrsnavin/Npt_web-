@@ -112,10 +112,11 @@ function AttentionChip({ tone, active, onClick, children }) {
   const tones = {
     warn: active ? 'bg-warn-500 text-white ring-warn-500' : 'text-warn-400 ring-warn-500/30 hover:bg-warn-500/10',
     danger: active ? 'bg-danger-500 text-white ring-danger-500' : 'text-danger-400 ring-danger-500/30 hover:bg-danger-500/10',
+    info: active ? 'bg-aqua-500 text-white ring-aqua-500' : 'text-aqua-300 ring-aqua-500/30 hover:bg-aqua-500/10',
   };
   return (
     <button type="button" aria-pressed={active} onClick={onClick} className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset transition ${tones[tone]}`}>
-      <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${active ? 'bg-current' : tone === 'warn' ? 'bg-warn-400' : 'bg-danger-400'}`} />
+      <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${active ? 'bg-current' : { warn: 'bg-warn-400', danger: 'bg-danger-400', info: 'bg-aqua-400' }[tone]}`} />
       {children}
     </button>
   );
@@ -169,6 +170,8 @@ export default function PlanningBoard() {
   const [order, setOrder] = useState('late');
   const [lateOnly, setLateOnly] = useState(false);
   const [only, setOnly] = useState(null);
+  /* How often the in charge confirmed the auto-planner as it proposed [server: planLearning.service]. */
+  const [planner, setPlanner] = useState(null);
   const wallRef = useRef(null);
 
   /* Admin's switch [Profile → Production floor planning]: off, Production tasks are not on this board. */
@@ -176,6 +179,7 @@ export default function PlanningBoard() {
   useEffect(() => { loadPlant().then((plant) => setFloorPlanning(Boolean(plant?.floorPlanning))); }, []);
   const load = useCallback(() => productionApi.plan().then((value) => { setBoard(value); setError(null); }).catch(setError), []);
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { if (mayPlan) productionApi.plannerStats().then(setPlanner).catch(() => {}); }, [mayPlan, board]);
   const choose = (next) => {
     setView(next);
     try { window.localStorage.setItem(VIEW_KEY, next); } catch { /* a private window keeps it for the visit */ }
@@ -268,7 +272,7 @@ export default function PlanningBoard() {
   const stats = board ? boardStats(board) : null;
   const waiting = board ? sortWaiting(board.unplanned, { search, order, lateOnly, only }) : [];
   const needs = board ? boardAttention(board) : null;
-  const needsAny = needs && (needs.tasksWaiting || needs.late || needs.blocked || needs.firstPiece);
+  const needsAny = needs && (needs.proposals || needs.tasksWaiting || needs.late || needs.blocked || needs.firstPiece);
   const summaries = board ? new Map(board.presses.map((press) => [String(press.machine._id), pressSummary(press)])) : new Map();
   const shown = board ? board.presses.filter((press) => wall === 'all' || summaries.get(String(press.machine._id)).state === wall
     || (wall === 'down' && summaries.get(String(press.machine._id)).state === 'service')) : [];
@@ -305,6 +309,11 @@ export default function PlanningBoard() {
           {mayPlan && needsAny ? (
             <div role="group" aria-label="Needs you" className="flex flex-wrap items-center gap-2 rounded-2xl border border-line/[0.08] bg-ink-850 px-4 py-2.5 shadow-raised">
               <span className="mr-1 text-xs font-semibold uppercase tracking-wide text-steel-400">Needs you</span>
+              {needs.proposals > 0 && (
+                <AttentionChip tone="info" active={only === 'proposed'} onClick={() => setOnly(only === 'proposed' ? null : 'proposed')}>
+                  {needs.proposals} proposal{needs.proposals === 1 ? '' : 's'} to confirm
+                </AttentionChip>
+              )}
               {needs.tasksWaiting > 0 && (
                 <AttentionChip tone="warn" active={only === 'tasks'} onClick={() => setOnly(only === 'tasks' ? null : 'tasks')}>
                   {needs.tasksWaiting} task model{needs.tasksWaiting === 1 ? '' : 's'} need{needs.tasksWaiting === 1 ? 's' : ''} a press
@@ -322,6 +331,12 @@ export default function PlanningBoard() {
             </div>
           ) : null}
           {mayPlan && !needsAny && <p className="text-sm text-success-400">✓ Nothing needs you right now.</p>}
+          {mayPlan && planner?.agreement != null && (
+            <p className="-mt-2 text-xs text-steel-500">
+              <span className="text-aqua-300" aria-hidden="true">✦ </span>
+              Auto-planner: you confirmed {planner.accepted} of {planner.accepted + planner.changed} proposals as they were in the last {planner.days} days ({planner.agreement}%). It learns from every press you change.
+            </p>
+          )}
 
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <StatTile label="Running" value={`${stats.running} of ${stats.presses}`} hint="Machines making a job now" tone="text-success-400" active={wall === 'running'} onClick={() => toggleWall('running')} />

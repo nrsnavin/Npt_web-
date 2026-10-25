@@ -726,6 +726,12 @@ export const production = {
   taskPlan: (taskId) => api.get(`/production/task-plan/${taskId}`).then(unwrap),
   /** One model of the task put on a press; answers the task's press step again. */
   placeTaskModel: ({ taskId, model, machine }) => api.post(`/production/task-plan/${taskId}/place`, { model, machine }, { feedback: false }).then(unwrap),
+  /** The auto-planner's proposals confirmed by the in charge — all, or `models`; answers the press step with `confirmed`, `failed`. */
+  confirmTaskPlan: ({ taskId, models }) => api.post(`/production/task-plan/${taskId}/confirm`, models?.length ? { models } : {}, { feedback: false }).then(unwrap),
+  /** The planner proposes again for the task's models not on a press. */
+  proposeTaskPlan: (taskId) => api.post(`/production/task-plan/${taskId}/propose`, {}, { feedback: false }).then(unwrap),
+  /** How often the in charge confirmed the planner as proposed: `{ accepted, changed, manual, agreement, days }`. */
+  plannerStats: () => api.get('/production/planner-stats', { feedback: false }).then(unwrap),
   /** Whether a mould can go on a press: `{ ok, blocks, warnings }`. */
   fit: (params) => api.get('/production/fit', { params }).then(unwrap),
   /** OEE for a span of days, by press, mould, shift and day, with the losses behind it. */

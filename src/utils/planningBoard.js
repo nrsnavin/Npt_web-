@@ -150,8 +150,9 @@ export function byBay(presses = []) {
 /** Waiting jobs filtered by what was typed (and `only`) and ordered as asked: late first, by due day, or biggest. */
 export function sortWaiting(jobs = [], { search = '', order = 'late', lateOnly = false, only = null } = {}) {
   const words = search.trim().toLowerCase();
-  /* `only`: Production-task models [floor planning], or jobs no press can take. */
-  const kept = (job) => (only === 'tasks' ? Boolean(job.forTask) : only === 'blocked' ? Boolean(job.best && !job.best.machine) : true);
+  /* `only`: Production-task models with no proposal, the auto-planner's proposals [floor planning], or jobs no press can take. */
+  const kept = (job) => (only === 'tasks' ? Boolean(job.forTask && !job.proposal) : only === 'proposed' ? Boolean(job.proposal)
+    : only === 'blocked' ? Boolean(job.best && !job.best.machine) : true);
   const found = jobs.filter((job) => (!lateOnly || job.late) && kept(job) && (!words || [job.number, job.mould?.mouldCode, job.modelNumber, job.colour, job.customer, job.order]
     .some((value) => String(value || '').toLowerCase().includes(words))));
   const due = (job) => String(job.dueDate || '9');

@@ -21,6 +21,8 @@ export function modelPress(row) {
     return { key: wo.status, tone: wo.late ? 'danger' : 'success', words: `${wo.status === 'paused' ? 'Paused' : 'Running'} · ${wo.machine?.code || ''}`.trim() };
   }
   if (wo.machine) return { key: wo.late ? 'late' : 'planned', tone: wo.late ? 'danger' : 'neutral', words: wo.machine.code };
+  /* The auto-planner's proposal, waiting for the in charge [server: floorPlanning.service `proposeTaskPlan`]. */
+  if (wo.proposal?.machine) return { key: 'proposed', tone: wo.proposal.late ? 'danger' : 'info', words: `Proposed ${wo.proposal.machine.code}` };
   if (wo.mouldMissing) return { key: 'blocked', tone: 'danger', words: 'No mould' };
   if (row.best && !row.best.machine) return { key: 'blocked', tone: 'danger', words: 'No press fits' };
   return { key: 'waiting', tone: 'warn', words: 'Needs a press' };
@@ -36,10 +38,19 @@ export function pressAttention(models = []) {
     waiting: states.filter((entry) => entry.state.key === 'waiting').length,
     blocked: states.filter((entry) => entry.state.key === 'blocked').length,
     late: states.filter((entry) => entry.state.tone === 'danger' && entry.state.key !== 'blocked').length,
-    planned: states.filter((entry) => !['waiting', 'blocked'].includes(entry.state.key)).length,
+    proposed: states.filter((entry) => entry.state.key === 'proposed').length,
+    planned: states.filter((entry) => !['waiting', 'blocked', 'proposed'].includes(entry.state.key)).length,
     total: states.length,
   };
 }
+
+/** A proposal's days in words: "26 Oct – 28 Oct", with how it lands against moulding due. */
+export const proposalWords = (proposal, dueDay) => {
+  if (!proposal?.start) return null;
+  const days = `${shortDay(proposal.start)} – ${shortDay(proposal.end)}`;
+  if (proposal.late) return `${days} · ${proposal.lateDays ? `${proposal.lateDays} day${proposal.lateDays === 1 ? '' : 's'} ` : ''}after moulding due`;
+  return dueDay ? `${days} · in time for ${shortDay(dueDay)}` : days;
+};
 
 /** The late line under a model: when its plan ends against the day moulding is due. */
 export const lateWords = (wo) => (wo?.late && wo.plannedEnd ? `Ends ${shortDay(wo.plannedEnd)} — after moulding is due ${shortDay(wo.dueDay)}` : null);
@@ -53,7 +64,8 @@ export function boardAttention(board) {
   const waiting = board?.unplanned || [];
   const queued = (board?.presses || []).flatMap((press) => press.queue || []);
   return {
-    tasksWaiting: waiting.filter((job) => job.forTask).length,
+    tasksWaiting: waiting.filter((job) => job.forTask && !job.proposal && !(job.best && !job.best.machine)).length,
+    proposals: waiting.filter((job) => job.proposal).length,
     late: waiting.filter((job) => job.late).length + queued.filter((job) => job.late).length,
     blocked: waiting.filter((job) => job.best && !job.best.machine).length,
     firstPiece: (board?.presses || []).filter((press) => {

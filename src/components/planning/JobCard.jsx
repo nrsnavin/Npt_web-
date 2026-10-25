@@ -9,6 +9,8 @@ import Swatch from './Swatch.jsx';
  */
 export default function JobCard({ job, picked = false, mayPlan, busy, onPick, onOpen, onPlace, onDragStart, onDragEnd }) {
   const best = job.best;
+  /* The auto-planner's proposal for a Production task's model, waiting for the in charge [floor planning]. */
+  const proposal = job.proposal;
   return (
     <article
       draggable={mayPlan}
@@ -45,8 +47,24 @@ export default function JobCard({ job, picked = false, mayPlan, busy, onPick, on
         )}
       </div>
 
+      {proposal?.machine && (
+        <div className={`mt-2.5 rounded-lg px-2.5 py-2 ${proposal.late ? 'bg-danger-500/[0.08]' : 'bg-aqua-500/[0.08]'}`}>
+          <div className="flex items-center justify-between gap-2">
+            <p className="min-w-0 text-xs text-steel-200">
+              <span className="text-aqua-300" aria-hidden="true">✦ </span>
+              Proposed: <span className="font-bold text-steel-50">{proposal.machine.code}</span>
+              <span className={proposal.late ? 'text-danger-400' : 'text-steel-400'}> · done {shortDay(proposal.end)}{proposal.late ? ' · late' : ''}</span>
+            </p>
+            {mayPlan && (
+              <button type="button" className="btn-primary shrink-0 px-3 py-1.5 text-xs" disabled={busy} onClick={() => onPlace(proposal.machine)}>Confirm</button>
+            )}
+          </div>
+          {proposal.learned?.[0] && <p className="mt-1 truncate text-xs text-aqua-300" title={proposal.learned.join(' · ')}>{proposal.learned[0]}</p>}
+        </div>
+      )}
+
       {/* Its best machine, and one tap to put it there [server: pressScore.service]. */}
-      {best?.machine && (
+      {!proposal?.machine && best?.machine && (
         <div className={`mt-2.5 flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 ${best.late ? 'bg-warn-500/[0.08]' : 'bg-success-500/[0.08]'}`}>
           <p className="min-w-0 text-xs text-steel-200" title={best.summary}>
             <span className={best.late ? 'text-warn-400' : 'text-success-400'} aria-hidden="true">★ </span>

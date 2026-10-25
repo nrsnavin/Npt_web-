@@ -63,7 +63,7 @@ test('a model’s place on the presses, and what of it needs the in charge', asy
     ['waiting', 'warn'], ['blocked', 'danger'], ['blocked', 'danger'], ['planned', 'neutral'], ['late', 'danger'], ['running', 'success'], ['made', 'success'],
   ]);
   assert.equal(modelPress({ model: 'H' }), null, 'no work order: nothing drawn');
-  assert.deepEqual(pressAttention([waiting, noPress, noMould, planned, late, running, made]), { waiting: 1, blocked: 2, late: 1, planned: 4, total: 7 });
+  assert.deepEqual(pressAttention([waiting, noPress, noMould, planned, late, running, made]), { waiting: 1, blocked: 2, late: 1, proposed: 0, planned: 4, total: 7 });
   assert.match(lateWords(late.workOrder), /^Ends 12 Nov — after moulding is due 9 Nov$/);
   assert.equal(lateWords(planned.workOrder), null);
   assert.equal(afterMoulding({ printing: true, assembly: true }), 'Printing → Assembly');
@@ -86,7 +86,7 @@ test('the board tells the in charge what needs them, and filters to it', async (
       { queue: [{ _id: 7, status: 'planned', forTask: { firstPiece: true } }] },
     ],
   };
-  assert.deepEqual(boardAttention(board), { tasksWaiting: 1, late: 2, blocked: 1, firstPiece: 1 });
+  assert.deepEqual(boardAttention(board), { tasksWaiting: 1, proposals: 0, late: 2, blocked: 1, firstPiece: 1 });
   assert.deepEqual(sortWaiting(board.unplanned, { only: 'tasks' }).map((job) => job._id), [1]);
   assert.deepEqual(sortWaiting(board.unplanned, { only: 'blocked' }).map((job) => job._id), [3]);
   const page = read('pages/PlanningBoard.jsx');
@@ -104,4 +104,37 @@ test('the floor tablet ticks the mould change, and a run before the first piece 
   const runs = read('pages/MouldRuns.jsx');
   assert.match(runs, /const setupOpen = Boolean\(workOrder\?\.task && !workOrder\?\.setup\?\.firstPiece\?\.at && !workOrder\?\.firstRunAt\);/);
   assert.match(runs, /setupSkipReason: skipReason\.trim\(\)/);
+});
+
+test('the auto-planner’s proposals: shown on the task and the board, confirmed only by the in charge', async () => {
+  const { modelPress, pressAttention, proposalWords, boardAttention } = await import('../src/utils/floorPlanning.js');
+  const { sortWaiting } = await import('../src/utils/planningBoard.js');
+  const proposed = { model: 'A', workOrder: { status: 'planned', dueDay: '2026-11-09', proposal: { machine: { code: 'IM-05' }, start: '2026-10-26', end: '2026-10-28', learned: ['You chose IM-05 for A before'] } } };
+  const lateProposal = { model: 'B', workOrder: { status: 'planned', proposal: { machine: { code: 'IM-02' }, start: '2026-11-10', end: '2026-11-12', late: true, lateDays: 3 } } };
+  assert.deepEqual([modelPress(proposed), modelPress(lateProposal)].map((state) => [state.key, state.tone, state.words]), [
+    ['proposed', 'info', 'Proposed IM-05'], ['proposed', 'danger', 'Proposed IM-02'],
+  ]);
+  assert.deepEqual(pressAttention([proposed, lateProposal]), { waiting: 0, blocked: 0, late: 1, proposed: 2, planned: 0, total: 2 });
+  assert.equal(proposalWords(proposed.workOrder.proposal, '2026-11-09'), '26 Oct – 28 Oct · in time for 9 Nov');
+  assert.equal(proposalWords(lateProposal.workOrder.proposal), '10 Nov – 12 Nov · 3 days after moulding due');
+  const board = { unplanned: [{ _id: 1, forTask: {}, proposal: { machine: { code: 'IM-05' } } }, { _id: 2, forTask: {} }], presses: [] };
+  assert.deepEqual([boardAttention(board).proposals, boardAttention(board).tasksWaiting], [1, 1]);
+  assert.deepEqual(sortWaiting(board.unplanned, { only: 'proposed' }).map((job) => job._id), [1]);
+
+  const plan = read('components/TaskPressPlan.jsx');
+  assert.match(plan, /\{mayPlan && proposal && \(/, 'Confirm and Change: the in charge only');
+  assert.match(plan, /onClick=\{\(\) => onConfirm\(\[row\.model\]\)\}>Confirm</);
+  assert.match(plan, /Confirm all \{needs\.proposed\}/);
+  assert.match(plan, /productionApi\.confirmTaskPlan\(\{ taskId: todo\._id, models \}\)/);
+  assert.match(plan, /productionApi\.proposeTaskPlan\(todo\._id\)/);
+  assert.match(plan, /proposal\.learned\?\.\[0\]/, 'what it learned is said');
+  const card = read('components/planning/JobCard.jsx');
+  assert.match(card, /\{mayPlan && \(\s*<button type="button" className="btn-primary shrink-0 px-3 py-1\.5 text-xs" disabled=\{busy\} onClick=\{\(\) => onPlace\(proposal\.machine\)\}>Confirm<\/button>/);
+  const page = read('pages/PlanningBoard.jsx');
+  assert.match(page, /proposal\{needs\.proposals === 1 \? '' : 's'\} to confirm/);
+  assert.match(page, /if \(mayPlan\) productionApi\.plannerStats\(\)/);
+  const endpoints = read('api/endpoints.js');
+  assert.match(endpoints, /confirmTaskPlan: \(\{ taskId, models \}\) => api\.post\(`\/production\/task-plan\/\$\{taskId\}\/confirm`/);
+  assert.match(endpoints, /proposeTaskPlan: \(taskId\) => api\.post\(`\/production\/task-plan\/\$\{taskId\}\/propose`/);
+  assert.match(endpoints, /plannerStats: \(\) => api\.get\('\/production\/planner-stats'/);
 });
