@@ -554,6 +554,10 @@ export const enquiries = {
   sendMessage: ({ id, ...payload }) => api.post(`/enquiries/${id}/messages`, payload).then(unwrap),
   /** The papers to attach to a message: quote, enquiry and sample details, SO, invoice, dispatch details, LR. */
   attachables: (id) => api.get(`/enquiries/${id}/attachables`).then((response) => response.data),
+  /** Every paper on the enquiry, by section — the Documents section [server: enquiryDocuments `documentsFor`]; `meta.mayEmail`, `meta.buyer`. */
+  papers: (id) => api.get(`/enquiries/${id}/papers`).then((response) => response.data),
+  /** One paper's bytes, to open in a tab or save — the route needs the session's token. */
+  paperBlob: ({ id, type, docId }) => api.get(`/enquiries/${id}/papers/${type}/${docId}`, { responseType: 'blob' }).then((response) => response.data),
   /** Marketing's own status for the enquiry; two of them also start work (see MARKETING_STATUSES). */
   setMarketingStatus: ({ id, ...payload }) =>
     api.post(`/enquiries/${id}/marketing-status`, payload).then((response) => response.data),

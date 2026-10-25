@@ -13,7 +13,7 @@ import { useRecord } from '../hooks/useRecords.js';
 import {
   Badge, ErrorState, Facts, Field, FormError, Modal, Notice, PageHeader, Section, Spinner,
 } from '../components/ui.jsx';
-import Documents from '../components/Documents.jsx';
+import EnquiryDocuments from '../components/EnquiryDocuments.jsx';
 import EnquiryActivities from '../components/EnquiryActivities.jsx';
 import EnquiryContactPanel from '../components/EnquiryContactPanel.jsx';
 import EnquiryCheckCard from '../components/EnquiryCheckCard.jsx';
@@ -784,7 +784,8 @@ export default function EnquiryDetail() {
 
           {/* §27: the print artwork and the buyer's drawing sit with the enquiry that asked
               for them, rather than in the thread they arrived on. */}
-          {mayReadEnquiries && <Documents collection="enquiries" id={enquiry._id} canWrite={mayWrite} />}
+          {/* Every paper on the enquiry — samples, quotation, SO and PO, dispatch and LR, what went to the teams — to open, save or email [EnquiryDocuments]. */}
+          {mayReadEnquiries && <EnquiryDocuments enquiry={enquiry} canWrite={mayWrite} />}
 
           {/* The stage history above says how it moved; this says who changed the quantity,
               the target price or the date the buyer is holding us to. */}
