@@ -138,7 +138,7 @@ test('Admin and marketing raise a team task with no enquiry; the desk shows it w
   assert.match(dashboard, /<p className="text-base font-bold text-steel-50">Team task<\/p>/);
   const dialog = read('components/DepartmentTaskDialog.jsx');
   assert.match(dialog, /const team = !enquiry;/);
-  assert.match(dialog, /\? await workspace\.teamTasks\.create\(\{ \.\.\.payload, \.\.\.\(customer \? \{ customer \} : \{\}\) \}\)/);
+  assert.match(dialog, /\? await workspace\.teamTasks\.create\(\{ \.\.\.payload, \.\.\.\(customer \? \{ customer \} : \{\}\), \.\.\.\(anyway \? \{ allowDuplicate: true \} : \{\}\) \}\)/);
   assert.match(dialog, /if \(team\) await workspace\.teamTasks\.attach\(\{ id: sent\.task\._id, file \}\);/);
   assert.match(read('api/endpoints.js'), /create: \(payload\) => api\.post\('\/workspace\/team-tasks', payload, \{ feedback: false \}\)/);
   assert.match(read('components/AttentionPanel.jsx'), /<span className="font-normal text-steel-300">Team task<\/span>/);

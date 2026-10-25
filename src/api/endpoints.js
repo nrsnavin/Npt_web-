@@ -180,6 +180,8 @@ export const workspace = {
     teamJobs: (params) => api.get('/workspace/team-jobs', { params }).then(unwrap),
     /** One team job, whole: what was asked, where it is now, each team's step, every move, money, shipments, files. */
     teamJob: (id) => api.get(`/workspace/team-jobs/${id}`).then(unwrap),
+    /** The buyer named on a job given with none — or `noBuyer`: it goes as it is (stock, a fair); the job read again. */
+    nameJobBuyer: ({ id, customer, noBuyer }) => api.post(`/workspace/team-jobs/${id}/buyer`, noBuyer ? { noBuyer: true } : { customer }, { feedback: false }).then(unwrap),
     /** Joins the buyer's enquiry — or closes onto the Production task it already has; keeps `mergedInto`. */
     linkEnquiry: ({ id, enquiry }) => api.post(`/workspace/todos/${id}/link-enquiry`, { enquiry }, { feedback: false }).then((response) => response.data),
     /** Each model started from where it is now. */

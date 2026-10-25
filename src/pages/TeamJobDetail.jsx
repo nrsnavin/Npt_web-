@@ -5,6 +5,7 @@ import { ErrorState, PageHeader, Section, Spinner } from '../components/ui.jsx';
 import ModelJourney from '../components/ModelJourney.jsx';
 import { NowPill } from './TeamJobs.jsx';
 import { AddShipmentPaper } from '../components/Shipments.jsx';
+import { CustomerSelect } from '../components/pickers.jsx';
 import { formatCurrency, formatDate } from '../utils/format.js';
 
 /**
@@ -28,6 +29,41 @@ async function openFile(key) {
   setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
+/**
+ * A job given with no buyer [server: teamJobs.service `nameJobBuyer`]: its asker or Admin names one
+ * here. Goods ready and waiting for it, Dispatch is asked once it is named — or, for stock or a
+ * fair, once they say it goes with no buyer.
+ */
+function NameBuyer({ job, onNamed }) {
+  const [customer, setCustomer] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState(null);
+  const send = async (body) => {
+    setBusy(true);
+    setProblem(null);
+    try {
+      onNamed(await workspace.todos.nameJobBuyer({ id: job._id, ...body }));
+    } catch (failure) {
+      setProblem(failure.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const waiting = Boolean(job.now.needsBuyer);
+  return (
+    <section className={`card space-y-2 p-4 ${waiting ? 'border border-warn-500/50' : ''}`} aria-label="Name the buyer">
+      <h2 className="font-bold text-steel-50">{waiting ? 'The goods are ready — who are they for?' : 'No buyer on this job'}</h2>
+      <p className="text-sm text-steel-400">{waiting ? 'Dispatch is asked once you name the buyer — their delivery contact and the LR go with it.' : 'Name the buyer now, so Dispatch has them when the goods are ready.'}</p>
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="min-w-[16rem] flex-1"><CustomerSelect value={customer} onChange={(value) => setCustomer(value?._id || value || '')} allowCreate={false} /></div>
+        <button type="button" className="btn-primary" disabled={!customer || busy} onClick={() => send({ customer })}>Name the buyer</button>
+        {waiting && <button type="button" className="row-action px-3 py-2 text-sm" disabled={busy} onClick={() => send({ noBuyer: true })}>No buyer — send as it is</button>}
+      </div>
+      {problem && <p className="text-sm text-danger-400" role="alert">{problem}</p>}
+    </section>
+  );
+}
+
 export default function TeamJobDetail() {
   const { id } = useParams();
   const [job, setJob] = useState(null);
@@ -48,7 +84,11 @@ export default function TeamJobDetail() {
       <div className={`rounded-xl border px-4 py-3 ${job.now.done ? 'border-success-500/40 bg-success-500/[0.06]' : 'border-warn-500/40 bg-warn-500/[0.06]'}`} role="status">
         <p className="text-xs font-bold uppercase tracking-wide text-steel-400">Where it is now</p>
         <p className={`text-lg font-bold ${job.now.done ? 'text-success-400' : 'text-warn-400'}`}>{job.now.words}</p>
+        {/* Joined the buyer's enquiry: the rest of its workflow is there [server: teamProduction.service `linkToEnquiry`]. */}
+        {job.linked && <p className="mt-1 text-sm text-steel-300">It follows the enquiry from here — <Link to={`/enquiries/${job.linked._id}`} className="font-semibold text-accent hover:underline">open {job.linked.number || 'the enquiry'} →</Link></p>}
       </div>
+
+      {job.mayNameBuyer && <NameBuyer job={job} onNamed={setJob} />}
 
       <Section title="What you asked">
         <p className="text-sm text-steel-100"><span className="font-semibold">{job.asked.what}</span> · {job.asked.team}{job.asked.models.length ? ` · ${job.asked.models.join(', ')}` : ''}</p>
