@@ -6,6 +6,7 @@ import { TaskTimeline } from './TaskHistory.jsx';
 import { buttonFor, useHandoffCatalogue } from '../hooks/useHandoffCatalogue.js';
 import { departmentLabel } from '../utils/pipeline.js';
 import { formatDate } from '../utils/format.js';
+import TaskPdfLink from './TaskPdfLink.jsx';
 
 /**
  * A list of department tasks about enquiries [server: config/handoffs.js], as Today and the
@@ -72,6 +73,8 @@ export default function HandoffTaskList({ tasks, onChanged, perspective = 'holde
             {task.kind
               ? <TaskTimeline task={task} button={buttonFor(catalogue, task.kind)} compact className="mt-1.5" />
               : task.notes && <p className="mt-1 text-xs text-steel-300">{task.notes}</p>}
+            {/* The PDF sent with the task, beside what was asked — on every task it was attached to. */}
+            <TaskPdfLink file={task.attachment} className="mt-1 block" />
             {task.outcome?.next && <p className="mt-1 text-xs text-steel-400">→ {buttonFor(catalogue, task.outcome.next)?.label || 'next step'}</p>}
             {!task.completed && mayAct(task) && (
               <div className="mt-1.5 flex flex-wrap gap-3">

@@ -1,5 +1,6 @@
 import { Fragment } from 'react';
 import { useHandoffCatalogue } from '../hooks/useHandoffCatalogue.js';
+import TaskPdfLink from './TaskPdfLink.jsx';
 import { briefSections } from '../utils/taskForm.js';
 import { timelineOf } from '../utils/taskHistory.js';
 import { toneOfKind, toneOfStep } from '../utils/taskState.js';
@@ -45,9 +46,11 @@ const dayHeading = (at, now = new Date()) => {
  * label / value rows, the boxes ticked (or left unticked where that matters), and each model of a
  * table as its own block — parts by name, pieces × price, EDD — with the total under them.
  */
-export function TaskFacts({ button, task, className = '' }) {
+export function TaskFacts({ button, task, className = '', withPdf = true }) {
   const { facts, checks, tables } = briefSections(button, task.brief);
-  if (!facts.length && !checks.length && !tables.length) return null;
+  /* The PDF sent with the task belongs with what was asked — everywhere the asking is shown. */
+  const pdf = withPdf && task.attachment?.key ? task.attachment : null;
+  if (!facts.length && !checks.length && !tables.length && !pdf) return null;
   return (
     <div className={`space-y-2 text-xs ${className}`}>
       {facts.length > 0 && (
@@ -86,6 +89,7 @@ export function TaskFacts({ button, task, className = '' }) {
           {check.ticked ? `✓ ${check.label}` : `✗ Not ticked — ${check.label}`}
         </p>
       ))}
+      {pdf && <TaskPdfLink file={pdf} className="block" />}
     </div>
   );
 }

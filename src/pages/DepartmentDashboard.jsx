@@ -6,7 +6,6 @@ import { useRecord } from '../hooks/useRecords.js';
 import HandoffTaskList from '../components/HandoffTaskList.jsx';
 import HandoffTaskActions from '../components/HandoffTaskActions.jsx';
 import { TaskFacts } from '../components/TaskHistory.jsx';
-import TaskPdfLink from '../components/TaskPdfLink.jsx';
 import TaskWorkflow from '../components/TaskWorkflow.jsx';
 import TaskEdd from '../components/TaskEdd.jsx';
 import AttentionPanel from '../components/AttentionPanel.jsx';
@@ -170,7 +169,6 @@ function EnquiryCard({ row, department, me, onChanged, query = false }) {
       )}
       {/* What was asked, as it was entered on the form — every answer, each model in its own block. */}
       <TaskFacts button={button} task={task} className="-mt-1" />
-      <TaskPdfLink file={task.attachment} className="-mt-2 self-start" />
 
       <div className="flex flex-wrap gap-1.5">
         <span className="rounded-md bg-flame-500/10 px-2 py-0.5 text-xs font-semibold text-flame-400">{enquiry ? enquiry.stageLabel : `From ${task.createdBy?.name || 'Admin'}`}</span>

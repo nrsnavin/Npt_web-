@@ -9,6 +9,7 @@ import { formatDate } from '../utils/format.js';
 import {
   CHIPS, SAMPLE_COURIERS, SETS, TILE_FILTERS, UNSENT, filterFor, needsReason, optionsFor,
 } from '../utils/samplingQueue.js';
+import { TaskPdfChips, useTaskPdfs } from './TaskPdfs.jsx';
 
 /**
  * The sampling department's work queue [server: sampleDashboard.controller `sampleQueue`].
@@ -59,6 +60,7 @@ function CustomerCell({ row }) {
       <p className="mt-0.5 text-xs text-steel-300">
         {row.models.map((item) => `${item.model || 'New model'}: ${item.quantity} pcs`).join(' · ')}
       </p>
+      <TaskPdfChips files={row.pdfs} role="sent" />
       {/* The finished pieces, as thumbnails: marketing sees the piece without opening the request. */}
       {row.models.some((item) => item.photo) && (
         <ul className="mt-1.5 flex flex-wrap gap-1.5" aria-label={`Finished pieces on ${row.number}`}>
@@ -425,13 +427,16 @@ export default function SamplingWorkQueue() {
 
   const rows = data?.rows || [];
   const statuses = data?.statuses || [];
+  /* The PDF marketing sent with each Sample Request, on its row [TaskPdfs]. */
+  const pdfs = useTaskPdfs({ enquiries: rows.map((row) => row.enquiry?._id), kinds: ['sample_request'] });
 
   const shown = useMemo(() => {
     const test = filterFor(chip);
     const term = search.trim().toLowerCase();
     return rows.filter((row) => test(row) && (!term || [row.customer?.name, row.number, row.requestedBy, row.request, row.enquiry?.number]
-      .filter(Boolean).some((text) => text.toLowerCase().includes(term))));
-  }, [rows, chip, search]);
+      .filter(Boolean).some((text) => text.toLowerCase().includes(term))))
+      .map((row) => ({ ...row, pdfs: pdfs.byEnquiry[row.enquiry?._id] }));
+  }, [rows, chip, search, pdfs]);
 
   if (loading && !data) return <DashboardSkeleton label="Loading the work queue" tiles={4} />;
   if (error) return <ErrorState error={error} onRetry={reload} />;

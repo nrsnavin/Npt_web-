@@ -194,7 +194,7 @@ export default function ProductionWorkflow() {
       <div className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
         {/* Production's updates: printing and assembly, the dates, each model's status and hand-over. */}
         <Section title="Production — update">
-          <TaskFacts button={button} task={task} className="mb-3" />
+          <TaskFacts button={button} task={task} className="mb-3" withPdf={false} />
           {works && !task.completed ? (
             <div className="space-y-3">
               <TaskEdd todo={task} mayAct onChanged={changed} />

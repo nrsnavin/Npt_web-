@@ -99,7 +99,7 @@ export function HandoffDialog({ todo, mode, onClose, onChanged }) {
   return (
     <Modal open title={titles[mode]} description={todo.title} onClose={onClose}>
       <form onSubmit={submit} className="space-y-4">
-        {(todo.notes || todo.brief) && (
+        {(todo.notes || todo.brief || todo.attachment?.key) && (
           <div className="space-y-2 rounded-lg border border-line/[0.06] bg-ink-800/40 p-3 text-sm text-steel-300">
             <TaskFacts button={button} task={todo} />
             {todo.notes && <p><span className="text-steel-500">Asked: </span>{todo.notes}</p>}
