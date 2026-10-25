@@ -218,6 +218,15 @@ test('an SO request reads as it was entered: answers by name, a block per model 
 
 test('a team task raised for a buyer says which enquiry filled its rows', () => {
   const dialog = readFileSync(new URL('../src/components/DepartmentTaskDialog.jsx', import.meta.url), 'utf8');
-  assert.match(dialog, /\{team && prefill\?\.from\?\.enquiry && \(/);
-  assert.match(dialog, /Filled from <span className="font-semibold text-steel-200">\{prefill\.from\.enquiry\.number\}<\/span>, this buyer’s latest enquiry/);
+  assert.match(dialog, /\{team && loaded\?\.from\?\.enquiry && \(/);
+  assert.match(dialog, /Filled from <span className="font-semibold text-steel-200">\{loaded\.from\.enquiry\.number\}<\/span>, this buyer’s latest enquiry/);
+});
+
+test('a team task can start as a new task apart from the enquiry, with every model on the register', () => {
+  const dialog = readFileSync(new URL('../src/components/DepartmentTaskDialog.jsx', import.meta.url), 'utf8');
+  assert.match(dialog, /\[true, 'New task — any model'\]/);
+  /* Nothing carried over, and no enquiry model list — so the model question falls back to the whole register. */
+  assert.match(dialog, /team && freshStart && loaded\s*\? \{ \.\.\.loaded, items: \[\], orderItems: \[\], quoteItems: \[\], modelList: \[\]/);
+  assert.match(dialog, /if \(register && !\(field\.optionsFrom && options\.length\)\)/);
+  assert.match(dialog, /onClick=\{\(\) => \{ startedFor\.current = null; setFreshStart\(value\); \}\}/, 'the form starts again');
 });

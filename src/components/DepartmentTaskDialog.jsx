@@ -128,7 +128,7 @@ function Rows({ field, rows, prefill, onChange }) {
 
 export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKind, fromTask, title, customer: startCustomer, onClose, onSent }) {
   const [kind, setKind] = useState(startKind);
-  const [prefill, setPrefill] = useState(null);
+  const [loaded, setPrefill] = useState(null);
   const [runningOrder, setRunningOrder] = useState(null);
   const [stopOk, setStopOk] = useState(false);
   const [answers, setAnswers] = useState({});
@@ -147,6 +147,14 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
   const team = !enquiry;
   /* A team task opened from a customer [components/CustomerPanel.jsx] starts on that buyer. */
   const [customer, setCustomer] = useState(startCustomer || '');
+  /*
+   * A team task for a buyer starts from their latest enquiry — or, chosen, as a new task of its own:
+   * nothing carried over, and every model on the register to pick from rather than the enquiry's.
+   */
+  const [freshStart, setFreshStart] = useState(false);
+  const prefill = useMemo(() => (team && freshStart && loaded
+    ? { ...loaded, items: [], orderItems: [], quoteItems: [], modelList: [], models: '', materials: '', quantity: '', targetPrice: '', order: { paymentTerms: '', invoiceNumber: '' }, from: null }
+    : loaded), [team, freshStart, loaded]);
   /* An enquiry with more than one SO: which one this task is for (else the server takes the newest). */
   const [orders, setOrders] = useState([]);
   const [order, setOrder] = useState('');
@@ -314,11 +322,22 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
             </div>
           )}
           {!prefill && <p className="text-sm text-steel-400 sm:col-span-2">Filling the form from the enquiry…</p>}
-          {/* A team task for a buyer: the rows come from their latest enquiry [server: `teamTaskPrefill`]. */}
-          {team && prefill?.from?.enquiry && (
-            <p className="text-xs text-steel-400 sm:col-span-2">
-              Filled from <span className="font-semibold text-steel-200">{prefill.from.enquiry.number}</span>, this buyer’s latest enquiry — change anything that differs.
-            </p>
+          {/* A team task for a buyer: the rows come from their latest enquiry [server: `teamTaskPrefill`] — or it starts as a new task. */}
+          {team && loaded?.from?.enquiry && (
+            <div className="flex flex-wrap items-center gap-2 sm:col-span-2" role="radiogroup" aria-label="Start from">
+              {[[false, `From ${loaded.from.enquiry.number}`], [true, 'New task — any model']].map(([value, label]) => (
+                <button key={label} type="button" role="radio" aria-checked={freshStart === value}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-semibold ring-1 ring-inset ${freshStart === value ? 'bg-accent text-white ring-accent' : 'text-steel-200 ring-line/[0.12] hover:bg-line/[0.06]'}`}
+                  onClick={() => { startedFor.current = null; setFreshStart(value); }}>
+                  {label}
+                </button>
+              ))}
+              <p className="w-full text-xs text-steel-400">
+                {freshStart
+                  ? 'A new task, apart from the enquiry — pick any model on the register.'
+                  : <>Filled from <span className="font-semibold text-steel-200">{loaded.from.enquiry.number}</span>, this buyer’s latest enquiry — change anything that differs.</>}
+              </p>
+            </div>
           )}
 
           {prefill && (button.asks || []).map((field) => {
