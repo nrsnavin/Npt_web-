@@ -10,12 +10,14 @@ import CloseTaskPrompt from './CloseTaskPrompt.jsx';
  * proves it — the transporter's LR copy (Reception's LR Copy task gets it to send to the buyer),
  * the proof of delivery from our own vehicle, or the signed receipt when the party collects.
  *
- * An order going out together starts with every model still to go ticked; one going out model by
- * model starts with the ready ones. The app says what the load makes it — Part Quantity Dispatched
+ * Only a model ready goes: its last team — Assembly, else Printing, else Production — has marked it
+ * Ready for Dispatch [server: dispatchSheet `ready`]; one not ready cannot be ticked and says who
+ * still has it. Every ready model still to go starts ticked. The app says what the load makes it — Part Quantity Dispatched
  * while anything is still to go (on this request or an earlier one), Fully Dispatched once
  * everything ordered has gone — and only Fully Dispatched offers to close the task.
  */
 const LIMIT = 1024 * 1024;
+const WAITING_WORDS = { production: 'Production', printing: 'Printing', assembling: 'Assembly' };
 const TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
 
 export default function DispatchLoadDialog({ todo, onClose, onDone }) {
@@ -36,7 +38,7 @@ export default function DispatchLoadDialog({ todo, onClose, onDone }) {
       if (!live) return;
       setSheet(data);
       const left = (row) => Math.max(0, (row.ordered || 0) - (row.sent || 0));
-      const starts = (row) => (left(row) > 0 || !row.ordered) && (data.plan !== 'by_model' || row.ready);
+      const starts = (row) => (left(row) > 0 || !row.ordered) && row.ready;
       setTicked(Object.fromEntries(data.models.map((row) => [row.model, starts(row)])));
       setPieces(Object.fromEntries(data.models.map((row) => [row.model, left(row) ? String(left(row)) : ''])));
     }).catch((failure) => live && setProblem(failure.message));
@@ -44,8 +46,10 @@ export default function DispatchLoadDialog({ todo, onClose, onDone }) {
   }, [todo._id]);
 
   const models = sheet?.models || [];
-  const chosen = models.filter((row) => ticked[row.model]);
-  const allTicked = models.length > 0 && chosen.length === models.length;
+  /* What may go in a load: ready, and something of it still to go. */
+  const goable = models.filter((row) => row.ready && (Math.max(0, (row.ordered || 0) - (row.sent || 0)) > 0 || !row.ordered));
+  const chosen = models.filter((row) => ticked[row.model] && row.ready);
+  const allTicked = goable.length > 0 && goable.every((row) => ticked[row.model]);
   const how = (sheet?.modes || []).find((entry) => entry.key === mode) || null;
   const total = chosen.reduce((sum, row) => sum + (Number(pieces[row.model]) || 0), 0);
   const missingPieces = chosen.find((row) => !(Number(pieces[row.model]) > 0));
@@ -54,7 +58,7 @@ export default function DispatchLoadDialog({ todo, onClose, onDone }) {
   const ready = chosen.length > 0 && !missingPieces && how && file && !tooBig && !wrongType;
   /* What this load leaves: every model ordered gone in full makes it Fully Dispatched [server: recordDispatchLoad]. */
   const leftAfter = models.map((row) => {
-    const going = ticked[row.model] ? Number(pieces[row.model]) || 0 : 0;
+    const going = ticked[row.model] && row.ready ? Number(pieces[row.model]) || 0 : 0;
     return { model: row.model, left: row.ordered ? Math.max(0, row.ordered - (row.sent || 0) - going) : (row.sent || going ? 0 : 1), known: Boolean(row.ordered) };
   });
   const stillToGo = leftAfter.filter((row) => row.left > 0);
@@ -108,23 +112,24 @@ export default function DispatchLoadDialog({ todo, onClose, onDone }) {
               <input
                 type="checkbox"
                 checked={allTicked}
-                onChange={(event) => setTicked(Object.fromEntries(models.map((row) => [row.model, event.target.checked])))}
+                disabled={!goable.length}
+                onChange={(event) => setTicked(Object.fromEntries(models.map((row) => [row.model, event.target.checked && goable.includes(row)])))}
               />
-              Select all
+              Select all ready
             </label>
             {models.map((row) => {
               const left = Math.max(0, (row.ordered || 0) - (row.sent || 0));
               return (
                 <div key={row.model} className="grid grid-cols-[minmax(0,1fr)_7rem] items-center gap-2">
                   <label className="flex min-w-0 items-center gap-2 text-sm text-steel-200">
-                    <input type="checkbox" checked={Boolean(ticked[row.model])} onChange={(event) => setTicked({ ...ticked, [row.model]: event.target.checked })} />
+                    <input type="checkbox" disabled={!row.ready} checked={Boolean(ticked[row.model]) && row.ready} onChange={(event) => setTicked({ ...ticked, [row.model]: event.target.checked })} />
                     <span className="min-w-0">
                       <span className="block truncate font-semibold">{row.model}</span>
                       <span className="block text-xs text-steel-400">
                         {row.ordered ? `${row.ordered.toLocaleString('en-IN')} ordered` : 'Quantity not on the order'}
                         {row.sent ? ` · ${row.sent.toLocaleString('en-IN')} sent` : ''}
                         {row.ordered ? ` · ${left.toLocaleString('en-IN')} to go` : ''}
-                        {!row.ready && <span className="font-semibold text-warn-400"> · not ready yet</span>}
+                        {!row.ready && <span className="font-semibold text-warn-400"> · not ready — still with {WAITING_WORDS[row.waitingOn] || 'the plant'}</span>}
                       </span>
                     </span>
                   </label>
@@ -133,13 +138,16 @@ export default function DispatchLoadDialog({ todo, onClose, onDone }) {
                     min="1"
                     className="input py-1.5"
                     aria-label={`Pieces of ${row.model} in this load`}
-                    disabled={!ticked[row.model]}
+                    disabled={!ticked[row.model] || !row.ready}
                     value={pieces[row.model] || ''}
                     onChange={(event) => setPieces({ ...pieces, [row.model]: event.target.value })}
                   />
                 </div>
               );
             })}
+            {!goable.length && (
+              <Notice tone="warn">Nothing is ready to dispatch yet — a model goes once its last team (Assembly, else Printing, else Production) marks it Ready for Dispatch.</Notice>
+            )}
             {chosen.length > 0 && <p className="text-xs text-steel-400">{total.toLocaleString('en-IN')} pcs in this load</p>}
             {/* What the load makes it — the app decides, Dispatch never has to pick. */}
             {chosen.length > 0 && (

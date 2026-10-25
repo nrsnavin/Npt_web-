@@ -20,13 +20,20 @@ test('the dispatch statuses open the dispatch form, never a bare move', () => {
 });
 
 test('models ticked with Select all — the ready ones first when it goes model by model — pieces of each, the mode, and the paper it needs', () => {
-  assert.match(dialog, />\s*Select all\s*</);
-  assert.match(dialog, /const starts = \(row\) => \(left\(row\) > 0 \|\| !row\.ordered\) && \(data\.plan !== 'by_model' \|\| row\.ready\);/);
+  assert.match(dialog, />\s*Select all ready\s*</);
+  assert.match(dialog, /const starts = \(row\) => \(left\(row\) > 0 \|\| !row\.ordered\) && row\.ready;/, 'only ready models start ticked, whatever the plan');
   assert.match(dialog, /aria-label=\{`Pieces of \$\{row\.model\} in this load`\}/);
   assert.match(dialog, /role="radiogroup" aria-label="Mode of travel"/);
   assert.match(dialog, /<input type="file" required accept=\{TYPES\.join\(','\)\}/);
   assert.match(dialog, /const ready = chosen\.length > 0 && !missingPieces && how && file && !tooBig && !wrongType;/);
   assert.match(read('api/endpoints.js'), /dispatchLoad: \(\{ id, mode, lines, note, file \}\) =>/, 'no status — the server picks it');
+});
+
+test('only a model ready can go: one not ready cannot be ticked and names the team that has it', () => {
+  assert.match(dialog, /<input type="checkbox" disabled=\{!row\.ready\} checked=\{Boolean\(ticked\[row\.model\]\) && row\.ready\}/);
+  assert.match(dialog, /not ready — still with \{WAITING_WORDS\[row\.waitingOn\] \|\| 'the plant'\}/);
+  assert.match(dialog, /const chosen = models\.filter\(\(row\) => ticked\[row\.model\] && row\.ready\);/);
+  assert.match(dialog, /Nothing is ready to dispatch yet/);
 });
 
 test('the app says what the load makes it; only Fully Dispatched offers to close the task', () => {
