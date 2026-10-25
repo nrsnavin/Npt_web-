@@ -135,15 +135,26 @@ export const workspace = {
     },
     /** What the dispatch form offers: the models ordered and sent, ready or not, the plan and the modes [server: `dispatchSheet`]. */
     dispatchSheet: (id) => api.get(`/workspace/todos/${id}/dispatch`).then(unwrap),
-    /** A load from the dispatch form: the models and pieces, how it travels, and its LR copy or proof of delivery. */
-    /** A load from the dispatch form; the server picks Part / Fully Dispatched from what has gone. */
-    dispatchLoad: ({ id, mode, lines, note, file }) => {
+    /**
+     * A load from the dispatch form: the models and pieces, how it travels, what Dispatch knows of it
+     * (LR number, transporter, vehicle) and — optional — its LR copy or proof. The server picks Part /
+     * Fully Dispatched from what has gone.
+     */
+    dispatchLoad: ({ id, mode, lines, note, file, details = {} }) => {
       const form = new FormData();
       form.append('mode', mode);
       form.append('lines', JSON.stringify(lines));
       if (note) form.append('note', note);
-      form.append('file', file);
+      for (const [key, value] of Object.entries(details)) if (String(value || '').trim()) form.append(key, String(value).trim());
+      if (file) form.append('file', file);
       return api.post(`/workspace/todos/${id}/dispatch`, form, { feedback: false }).then(unwrap);
+    },
+    /** The paper and details added to a load already gone [server: `addLoadProof`]. */
+    loadProof: ({ id, loadId, file, details = {} }) => {
+      const form = new FormData();
+      for (const [key, value] of Object.entries(details)) if (String(value || '').trim()) form.append(key, String(value).trim());
+      if (file) form.append('file', file);
+      return api.post(`/workspace/todos/${id}/loads/${loadId}`, form, { feedback: false }).then(unwrap);
     },
     /** The file already on the task sent to the buyer — Reception sending the LR copy Dispatch uploaded; keeps `sent`. */
     sendResult: (id) => api.post(`/workspace/todos/${id}/result/send`, {}, { feedback: false }).then((response) => response.data),
