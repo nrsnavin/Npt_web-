@@ -30,6 +30,9 @@ export default function DispatchLoadDialog({ todo, onClose, onDone }) {
   const [pieces, setPieces] = useState({});
   const [mode, setMode] = useState('');
   const [file, setFile] = useState(null);
+  /* What Dispatch knows of how it went — all optional. */
+  const [details, setDetails] = useState({ lrNumber: '', transporter: '', vehicleNumber: '' });
+  const setDetail = (key) => (event) => setDetails((current) => ({ ...current, [key]: event.target.value }));
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [offer, setOffer] = useState(null);
@@ -61,7 +64,8 @@ export default function DispatchLoadDialog({ todo, onClose, onDone }) {
   const overLeft = chosen.find((row) => row.ordered && Number(pieces[row.model]) > Math.max(0, row.ordered - (row.sent || 0)));
   const tooBig = file && file.size > LIMIT;
   const wrongType = file && !TYPES.includes(file.type);
-  const ready = chosen.length > 0 && !missingPieces && !overLeft && how && file && !tooBig && !wrongType;
+  /* The paper is optional — Reception has the LR copy to chase, and it can be added to the load later. */
+  const ready = chosen.length > 0 && !missingPieces && !overLeft && how && !tooBig && !wrongType;
   /* What this load leaves: every model ordered gone in full makes it Fully Dispatched [server: recordDispatchLoad]. */
   const leftAfter = models.map((row) => {
     const going = ticked[row.model] && row.ready ? Number(pieces[row.model]) || 0 : 0;
@@ -77,11 +81,11 @@ export default function DispatchLoadDialog({ todo, onClose, onDone }) {
     setProblem(null);
     try {
       const saved = await workspace.todos.dispatchLoad({
-        id: todo._id, mode, note: note.trim() || undefined, file,
+        id: todo._id, mode, note: note.trim() || undefined, file, details,
         lines: chosen.map((row) => ({ model: row.model, quantity: Number(pieces[row.model]) })),
       });
       const said = saved.status === 'fully_dispatched' ? 'Fully Dispatched' : 'Part Quantity Dispatched';
-      toast(said, mode === 'transporter' ? 'Reception has the LR copy to send to the buyer.' : `${how.proofLabel} kept on the task.`);
+      toast(said, !file ? `${how.proofLabel} to follow — add it to the load when it comes; it is listed on the task.` : mode === 'transporter' ? 'Reception has the LR copy to send to the buyer.' : `${how.proofLabel} kept on the task.`);
       /* Fully Dispatched: nothing left to send — close the task now? The screen refreshes once that is answered. */
       if (saved.status === 'fully_dispatched' && !saved.completed) setOffer(saved);
       else {
@@ -195,16 +199,24 @@ export default function DispatchLoadDialog({ todo, onClose, onDone }) {
           </fieldset>
         )}
         {how && (
-          <Field
-            label={how.proofLabel}
-            required
-            hint={how.key === 'transporter' ? 'PDF or photo, 1 MB at most — it goes to Reception’s LR Copy task to send to the buyer' : 'PDF or photo, 1 MB at most — kept on the task'}
-            error={tooBig ? 'That file is over 1 MB' : wrongType ? 'Attach a PDF, or a JPEG / PNG photo' : undefined}
-          >
-            <input type="file" required accept={TYPES.join(',')} capture="environment" className="input" aria-label={how.proofLabel} onChange={(event) => setFile(event.target.files?.[0] || null)} />
-          </Field>
+          <>
+            <div className="grid gap-3 sm:grid-cols-3">
+              {how.key === 'transporter' && <Field label="LR / docket number"><input className="input" value={details.lrNumber} maxLength={80} onChange={setDetail('lrNumber')} /></Field>}
+              {how.key === 'transporter' && <Field label="Transporter"><input className="input" value={details.transporter} maxLength={120} placeholder="VRL Logistics" onChange={setDetail('transporter')} /></Field>}
+              {how.key !== 'party_collects' && <Field label="Vehicle number"><input className="input" value={details.vehicleNumber} maxLength={40} placeholder="TN 39 AB 1234" onChange={setDetail('vehicleNumber')} /></Field>}
+            </div>
+            <Field
+              label={`${how.proofLabel} (optional)`}
+              hint={how.key === 'transporter'
+                ? 'PDF or photo, 1 MB at most — it goes to Reception’s LR Copy task. Not here yet? Send the load; Reception chases the LR, and it can be added to the load later.'
+                : 'PDF or photo, 1 MB at most — kept on the task. Not here yet? Add it to the load later.'}
+              error={tooBig ? 'That file is over 1 MB' : wrongType ? 'Attach a PDF, or a JPEG / PNG photo' : undefined}
+            >
+              <input type="file" accept={TYPES.join(',')} capture="environment" className="input" aria-label={how.proofLabel} onChange={(event) => setFile(event.target.files?.[0] || null)} />
+            </Field>
+          </>
         )}
-        <Field label="Remarks" hint="Vehicle, LR number, who collected — optional">
+        <Field label="Remarks" hint="Who collected, anything else — optional">
           <input className="input" value={note} onChange={(event) => setNote(event.target.value)} />
         </Field>
         {missingPieces && <p className="text-xs text-warn-400">Give the pieces of {missingPieces.model}</p>}

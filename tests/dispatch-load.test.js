@@ -24,9 +24,9 @@ test('models ticked with Select all — the ready ones first when it goes model 
   assert.match(dialog, /const starts = \(row\) => \(left\(row\) > 0 \|\| !row\.ordered\) && row\.ready;/, 'only ready models start ticked, whatever the plan');
   assert.match(dialog, /aria-label=\{`Pieces of \$\{row\.model\} in this load`\}/);
   assert.match(dialog, /role="radiogroup" aria-label="Mode of travel"/);
-  assert.match(dialog, /<input type="file" required accept=\{TYPES\.join\(','\)\}/);
-  assert.match(dialog, /const ready = chosen\.length > 0 && !missingPieces && !overLeft && how && file && !tooBig && !wrongType;/);
-  assert.match(read('api/endpoints.js'), /dispatchLoad: \(\{ id, mode, lines, note, file \}\) =>/, 'no status — the server picks it');
+  assert.match(dialog, /<input type="file" accept=\{TYPES\.join\(','\)\}/, 'the paper is optional');
+  assert.match(dialog, /const ready = chosen\.length > 0 && !missingPieces && !overLeft && how && !tooBig && !wrongType;/);
+  assert.match(read('api/endpoints.js'), /dispatchLoad: \(\{ id, mode, lines, note, file, details = \{\} \}\) =>/, 'no status — the server picks it');
 });
 
 test('only a model ready can go: one not ready cannot be ticked and names the team that has it', () => {
@@ -70,4 +70,18 @@ test('never more than is left: a model sent in full is locked, and pieces over w
   assert.match(form, /const overLeft = chosen\.find\(\(row\) => row\.ordered && Number\(pieces\[row\.model\]\) > Math\.max\(0, row\.ordered - \(row\.sent \|\| 0\)\)\);/);
   assert.match(form, /!missingPieces && !overLeft && how/, 'the load waits until it fits');
   assert.match(form, /only \{Math\.max\(0, overLeft\.ordered - \(overLeft\.sent \|\| 0\)\)\.toLocaleString\('en-IN'\)\} pcs left to send/);
+});
+
+test('the paper is optional on a load; Dispatch adds it, with the LR number, transporter and vehicle, when it comes', () => {
+  const form = read('components/DispatchLoadDialog.jsx');
+  assert.match(form, /const ready = chosen\.length > 0 && !missingPieces && !overLeft && how && !tooBig && !wrongType;/, 'no file needed to send');
+  assert.match(form, /label=\{`\$\{how\.proofLabel\} \(optional\)`\}/);
+  assert.doesNotMatch(form, /<input type="file" required/);
+  assert.match(form, /<Field label="LR \/ docket number">/);
+  const paper = read('components/LoadPaper.jsx');
+  assert.match(paper, /Paper to add — \{pending\.length\} load/);
+  assert.match(paper, /workspace\.todos\.loadProof\(\{ id: todo\._id, loadId: load\._id, file/);
+  assert.match(read('components/TaskWorkflow.jsx'), /<LoadPaper todo=\{todo\} mayAdd=\{canWrite\('dispatch'\) \|\| canWrite\('tasks'\)\} onChanged=\{moved\} \/>/);
+  assert.match(read('components/OrderDispatchDetails.jsx'), /load\.proofPending && <span className="text-xs font-semibold text-warn-400">Paper to come<\/span>/);
+  assert.match(read('api/endpoints.js'), /loadProof: \(\{ id, loadId, file, details = \{\} \}\) =>/);
 });

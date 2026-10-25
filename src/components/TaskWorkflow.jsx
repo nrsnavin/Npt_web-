@@ -18,6 +18,7 @@ import { departmentLabel } from '../utils/pipeline.js';
 import { ROUTE_LABELS, dateLabelFor, datesOfTask, givenDateOf, goodsOf, handOverDefault, handOverWarning, modelStatusesOf, modelThrough, modelsForStep, modelsOfTask, movesByModel, needsRouting, nextStepForModel, pathOf, routeOf, statusesFor, statusesForModel } from '../utils/edd.js';
 import { formatDate } from '../utils/format.js';
 import { plantLead } from '../utils/plantSettings.js';
+import LoadPaper from './LoadPaper.jsx';
 
 /**
  * A department's own workflow on its task [server: config/departmentTaskForms.js `statuses`]:
@@ -733,6 +734,8 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
           </select>
         </div>
       )}
+      {/* Loads gone without their LR copy or proof: the Dispatch team adds the paper when it comes [LoadPaper]. */}
+      <LoadPaper todo={todo} mayAdd={canWrite('dispatch') || canWrite('tasks')} onChanged={moved} />
       {/* Asked Production / Assembly for readiness: theirs to answer, so the status waits on it [server: `assertNotWaiting`]. */}
       {waiting.length > 0 && (
         <p id={`waiting-${todo._id}`} className="rounded-lg bg-warn-500/10 px-3 py-2 text-xs text-warn-400 ring-1 ring-warn-500/20">

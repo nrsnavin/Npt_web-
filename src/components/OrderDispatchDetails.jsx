@@ -60,9 +60,12 @@ export function DispatchBody({ data, showOrder = false }) {
                     <span className="block text-xs text-steel-400">
                       {[when(load.at), load.mode, load.by && `by ${load.by}`, load.statusLabel].filter(Boolean).join(' · ')}
                     </span>
+                    {(load.lrNumber || load.transporter || load.vehicleNumber) && (
+                      <span className="block text-xs text-steel-400">{[load.lrNumber && `LR ${load.lrNumber}`, load.transporter, load.vehicleNumber].filter(Boolean).join(' · ')}</span>
+                    )}
                     {load.note && <span className="block text-xs text-steel-500">{load.note}</span>}
                   </span>
-                  <TaskPdfLink file={load.proof} />
+                  {load.proof ? <TaskPdfLink file={load.proof} /> : load.proofPending && <span className="text-xs font-semibold text-warn-400">Paper to come</span>}
                 </li>
               ))}
             </ul>
