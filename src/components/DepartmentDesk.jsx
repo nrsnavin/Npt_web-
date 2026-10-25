@@ -20,6 +20,7 @@ import { departmentLabel } from '../utils/pipeline.js';
 import { formatDate, plural } from '../utils/format.js';
 import { timelineOf } from '../utils/taskHistory.js';
 import { bandOf } from '../utils/taskState.js';
+import DispatchPaymentHold from './DispatchPaymentHold.jsx';
 
 /**
  * The enquiry's departments, and the tasks raised on them — the plant's own screen
@@ -436,6 +437,8 @@ export default function DepartmentDesk({ enquiry, onChanged }) {
             })}
           </div>
         )}
+        {/* Goods ready, held for the money due before dispatch: the marketing person enters the payment, Accounts confirms it. */}
+        <DispatchPaymentHold holds={history?.dispatchHolds} mayEnter={isManagement || owner === me} onChanged={refresh} />
         {/* With Dispatch: how soon the buyer needs it — Today (the day it reached Dispatch) until marketing or Admin confirms or changes it. */}
         {dispatchRequest && (
           <DeliveryUrgencyPrompt task={dispatchRequest} maySet={isManagement || owner === me} about={`Invoice & Dispatch — ${enquiry.number}`} onSaved={refresh} />

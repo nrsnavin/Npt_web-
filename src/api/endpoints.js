@@ -698,6 +698,8 @@ export const payments = {
   setContact: ({ id, ...payload }) => api.put(`/payments/${id}/contact`, payload).then(unwrap),
   /** Money in — Accounts, Payment Collection or PRT; only Accounts' counts at the payment gate until confirmed. */
   receipt: ({ id, ...payload }) => api.post(`/payments/${id}/receipts`, payload).then(unwrap),
+  /** The buyer's marketing person enters a payment the buyer made — logged, for Accounts to confirm [server: `ownerMayLogReceipt`]. */
+  ownerReceipt: ({ id, ...payload }) => api.post(`/payments/${id}/owner-receipts`, payload).then(unwrap),
   /** Accounts has seen a logged payment in the bank — with the bank line: UTR, amount, day credited, account, remark. */
   confirmReceipt: ({ id, receiptId, ...bankLine }) => api.post(`/payments/${id}/receipts/${receiptId}/confirm`, bankLine).then(unwrap),
   /** Accounts did not find a logged payment in the bank — with the reason; whoever logged it is told. */
