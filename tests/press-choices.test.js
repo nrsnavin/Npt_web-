@@ -25,16 +25,17 @@ test('a ranking indexes by press: the choice, why a press cannot, and the best',
   assert.deepEqual([1, 2, 3, 4].map(rankWords), ['Best', '2nd', '3rd', '4th']);
 });
 
-test('dragging a job asks for its ranking and tags each press; a press that cannot take it refuses at once', () => {
+test('moving a job asks for its ranking and tags each machine; a machine that cannot take it refuses at once', () => {
   const board = read('pages/PlanningBoard.jsx');
   assert.match(board, /productionApi\.choices\(job\._id\)/);
-  assert.match(board, /<PressRankTag pressId=\{String\(press\.machine\._id\)\} ranked=\{ranked\} \/>/);
-  assert.match(board, /Can’t take it/);
+  assert.match(board, /choice=\{ranked\?\.byPress\?\.\[String\(press\.machine\._id\)\]\}/);
+  assert.match(board, /cannot=\{ranked\?\.cannot\?\.\[String\(press\.machine\._id\)\]\}/);
   assert.match(board, /if \(why\) \{\s*warn\(`\$\{job\.number\} not moved`, why\);\s*return;/);
-  assert.match(board, /★ Best: \{job\.best\.machine\.code\}/, 'a job not on a press names its best press');
-  assert.match(board, /No press can take it — \{job\.best\.why\}/);
-  assert.match(board, /<PressChoices result=\{ranked\} currentPressId=\{press\?\._id\}/, 'the job dialog shows the best presses');
+  assert.match(board, /<PressChoices result=\{ranked\} currentPressId=\{press\?\._id\}/, 'the job dialog shows the best machines');
   assert.match(board, /onDragEnd=\{endDrag\}/);
+  assert.match(read('components/planning/TimelineView.jsx'), /<PressRankTag pressId=\{String\(press\.machine\._id\)\} ranked=\{ranked\} \/>/);
+  const card = read('components/planning/JobCard.jsx');
+  assert.match(card, /Best: <span className="font-bold text-steel-50">\{best\.machine\.code\}/, 'a waiting job names its best machine');
 });
 
 test('each choice says its done-by day and the reasons for and against, with one button to place it', () => {

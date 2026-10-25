@@ -1,13 +1,17 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { production as productionApi, workOrdersApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
-import { Badge, ErrorState, Field, FormError, Modal, Notice, PageHeader, Spinner } from '../components/ui.jsx';
+import { ErrorState, Field, FormError, Modal, Notice, PageHeader, Spinner } from '../components/ui.jsx';
 import MachineSelect from '../components/MachineSelect.jsx';
 import PressChoices from '../components/PressChoices.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import { formatDate, formatNumber } from '../utils/format.js';
-import { BAR_TONE, RANK_TONE, barSpan, dayHeading, indexChoices, loadShare, rankWords, shortDay } from '../utils/planningBoard.js';
+import { boardStats, byBay, indexChoices, pressSummary, shortDay, sortWaiting } from '../utils/planningBoard.js';
+import JobCard from '../components/planning/JobCard.jsx';
+import PressCard from '../components/planning/PressCard.jsx';
+import Swatch from '../components/planning/Swatch.jsx';
+import TimelineView from '../components/planning/TimelineView.jsx';
 
 /** One job opened from the board: where it is, what the fit says, and what can be done. */
 function JobDialog({ job, press, mayPlan, mayRun, onClose, onChanged }) {
@@ -93,81 +97,141 @@ function JobDialog({ job, press, mayPlan, mayRun, onClose, onChanged }) {
   );
 }
 
-/** While a job is dragged: how this press ranks for it, or why it cannot take it. */
-function PressRankTag({ pressId, ranked }) {
-  if (!ranked) return null;
-  if (ranked.loading) return <p className="mt-1 text-xs text-steel-500">Scoring…</p>;
-  const why = ranked.cannot?.[pressId];
-  if (why) {
-    return (
-      <div className="mt-1 text-xs" title={why}>
-        <p className="font-semibold text-danger-400">✗ Can’t take it</p>
-        <p className="truncate text-steel-400">{why}</p>
-      </div>
-    );
-  }
-  const choice = ranked.byPress?.[pressId];
-  if (!choice) return null;
+
+/** Which view the board opens on, remembered on this device. */
+const VIEW_KEY = 'npt.planningBoard.view';
+const savedView = () => {
+  try { return window.localStorage.getItem(VIEW_KEY) === 'timeline' ? 'timeline' : 'machines'; } catch { return 'machines'; }
+};
+
+/** A figure across the top that is also the filter it describes. */
+function StatTile({ label, value, hint, tone = 'text-steel-50', active, onClick }) {
   return (
-    <p className={`mt-1 inline-flex rounded-md border px-1.5 py-0.5 text-xs font-semibold ${RANK_TONE[choice.rank] || 'border-line/[0.1] text-steel-400'}`} title={choice.summary}>
-      {choice.rank === 1 ? '★ ' : ''}{choice.rank <= 3 ? rankWords(choice.rank) : `Score ${choice.score}`} · done {shortDay(choice.end)}{choice.late ? ' · late' : ''}
-    </p>
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onClick}
+      className={`rounded-2xl border bg-ink-850 px-4 py-3 text-left shadow-raised transition duration-150 hover:-translate-y-0.5 hover:border-accent/40 ${active ? 'border-accent ring-2 ring-accent/40' : 'border-line/[0.08]'}`}
+    >
+      <p className="text-xs font-semibold uppercase tracking-wide text-steel-400">{label}</p>
+      <p className={`mt-1 text-2xl font-bold tabular-nums tracking-tight ${tone}`}>{value}</p>
+      {hint && <p className="text-xs text-steel-500">{hint}</p>}
+    </button>
   );
 }
 
 /**
- * The planning board [server: planning.service]: every press by day for the next two weeks, its
- * work orders back to back, the load on each day, and the work orders not on a press yet. Drag a
- * job onto a press to plan it there — a mould the press cannot hold is refused — and put a press
- * light to dark to cut colour changes.
+ * The planning board [server: planning.service, pressScore.service] — which machine makes which
+ * job. Simple on purpose: the jobs waiting for a machine on the left, the machines on the right.
+ *
+ *   Place a job three ways: "Put on IM-05" (its best machine, one tap, with Undo); "Choose
+ *   machine" then tap a machine; or drag the job onto a machine. While a job is being moved every
+ *   machine says how it ranks for it — ★ Best, 2nd, 3rd — or that it cannot take the mould.
+ *   Machines   one card a machine, grouped by bay: what is running and how far along, what is
+ *              next, when it is free.
+ *   Timeline   the same machines day by day for two weeks, for whoever wants the dates.
  */
 export default function PlanningBoard() {
   const { canWrite, mayPlanProduction } = useAuth();
   /* The board is planned by the Production in charge (or Admin) [server: requireProductionInCharge]; the floor runs it. */
   const mayRun = canWrite('production');
   const mayPlan = mayRun && mayPlanProduction;
-  const { toast, warn } = useToast();
+  const { toast, warn, undoable } = useToast();
   const [board, setBoard] = useState(null);
   const [error, setError] = useState(null);
   const [open, setOpen] = useState(null);
+  const [view, setView] = useState(savedView);
+  const [busy, setBusy] = useState(false);
+  /* The job being moved: dragged, or picked with "Choose machine". */
   const [dragging, setDragging] = useState(null);
-  /* The presses ranked for the job being dragged, so each row says Best / 2nd / 3rd / can't. */
+  const [picked, setPicked] = useState(null);
+  const moving = dragging || picked;
+  /* The machines ranked for the job being moved, so each says Best / 2nd / 3rd / can't. */
   const [ranked, setRanked] = useState(null);
-  const startDrag = (job) => (event) => {
-    setDragging(job);
-    try {
-      event.dataTransfer.setData('text/plain', String(job._id));
-      event.dataTransfer.effectAllowed = 'move';
-    } catch { /* some browsers refuse data on a button; the drag still works */ }
-    if (job.status === 'running') return setRanked(null);
+  const [wall, setWall] = useState('all');
+  const [search, setSearch] = useState('');
+  const [order, setOrder] = useState('late');
+  const [lateOnly, setLateOnly] = useState(false);
+  const wallRef = useRef(null);
+
+  const load = useCallback(() => productionApi.plan().then((value) => { setBoard(value); setError(null); }).catch(setError), []);
+  useEffect(() => { load(); }, [load]);
+  const choose = (next) => {
+    setView(next);
+    try { window.localStorage.setItem(VIEW_KEY, next); } catch { /* a private window keeps it for the visit */ }
+  };
+
+  const rank = (job) => {
+    if (!job || job.status === 'running') return setRanked(null);
     setRanked({ jobId: job._id, loading: true });
     productionApi.choices(job._id)
       .then((value) => setRanked((current) => (current?.jobId === job._id ? { jobId: job._id, ...indexChoices(value) } : current)))
       .catch(() => setRanked(null));
     return undefined;
   };
-  const endDrag = () => {
+  const stopMoving = () => {
     setDragging(null);
+    setPicked(null);
     setRanked(null);
   };
-  const load = useCallback(() => productionApi.plan().then((value) => { setBoard(value); setError(null); }).catch(setError), []);
-  useEffect(() => { load(); }, [load]);
+  /* Escape puts a picked job down. */
+  useEffect(() => {
+    if (!picked) return undefined;
+    const onKey = (event) => { if (event.key === 'Escape') stopMoving(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [picked]);
+  const startDrag = (job) => (event) => {
+    setPicked(null);
+    setDragging(job);
+    try {
+      event.dataTransfer.setData('text/plain', String(job._id));
+      event.dataTransfer.effectAllowed = 'move';
+    } catch { /* some browsers refuse data on a button; the drag still works */ }
+    rank(job);
+  };
+  /* A drop clears the drag itself; a drag let go anywhere else only forgets it a moment later. */
+  const endDrag = () => setTimeout(() => setDragging((current) => (current ? null : current)), 0);
+  const pick = (job) => {
+    if (picked?._id === job._id) return stopMoving();
+    setPicked(job);
+    rank(job);
+    /* On a phone the machines are below the list: bring them into view. */
+    if (window.innerWidth < 1024) setTimeout(() => wallRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+    return undefined;
+  };
 
-  const dropOn = async (pressId) => {
-    const job = dragging;
-    const why = pressId && ranked?.cannot?.[String(pressId)];
-    endDrag();
+  /** Puts the job being moved (or `job`) on a machine, with an Undo that puts it back. */
+  const place = async (machine, job = moving) => {
     if (!job || !mayPlan) return;
-    /* Said at once, without asking the server: the ranking already knows this press cannot hold the mould. */
+    const why = ranked?.jobId === job._id ? ranked.cannot?.[String(machine._id)] : null;
+    stopMoving();
+    /* Said at once, without asking the server: the ranking already knows this machine cannot hold the mould. */
     if (why) {
       warn(`${job.number} not moved`, why);
       return;
     }
+    const from = job.machine?._id || job.machine || null;
+    if (from && String(from) === String(machine._id)) return;
+    setBusy(true);
     try {
-      const answer = await workOrdersApi.plan({ id: job._id, updatedAt: job.updatedAt, machine: pressId });
-      toast(`${job.number} planned`, answer?.machine?.code ? `On ${answer.machine.code}` : '');
+      const answer = await workOrdersApi.plan({ id: job._id, updatedAt: job.updatedAt, machine: machine._id });
+      undoable(`${job.number} is on ${machine.code}`, {
+        detail: `${job.mould?.mouldCode || job.modelNumber || ''} · ${job.colour || ''}`.trim(),
+        onAction: async () => {
+          try {
+            await workOrdersApi.plan({ id: job._id, updatedAt: answer.updatedAt, machine: from });
+            toast('Put back', from ? 'On its machine again' : 'Waiting for a machine again');
+          } catch (failure) {
+            warn('Could not put it back', failure.message);
+          }
+          load();
+        },
+      });
     } catch (failure) {
       warn(`${job.number} not moved`, failure.message);
+    } finally {
+      setBusy(false);
     }
     load();
   };
@@ -181,18 +245,30 @@ export default function PlanningBoard() {
     load();
   };
 
-  const columns = board ? `11rem repeat(${board.days.length}, minmax(3.25rem, 1fr))` : '';
+  const stats = board ? boardStats(board) : null;
+  const waiting = board ? sortWaiting(board.unplanned, { search, order, lateOnly }) : [];
+  const summaries = board ? new Map(board.presses.map((press) => [String(press.machine._id), pressSummary(press)])) : new Map();
+  const shown = board ? board.presses.filter((press) => wall === 'all' || summaries.get(String(press.machine._id)).state === wall
+    || (wall === 'down' && summaries.get(String(press.machine._id)).state === 'service')) : [];
+  const toggleWall = (value) => setWall((current) => (current === value ? 'all' : value));
+
   return (
     <div className="space-y-5">
       <PageHeader
         title="Planning board"
-        subtitle="Which press makes which work order, day by day. Drag a job onto a press — the board marks the best presses for it — or tap a job to see its best presses."
+        subtitle="Put each waiting job on a machine. Tap “Put on…” for the best machine, or pick a machine yourself."
         actions={(
           <>
-            <Link to="/work-orders" className="btn-secondary">Work orders</Link>
-            <Link to="/production/materials" className="btn-secondary">Material needs</Link>
+            <div role="group" aria-label="View" className="inline-flex rounded-xl border border-line/[0.1] bg-ink-850 p-1 shadow-raised">
+              {[['machines', 'Machines'], ['timeline', 'Timeline']].map(([value, label]) => (
+                <button key={value} type="button" aria-pressed={view === value} onClick={() => choose(value)}
+                  className={`rounded-lg px-3.5 py-1.5 text-sm font-semibold transition ${view === value ? 'bg-accent text-white shadow-raised' : 'text-steel-300 hover:text-steel-50'}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
             <Link to="/production/insights" className="btn-secondary">Suggest a schedule</Link>
-            <Link to="/machines" className="btn-secondary">Plant hours</Link>
+            <Link to="/machines" className="btn-secondary">Machines &amp; hours</Link>
           </>
         )}
       />
@@ -200,112 +276,143 @@ export default function PlanningBoard() {
       {!board && !error && <Spinner label="Loading the board" />}
       {board && (
         <>
-          <section aria-label="Not on a press yet" className="card p-4" onDragOver={(event) => mayPlan && event.preventDefault()} onDrop={() => dropOn(null)}>
-            <p className="mb-2 text-sm font-semibold text-steel-100">Not on a press yet <span className="font-normal text-steel-400">· {board.unplanned.length}</span></p>
-            {board.unplanned.length === 0 && <p className="text-xs text-steel-500">Every open work order is on a press.</p>}
-            <div className="flex flex-wrap gap-2">
-              {board.unplanned.map((job) => (
-                <button
-                  key={job._id}
-                  type="button"
-                  draggable={mayPlan}
-                  onDragStart={startDrag(job)}
-                  onDragEnd={endDrag}
-                  onClick={() => setOpen({ job, press: null })}
-                  className={`rounded-lg border px-2.5 py-1.5 text-left text-xs ${job.late ? 'border-danger-500/50 bg-danger-500/[0.07]' : 'border-line/[0.1] bg-line/[0.03]'}`}
-                >
-                  <span className="font-semibold text-steel-100">{job.mould?.mouldCode || job.modelNumber}</span>
-                  <span className="text-steel-400"> · {job.colour || '—'} · {formatNumber(job.toMake)} pcs{job.pressDays ? ` · ${job.pressDays} d` : ''}</span>
-                  <span className={`block ${job.late ? 'text-danger-400' : 'text-steel-500'}`}>{job.number}{job.dueDate ? ` · due ${formatDate(job.dueDate)}` : ''}</span>
-                  {/* The best press for it, scored [server: pressScore.service]. */}
-                  {job.best?.machine && (
-                    <span className={`block font-semibold ${job.best.late ? 'text-warn-400' : 'text-success-400'}`} title={job.best.summary}>
-                      ★ Best: {job.best.machine.code} · done {shortDay(job.best.end)}{job.best.late ? ' · late' : ''}
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <StatTile label="Running" value={`${stats.running} of ${stats.presses}`} hint="Machines making a job now" tone="text-success-400" active={wall === 'running'} onClick={() => toggleWall('running')} />
+            <StatTile label="Free" value={stats.free} hint={stats.down ? `${stats.down} stopped` : 'Ready for a job'} active={wall === 'free'} onClick={() => toggleWall('free')} />
+            <StatTile label="Waiting for a machine" value={stats.waiting} hint="Jobs not on a machine yet" active={false} onClick={() => { setLateOnly(false); setSearch(''); setWall('all'); }} />
+            <StatTile label="Late" value={stats.late} hint="Will end after the due date" tone={stats.late ? 'text-danger-400' : 'text-steel-50'} active={lateOnly} onClick={() => setLateOnly(!lateOnly)} />
+          </div>
+
+          {/* The job being moved, its best machine, and the way out. */}
+          {moving && (
+            <div className="sticky top-2 z-20 animate-fade-up">
+              <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-accent/40 bg-ink-800/95 px-4 py-3 shadow-float backdrop-blur">
+                <Swatch colour={moving.colour} className="h-4 w-4" />
+                <p className="min-w-0 flex-1 text-sm text-steel-200">
+                  <span className="font-bold text-steel-50">Moving {moving.mould?.mouldCode || moving.number}</span>
+                  <span className="text-steel-400"> · {moving.colour}<span className="hidden sm:inline"> · {formatNumber(moving.toMake)} pcs</span> — {dragging ? 'drop it on a machine' : 'tap a machine'}.</span>
+                  {ranked?.loading && <span className="text-steel-500"> Finding the best machine…</span>}
+                  {ranked?.best && (
+                    <span className="block text-xs text-steel-400">
+                      <span className="font-semibold text-success-400">★ Best: {ranked.best.machine.code}</span>
+                      <span className="sm:hidden"> · done {shortDay(ranked.best.end)}{ranked.best.late ? ' · late' : ''}</span>
+                      <span className="hidden sm:inline"> — {ranked.best.summary}</span>
                     </span>
                   )}
-                  {job.best && !job.best.machine && <span className="block max-w-[16rem] truncate font-semibold text-danger-400" title={job.best.why}>✗ No press can take it — {job.best.why}</span>}
-                </button>
-              ))}
-            </div>
-          </section>
-
-          {dragging && ranked && !ranked.loading && (
-            <div className="sticky top-0 z-10">
-              <Notice tone={ranked.best ? 'info' : 'warn'}>
-                {ranked.best
-                  ? <>Drop <span className="font-semibold">{dragging.number}</span> on a press. <span className="font-semibold">★ Best: {ranked.best.machine.code}</span> — {ranked.best.summary}</>
-                  : ranked.why || `No press can hold ${dragging.mould?.mouldCode || 'this mould'}.`}
-              </Notice>
+                  {ranked && !ranked.loading && !ranked.best && <span className="block text-xs text-danger-400">{ranked.why || 'No machine can take this mould.'}</span>}
+                </p>
+                {picked && ranked?.best && (
+                  <button type="button" className="btn-primary px-3 py-1.5 text-sm" disabled={busy} onClick={() => place(ranked.best.machine)}>Put on {ranked.best.machine.code}</button>
+                )}
+                {picked && <button type="button" className="btn-secondary px-3 py-1.5 text-sm" onClick={stopMoving}>Cancel</button>}
+              </div>
             </div>
           )}
-          <div className="card overflow-x-auto" role="grid" aria-label="Presses by day">
-            <div className="min-w-[56rem]">
-              <div className="grid border-b border-line/[0.08] text-xs text-steel-400" style={{ gridTemplateColumns: columns }}>
-                <div className="px-3 py-2 font-semibold">Press</div>
-                {board.days.map((entry) => (
-                  <div key={entry.day} className={`px-1 py-2 text-center ${entry.off ? 'bg-line/[0.04] text-steel-600' : ''}`}>{dayHeading(entry.day)}</div>
-                ))}
-              </div>
-              {board.presses.map((press) => (
-                <div
-                  key={press.machine._id}
-                  className={`border-b border-line/[0.06] ${dragging ? 'transition-colors hover:bg-accent/[0.05]' : ''} ${ranked?.cannot?.[String(press.machine._id)] ? 'opacity-50' : ''} ${ranked?.byPress?.[String(press.machine._id)]?.rank === 1 ? 'bg-success-500/[0.06]' : ''}`}
-                  onDragOver={(event) => mayPlan && event.preventDefault()}
-                  onDrop={() => dropOn(press.machine._id)}
-                  aria-label={press.machine.code}
-                >
-                  <div className="grid items-center" style={{ gridTemplateColumns: columns }}>
-                    <div className="px-3 py-2">
-                      <p className="font-semibold text-steel-100">{press.machine.code}{press.machine.tonnage ? <span className="font-normal text-steel-400"> · {press.machine.tonnage}T</span> : null}</p>
-                      <p className="text-xs text-steel-500">
-                        {press.queue.length} {press.queue.length === 1 ? 'job' : 'jobs'}
-                        {press.changeovers ? ` · ${press.changeovers} colour ${press.changeovers === 1 ? 'change' : 'changes'}` : ''}
-                      </p>
-                      {press.machine.status !== 'idle' && press.machine.status !== 'running' && <Badge tone="danger">{press.machine.status}</Badge>}
-                      {dragging && <PressRankTag pressId={String(press.machine._id)} ranked={ranked} />}
-                      {mayPlan && press.changeoversIfSorted < press.changeovers && (
-                        <button type="button" className="row-action mt-1 block text-xs" onClick={() => sortByColour(press)}>Light to dark · saves {press.changeovers - press.changeoversIfSorted}</button>
-                      )}
-                    </div>
-                    {press.load.map((hours, index) => {
-                      const share = loadShare(hours, board.hoursPerDay);
-                      return (
-                        <div key={board.days[index].day} className={`mx-0.5 h-1.5 self-start rounded-full ${board.days[index].off ? '' : share > 100 ? 'bg-danger-500' : share > 0 ? 'bg-success-500/60' : 'bg-line/[0.06]'}`} title={board.days[index].off ? 'Day off' : `${share}% of the day booked`} />
-                      );
-                    })}
-                  </div>
-                  {press.queue.map((job) => {
-                    const span = barSpan(job, board.days);
-                    return (
-                      <div key={job._id} className="grid items-center pb-1" style={{ gridTemplateColumns: columns }}>
-                        <div className="truncate px-3 text-xs text-steel-500">{job.sequence ? `${job.sequence}. ` : ''}{job.number}</div>
-                        {span ? (
-                          <button
-                            type="button"
-                            draggable={mayPlan}
-                            onDragStart={startDrag(job)}
-                            onDragEnd={endDrag}
-                            onClick={() => setOpen({ job, press: press.machine })}
-                            className={`truncate rounded-md px-2 py-1 text-left text-xs font-semibold ${BAR_TONE[job.status] || 'bg-steel-500/70 text-white'} ${job.late ? 'ring-2 ring-danger-500' : job.predictedLate ? 'ring-2 ring-warn-500' : ''} ${span.clippedLeft ? 'rounded-l-none' : ''} ${span.clippedRight ? 'rounded-r-none' : ''}`}
-                            style={{ gridColumn: `${span.from + 2} / ${span.to + 3}` }}
-                            title={`${job.number} · ${job.colour || ''} · ${formatNumber(job.toMake)} pcs${job.late ? ' · ends after the due date' : job.predictedLate ? ' · history predicts it ends after the due date' : ''}`}
-                          >
-                            {job.fit?.warnings?.length || job.short?.length ? '⚠ ' : ''}{job.mould?.mouldCode || job.modelNumber} · {job.colour || '—'} · {formatNumber(job.toMake)}
-                          </button>
-                        ) : (
-                          <button type="button" className="row-action text-left text-xs" style={{ gridColumn: '2 / -1' }} onClick={() => setOpen({ job, press: press.machine })}>
-                            {job.plannedStart ? `Outside these days — ${formatDate(job.plannedStart)}` : 'Not dated yet'} · {job.mould?.mouldCode || job.modelNumber}
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
+
+          {view === 'machines' ? (
+            <div className="grid gap-5 lg:grid-cols-[minmax(19rem,22rem)_1fr]">
+              {/* Left: the jobs waiting for a machine. */}
+              <section aria-label="Waiting for a machine" className="space-y-3 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:self-start lg:overflow-y-auto lg:pr-1">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-base font-bold text-steel-50">Waiting for a machine <span className="ml-1 rounded-full bg-line/[0.08] px-2 py-0.5 text-xs font-semibold text-steel-300">{board.unplanned.length}</span></h2>
                 </div>
-              ))}
-              {board.presses.length === 0 && <p className="p-4 text-sm text-steel-500">No presses yet. Add them on the Machines page.</p>}
+                {board.unplanned.length > 0 && (
+                  <div className="space-y-2">
+                    <input type="search" className="input" placeholder="Search mould, colour, buyer…" aria-label="Search the waiting jobs" value={search} onChange={(event) => setSearch(event.target.value)} />
+                    <div role="group" aria-label="Order" className="flex flex-wrap gap-1.5">
+                      {[['late', 'Late first'], ['due', 'Due date'], ['big', 'Biggest']].map(([value, label]) => (
+                        <button key={value} type="button" aria-pressed={order === value} onClick={() => setOrder(value)}
+                          className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${order === value ? 'border-accent/60 bg-accent/15 text-accent' : 'border-line/[0.1] text-steel-300 hover:border-accent/40'}`}>
+                          {label}
+                        </button>
+                      ))}
+                      {lateOnly && <button type="button" onClick={() => setLateOnly(false)} className="rounded-full border border-danger-500/50 bg-danger-500/10 px-3 py-1 text-xs font-semibold text-danger-400">Late only ✕</button>}
+                    </div>
+                  </div>
+                )}
+                {board.unplanned.length === 0 && (
+                  <div className="rounded-2xl border border-dashed border-line/[0.12] px-4 py-8 text-center">
+                    <p className="text-2xl" aria-hidden="true">✓</p>
+                    <p className="text-sm font-semibold text-steel-100">Every job is on a machine</p>
+                    <p className="text-xs text-steel-500">New work orders appear here when an order is released.</p>
+                  </div>
+                )}
+                {board.unplanned.length > 0 && waiting.length === 0 && <p className="text-sm text-steel-500">Nothing matches — clear the search.</p>}
+                <div className="space-y-2.5">
+                  {waiting.map((job) => (
+                    <JobCard
+                      key={job._id}
+                      job={job}
+                      picked={picked?._id === job._id}
+                      mayPlan={mayPlan}
+                      busy={busy}
+                      onPick={() => pick(job)}
+                      onOpen={() => setOpen({ job, press: null })}
+                      onPlace={(machine) => place(machine, job)}
+                      onDragStart={startDrag(job)}
+                      onDragEnd={endDrag}
+                    />
+                  ))}
+                </div>
+              </section>
+
+              {/* Right: the machines, by bay. */}
+              <section ref={wallRef} aria-label="Machines" className="scroll-mt-24 space-y-5">
+                {wall !== 'all' && (
+                  <p className="text-sm text-steel-400">Showing {wall === 'down' ? 'stopped' : wall} machines only · <button type="button" className="row-action text-sm" onClick={() => setWall('all')}>Show all</button></p>
+                )}
+                {board.presses.length === 0 && (
+                  <div className="rounded-2xl border border-dashed border-line/[0.12] px-4 py-10 text-center">
+                    <p className="text-sm font-semibold text-steel-100">No machines yet</p>
+                    <Link to="/machines" className="btn-primary mt-3 inline-flex">Add your machines</Link>
+                  </div>
+                )}
+                {byBay(shown).map(({ bay, presses }) => (
+                  <div key={bay || 'none'} className="space-y-2.5">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-steel-400">{bay || 'No bay set'} <span className="font-semibold text-steel-500">· {presses.length}</span></h3>
+                    <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(15.5rem,1fr))]">
+                      {presses.map((press) => (
+                        <PressCard
+                          key={press.machine._id}
+                          press={press}
+                          summary={summaries.get(String(press.machine._id))}
+                          moving={moving}
+                          choice={ranked?.byPress?.[String(press.machine._id)]}
+                          cannot={ranked?.cannot?.[String(press.machine._id)]}
+                          mayPlan={mayPlan}
+                          onPlace={(machine) => place(machine)}
+                          onOpenJob={(job) => setOpen({ job, press: press.machine })}
+                          onSortColour={sortByColour}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </section>
             </div>
-          </div>
-          <p className="text-xs text-steel-500">Bars are coloured by status; a red ring means the plan ends after the due date, an amber one that the mould's own history predicts it will; ⚠ means a warning on the press or mould, or a store that will run short. The thin line under each press is its daily load — red is double-booked. While you drag a job, each press says how it ranks for it (★ Best, 2nd, 3rd) or that it can’t take the mould.</p>
+          ) : (
+            <>
+              {board.unplanned.length > 0 && (
+                <section aria-label="Waiting for a machine" className="card p-4">
+                  <p className="mb-2 text-sm font-semibold text-steel-100">Waiting for a machine <span className="font-normal text-steel-400">· {board.unplanned.length}</span> <span className="font-normal text-steel-500">— drag one onto a row, or tap it to choose</span></p>
+                  <div className="flex flex-wrap gap-2">
+                    {waiting.map((job) => (
+                      <button key={job._id} type="button" draggable={mayPlan} onDragStart={startDrag(job)} onDragEnd={endDrag} onClick={() => (mayPlan ? pick(job) : setOpen({ job, press: null }))}
+                        aria-pressed={picked?._id === job._id}
+                        className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-left text-xs transition ${picked?._id === job._id ? 'border-accent ring-2 ring-accent/40' : job.late ? 'border-danger-500/50 bg-danger-500/[0.06]' : 'border-line/[0.1] bg-line/[0.03] hover:border-accent/40'}`}>
+                        <Swatch colour={job.colour} />
+                        <span><span className="font-semibold text-steel-100">{job.mould?.mouldCode || job.modelNumber}</span><span className="text-steel-400"> · {job.colour} · {formatNumber(job.toMake)}</span>
+                          {job.best?.machine && <span className="block text-success-400">★ {job.best.machine.code} · done {shortDay(job.best.end)}</span>}</span>
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              )}
+              <TimelineView board={board} ranked={ranked} moving={moving} mayPlan={mayPlan} startDrag={startDrag} endDrag={endDrag}
+                onPlace={(machine) => place(machine)} onOpen={(job, press) => setOpen({ job, press })} onSortColour={sortByColour} />
+              <p className="text-xs text-steel-500">Bars are coloured by status; a red ring means the plan ends after the due date, an amber one that the mould’s own history predicts it will; ⚠ means a warning on the machine or mould, or a store that will run short. The thin line under each machine is its daily load — red is double-booked.</p>
+            </>
+          )}
         </>
       )}
       {open && <JobDialog job={open.job} press={open.press} mayPlan={mayPlan} mayRun={mayRun} onClose={() => setOpen(null)} onChanged={load} />}
