@@ -732,6 +732,10 @@ export const production = {
   proposeTaskPlan: (taskId) => api.post(`/production/task-plan/${taskId}/propose`, {}, { feedback: false }).then(unwrap),
   /** How often the in charge confirmed the planner as proposed: `{ accepted, changed, manual, agreement, days }`. */
   plannerStats: () => api.get('/production/planner-stats', { feedback: false }).then(unwrap),
+  /** Traded models on Production tasks — bought in, not moulded: `{ rows, counts, late }`; `status: 'all'` for closed too. */
+  trading: (params) => api.get('/production/trading', { params }).then(unwrap),
+  /** A traded model moved: ordered (with `expectedOn`), part received / received (with `receivedQty`), or cancelled (with `note`). */
+  updateTrade: ({ id, ...body }) => api.patch(`/production/trading/${id}`, body, { feedback: false }).then(unwrap),
   /** Whether a mould can go on a press: `{ ok, blocks, warnings }`. */
   fit: (params) => api.get('/production/fit', { params }).then(unwrap),
   /** OEE for a span of days, by press, mould, shift and day, with the losses behind it. */

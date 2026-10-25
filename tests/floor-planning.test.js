@@ -63,7 +63,7 @@ test('a model’s place on the presses, and what of it needs the in charge', asy
     ['waiting', 'warn'], ['blocked', 'danger'], ['blocked', 'danger'], ['planned', 'neutral'], ['late', 'danger'], ['running', 'success'], ['made', 'success'],
   ]);
   assert.equal(modelPress({ model: 'H' }), null, 'no work order: nothing drawn');
-  assert.deepEqual(pressAttention([waiting, noPress, noMould, planned, late, running, made]), { waiting: 1, blocked: 2, late: 1, proposed: 0, planned: 4, total: 7 });
+  assert.deepEqual(pressAttention([waiting, noPress, noMould, planned, late, running, made]), { waiting: 1, blocked: 2, late: 1, proposed: 0, planned: 4, traded: 0, total: 7 });
   assert.match(lateWords(late.workOrder), /^Ends 12 Nov — after moulding is due 9 Nov$/);
   assert.equal(lateWords(planned.workOrder), null);
   assert.equal(afterMoulding({ printing: true, assembly: true }), 'Printing → Assembly');
@@ -114,7 +114,7 @@ test('the auto-planner’s proposals: shown on the task and the board, confirmed
   assert.deepEqual([modelPress(proposed), modelPress(lateProposal)].map((state) => [state.key, state.tone, state.words]), [
     ['proposed', 'info', 'Proposed IM-05'], ['proposed', 'danger', 'Proposed IM-02'],
   ]);
-  assert.deepEqual(pressAttention([proposed, lateProposal]), { waiting: 0, blocked: 0, late: 1, proposed: 2, planned: 0, total: 2 });
+  assert.deepEqual(pressAttention([proposed, lateProposal]), { waiting: 0, blocked: 0, late: 1, proposed: 2, planned: 0, traded: 0, total: 2 });
   assert.equal(proposalWords(proposed.workOrder.proposal, '2026-11-09'), '26 Oct – 28 Oct · in time for 9 Nov');
   assert.equal(proposalWords(lateProposal.workOrder.proposal), '10 Nov – 12 Nov · 3 days after moulding due');
   const board = { unplanned: [{ _id: 1, forTask: {}, proposal: { machine: { code: 'IM-05' } } }, { _id: 2, forTask: {} }], presses: [] };

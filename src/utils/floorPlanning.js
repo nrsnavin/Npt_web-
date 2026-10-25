@@ -8,12 +8,15 @@ import { shortDay } from './planningBoard.js';
  */
 
 export const SETUP_KEYS = ['mouldOff', 'mouldOn', 'heated', 'firstPiece'];
+const TRADED_WORDS = { to_order: 'to order', ordered: 'ordered', part_received: 'part received', received: 'received', cancelled: 'cancelled' };
 
 /** After moulding, in words: "Printing → Assembly", or "Straight to dispatch". */
 export const afterMoulding = (route) => [route?.printing && 'Printing', route?.assembly && 'Assembly'].filter(Boolean).join(' → ') || 'Straight to dispatch';
 
 /** One model's place on the presses: `key`, the pill's `tone` and `words`. Null without a work order. */
 export function modelPress(row) {
+  /* Traded: bought in, on the Trading page — never on a press [server: trading.service]. */
+  if (row?.traded) return { key: 'traded', tone: row.traded.late ? 'danger' : 'neutral', words: `Traded · ${TRADED_WORDS[row.traded.status] || row.traded.status}` };
   const wo = row?.workOrder;
   if (!wo) return null;
   if (wo.status === 'completed') return { key: 'made', tone: 'success', words: 'Moulded' };
@@ -39,7 +42,8 @@ export function pressAttention(models = []) {
     blocked: states.filter((entry) => entry.state.key === 'blocked').length,
     late: states.filter((entry) => entry.state.tone === 'danger' && entry.state.key !== 'blocked').length,
     proposed: states.filter((entry) => entry.state.key === 'proposed').length,
-    planned: states.filter((entry) => !['waiting', 'blocked', 'proposed'].includes(entry.state.key)).length,
+    planned: states.filter((entry) => !['waiting', 'blocked', 'proposed', 'traded'].includes(entry.state.key)).length,
+    traded: states.filter((entry) => entry.state.key === 'traded').length,
     total: states.length,
   };
 }

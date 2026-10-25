@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { production as productionApi } from '../api/endpoints.js';
 import { useToast } from '../context/ToastContext.jsx';
 import { Modal, Spinner } from './ui.jsx';
@@ -32,10 +33,36 @@ function Pill({ tone, children }) {
   return <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ring-inset ${PILL[tone] || PILL.neutral}`}>{children}</span>;
 }
 
+/** A traded model: bought in, never on a press — where its supply stands, and the way to the Trading page. */
+function TradedRow({ row, state }) {
+  const line = row.traded;
+  return (
+    <li className="relative py-3 pl-4 pr-1">
+      {BAR[state.tone] && <span aria-hidden="true" className={`absolute inset-y-3 left-0 w-1 rounded-full ${BAR[state.tone]}`} />}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <div className="min-w-0 flex-1">
+          <p className="flex items-baseline gap-2">
+            <span className="font-semibold text-steel-50">{row.model}</span>
+            <span className="truncate text-xs text-steel-500">→ {afterMoulding(row.route).replace('Straight to dispatch', 'Dispatch')}</span>
+          </p>
+          <p className="text-xs tabular-nums text-steel-400">
+            {line.quantity ? `${formatNumber(line.quantity)} pcs` : 'Pieces not known yet'}
+            {line.dueDay ? <> · needed by <span className={line.late ? 'font-semibold text-danger-400' : 'text-steel-200'}>{shortDay(line.dueDay)}</span></> : null}
+            {line.expectedDay && ['ordered', 'part_received'].includes(line.status) ? ` · expected ${shortDay(line.expectedDay)}` : ''}
+          </p>
+        </div>
+        <Pill tone={state.tone}>{state.words}</Pill>
+        <Link to="/production/trading" className="row-action px-2 py-1 text-xs">Traded items</Link>
+      </div>
+    </li>
+  );
+}
+
 function ModelRow({ row, mayPlan, busy, onPlace, onChoose, onConfirm }) {
   const wo = row.workOrder;
   const state = modelPress(row);
   if (!state) return null;
+  if (state.key === 'traded') return <TradedRow row={row} state={state} />;
   const onPress = Boolean(wo.machine) && !['running', 'paused', 'completed'].includes(wo.status);
   const running = ['running', 'paused'].includes(wo.status);
   const done = setupDone(wo);
