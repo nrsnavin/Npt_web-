@@ -46,9 +46,11 @@ export default function DispatchLoadDialog({ todo, onClose, onDone }) {
   }, [todo._id]);
 
   const models = sheet?.models || [];
-  /* What may go in a load: ready, and something of it still to go. */
-  const goable = models.filter((row) => row.ready && (Math.max(0, (row.ordered || 0) - (row.sent || 0)) > 0 || !row.ordered));
-  const chosen = models.filter((row) => ticked[row.model] && row.ready);
+  /* All together [server: recordDispatchLoad]: nothing goes until every model is ready. */
+  const togetherWaiting = sheet && sheet.plan !== 'by_model' ? models.filter((row) => !row.ready) : [];
+  /* What may go in a load: ready, and something of it still to go — and, all together, only once every model is ready. */
+  const goable = togetherWaiting.length ? [] : models.filter((row) => row.ready && (Math.max(0, (row.ordered || 0) - (row.sent || 0)) > 0 || !row.ordered));
+  const chosen = togetherWaiting.length ? [] : models.filter((row) => ticked[row.model] && row.ready);
   const allTicked = goable.length > 0 && goable.every((row) => ticked[row.model]);
   const how = (sheet?.modes || []).find((entry) => entry.key === mode) || null;
   const total = chosen.reduce((sum, row) => sum + (Number(pieces[row.model]) || 0), 0);
@@ -122,7 +124,7 @@ export default function DispatchLoadDialog({ todo, onClose, onDone }) {
               return (
                 <div key={row.model} className="grid grid-cols-[minmax(0,1fr)_7rem] items-center gap-2">
                   <label className="flex min-w-0 items-center gap-2 text-sm text-steel-200">
-                    <input type="checkbox" disabled={!row.ready} checked={Boolean(ticked[row.model]) && row.ready} onChange={(event) => setTicked({ ...ticked, [row.model]: event.target.checked })} />
+                    <input type="checkbox" disabled={!row.ready || togetherWaiting.length > 0} checked={Boolean(ticked[row.model]) && row.ready && !togetherWaiting.length} onChange={(event) => setTicked({ ...ticked, [row.model]: event.target.checked })} />
                     <span className="min-w-0">
                       <span className="block truncate font-semibold">{row.model}</span>
                       <span className="block text-xs text-steel-400">
@@ -145,7 +147,12 @@ export default function DispatchLoadDialog({ todo, onClose, onDone }) {
                 </div>
               );
             })}
-            {!goable.length && (
+            {togetherWaiting.length > 0 ? (
+              <Notice tone="warn">
+                This order goes all together — nothing is dispatched until every model is ready. Still waiting: {togetherWaiting.map((row) => `${row.model} (with ${WAITING_WORDS[row.waitingOn] || 'the plant'})`).join(', ')}.
+                Marketing can change it to send each model as it is ready.
+              </Notice>
+            ) : !goable.length && (
               <Notice tone="warn">Nothing is ready to dispatch yet — a model goes once its last team (Assembly, else Printing, else Production) marks it Ready for Dispatch.</Notice>
             )}
             {chosen.length > 0 && <p className="text-xs text-steel-400">{total.toLocaleString('en-IN')} pcs in this load</p>}

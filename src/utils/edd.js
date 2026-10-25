@@ -154,7 +154,9 @@ export function givenDateOf(task) {
  * the task ends at the same place, the workflow ends there too [routeEndOf, trimToRoute].
  */
 export const statusesFor = (task, statuses = []) => {
-  const handed = statuses.filter((step) => !step.handsTo || handsOnOf(task).includes(step.handsTo));
+  /* Paid / Part Paid are Accounts' word [server: departmentTaskForms `byApp`] — shown as the status a task reads, never offered. */
+  const offered = statuses.filter((step) => !step.byApp || step.key === task?.status);
+  const handed = offered.filter((step) => !step.handsTo || handsOnOf(task).includes(step.handsTo));
   /* Nothing of the task's has come yet: only what may be said before the goods [goodsAwaited]. */
   const models = modelsOfTask(task);
   if (models.length && models.every((model) => goodsAwaited(task, model))) return handed.filter(beforeGoods(statuses));

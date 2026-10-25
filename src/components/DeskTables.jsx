@@ -105,7 +105,7 @@ function useRowMove({ task, button, onChanged }) {
     if (!step || key === task.status) return;
     setProblem(null);
     if (step.pdf) { setUploading(true); return; }
-    if (step.comment) { setAsking(step); return; }
+    if (step.comment && !step.fields?.length) { setAsking(step); return; }
     if (form.remarkRequired || form.statusDate || step.fields?.length || step.tellBuyer || step.date) { setMoving(step); return; }
     try {
       moved(await workspace.todos.status({ id: task._id, status: key }));
@@ -469,10 +469,26 @@ function PromiseCell({ row, withCall = true }) {
   );
 }
 
+/** The move that sends money received to Accounts from the task — PRT sent to collect a cheque logs the cheque. */
+function moneyStepOf(task, statuses) {
+  const inward = statuses.filter((entry) => entry.confirmsInward);
+  return (task.brief?.prtMode === 'Collect cheque' && inward.find((entry) => entry.key === 'cheque_collected')) || inward.find((entry) => entry.key !== 'cheque_collected') || inward[0];
+}
+
+/** The button for it, on Payment Collection's and PRT's rows. */
+function MoneyButton({ step, move }) {
+  if (!step) return null;
+  return (
+    <button type="button" className="btn-primary whitespace-nowrap px-3 py-1.5 text-xs" onClick={() => move.choose(step.key)}>
+      {step.key === 'cheque_collected' ? 'Cheque collected' : 'Payment received'}
+    </button>
+  );
+}
+
 function CollectionRow({ row, button, mayWork, onOpen, onChanged }) {
   const { task } = row;
   const move = useRowMove({ task, button, onChanged });
-  const logStep = move.statuses.find((entry) => entry.confirmsInward);
+  const logStep = moneyStepOf(task, move.statuses);
   return (
     <tr className={rowClass(row)}>
       <CustomerCell row={row}>
@@ -480,6 +496,8 @@ function CollectionRow({ row, button, mayWork, onOpen, onChanged }) {
           {row.enquiry ? row.enquiry.number : 'Team task'}{row.records?.order?.number ? ` · ${row.records.order.number}` : ''}
           {task.kind === 'my_payment_followup' ? ' · My follow-up' : ''}
         </span>
+        {/* What Payment Collection sent PRT to do. */}
+        {task.brief?.prtMode && <span className="block text-xs font-semibold text-accent">PRT to {task.brief.prtMode.toLowerCase()}</span>}
       </CustomerCell>
       <td className={td}><MoneyDue money={row.money} /></td>
       <td className={td}><PromiseCell row={row} /></td>
@@ -490,9 +508,7 @@ function CollectionRow({ row, button, mayWork, onOpen, onChanged }) {
       <td className={td}><StatusCell task={task} move={move} mayWork={mayWork} /></td>
       <td className={td}><DueCell row={row} /></td>
       <OpenCell onOpen={onOpen} mayWork={mayWork}>
-        {mayWork && logStep && (task.order
-          ? <button type="button" className="btn-primary whitespace-nowrap px-3 py-1.5 text-xs" onClick={() => move.choose(logStep.key)}>Log payment</button>
-          : <Link to="/payments" className="btn-primary whitespace-nowrap px-3 py-1.5 text-xs" title="Not on a sales order — record the receipt in Payments">Log payment</Link>)}
+        {mayWork && <MoneyButton step={logStep} move={move} />}
       </OpenCell>
       {move.dialogs}
     </tr>
@@ -507,10 +523,13 @@ function RecoveryRow({ row, button, mayWork, onOpen, onChanged }) {
   const brief = task.brief || {};
   const visitor = brief.visitor || task.user?.name;
   const money = row.money;
+  const logStep = moneyStepOf(task, move.statuses);
   return (
     <tr className={rowClass(row)}>
       <CustomerCell row={row}>
         <span className="block text-xs text-steel-400">{row.enquiry ? row.enquiry.number : 'Team task'}</span>
+        {/* What Payment Collection sent PRT to do. */}
+        {brief.prtMode && <span className="block text-xs font-semibold text-accent">PRT to {brief.prtMode.toLowerCase()}</span>}
         <PhoneLinks phone={row.buyer?.phone} whatsapp={row.buyer?.whatsapp} />
       </CustomerCell>
       <td className={`whitespace-nowrap ${td} text-xs`}>
@@ -529,7 +548,9 @@ function RecoveryRow({ row, button, mayWork, onOpen, onChanged }) {
       <td className={td}><PromiseCell row={row} withCall={false} /></td>
       <td className={td}><StatusCell task={task} move={move} mayWork={mayWork} /></td>
       <td className={td}><DueCell row={row} /></td>
-      <OpenCell onOpen={onOpen} mayWork={mayWork} />
+      <OpenCell onOpen={onOpen} mayWork={mayWork}>
+        {mayWork && <MoneyButton step={logStep} move={move} />}
+      </OpenCell>
       {move.dialogs}
     </tr>
   );

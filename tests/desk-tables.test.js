@@ -40,8 +40,12 @@ test('Payment Collection, PRT and Accounts: one table each, with the columns the
   assert.deepEqual(headersOf('Payment follow-ups'), ['Customer', 'Amount due', 'Promise & next call', 'Contact', 'Status', 'Due']);
   assert.deepEqual(headersOf('PRT cases'), ['Customer', 'Visitor & visit', 'Due / collected', 'Promised', 'Status', 'Due']);
   assert.deepEqual(headersOf('A/C Clarify'), ['Customer', 'Enquiry / SO & amount', 'Asked by & question', 'Payment reference', 'Credit & outstanding', 'Status', 'Due']);
-  assert.match(tables, /const logStep = move\.statuses\.find\(\(entry\) => entry\.confirmsInward\);/);
-  assert.match(tables, />Log payment<\/button>/);
+  assert.match(tables, /const inward = statuses\.filter\(\(entry\) => entry\.confirmsInward\);/);
+  assert.equal((tables.match(/\{mayWork && <MoneyButton step=\{logStep\} move=\{move\} \/>\}/g) || []).length, 2, 'on Payment Collection’s and PRT’s rows');
+  assert.match(tables, /task\.brief\?\.prtMode === 'Collect cheque' && inward\.find\(\(entry\) => entry\.key === 'cheque_collected'\)/, 'PRT sent for a cheque logs the cheque');
+  assert.match(tables, /\{step\.key === 'cheque_collected' \? 'Cheque collected' : 'Payment received'\}/);
+  assert.match(tables, /if \(step\.comment && !step\.fields\?\.length\) \{ setAsking\(step\); return; \}/, 'Escalated to PRT asks what PRT is to do');
+  assert.doesNotMatch(tables, /title="Not on a sales order — record the receipt in Payments"/, 'every task sends its money to Accounts the same way');
   assert.match(tables, /`\$\{money\.overdueDays\} day\$\{money\.overdueDays === 1 \? '' : 's'\} overdue`/);
   assert.match(tables, /Collected \{formatCurrency\(money\.collected\)\}/);
   assert.match(tables, /\{paid\.confirmed \? 'Confirmed' : 'Not confirmed yet'\}/);
@@ -49,7 +53,7 @@ test('Payment Collection, PRT and Accounts: one table each, with the columns the
 
 test('a status picked on the row opens the small pop-up when the move needs a remark, date, amount or file', () => {
   assert.match(tables, /if \(step\.pdf\) \{ setUploading\(true\); return; \}/);
-  assert.match(tables, /if \(step\.comment\) \{ setAsking\(step\); return; \}/);
+  assert.match(tables, /if \(step\.comment && !step\.fields\?\.length\) \{ setAsking\(step\); return; \}/);
   assert.match(tables, /if \(form\.remarkRequired \|\| form\.statusDate \|\| step\.fields\?\.length \|\| step\.tellBuyer \|\| step\.date\) \{ setMoving\(step\); return; \}/);
   assert.match(tables, /<Modal open title=\{moving\.label\}[\s\S]*?>\s*<MoveForm/);
   assert.match(tables, /onChange=\{\(event\) => move\.choose\(event\.target\.value\)\}/);
