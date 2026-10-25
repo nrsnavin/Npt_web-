@@ -192,6 +192,10 @@ export function HandoverForm({ row, onClose, onDone }) {
     quantity: String(row.pieces || 1),
     colour: row.colour || '',
   });
+  /* The pieces sent of each model in the bag, starting from the pieces asked for [server: setSampleStatus `itemQuantities`]. */
+  const models = (row.models || []).filter((item) => item._id);
+  const [pieces, setPieces] = useState(() => Object.fromEntries(models.map((item) => [item._id, String(item.quantity || 1)])));
+  const piecesInAll = models.reduce((sum, item) => sum + (Number(pieces[item._id]) || 0), 0);
   const [copy, setCopy] = useState(null);
   /* What the model read off the courier copy — a suggestion the bench checks, into the fields [server: readCourierCopy]. */
   const [reading, setReading] = useState(null);
@@ -234,7 +238,7 @@ export function HandoverForm({ row, onClose, onDone }) {
   const stepOk = !exactBroken || (anyway && anywayReason.trim().length >= 5);
   const ready = (direct
     ? (values.handedTo.trim() || values.recipientPhone) && phoneOk
-    : courierName && values.awbNumber.trim()) && stepOk;
+    : courierName && values.awbNumber.trim()) && stepOk && (!models.length || piecesInAll > 0);
 
   const submit = async (event) => {
     event.preventDefault();
@@ -248,7 +252,9 @@ export function HandoverForm({ row, onClose, onDone }) {
         ...(direct
           ? { handedTo: values.handedTo.trim() || undefined, recipientPhone: values.recipientPhone || undefined }
           : { courier: courierName, awbNumber: values.awbNumber.trim() }),
-        dispatchedQuantity: Number(values.quantity) || undefined,
+        ...(models.length
+          ? { itemQuantities: models.map((item) => ({ item: item._id, quantity: Number(pieces[item._id]) || 0 })) }
+          : { dispatchedQuantity: Number(values.quantity) || undefined }),
         dispatchedColour: values.colour.trim() || undefined,
         closeTask,
         ...(exactBroken && anyway ? { colourOverride: true, colourOverrideReason: anywayReason.trim() } : {}),
@@ -332,10 +338,32 @@ export function HandoverForm({ row, onClose, onDone }) {
         </>
       )}
 
+      {/* The pieces of each model that went — model by model, so the enquiry shows what the buyer has. */}
+      {models.length > 0 && (
+        <fieldset className="border-t border-line/[0.06] pt-4">
+          <legend className="mb-2 text-sm font-semibold text-steel-200">Pieces sent, model by model</legend>
+          <ul className="space-y-2">
+            {models.map((item) => (
+              <li key={item._id} className="flex items-center justify-between gap-3">
+                <span className="min-w-0 text-sm text-steel-100">
+                  <span className="font-semibold">{item.model || 'Model'}</span>
+                  <span className="text-xs text-steel-500"> · {item.quantity || 1} asked</span>
+                </span>
+                <input type="number" min={0} className="input w-24" aria-label={`Pieces of ${item.model || 'the model'} sent`}
+                  value={pieces[item._id] ?? ''} onChange={(event) => setPieces((current) => ({ ...current, [item._id]: event.target.value }))} />
+              </li>
+            ))}
+          </ul>
+          {models.length > 1 && <p className="mt-1.5 text-right text-xs text-steel-400">{piecesInAll} pieces in all</p>}
+        </fieldset>
+      )}
+
       <div className="grid gap-4 border-t border-line/[0.06] pt-4 sm:grid-cols-2">
-        <Field label="Pieces sent">
-          <input type="number" min={1} className="input" value={values.quantity} onChange={set('quantity')} />
-        </Field>
+        {!models.length && (
+          <Field label="Pieces sent">
+            <input type="number" min={1} className="input" value={values.quantity} onChange={set('quantity')} />
+          </Field>
+        )}
         {row.colour && (
           <Field label="Colour sent" hint={`Asked for ${row.colour}${row.models?.some((item) => item.colourMandatory) ? ' — exactly, as a condition' : ''}`}>
             <input className="input" value={values.colour} onChange={set('colour')} />

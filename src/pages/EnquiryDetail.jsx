@@ -28,7 +28,8 @@ import HistoryPanel from '../components/HistoryPanel.jsx';
 import QuotationPdf from '../components/QuotationPdf.jsx';
 import ItemList from '../components/ItemList.jsx';
 import EnquiryForm from '../components/EnquiryForm.jsx';
-import { formatCurrency, formatDate, humanise, isoDay } from '../utils/format.js';
+import { formatCurrency, formatDate, formatNumber, humanise, isoDay } from '../utils/format.js';
+import { sampleSent } from '../utils/sampleSent.js';
 import { GRAM_STEP } from '../utils/grams.js';
 import {
   CLOSED_STAGES, HANGER_CATEGORIES, LOST_REASONS, MATERIALS,
@@ -359,7 +360,9 @@ const toHandOver = (sample) => sample.handover === 'in_person' && !sample.collec
  * sending marketing to another screen to find out where its sample got to [§2].
  */
 function EnquirySamples({ enquiryId }) {
-  const { user } = useAuth();
+  const { user, isAdmin, departments } = useAuth();
+  /* What each sample sent, model by model: marketing's and Admin's to see [utils/sampleSent.js]. */
+  const seesSent = isAdmin || departments.includes('marketing');
   const [rows, setRows] = useState(null);
   /* The sample the marketing person is confirming as handed over from the rack [server: handoff.service `raiseRackSample`]. */
   const [handing, setHanding] = useState(null);
@@ -406,6 +409,19 @@ function EnquirySamples({ enquiryId }) {
                 {sample.colour && ` · ${sample.colour}`}
                 {sample.requiredDate && ` · due ${formatDate(sample.requiredDate)}`}
               </p>
+              {seesSent && sampleSent(sample) && (() => {
+                const sent = sampleSent(sample);
+                return (
+                  <p className="mt-0.5 text-xs text-steel-300" aria-label={`Sent on ${sample.number}`}>
+                    <span className="font-semibold text-success-400">Sent</span>
+                    {sent.at ? ` ${formatDate(sent.at)}` : ''}
+                    {': '}
+                    {sent.models.map((row) => `${row.model} ${formatNumber(row.pieces)}`).join(' · ')} pcs
+                    {sent.models.length > 1 ? ` (${formatNumber(sent.total)} in all)` : ''}
+                    {sent.how ? <span className="text-steel-500"> · {sent.how}</span> : null}
+                  </p>
+                );
+              })()}
               {toHandOver(sample) && (
                 <p className="text-xs font-semibold text-warn-400">
                   To be handed over by {sample.requestedBy?.name || 'the marketing person'} from the sample rack — not with the buyer yet

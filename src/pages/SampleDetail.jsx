@@ -25,6 +25,7 @@ import {
   WITH_CUSTOMER_STAGES, followUpState, isBackwardSampleMove, numeric, optionLabel,
   sampleMovesFrom, sampleStageLabel, text,
 } from '../utils/pipeline.js';
+import { TaskPdfList, idOf, useTaskPdfs } from '../components/TaskPdfs.jsx';
 
 const TONE_TEXT = {
   danger: 'text-danger-400',
@@ -52,8 +53,8 @@ function StageForm({ sample: given, to, onClose, onSaved }) {
   /* The bag as it stands: a photo taken here lands on the row at once [samplesApi.setItemPhoto]. */
   const [sample, setSample] = useState(given);
   const rows = sample.items || [];
-  const several = rows.length > 1;
-  /* Several models: the pieces sent of each, starting from the pieces asked for. */
+  /* Every model in the bag answered on its own: the pieces sent of each, starting from the pieces asked for. */
+  const byModel = rows.length > 0;
   const [pieces, setPieces] = useState(() => Object.fromEntries(rows.map((row) => [row._id, String(row.dispatchedQuantity ?? row.quantity ?? '')])));
   const [photoBusy, setPhotoBusy] = useState(null);
   const [note, setNote] = useState('');
@@ -97,8 +98,8 @@ function StageForm({ sample: given, to, onClose, onSaved }) {
           note: text(note),
           courier: dispatching ? courier : undefined,
           awbNumber: dispatching ? awbNumber : undefined,
-          dispatchedQuantity: dispatching && !several ? numeric(dispatchedQuantity) : undefined,
-          ...(dispatching && several ? { itemQuantities: rows.map((row) => ({ item: row._id, quantity: Number(pieces[row._id]) || 0 })) } : {}),
+          dispatchedQuantity: dispatching && !byModel ? numeric(dispatchedQuantity) : undefined,
+          ...(dispatching && byModel ? { itemQuantities: rows.map((row) => ({ item: row._id, quantity: Number(pieces[row._id]) || 0 })) } : {}),
           dispatchedColour: dispatching ? text(dispatchedColour) : undefined,
           ...(dispatching && substituting && sample.colourMandatory && anyway
             ? { colourOverride: true, colourOverrideReason: anywayReason.trim() }
@@ -135,8 +136,8 @@ function StageForm({ sample: given, to, onClose, onSaved }) {
           <p className="mb-3 text-sm text-steel-400">
             The customer needs to know how it is coming, so these are not optional.
           </p>
-          {/* Several models: each one with its details, its photo, and the pieces of it that went. */}
-          {several && (
+          {/* Each model with its details, its photo, and the pieces of it that went. */}
+          {byModel && (
             <ol className="mb-4 space-y-2.5" aria-label="Models in the bag">
               {rows.map((row, index) => (
                 <li key={row._id} className="rounded-xl border border-line/[0.08] bg-line/[0.02] p-3">
@@ -175,9 +176,11 @@ function StageForm({ sample: given, to, onClose, onSaved }) {
                   </div>
                 </li>
               ))}
-              <li className="text-right text-xs text-steel-400">
-                {rows.reduce((sum, row) => sum + (Number(pieces[row._id]) || 0), 0)} pieces in all
-              </li>
+              {rows.length > 1 && (
+                <li className="text-right text-xs text-steel-400">
+                  {rows.reduce((sum, row) => sum + (Number(pieces[row._id]) || 0), 0)} pieces in all
+                </li>
+              )}
             </ol>
           )}
           <div className="grid gap-4 sm:grid-cols-2">
@@ -187,7 +190,7 @@ function StageForm({ sample: given, to, onClose, onSaved }) {
             <Field label="Tracking number" hint="The courier's AWB" required>
               <input className="input" required value={awbNumber} onChange={(event) => setAwbNumber(event.target.value)} />
             </Field>
-            {!several && (
+            {!byModel && (
             <Field label="Quantity sent" required>
               <input
                 type="number"
@@ -298,7 +301,7 @@ function StageForm({ sample: given, to, onClose, onSaved }) {
         <button
           type="submit"
           className={cancelling ? 'btn-danger' : 'btn-primary'}
-          disabled={busy || reasonShort || (dispatching && several && !rows.some((row) => Number(pieces[row._id]) > 0)) || (dispatching && substituting && sample.colourMandatory && !(anyway && anywayReason.trim().length >= 5))}
+          disabled={busy || reasonShort || (dispatching && byModel && !rows.some((row) => Number(pieces[row._id]) > 0)) || (dispatching && substituting && sample.colourMandatory && !(anyway && anywayReason.trim().length >= 5))}
         >
           {busy
             ? 'Saving…'
@@ -1395,6 +1398,8 @@ export default function SampleDetail() {
 
   const fetch = useCallback((sampleId) => samplesApi.get(sampleId), []);
   const { data: sample, setData, loading, error, reload } = useRecord(fetch, id);
+  /* The PDF sent with the Sample Request (a drawing, the buyer's reference), here with the sample [TaskPdfs]. */
+  const pdfs = useTaskPdfs({ enquiries: [idOf(sample?.enquiry)], kinds: ['sample_request'] });
 
   if (loading) return <Spinner label="Loading sample" />;
   if (error) return <ErrorState error={error} onRetry={reload} />;
@@ -1636,6 +1641,8 @@ export default function SampleDetail() {
         onSaved={setData}
         onAsk={setMovingStage}
       />
+
+      <TaskPdfList files={pdfs.byEnquiry[idOf(sample.enquiry)]} title="PDFs from the Sample Request" className="mb-5" />
 
       <div className="grid gap-5 lg:grid-cols-3">
         <div className="min-w-0 space-y-5 lg:col-span-2">

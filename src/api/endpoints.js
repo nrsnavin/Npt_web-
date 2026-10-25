@@ -41,6 +41,14 @@ export const workspace = {
    * which scope answered and whether this person has a customer view at all — the screen cannot
    * draw the tabs without it.
    */
+  /**
+   * The PDFs on department tasks for records a page shows [server: taskPdfs.service] —
+   * `{ byEnquiry, byTask }`, only what this person may open.
+   */
+  taskPdfs: ({ enquiries = [], tasks = [], kinds = [] } = {}) => api.get('/workspace/task-pdfs', {
+    params: { enquiries: enquiries.join(',') || undefined, tasks: tasks.join(',') || undefined, kinds: kinds.join(',') || undefined },
+    feedback: false,
+  }).then(unwrap),
   /** A department task for a team with no enquiry behind it — Admin and marketing. */
   teamTasks: {
     prefill: (customer) => api.get('/workspace/team-tasks/prefill', { params: customer ? { customer } : {} }).then(unwrap),

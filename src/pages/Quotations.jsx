@@ -17,6 +17,7 @@ import { formatCompactCurrency, formatCurrency, formatDate, formatNumber, humani
    form, so the two must not be able to drift apart. */
 import { inDays } from '../utils/pipeline.js';
 import TradingBadge, { isTradingLine } from '../components/TradingBadge.jsx';
+import { TaskPdfChips, idOf, useTaskPdfs } from '../components/TaskPdfs.jsx';
 
 /**
  * Quotations [BLUEPRINT §10].
@@ -656,6 +657,8 @@ export default function Quotations() {
     page,
     limit: 25,
   });
+  /* The PDF sent with each quotation's Create Quotation task, under its number [TaskPdfs]. */
+  const pdfs = useTaskPdfs({ enquiries: (data || []).map((row) => idOf(row.enquiry)), kinds: ['create_quotation'] });
 
   const selectStage = (value) => {
     setStatus(value === status ? '' : value);
@@ -766,6 +769,7 @@ export default function Quotations() {
                           Rev {row.revision}
                           {row.sentAt ? ` · sent ${formatDate(row.sentAt)}` : ''}
                         </p>
+                        <TaskPdfChips files={pdfs.byEnquiry[idOf(row.enquiry)]} />
                       </td>
                       <td className="px-3 py-3.5 text-steel-200">{row.customer?.name || '—'}</td>
                       {/*

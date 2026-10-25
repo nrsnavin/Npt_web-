@@ -25,6 +25,7 @@ import { formatCurrency, formatDate, formatNumber, isoDay } from '../utils/forma
 import {
   CLOSED_ORDER_STAGES, PRE_RELEASE_STAGES, orderStageLabel,
 } from '../utils/pipeline.js';
+import { TaskPdfList, idOf, useTaskPdfs } from '../components/TaskPdfs.jsx';
 
 /**
  * One sales order [BLUEPRINT §12–13].
@@ -484,6 +485,9 @@ function RePromiseDialog({ order, line, onClose, onSaved }) {
  */
 function SoDocument({ order }) {
   const file = order.soDocument;
+  /* The other PDFs on the PO & SO task — the buyer's PO sent with it — here with the order [TaskPdfs]. */
+  const pdfs = useTaskPdfs({ enquiries: [idOf(order.enquiry)], tasks: [idOf(order.sourceTask)], kinds: ['po_so'] });
+  const taskFiles = pdfs.byTask[idOf(order.sourceTask)] || pdfs.byEnquiry[idOf(order.enquiry)];
   return (
     <Section title="The sales order PDF">
       {file?.key ? (
@@ -502,6 +506,7 @@ function SoDocument({ order }) {
           {order.enquiry?._id ? <> the SO request on <Link to={`/enquiries/${order.enquiry._id}`} className="font-semibold text-accent hover:underline">{order.enquiry.number || 'the enquiry'}</Link></> : ' the enquiry’s SO request'}.
         </p>
       )}
+      <TaskPdfList files={taskFiles} skip={[file?.key]} title="Also on the PO & SO task" className="mt-3" />
     </Section>
   );
 }

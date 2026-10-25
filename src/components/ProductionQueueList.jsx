@@ -10,6 +10,7 @@ import { EDD_BANDS, dueWords } from '../utils/productionQueue.js';
 import { WORK_ORDER_STATUS } from '../utils/workOrders.js';
 import { DELIVERY_TONE, DeliveryBadge, inDanger } from './DeliveryRisk.jsx';
 import ModelJourney from './ModelJourney.jsx';
+import { TaskPdfChips, useTaskPdfs } from './TaskPdfs.jsx';
 
 /**
  * The production queue, read at a glance [server: productionQueue.controller]: one line per
@@ -162,6 +163,8 @@ export function WorkOrderChip({ wo, orderId }) {
 
 export default function ProductionQueueList({ compact = false, onRows }) {
   const [rows, setRows] = useState(null);
+  /* The PDF sent with each Production request, on its line [TaskPdfs]. */
+  const pdfs = useTaskPdfs({ tasks: (rows || []).map((row) => row.task?._id), kinds: ['ask_edd'] });
   const [meta, setMeta] = useState(null);
   const [error, setError] = useState(null);
   const [asOf, setAsOf] = useState(null);
@@ -305,6 +308,7 @@ export default function ProductionQueueList({ compact = false, onRows }) {
                       ? <p className="font-bold text-steel-50">Team task{row.task.raisedBy?.name ? <span className="font-normal text-steel-400"> · {row.task.raisedBy.name}</span> : null}</p>
                       : <Link to={`/enquiries/${row.enquiry._id}`} className="font-bold text-steel-50 hover:text-accent">{row.enquiry.number}</Link>}
                     <p className="truncate text-sm text-steel-300">{row.enquiry.customer?.name || '—'}</p>
+                    <TaskPdfChips files={pdfs.byTask[row.task._id]} />
                     <p className="truncate text-xs text-steel-500">{models.join(', ') || '—'}{row.order?.number ? ` · ${row.order.number}` : ''}</p>
                     {row.production && (
                       <span

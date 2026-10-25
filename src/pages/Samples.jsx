@@ -19,6 +19,7 @@ import {
   optionLabel, sampleStageLabel, text,
 } from '../utils/pipeline.js';
 import useOpenFromLink from '../hooks/useOpenFromLink.js';
+import { TaskPdfChips, idOf, useTaskPdfs } from '../components/TaskPdfs.jsx';
 
 const TONE_TEXT = {
   danger: 'text-danger-400',
@@ -140,6 +141,8 @@ export default function Samples() {
     board ? idle : samplesApi.list,
     { ...filters, sort: sort || undefined, page, limit: 25 }
   );
+  /* The PDF sent with each row's Sample Request, under its number [TaskPdfs]. */
+  const pdfs = useTaskPdfs({ enquiries: (data || []).map((sample) => idOf(sample.enquiry)), kinds: ['sample_request'] });
 
   const change = (setter) => (value) => {
     setter(value);
@@ -323,6 +326,7 @@ export default function Samples() {
                           <p className="text-xs text-steel-400">
                             {sample.enquiry?.number || 'No enquiry'}
                           </p>
+                          <TaskPdfChips files={pdfs.byEnquiry[idOf(sample.enquiry)]} />
                         </td>
                         <td className="px-3 py-3.5 text-steel-200">
                           {sample.customer?.name || <span className="text-xs text-steel-500">Internal</span>}
