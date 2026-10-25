@@ -37,6 +37,15 @@ export const BAR_TONE = {
 
 /** "Mon 19" — a column heading. */
 export const dayHeading = (value) => new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', weekday: 'short', day: '2-digit' }).format(new Date(value));
+/** The month a day opens, for the board's header — "Nov" on the 1st (and on the board's first day), else ''. */
+export const monthMark = (day, first = false) => (first || String(day).slice(8, 10) === '01'
+  ? new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', month: 'short' }).format(new Date(`${String(day).slice(0, 10)}T12:00:00+05:30`))
+  : '');
+/** The board's grid: the press column, then a fixed width a day — the board scrolls across past the screen. */
+export const DAY_WIDTH_REM = 3.5;
+export const PRESS_WIDTH_REM = 11;
+export const boardColumns = (days) => `${PRESS_WIDTH_REM}rem repeat(${days}, ${DAY_WIDTH_REM}rem)`;
+export const boardWidth = (days) => `${PRESS_WIDTH_REM + days * DAY_WIDTH_REM}rem`;
 
 /**
  * A press ranking [server: pressScore.service `rankPresses`] indexed by press, for tagging the
@@ -163,3 +172,10 @@ export function sortWaiting(jobs = [], { search = '', order = 'late', lateOnly =
   };
   return [...found].sort(sorters[order] || sorters.late);
 }
+
+/** The weightage the in charge picks from [components/planning/Weightage.jsx; server: priorityQueue `weightOf`]. */
+export const WEIGHT_PRESETS = [
+  { value: 3, label: 'Low' }, { value: 5, label: 'Normal' }, { value: 7, label: 'High' }, { value: 9, label: 'Urgent' }, { value: 10, label: 'Top' },
+];
+/** A weight in words: 10 top, 8–9 urgent, 6–7 high, 4–5 normal, below low. */
+export const weightWords = (weight) => (weight >= 10 ? 'top' : weight >= 8 ? 'urgent' : weight >= 6 ? 'high' : weight >= 4 ? 'normal' : 'low');

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { formatNumber } from '../../utils/format.js';
 import { PRESS_STATE, RANK_TONE, rankWords, shortDay } from '../../utils/planningBoard.js';
 import Swatch from './Swatch.jsx';
+import { WeightTag } from './Weightage.jsx';
 
 /**
  * One machine on the wall [pages/PlanningBoard.jsx]: its state in a word, the job running on it
@@ -94,6 +95,7 @@ export default function PressCard({ press, summary, moving, choice, cannot, onPl
                 <button type="button" disabled={target} onClick={() => onOpenJob(job)} className="flex w-full items-center gap-2 rounded-lg px-1.5 py-1 text-left text-xs transition hover:bg-line/[0.05] disabled:hover:bg-transparent">
                   <Swatch colour={job.colour} className="h-2.5 w-2.5" />
                   <span className="shrink-0 whitespace-nowrap font-semibold text-steel-200">{job.mould?.mouldCode || job.modelNumber}</span>
+                  <WeightTag job={job} />
                   <span className="truncate text-steel-400" title={job.forTask?.route}>{job.colour} · {formatNumber(job.toMake)}{job.forTask?.enquiry ? ` · ${job.forTask.enquiry}` : ''}</span>
                   {/* A task job next on an idle press whose first piece the floor has not approved [floor planning]. */}
                   {index === 0 && !running && job.forTask && !job.forTask.firstPiece && (
