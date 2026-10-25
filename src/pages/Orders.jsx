@@ -14,6 +14,7 @@ import TaskPdfLink from '../components/TaskPdfLink.jsx';
 import { PriorityForm, PRIORITY_TONE, isRaised, priorityLabel } from '../components/OrderPriority.jsx';
 import { formatCurrency, formatDate, formatNumber } from '../utils/format.js';
 import { ORDER_STAGES, orderStageLabel, numeric, text } from '../utils/pipeline.js';
+import { TaskPdfChips, idOf, useTaskPdfs } from '../components/TaskPdfs.jsx';
 
 /**
  * Sales orders [BLUEPRINT §12–13].
@@ -90,6 +91,8 @@ export default function Orders() {
     page,
     limit: 25,
   });
+  /* The PDFs on each order's PO & SO task — the buyer's PO sent with it — beside the SO [TaskPdfs]. */
+  const pdfs = useTaskPdfs({ enquiries: (data || []).map((order) => idOf(order.enquiry)), tasks: (data || []).map((order) => idOf(order.sourceTask)), kinds: ['po_so'] });
 
   const mayWrite = canWrite('orders');
 
@@ -235,6 +238,7 @@ export default function Orders() {
                           )}
                           {/* The sales order PDF the SO team uploaded on the enquiry's SO request. */}
                           <TaskPdfLink file={order.soDocument} className="block" />
+                          <TaskPdfChips files={pdfs.byTask[idOf(order.sourceTask)] || pdfs.byEnquiry[idOf(order.enquiry)]} skip={[order.soDocument?.key]} />
                         </td>
                         <td className="px-4 py-3.5 text-steel-300">{order.customer?.name}</td>
                         <td className="px-4 py-3.5 text-xs text-steel-300">

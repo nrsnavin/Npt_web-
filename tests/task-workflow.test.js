@@ -220,6 +220,6 @@ test('dispatching a sample of several models: each model with its details, its p
   assert.match(page, /aria-label="Models in the bag"/);
   assert.match(page, /\{ itemQuantities: rows\.map\(\(row\) => \(\{ item: row\._id, quantity: Number\(pieces\[row\._id\]\) \|\| 0 \}\)\) \}/);
   assert.match(page, /emptyText="Add the photo — camera or gallery"/);
-  assert.match(page, /\{!several && \(\s*<Field label="Quantity sent" required>/, 'one total only for a single model');
+  assert.match(page, /\{!byModel && \(\s*<Field label="Quantity sent" required>/, 'one total only for a sample with no models on it');
   assert.match(read('components/SampleReadyForm.jsx'), /One slot per model row/, 'Sample Ready asks a photo of each');
 });

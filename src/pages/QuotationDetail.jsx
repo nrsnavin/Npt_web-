@@ -14,6 +14,7 @@ import TradingBadge, { isTradingLine } from '../components/TradingBadge.jsx';
 import { CLOSED_QUOTATION_STATUSES, ResponseForm, RevisionForm } from './Quotations.jsx';
 import { formatDate, formatNumber, humanise } from '../utils/format.js';
 import { costedWith } from '../utils/pricing.js';
+import { TaskPdfList, idOf, useTaskPdfs } from '../components/TaskPdfs.jsx';
 
 /**
  * One quotation, in full — its costing and its offer on one record [BLUEPRINT §7–§10].
@@ -149,6 +150,8 @@ export default function QuotationDetail() {
   const { canWrite, canQuote, mayDelete } = useAuth();
   const fetch = useCallback((quotationId) => quotationsApi.get(quotationId), []);
   const { data: quotation, loading, error, reload } = useRecord(fetch, id);
+  /* The PDF sent with the Create Quotation (the buyer's spec, a drawing), here with the quotation [TaskPdfs]. */
+  const pdfs = useTaskPdfs({ enquiries: [idOf(quotation?.enquiry)], kinds: ['create_quotation'] });
   const [showingPdf, setShowingPdf] = useState(false);
   const [composing, setComposing] = useState(false);
   const [ordering, setOrdering] = useState(false);
@@ -247,6 +250,8 @@ export default function QuotationDetail() {
       />
 
       <Progress quotation={quotation} />
+
+      <TaskPdfList files={pdfs.byEnquiry[idOf(quotation.enquiry)]} title="PDFs from the Create Quotation task" className="mb-5" />
 
       <div className="mb-5 space-y-2">
         {quotation.status === 'costing' && unpriced.length > 0 && (

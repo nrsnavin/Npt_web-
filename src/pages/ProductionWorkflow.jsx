@@ -20,6 +20,7 @@ import { dateLabelFor, givenDateOf } from '../utils/edd.js';
 import { WORK_ORDER_STATUS } from '../utils/workOrders.js';
 import { DeliveryReading } from '../components/DeliveryRisk.jsx';
 import ModelJourney from '../components/ModelJourney.jsx';
+import { TaskPdfList, useTaskPdfs } from '../components/TaskPdfs.jsx';
 
 /**
  * One enquiry's production, worked in one place [server: productionQueue.controller
@@ -80,6 +81,8 @@ export default function ProductionWorkflow() {
   const [adding, setAdding] = useState(false);
   const fetch = useCallback(() => productionApi.workflow(taskId), [taskId]);
   const { data, loading, error, reload } = useRecord(fetch, `production-workflow-${taskId}`);
+  /* The PDF sent with the Production request (the buyer's PO, a drawing), on the workflow [TaskPdfs]. */
+  const pdfs = useTaskPdfs({ tasks: [taskId], kinds: ['ask_edd'] });
   const me = String(user?.id || user?._id || '');
   const mayWork = (task) => Boolean(task) && (isAdmin || departments.includes(task.department) || String(task.user?._id || task.user || '') === me);
 
@@ -128,6 +131,8 @@ export default function ProductionWorkflow() {
         </div>
         <p className="min-w-[14rem] flex-1 text-sm leading-snug text-steel-200">{summary}</p>
       </div>
+
+      <TaskPdfList files={pdfs.byTask[taskId]} title="PDFs from the Production request" />
       {/* Will it make marketing's EDD — every model and team counted [server: deliveryRisk.service]. */}
       <DeliveryReading risk={delivery} />
 
