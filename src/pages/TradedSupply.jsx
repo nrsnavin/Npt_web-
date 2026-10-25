@@ -7,7 +7,7 @@ import { EmptyState, ErrorState, Field, Modal, PageHeader, Spinner } from '../co
 import { formatNumber } from '../utils/format.js';
 import { shortDay } from '../utils/planningBoard.js';
 import { todayInIndia } from '../utils/taskForm.js';
-import { TRADE_STATUS, tradeActions } from '../utils/trading.js';
+import { TRADE_STATUS, receivedWords, tradeActions, tradeDueLabel, tradeRoute } from '../utils/trading.js';
 
 /**
  * Traded items [server: trading.service] — the models on Production tasks that are bought in
@@ -44,7 +44,7 @@ function MoveForm({ line, move, busy, onSave, onClose }) {
   };
   const titles = { ordered: `Ordered — ${line.model}`, received: `Received — ${line.model}`, cancelled: `Cancel — ${line.model}` };
   return (
-    <Modal open title={titles[move]} description={`${line.number} · ${formatNumber(line.quantity)} pcs${line.dueDay ? ` · needed by ${shortDay(line.dueDay)}` : ''}`} onClose={onClose}>
+    <Modal open title={titles[move]} description={`${line.number} · ${formatNumber(line.quantity)} pcs → ${tradeRoute(line)}${line.dueDay ? ` · ${tradeDueLabel(line)} ${shortDay(line.dueDay)}` : ''}`} onClose={onClose}>
       <form onSubmit={submit} className="space-y-3">
         {move === 'ordered' && (
           <>
@@ -55,16 +55,19 @@ function MoveForm({ line, move, busy, onSave, onClose }) {
               <Field label="Supplier"><input className="input" value={supplier} onChange={(event) => setSupplier(event.target.value)} /></Field>
               <Field label="Supplier’s PO / ref"><input className="input" value={supplierRef} onChange={(event) => setSupplierRef(event.target.value)} /></Field>
             </div>
-            {expectedOn && line.dueDay && expectedOn > line.dueDay && <p className="text-xs font-semibold text-danger-400">After the day it is needed ({shortDay(line.dueDay)}) — tell the Production in charge.</p>}
+            {expectedOn && line.dueDay && expectedOn > line.dueDay && <p className="text-xs font-semibold text-danger-400">After the day it is needed ({shortDay(line.dueDay)}{line.handsTo ? `, its hand-over to ${line.handsTo}` : ''}) — tell the Production in charge.</p>}
           </>
         )}
         {move === 'received' && (
+          <>
+          <p className="text-xs text-steel-400">{line.handsTo ? `When all of it is in, it is handed to ${line.handsTo} on the task.` : 'When all of it is in, it is ready for dispatch.'}</p>
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Pieces received, in all" required hint={`Of ${formatNumber(line.quantity)} ordered`}>
               <input type="number" min="1" className="input" required value={receivedQty} onChange={(event) => setReceivedQty(event.target.value)} />
             </Field>
             <Field label="Received on" required><input type="date" className="input" required value={receivedOn} max={todayInIndia()} onChange={(event) => setReceivedOn(event.target.value)} /></Field>
           </div>
+          </>
         )}
         {move === 'cancelled' && (
           <Field label="Why" required><input className="input" required minLength={3} value={note} onChange={(event) => setNote(event.target.value)} /></Field>
@@ -94,7 +97,7 @@ export default function TradedSupply() {
     setBusy(true);
     try {
       const line = await productionApi.updateTrade({ id: moving.line._id, ...body });
-      toast(`${line.model} — ${TRADE_STATUS[line.status]?.words || line.status}`, line.status === 'received' ? 'It reads Production Completed on the task; the next team carries on.' : undefined);
+      toast(`${line.model} — ${TRADE_STATUS[line.status]?.words || line.status}`, line.status === 'received' ? receivedWords(line) : undefined);
       setMoving(null);
       load();
     } catch (failure) {
@@ -145,7 +148,8 @@ export default function TradedSupply() {
                       </p>
                       <p className="text-xs tabular-nums text-steel-400">
                         {line.receivedQty ? `${formatNumber(line.receivedQty)} of ` : ''}{formatNumber(line.quantity)} pcs
-                        {line.dueDay ? <> · needed by <span className={line.late ? 'font-semibold text-danger-400' : 'text-steel-200'}>{shortDay(line.dueDay)}</span></> : null}
+                        {` → ${tradeRoute(line)}`}
+                        {line.dueDay ? <> · {tradeDueLabel(line)} <span className={line.late ? 'font-semibold text-danger-400' : 'text-steel-200'}>{shortDay(line.dueDay)}</span></> : null}
                         {line.supplier ? ` · ${line.supplier}` : ''}{line.supplierRef ? ` (${line.supplierRef})` : ''}
                         {line.expectedDay && ['ordered', 'part_received'].includes(line.status) ? <> · expected <span className="text-steel-200">{shortDay(line.expectedDay)}</span></> : null}
                       </p>

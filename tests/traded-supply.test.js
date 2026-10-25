@@ -50,3 +50,18 @@ test('the Traded items page: Production moves each line, others only read it', (
   assert.match(endpoints, /trading: \(params\) => api\.get\('\/production\/trading', \{ params \}\)/);
   assert.match(endpoints, /updateTrade: \(\{ id, \.\.\.body \}\) => api\.patch\(`\/production\/trading\/\$\{id\}`, body/);
 });
+
+test('a traded model printed or assembled says its route and its hand-over, and is handed on when all is in', async () => {
+  const { tradeRoute, tradeDueLabel, receivedWords } = await import('../src/utils/trading.js');
+  const both = { route: { printing: true, assembly: true }, handsTo: 'Printing' };
+  const assembled = { route: { printing: false, assembly: true }, handsTo: 'Assembly' };
+  const plain = { route: { printing: false, assembly: false }, handsTo: null };
+  assert.deepEqual([both, assembled, plain].map(tradeRoute), ['Printing → Assembly', 'Assembly', 'Dispatch']);
+  assert.deepEqual([both, assembled, plain].map(tradeDueLabel), ['to Printing by', 'to Assembly by', 'needed by']);
+  assert.equal(receivedWords(both), 'All in — handed to Printing; their task has it now.');
+  assert.equal(receivedWords(plain), 'All in — ready for dispatch.');
+  const page = read('pages/TradedSupply.jsx');
+  assert.match(page, /\{` → \$\{tradeRoute\(line\)\}`\}/);
+  assert.match(page, /line\.status === 'received' \? receivedWords\(line\) : undefined/);
+  assert.match(read('components/TaskPressPlan.jsx'), /\{tradeDueLabel\(line\)\}/);
+});

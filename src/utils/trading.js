@@ -17,3 +17,14 @@ export function tradeActions(status) {
   if (status === 'part_received') return [{ move: 'cancelled', label: 'Cancel' }, { move: 'received', label: 'Received more', primary: true }];
   return [];
 }
+
+/** Where a traded model goes once it is in: "Printing → Assembly", or "Dispatch". */
+export const tradeRoute = (line) => [line?.route?.printing && 'Printing', line?.route?.assembly && 'Assembly'].filter(Boolean).join(' → ') || 'Dispatch';
+
+/** Its due day said as what it is: the hand-over to Printing or Assembly, else when it is needed. */
+export const tradeDueLabel = (line) => (line?.handsTo ? `to ${line.handsTo} by` : 'needed by');
+
+/** What a full receipt does next, for the toast. */
+export const receivedWords = (line) => (line?.handsTo
+  ? `All in — handed to ${line.handsTo}; their task has it now.`
+  : 'All in — ready for dispatch.');
