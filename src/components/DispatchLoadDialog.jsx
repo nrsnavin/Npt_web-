@@ -57,9 +57,11 @@ export default function DispatchLoadDialog({ todo, onClose, onDone }) {
   const how = (sheet?.modes || []).find((entry) => entry.key === mode) || null;
   const total = chosen.reduce((sum, row) => sum + (Number(pieces[row.model]) || 0), 0);
   const missingPieces = chosen.find((row) => !(Number(pieces[row.model]) > 0));
+  /* Never more than is left of a model [server: recordDispatchLoad refuses it too]. */
+  const overLeft = chosen.find((row) => row.ordered && Number(pieces[row.model]) > Math.max(0, row.ordered - (row.sent || 0)));
   const tooBig = file && file.size > LIMIT;
   const wrongType = file && !TYPES.includes(file.type);
-  const ready = chosen.length > 0 && !missingPieces && how && file && !tooBig && !wrongType;
+  const ready = chosen.length > 0 && !missingPieces && !overLeft && how && file && !tooBig && !wrongType;
   /* What this load leaves: every model ordered gone in full makes it Fully Dispatched [server: recordDispatchLoad]. */
   const leftAfter = models.map((row) => {
     const going = ticked[row.model] && row.ready ? Number(pieces[row.model]) || 0 : 0;
@@ -123,16 +125,18 @@ export default function DispatchLoadDialog({ todo, onClose, onDone }) {
             </label>
             {models.map((row) => {
               const left = Math.max(0, (row.ordered || 0) - (row.sent || 0));
+              /* Sent in full: nothing of it can go again. */
+              const gone = Boolean(row.ordered) && left <= 0;
               return (
                 <div key={row.model} className="grid grid-cols-[minmax(0,1fr)_7rem] items-center gap-2">
                   <label className="flex min-w-0 items-center gap-2 text-sm text-steel-200">
-                    <input type="checkbox" disabled={!row.ready || togetherWaiting.length > 0} checked={Boolean(ticked[row.model]) && row.ready && !togetherWaiting.length} onChange={(event) => setTicked({ ...ticked, [row.model]: event.target.checked })} />
+                    <input type="checkbox" disabled={!row.ready || gone || togetherWaiting.length > 0} checked={Boolean(ticked[row.model]) && row.ready && !gone && !togetherWaiting.length} onChange={(event) => setTicked({ ...ticked, [row.model]: event.target.checked })} />
                     <span className="min-w-0">
                       <span className="block truncate font-semibold">{row.model}</span>
                       <span className="block text-xs text-steel-400">
                         {row.ordered ? `${row.ordered.toLocaleString('en-IN')} ordered` : 'Quantity not on the order'}
                         {row.sent ? ` · ${row.sent.toLocaleString('en-IN')} sent` : ''}
-                        {row.ordered ? ` · ${left.toLocaleString('en-IN')} to go` : ''}
+                        {row.ordered ? (gone ? <span className="font-semibold text-success-400"> · sent in full</span> : ` · ${left.toLocaleString('en-IN')} to go`) : ''}
                         {!row.ready && <span className="font-semibold text-warn-400"> · not ready — {whereNow(row)}</span>}
                       </span>
                     </span>
@@ -140,9 +144,10 @@ export default function DispatchLoadDialog({ todo, onClose, onDone }) {
                   <input
                     type="number"
                     min="1"
+                    max={row.ordered ? left : undefined}
                     className="input py-1.5"
                     aria-label={`Pieces of ${row.model} in this load`}
-                    disabled={!ticked[row.model] || !row.ready}
+                    disabled={!ticked[row.model] || !row.ready || gone}
                     value={pieces[row.model] || ''}
                     onChange={(event) => setPieces({ ...pieces, [row.model]: event.target.value })}
                   />
@@ -158,6 +163,11 @@ export default function DispatchLoadDialog({ todo, onClose, onDone }) {
               <Notice tone="warn">Nothing is ready to dispatch yet — a model goes once its last team (Assembly, else Printing, else Production) marks it Ready for Dispatch.</Notice>
             )}
             {chosen.length > 0 && <p className="text-xs text-steel-400">{total.toLocaleString('en-IN')} pcs in this load</p>}
+            {overLeft && (
+              <p className="text-xs font-semibold text-danger-400" role="alert">
+                {overLeft.model}: only {Math.max(0, overLeft.ordered - (overLeft.sent || 0)).toLocaleString('en-IN')} pcs left to send. If the buyer takes more, change the pieces on the sales order first.
+              </p>
+            )}
             {/* What the load makes it — the app decides, Dispatch never has to pick. */}
             {chosen.length > 0 && (
               <p className={`rounded-md px-2.5 py-1.5 text-sm font-semibold ${stillToGo.length ? 'bg-warn-500/10 text-warn-400' : 'bg-success-500/10 text-success-400'}`} aria-live="polite">

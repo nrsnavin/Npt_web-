@@ -25,12 +25,12 @@ test('models ticked with Select all — the ready ones first when it goes model 
   assert.match(dialog, /aria-label=\{`Pieces of \$\{row\.model\} in this load`\}/);
   assert.match(dialog, /role="radiogroup" aria-label="Mode of travel"/);
   assert.match(dialog, /<input type="file" required accept=\{TYPES\.join\(','\)\}/);
-  assert.match(dialog, /const ready = chosen\.length > 0 && !missingPieces && how && file && !tooBig && !wrongType;/);
+  assert.match(dialog, /const ready = chosen\.length > 0 && !missingPieces && !overLeft && how && file && !tooBig && !wrongType;/);
   assert.match(read('api/endpoints.js'), /dispatchLoad: \(\{ id, mode, lines, note, file \}\) =>/, 'no status — the server picks it');
 });
 
 test('only a model ready can go: one not ready cannot be ticked and names the team that has it', () => {
-  assert.match(dialog, /<input type="checkbox" disabled=\{!row\.ready \|\| togetherWaiting\.length > 0\} checked=\{Boolean\(ticked\[row\.model\]\) && row\.ready && !togetherWaiting\.length\}/);
+  assert.match(dialog, /<input type="checkbox" disabled=\{!row\.ready \|\| gone \|\| togetherWaiting\.length > 0\} checked=\{Boolean\(ticked\[row\.model\]\) && row\.ready && !gone && !togetherWaiting\.length\}/);
   assert.match(dialog, /not ready — \{whereNow\(row\)\}/);
   /* Where the model is now — "in Production · EDD Request Received", not the team that finishes it. */
   assert.match(dialog, /const whereNow = \(row\) => `\$\{row\.waitingOn === 'production' \? 'in' : 'with'\} \$\{WAITING_WORDS\[row\.waitingOn\] \|\| 'the plant'\}\$\{row\.waitingStatus \? ` · \$\{row\.waitingStatus\}` : ''\}`;/);
@@ -59,4 +59,15 @@ test('all together: nothing can be ticked until every model is ready; each model
   assert.match(dialog, /const togetherWaiting = sheet && sheet\.plan !== 'by_model' \? models\.filter\(\(row\) => !row\.ready\) : \[\];/);
   assert.match(dialog, /const goable = togetherWaiting\.length \? \[\] :/);
   assert.match(dialog, /This order goes all together — nothing is dispatched until every model is ready/);
+});
+
+test('never more than is left: a model sent in full is locked, and pieces over what is left stop the load', () => {
+  const form = readFileSync(new URL('../src/components/DispatchLoadDialog.jsx', import.meta.url), 'utf8');
+  assert.match(form, /const gone = Boolean\(row\.ordered\) && left <= 0;/);
+  assert.match(form, /disabled=\{!row\.ready \|\| gone \|\| togetherWaiting\.length > 0\}/, 'a model sent in full cannot be ticked');
+  assert.match(form, /sent in full/);
+  assert.match(form, /max=\{row\.ordered \? left : undefined\}/);
+  assert.match(form, /const overLeft = chosen\.find\(\(row\) => row\.ordered && Number\(pieces\[row\.model\]\) > Math\.max\(0, row\.ordered - \(row\.sent \|\| 0\)\)\);/);
+  assert.match(form, /!missingPieces && !overLeft && how/, 'the load waits until it fits');
+  assert.match(form, /only \{Math\.max\(0, overLeft\.ordered - \(overLeft\.sent \|\| 0\)\)\.toLocaleString\('en-IN'\)\} pcs left to send/);
 });
