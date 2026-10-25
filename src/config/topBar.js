@@ -32,8 +32,21 @@ const SHORT_BAR = ['dashboard', 'enquiries', 'quotations'];
 const WORKS_ACROSS = ['marketing', 'management', 'audit'];
 export const usesShortBar = (departments = [], { isAdmin = false } = {}) => !isAdmin && departments.length > 0 && !departments.some((key) => WORKS_ACROSS.includes(key));
 
+/**
+ * The Production in charge's floor, on the bar beside My work [components/Layout.jsx]: the
+ * planning board (presses by day, work orders dragged on) and the floor tablet (each press, its
+ * job). Only for whoever plans Production — the rest of Production reaches them from the desk.
+ */
+export const PRODUCTION_FLOOR = {
+  key: 'floor', label: 'Production floor', icon: '▦',
+  features: [
+    { to: '/production/plan', label: 'Planning board' },
+    { to: '/floor', label: 'Floor — the presses' },
+  ],
+};
+
 /** The bar's items from what this person may open: the five, their department's own, then More. */
-export function barItems(everything, ownKeys = [], { short = false } = {}) {
+export function barItems(everything, ownKeys = [], { short = false, productionFloor = false } = {}) {
   /* Queries are not a screen on the bar: they live in the panel at the bottom right, with their
      unread count [dock/WorkspaceRail.jsx, QueriesPanel] — the full list is one link from there. */
   const readable = everything.filter((entry) => entry.key !== 'queries');
@@ -62,8 +75,12 @@ export function barItems(everything, ownKeys = [], { short = false } = {}) {
     ...(short ? TOP.filter((top) => !SHORT_BAR.includes(top.key)).flatMap((top) => top.extra || []) : []),
     ...more.flatMap((entry) => entry.features),
   ];
+  /* The Production in charge: the floor one tap away, right after My work [PRODUCTION_FLOOR]. */
+  const floor = productionFloor ? [{ ...PRODUCTION_FLOOR, features: PRODUCTION_FLOOR.features.filter((feature) => !used.has(feature.to)) }] : [];
   return [
-    ...items,
+    ...items.slice(0, 1),
+    ...floor,
+    ...items.slice(1),
     ...own.map((entry) => ({ key: entry.key, label: entry.label, features: entry.features })),
     ...(moreFeatures.length ? [{ key: 'more', label: 'More', features: moreFeatures }] : []),
   ];
