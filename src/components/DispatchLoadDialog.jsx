@@ -18,6 +18,8 @@ import CloseTaskPrompt from './CloseTaskPrompt.jsx';
  */
 const LIMIT = 1024 * 1024;
 const WAITING_WORDS = { production: 'Production', printing: 'Printing', assembling: 'Assembly' };
+/* Where a model not ready is now — the team holding it and its status there [server: handoff.service `modelReadiness`]. */
+const whereNow = (row) => `${row.waitingOn === 'production' ? 'in' : 'with'} ${WAITING_WORDS[row.waitingOn] || 'the plant'}${row.waitingStatus ? ` · ${row.waitingStatus}` : ''}`;
 const TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
 
 export default function DispatchLoadDialog({ todo, onClose, onDone }) {
@@ -131,7 +133,7 @@ export default function DispatchLoadDialog({ todo, onClose, onDone }) {
                         {row.ordered ? `${row.ordered.toLocaleString('en-IN')} ordered` : 'Quantity not on the order'}
                         {row.sent ? ` · ${row.sent.toLocaleString('en-IN')} sent` : ''}
                         {row.ordered ? ` · ${left.toLocaleString('en-IN')} to go` : ''}
-                        {!row.ready && <span className="font-semibold text-warn-400"> · not ready — still with {WAITING_WORDS[row.waitingOn] || 'the plant'}</span>}
+                        {!row.ready && <span className="font-semibold text-warn-400"> · not ready — {whereNow(row)}</span>}
                       </span>
                     </span>
                   </label>
@@ -149,7 +151,7 @@ export default function DispatchLoadDialog({ todo, onClose, onDone }) {
             })}
             {togetherWaiting.length > 0 ? (
               <Notice tone="warn">
-                This order goes all together — nothing is dispatched until every model is ready. Still waiting: {togetherWaiting.map((row) => `${row.model} (with ${WAITING_WORDS[row.waitingOn] || 'the plant'})`).join(', ')}.
+                This order goes all together — nothing is dispatched until every model is ready. Still waiting: {togetherWaiting.map((row) => `${row.model} (${whereNow(row)})`).join(', ')}.
                 Marketing can change it to send each model as it is ready.
               </Notice>
             ) : !goable.length && (

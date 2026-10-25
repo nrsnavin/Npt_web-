@@ -448,7 +448,7 @@ export default function DepartmentDesk({ enquiry, onChanged }) {
               <p className="text-xs text-steel-400">
                 {readiness.sent?.length > 0 && `Sent: ${readiness.sent.join(', ')} · `}
                 Ready: {readiness.ready.filter((model) => !(readiness.sent || []).includes(model)).join(', ') || 'none yet'}
-                {readiness.waiting.length > 0 && ` · waiting: ${readiness.waiting.map((row) => `${row.model} (${row.team === 'assembling' ? 'Assembly' : row.team === 'printing' ? 'Printing' : 'Production'})`).join(', ')}`}
+                {readiness.waiting.length > 0 && ` · waiting: ${readiness.waiting.map((row) => `${row.model} (${row.team === 'assembling' ? 'Assembly' : row.team === 'printing' ? 'Printing' : 'Production'}${row.status ? ` · ${row.status}` : ''})`).join(', ')}`}
               </p>
             </div>
             {canWrite('enquiries') && !closed && (
