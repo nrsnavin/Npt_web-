@@ -16,7 +16,7 @@ export const covers = (pathname, to) =>
  */
 export const TOP = [
   { key: 'dashboard', label: 'Dashboard', icon: '▣', from: [{ module: 'dashboard', to: ['/departments/mine'] }] },
-  { key: 'enquiries', label: 'Enquiries', icon: '◎', from: [{ module: 'dashboard', to: ['/enquiries'] }] },
+  { key: 'enquiries', label: 'Enquiries', icon: '◎', from: [{ module: 'dashboard', to: ['/enquiries', '/team-jobs'] }] },
   { key: 'tasks', label: 'Department Tasks', icon: '✓', extra: [{ to: '/tasks', label: 'Department tasks' }], from: [{ module: 'dashboard', to: ['/departments'] }] },
   { key: 'quotations', label: 'Quotations', icon: '₹', from: [{ module: 'pricing' }] },
   { key: 'masters', label: 'Masters & Access', icon: '⚙', from: [{ module: 'customers' }, { module: 'catalogue' }, { module: 'admin' }] },

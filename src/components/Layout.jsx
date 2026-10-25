@@ -42,6 +42,8 @@ const MODULES = [
          own: they sit, highlighted, in New Enquiries on the dashboard, and open the drafts screen
          from there. A draft is a new enquiry nobody has finished, not a separate place to visit. */
       { to: '/enquiries', label: 'All enquiries', end: true, module: 'enquiries' },
+      /* The tasks Admin and marketing gave with no enquiry, each read like an enquiry [pages/TeamJobs.jsx]. */
+      { to: '/team-jobs', label: 'Team jobs', module: 'enquiries' },
       { to: '/departments', label: 'All departments', admin: true, end: true },
     ],
   },

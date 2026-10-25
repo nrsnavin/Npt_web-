@@ -16,6 +16,7 @@ import { DashboardSkeleton, ErrorState, Modal, Notice } from '../components/ui.j
 import { departmentLabel } from '../utils/pipeline.js';
 import { formatDate, formatDateTime } from '../utils/format.js';
 import { DeliveryRiskPanel } from '../components/DeliveryRisk.jsx';
+import { TeamJobsCard } from './TeamJobs.jsx';
 
 /**
  * The overview dashboard [the plant's own layout] — Admin's company-wide, a marketing person's
@@ -423,7 +424,14 @@ export default function OverviewDashboard() {
         </section>
       )}
 
-      <DepartmentTasksBoard />
+      {/* The tasks this person gave a team without an enquiry, and where each is now [pages/TeamJobs.jsx]. */}
+      <TeamJobsCard />
+      {/* Home: only what is assigned to this person — Admin too. Every department's tasks are on Department Tasks in the bar. */}
+      <DepartmentTasksBoard
+        assignedToMe
+        title="My tasks"
+        subtitle="Tasks assigned to you. Every department's tasks are under Department Tasks in the bar."
+      />
 
       {canRead('customers') && (
         <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_22rem]">

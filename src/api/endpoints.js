@@ -168,6 +168,10 @@ export const workspace = {
     dues: (id) => api.get(`/workspace/todos/${id}/dues`).then(unwrap),
     /** A Production task with no enquiry: the buyer's open enquiries to link, and the start points [server: teamProduction.service]. */
     linkOptions: (id) => api.get(`/workspace/todos/${id}/link-options`).then(unwrap),
+    /** Team jobs — the tasks Admin and marketing gave with no enquiry [server: teamJobs.service]: open / done / all, with a search. */
+    teamJobs: (params) => api.get('/workspace/team-jobs', { params }).then(unwrap),
+    /** One team job, whole: what was asked, where it is now, each team's step, every move, money, shipments, files. */
+    teamJob: (id) => api.get(`/workspace/team-jobs/${id}`).then(unwrap),
     /** Joins the buyer's enquiry — or closes onto the Production task it already has; keeps `mergedInto`. */
     linkEnquiry: ({ id, enquiry }) => api.post(`/workspace/todos/${id}/link-enquiry`, { enquiry }, { feedback: false }).then((response) => response.data),
     /** Each model started from where it is now. */
