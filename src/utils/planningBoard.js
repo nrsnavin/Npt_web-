@@ -37,3 +37,28 @@ export const BAR_TONE = {
 
 /** "Mon 19" — a column heading. */
 export const dayHeading = (value) => new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', weekday: 'short', day: '2-digit' }).format(new Date(value));
+
+/**
+ * A press ranking [server: pressScore.service `rankPresses`] indexed by press, for tagging the
+ * board's rows while a job is dragged: `byPress[id]` the choice, `cannot[id]` why not, `best`.
+ */
+export function indexChoices(result) {
+  const byPress = {};
+  const cannot = {};
+  for (const choice of result?.choices || []) byPress[String(choice.machine._id)] = choice;
+  for (const entry of result?.cannot || []) cannot[String(entry.machine._id)] = entry.why;
+  return { byPress, cannot, best: result?.choices?.[0] || null, why: result?.sized === false ? result.why : null };
+}
+
+/** "Best", "2nd", "3rd", then "4th"… — what a planner reads first on a press. */
+export const rankWords = (rank) => (rank === 1 ? 'Best' : rank === 2 ? '2nd' : rank === 3 ? '3rd' : `${rank}th`);
+
+/** The colour of a rank; the words always sit beside it. */
+export const RANK_TONE = {
+  1: 'border-success-500/50 bg-success-500/10 text-success-400',
+  2: 'border-accent/50 bg-accent/10 text-accent',
+  3: 'border-accent/40 bg-accent/[0.06] text-accent',
+};
+
+/** "28 Oct" — a day short enough for a tag. */
+export const shortDay = (value) => (value ? new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short' }).format(new Date(value)) : '');

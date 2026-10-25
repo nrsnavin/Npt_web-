@@ -25,3 +25,35 @@ export default function MachineSelect({ value, onChange, emptyLabel = 'No machin
     </select>
   );
 }
+
+/** Picks several presses — one tap a press, its chip lit when chosen. `value` is a list of ids. */
+export function MachinePicks({ value = [], onChange, label = 'Presses' }) {
+  const [machines, setMachines] = useState([]);
+  useEffect(() => {
+    let live = true;
+    machinesApi.list().then((rows) => live && setMachines(rows || [])).catch(() => {});
+    return () => { live = false; };
+  }, []);
+  const chosen = new Set(value.map(String));
+  const offered = machines.filter((machine) => machine.active !== false || chosen.has(String(machine._id)));
+  const flip = (id) => onChange(chosen.has(id) ? value.filter((entry) => String(entry) !== id) : [...value, id]);
+  if (!offered.length) return <p className="text-xs text-steel-500">No presses on the register yet.</p>;
+  return (
+    <div role="group" aria-label={label} className="flex flex-wrap gap-1.5">
+      {offered.map((machine) => {
+        const on = chosen.has(String(machine._id));
+        return (
+          <button
+            key={machine._id}
+            type="button"
+            aria-pressed={on}
+            onClick={() => flip(String(machine._id))}
+            className={`rounded-md border px-2.5 py-1 text-xs ${on ? 'border-accent/60 bg-accent/15 font-semibold text-accent' : 'border-line/[0.1] bg-line/[0.03] text-steel-300'}`}
+          >
+            {on ? '✓ ' : ''}{machine.code}{machine.tonnage ? ` · ${machine.tonnage}T` : ''}
+          </button>
+        );
+      })}
+    </div>
+  );
+}

@@ -13,11 +13,20 @@ import { MACHINE_STATUSES, labelOf, toneOf } from '../utils/records.js';
  * history and the runs made on it.
  */
 
-const BLANK = { code: '', name: '', make: '', tonnage: '', year: '', shotCapacityGrams: '', location: '', serviceEveryDays: '', status: 'idle', notes: '' };
-const NUMBERS = ['tonnage', 'year', 'shotCapacityGrams', 'serviceEveryDays'];
+const BLANK = {
+  code: '', name: '', make: '', tonnage: '', year: '', shotCapacityGrams: '', location: '', serviceEveryDays: '', status: 'idle', notes: '',
+  tieBarWidthMm: '', tieBarHeightMm: '', minMouldHeightMm: '', maxMouldHeightMm: '', hotRunnerZones: '', hasDryer: '',
+};
+const NUMBERS = ['tonnage', 'year', 'shotCapacityGrams', 'serviceEveryDays', 'tieBarWidthMm', 'tieBarHeightMm', 'minMouldHeightMm', 'maxMouldHeightMm', 'hotRunnerZones'];
+/* A dryer beside it: yes, no, or not said — a blank is "not checked", never "no". */
+const dryerOf = (value) => (value === true ? 'yes' : value === false ? 'no' : '');
 
 export function MachineEditor({ machine, onClose, onSaved }) {
-  const [values, setValues] = useState(() => ({ ...BLANK, ...Object.fromEntries(Object.entries(machine || {}).filter(([key]) => key in BLANK).map(([key, value]) => [key, value ?? ''])) }));
+  const [values, setValues] = useState(() => ({
+    ...BLANK,
+    ...Object.fromEntries(Object.entries(machine || {}).filter(([key]) => key in BLANK).map(([key, value]) => [key, value ?? ''])),
+    hasDryer: dryerOf(machine?.hasDryer),
+  }));
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState(null);
   const set = (key) => (event) => setValues((current) => ({ ...current, [key]: event.target.value }));
@@ -26,6 +35,7 @@ export function MachineEditor({ machine, onClose, onSaved }) {
     setBusy(true);
     setProblem(null);
     const payload = Object.fromEntries(Object.entries(values).map(([key, value]) => [key, NUMBERS.includes(key) ? (value === '' ? null : Number(value)) : value]));
+    payload.hasDryer = values.hasDryer === '' ? null : values.hasDryer === 'yes';
     try {
       if (machine) await machinesApi.update({ id: machine._id, expectedUpdatedAt: machine.updatedAt, ...payload });
       else await machinesApi.create(payload);
@@ -47,7 +57,7 @@ export function MachineEditor({ machine, onClose, onSaved }) {
           <Field label="Tonnage"><input type="number" min={0} className="input" value={values.tonnage} onChange={set('tonnage')} /></Field>
           <Field label="Year"><input type="number" min={1950} max={2100} className="input" value={values.year} onChange={set('year')} /></Field>
           <Field label="Shot capacity, g"><input type="number" min={0} className="input" value={values.shotCapacityGrams} onChange={set('shotCapacityGrams')} /></Field>
-          <Field label="Where it is"><input className="input" value={values.location} onChange={set('location')} maxLength={80} placeholder="Bay 2" /></Field>
+          <Field label="Where it is" hint="Bay or group — the board groups presses by it"><input className="input" value={values.location} onChange={set('location')} maxLength={80} placeholder="Bay 2" /></Field>
           <Field label="Service every, days" hint="For the preventive maintenance reminder"><input type="number" min={0} className="input" value={values.serviceEveryDays} onChange={set('serviceEveryDays')} /></Field>
           <Field label="State">
             <select className="input" value={values.status} onChange={set('status')}>
@@ -55,6 +65,37 @@ export function MachineEditor({ machine, onClose, onSaved }) {
             </select>
           </Field>
         </div>
+        {/* What decides whether a mould fits, beyond tonnage and shot [server: planning.service `fitOf`]. Blank is "not checked". */}
+        <fieldset className="space-y-3 rounded-lg border border-line/[0.08] p-3">
+          <legend className="px-1 text-sm font-semibold text-steel-100">What moulds it takes</legend>
+          <p className="text-xs text-steel-400">Leave blank what you have not measured — the app only checks what is filled in.</p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Gap between tie bars, mm" hint="Width × height of the clear space">
+              <div className="flex items-center gap-2">
+                <input type="number" min={0} className="input" aria-label="Tie-bar gap width, mm" value={values.tieBarWidthMm} onChange={set('tieBarWidthMm')} placeholder="410" />
+                <span className="text-steel-500" aria-hidden="true">×</span>
+                <input type="number" min={0} className="input" aria-label="Tie-bar gap height, mm" value={values.tieBarHeightMm} onChange={set('tieBarHeightMm')} placeholder="410" />
+              </div>
+            </Field>
+            <Field label="Mould thickness it closes on, mm" hint="Smallest to largest (daylight)">
+              <div className="flex items-center gap-2">
+                <input type="number" min={0} className="input" aria-label="Thinnest mould, mm" value={values.minMouldHeightMm} onChange={set('minMouldHeightMm')} placeholder="150" />
+                <span className="text-steel-500" aria-hidden="true">to</span>
+                <input type="number" min={0} className="input" aria-label="Thickest mould, mm" value={values.maxMouldHeightMm} onChange={set('maxMouldHeightMm')} placeholder="450" />
+              </div>
+            </Field>
+            <Field label="Hot-runner zones" hint="0 if it has no hot-runner controller">
+              <input type="number" min={0} max={64} className="input" value={values.hotRunnerZones} onChange={set('hotRunnerZones')} />
+            </Field>
+            <Field label="Dryer beside it">
+              <select className="input" value={values.hasDryer} onChange={set('hasDryer')}>
+                <option value="">Not said</option>
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
+              </select>
+            </Field>
+          </div>
+        </fieldset>
         <Field label="Notes"><textarea className="input" value={values.notes} onChange={set('notes')} maxLength={1000} /></Field>
         {problem && <FormError error={problem} />}
         <div className="flex justify-end gap-2">
