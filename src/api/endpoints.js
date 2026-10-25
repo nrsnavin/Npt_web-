@@ -593,6 +593,12 @@ export const orders = {
   payment: (id) => api.get(`/orders/${id}/payment`).then(unwrap),
   /** Admin lets production or dispatch go on before the money is in: `{ stage, reason }`. */
   waivePayment: ({ id, ...payload }) => api.post(`/orders/${id}/payment-waiver`, payload).then(unwrap),
+  /** What new payment terms would do, before they are saved: `{ needsDecision, sendsNow, message, … }`. */
+  termsPreview: ({ id, terms }) => api.get(`/orders/${id}/payment-terms`, { params: { terms } }).then(unwrap),
+  /** New payment terms — `decision` 'hold' | 'keep' when it is in production and the advance is not in. Keeps the envelope (`said`, `held`, `released`). */
+  changeTerms: ({ id, ...payload }) => api.post(`/orders/${id}/payment-terms`, payload).then((r) => r.data),
+  /** New pieces on the lines, after release too: `{ lines: [{ _id, quantity }], note }`. Keeps the envelope (`said`). */
+  changeQuantities: ({ id, ...payload }) => api.post(`/orders/${id}/quantities`, payload).then((r) => r.data),
   /** The customer's own paperwork. Multipart, so it goes as a form rather than JSON. */
   setPo: (id, file) => {
     const form = new FormData();
