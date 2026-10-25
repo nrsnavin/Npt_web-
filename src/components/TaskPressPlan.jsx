@@ -6,6 +6,7 @@ import { Modal, Spinner } from './ui.jsx';
 import PressChoices from './PressChoices.jsx';
 import { formatNumber } from '../utils/format.js';
 import { shortDay } from '../utils/planningBoard.js';
+import { tradeDueLabel } from '../utils/trading.js';
 import { SETUP_KEYS, afterMoulding, lateWords, modelPress, pressAttention, proposalWords, setupDone } from '../utils/floorPlanning.js';
 
 /**
@@ -47,7 +48,7 @@ function TradedRow({ row, state }) {
           </p>
           <p className="text-xs tabular-nums text-steel-400">
             {line.quantity ? `${formatNumber(line.quantity)} pcs` : 'Pieces not known yet'}
-            {line.dueDay ? <> · needed by <span className={line.late ? 'font-semibold text-danger-400' : 'text-steel-200'}>{shortDay(line.dueDay)}</span></> : null}
+            {line.dueDay ? <> · {tradeDueLabel(line)} <span className={line.late ? 'font-semibold text-danger-400' : 'text-steel-200'}>{shortDay(line.dueDay)}</span></> : null}
             {line.expectedDay && ['ordered', 'part_received'].includes(line.status) ? ` · expected ${shortDay(line.expectedDay)}` : ''}
           </p>
         </div>
