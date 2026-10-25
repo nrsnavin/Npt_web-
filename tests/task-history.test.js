@@ -75,7 +75,8 @@ test('a quotation request reads a line per model; one from before the rows still
 
 test('the enquiry’s task cards, the task panel and the desk lists draw the same facts and timeline', () => {
   const card = read('components/TaskCard.jsx');
-  assert.match(card, /<TaskFacts button=\{button\} task=\{task\} \/>/);
+  /* The card shows the task's PDF under the instruction itself, so its facts leave it out. */
+  assert.match(card, /<TaskFacts button=\{button\} task=\{task\} withPdf=\{false\} \/>/);
   assert.match(card, /<TaskTimeline task=\{task\} button=\{button\} \/>/);
   assert.doesNotMatch(card, /Update · \{update\.by/, 'no more one-sentence update lines');
   assert.match(card, /Raised by <span className="text-steel-300">\{task\.createdBy\.name\}<\/span>/);

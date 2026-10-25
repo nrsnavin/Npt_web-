@@ -6,6 +6,7 @@ import { BAND_TONE } from './ProductionQueueList.jsx';
 import { formatDate } from '../utils/format.js';
 import { byEdd, dueWords, eddBandOf } from '../utils/productionQueue.js';
 import { DeliveryBadge, inDanger } from './DeliveryRisk.jsx';
+import { TaskPdfChips, useTaskPdfs } from './TaskPdfs.jsx';
 
 /**
  * The Printing, Assembly and Quality desks, read at a glance [server: deskSummary.service]: one
@@ -20,6 +21,8 @@ export default function FinishingDeskList({ rows = [], onChanged }) {
   const me = String(user?.id || user?._id || '');
   const mayWork = (task) => isAdmin || departments.includes(task.department) || String(task.user?._id || task.user || '') === me;
   const ordered = byEdd(rows);
+  /* The PDF sent with each task, on its line [TaskPdfs]. */
+  const pdfs = useTaskPdfs({ tasks: rows.map((row) => row.task._id) });
 
   if (!ordered.length) {
     return (
@@ -51,6 +54,7 @@ export default function FinishingDeskList({ rows = [], onChanged }) {
                     <p className="font-bold text-steel-50">Team task</p>
                   )}
                   <p className="truncate text-sm text-steel-300">{row.enquiry?.customer?.name || row.task.customer?.name || '—'}</p>
+                  <TaskPdfChips files={pdfs.byTask[row.task._id]} role="sent" />
                   {/* In danger of missing marketing's EDD [server: deliveryRisk.service]. */}
                   {inDanger(row.delivery) && <DeliveryBadge risk={row.delivery} className="mt-0.5" />}
                   {/* What the task is about [server: deskSummary.service `modelsOfBrief`]: each model with its pieces and complaint, and the complaint received. */}

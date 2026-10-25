@@ -51,9 +51,9 @@ export function TaskPdfList({ files, skip, title = 'PDFs from the tasks', classN
   );
 }
 
-/** A list row's PDFs, small: one link each, the first two. */
-export function TaskPdfChips({ files, skip }) {
-  const shown = without(files, skip);
+/** A list row's PDFs, small: one link each, the first two. `role: 'sent'` keeps only the PDFs sent with the task. */
+export function TaskPdfChips({ files, skip, role = null }) {
+  const shown = without(files, skip).filter((file) => !role || file.role === role);
   if (!shown.length) return null;
   return (
     <span className="flex flex-col items-start gap-0.5">

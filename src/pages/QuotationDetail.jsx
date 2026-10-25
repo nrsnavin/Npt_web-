@@ -151,7 +151,7 @@ export default function QuotationDetail() {
   const fetch = useCallback((quotationId) => quotationsApi.get(quotationId), []);
   const { data: quotation, loading, error, reload } = useRecord(fetch, id);
   /* The PDF sent with the Create Quotation (the buyer's spec, a drawing), here with the quotation [TaskPdfs]. */
-  const pdfs = useTaskPdfs({ enquiries: [idOf(quotation?.enquiry)], kinds: ['create_quotation'] });
+  const pdfs = useTaskPdfs({ enquiries: [idOf(quotation?.enquiry)], kinds: ['create_quotation', 'price_negotiation'] });
   const [showingPdf, setShowingPdf] = useState(false);
   const [composing, setComposing] = useState(false);
   const [ordering, setOrdering] = useState(false);
@@ -251,7 +251,7 @@ export default function QuotationDetail() {
 
       <Progress quotation={quotation} />
 
-      <TaskPdfList files={pdfs.byEnquiry[idOf(quotation.enquiry)]} title="PDFs from the Create Quotation task" className="mb-5" />
+      <TaskPdfList files={pdfs.byEnquiry[idOf(quotation.enquiry)]} title="PDFs from the quotation tasks" className="mb-5" />
 
       <div className="mb-5 space-y-2">
         {quotation.status === 'costing' && unpriced.length > 0 && (

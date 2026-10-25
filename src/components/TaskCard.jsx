@@ -1,6 +1,5 @@
 import { useRef, useState } from 'react';
 import { files as filesApi, quotations as quotationsApi, workspace } from '../api/endpoints.js';
-import TaskPdfLink from './TaskPdfLink.jsx';
 import TaskWorkflow from './TaskWorkflow.jsx';
 import TaskStepper from './TaskStepper.jsx';
 import HandoffTaskActions from './HandoffTaskActions.jsx';
@@ -12,6 +11,7 @@ import { departmentLabel } from '../utils/pipeline.js';
 import { formatDate, formatRelative, initialsOf } from '../utils/format.js';
 import TaskEdd from './TaskEdd.jsx';
 import { EDD_CHIP, eddChipOf } from '../utils/edd.js';
+import TaskPdfLink from './TaskPdfLink.jsx';
 
 /**
  * One department task on the enquiry, read in a glance and opened for the rest
@@ -191,6 +191,12 @@ export default function TaskCard({ task, mayAct = false, open: openAtFirst = fal
           <span aria-hidden className={`inline-block transition-transform ${open ? 'rotate-180' : ''}`}>▼</span>
         </button>
       </div>
+      {/* The PDF sent with the task, right under what was asked — open or folded, on every task. */}
+      {task.attachment?.key && (
+        <p className="-mt-1.5 pb-2 pl-14 pr-3 text-xs">
+          <TaskPdfLink file={task.attachment} />
+        </p>
+      )}
       {task.completed && <SampleSent task={task} mayAct={mayAct} onChanged={onChanged} />}
 
       {(!task.completed || open) && <TaskStepper button={button} task={task} className="px-3 pb-2.5" />}
@@ -206,11 +212,10 @@ export default function TaskCard({ task, mayAct = false, open: openAtFirst = fal
             {when && <span className="sm:hidden">{` · ${when.late ? 'late' : when.label.toLowerCase()} ${formatDate(when.date)}`}</span>}
           </p>
           <TaskEdd todo={task} mayAct={mayAct} onChanged={onChanged} />
-          {(task.brief || task.attachment) && (
+          {task.brief && (
             <div className="rounded-lg border border-line/[0.06] p-2.5">
               <p className="mb-1 text-xs font-semibold text-steel-400">What was asked</p>
-              <TaskFacts button={button} task={task} />
-              <TaskPdfLink file={task.attachment} className="mt-1" />
+              <TaskFacts button={button} task={task} withPdf={false} />
             </div>
           )}
           <div>

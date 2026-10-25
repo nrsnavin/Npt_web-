@@ -658,7 +658,7 @@ export default function Quotations() {
     limit: 25,
   });
   /* The PDF sent with each quotation's Create Quotation task, under its number [TaskPdfs]. */
-  const pdfs = useTaskPdfs({ enquiries: (data || []).map((row) => idOf(row.enquiry)), kinds: ['create_quotation'] });
+  const pdfs = useTaskPdfs({ enquiries: (data || []).map((row) => idOf(row.enquiry)), kinds: ['create_quotation', 'price_negotiation'] });
 
   const selectStage = (value) => {
     setStatus(value === status ? '' : value);

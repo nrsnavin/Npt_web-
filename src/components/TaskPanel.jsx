@@ -3,7 +3,6 @@ import { workspace } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import HandoffTaskActions from './HandoffTaskActions.jsx';
 import TaskWorkflow from './TaskWorkflow.jsx';
-import TaskPdfLink from './TaskPdfLink.jsx';
 import TaskEdd from './TaskEdd.jsx';
 import DeliveryUrgencyPrompt from './DeliveryUrgencyPrompt.jsx';
 import { Modal, Notice } from './ui.jsx';
@@ -85,7 +84,6 @@ export default function TaskPanel({ task, startWith, mayWork, onClose, onChanged
           <div className="rounded-xl border border-line/[0.08] p-3">
             <p className="mb-1 text-xs font-semibold text-steel-400">What was asked</p>
             <TaskFacts button={button} task={task} />
-            <TaskPdfLink file={task.attachment} className="mt-1" />
           </div>
         )}
 

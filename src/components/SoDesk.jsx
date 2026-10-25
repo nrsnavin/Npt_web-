@@ -4,7 +4,6 @@ import { departments as departmentsApi, workspace } from '../api/endpoints.js';
 import { buttonFor, useHandoffCatalogue } from '../hooks/useHandoffCatalogue.js';
 import HandoffTaskActions from './HandoffTaskActions.jsx';
 import TaskWorkflow from './TaskWorkflow.jsx';
-import TaskPdfLink from './TaskPdfLink.jsx';
 import { TaskFacts } from './TaskHistory.jsx';
 import { EmptyState, ErrorState, Modal, TableSkeleton } from './ui.jsx';
 import { formatDate } from '../utils/format.js';
@@ -124,7 +123,6 @@ function SoCard({ row, onChanged, onAsk }) {
       <BuyerLine buyer={so.buyer} />
       <Question question={so.question} task={task} onChanged={onChanged} />
       <TaskFacts button={button} task={task} />
-      <TaskPdfLink file={task.attachment} className="self-start" />
       {task.notes && <p className="text-sm text-steel-300">“{task.notes}”</p>}
       <p className="text-xs text-steel-500">Here since {formatDate(row.since)} · {task.user?.name ? `with ${task.user.name}` : 'nobody has picked it up'}{owner ? ` · ${owner}’s buyer` : ''}</p>
       <div className="border-t border-line/[0.06] pt-3"><TaskWorkflow todo={task} onChanged={onChanged} /></div>

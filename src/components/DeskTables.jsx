@@ -10,6 +10,7 @@ import { Modal, Notice } from './ui.jsx';
 import CloseTaskPrompt, { offersClose } from './CloseTaskPrompt.jsx';
 import TaskPanel from './TaskPanel.jsx';
 import { CommentDialog, ContactDialog, MoveForm, UploadDialog } from './TaskWorkflow.jsx';
+import { TaskPdfChips, useTaskPdfs } from './TaskPdfs.jsx';
 
 /**
  * The Reception, Payment Collection, Payment Recovery and Accounts desks as tables — one line a
@@ -247,6 +248,8 @@ function Table({ label, headers, rows, line, minWidth = '64rem', me, onChanged }
   const catalogue = useHandoffCatalogue();
   const [opened, setOpened] = useState(null);
   const mayWork = (task) => isAdmin || departments.includes(task.department) || idOf(task.user) === me;
+  /* The PDF sent with each task, under its buyer [TaskPdfs]. */
+  const pdfs = useTaskPdfs({ tasks: rows.map((row) => row.task._id) });
   return (
     <div className="card relative overflow-x-auto p-0">
       <table className="w-full text-left text-sm" style={{ minWidth }} aria-label={label}>
@@ -260,7 +263,7 @@ function Table({ label, headers, rows, line, minWidth = '64rem', me, onChanged }
           {rows.map((row) => (
             <Line
               key={row.task._id}
-              row={row}
+              row={{ ...row, pdfs: pdfs.byTask[row.task._id] }}
               button={buttonFor(catalogue, row.task.kind)}
               mayWork={mayWork(row.task)}
               onOpen={() => setOpened(row.task)}
@@ -288,6 +291,7 @@ function CustomerCell({ row, children }) {
   return (
     <td className={`max-w-[12rem] ${td}`}>
       <span className="line-clamp-2 font-semibold text-steel-50">{customerOf(row)}</span>
+      <TaskPdfChips files={row.pdfs} role="sent" />
       {children}
     </td>
   );
