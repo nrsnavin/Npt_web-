@@ -160,6 +160,14 @@ export const workspace = {
       if (file) form.append('file', file);
       return api.post(`/workspace/todos/${id}/loads/${loadId}`, form, { feedback: false }).then(unwrap);
     },
+    /** One shipment's proof of delivery or LR, by the load, from anywhere it is seen — Dispatch or Reception [server: `shipmentPaper`]; keeps `completed`. */
+    shipmentPaper: ({ loadId, file, details = {}, from }) => {
+      const form = new FormData();
+      if (from) form.append('from', from);
+      for (const [key, value] of Object.entries(details)) if (String(value || '').trim()) form.append(key, String(value).trim());
+      if (file) form.append('file', file);
+      return api.post(`/workspace/loads/${loadId}/paper`, form, { feedback: false }).then((response) => response.data);
+    },
     /** The file already on the task sent to the buyer — Reception sending the LR copy Dispatch uploaded; keeps `sent`. */
     sendResult: (id, loadId) => api.post(`/workspace/todos/${id}/result/send`, loadId ? { loadId } : {}, { feedback: false }).then((response) => response.data),
     /** The job's shipments, each with its own LR or proof [server: handoff.service `shipmentsOf`]. */

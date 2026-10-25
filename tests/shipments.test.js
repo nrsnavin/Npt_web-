@@ -27,7 +27,7 @@ test('Reception uploads and sends one LR a shipment; the single upload gives way
 });
 
 test('the enquiry reads each shipment: models and pieces, the day, the LR for it', () => {
-  assert.match(read('pages/EnquiryDetail.jsx'), /<EnquiryShipments data=\{records\.data\} \/>/);
+  assert.match(read('pages/EnquiryDetail.jsx'), /<EnquiryShipments data=\{records\.data\} onChanged=\{records\.load\} \/>/);
   const section = read('components/Shipments.jsx');
   assert.match(section, /title=\{`Shipments \(\$\{rows\.length\}\)`\}/);
   for (const head of ['Date', 'Models &amp; pieces', 'How', 'LR / proof']) assert.ok(section.includes(`>${head}</th>`), head);

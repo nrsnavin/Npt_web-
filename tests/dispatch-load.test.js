@@ -80,8 +80,20 @@ test('the paper is optional on a load; Dispatch adds it, with the LR number, tra
   assert.match(form, /<Field label="LR \/ docket number">/);
   const paper = read('components/LoadPaper.jsx');
   assert.match(paper, /Paper to add — \{pending\.length\} load/);
-  assert.match(paper, /workspace\.todos\.loadProof\(\{ id: todo\._id, loadId: load\._id, file/);
+  /* By the load, so a load sent from another request of the job is papered here too [server: `shipmentPaper`]. */
+  assert.match(paper, /workspace\.todos\.shipmentPaper\(\{ loadId: load\._id, file, details: Object\.fromEntries\(changed\), from \}\)/);
+  assert.match(paper, /workspace\.todos\.shipments\(todo\._id\)/, 'every shipment of the job, not only this request’s');
   assert.match(read('components/TaskWorkflow.jsx'), /<LoadPaper todo=\{todo\} mayAdd=\{canWrite\('dispatch'\) \|\| canWrite\('tasks'\)\} onChanged=\{moved\} \/>/);
   assert.match(read('components/OrderDispatchDetails.jsx'), /load\.proofPending && <span className="text-xs font-semibold text-warn-400">Paper to come<\/span>/);
   assert.match(read('api/endpoints.js'), /loadProof: \(\{ id, loadId, file, details = \{\} \}\) =>/);
+});
+
+test('a Dispatch request: "+ Add a dispatch" for the next load; Dispatch and Reception upload each shipment’s proof wherever it is seen', () => {
+  const flow = read('components/TaskWorkflow.jsx');
+  assert.match(flow, /\+ Add a dispatch/);
+  const shipments = read('components/Shipments.jsx');
+  assert.match(shipments, /return isManagement \|\| departments\.includes\('despatch'\) \|\| departments\.includes\('reception'\);/);
+  assert.match(shipments, /\{load\.mode === 'transporter' \? 'Upload LR' : 'Upload proof'\}/);
+  assert.match(read('pages/TeamJobDetail.jsx'), /<AddShipmentPaper load=\{row\} onSaved=\{load\} \/>/);
+  assert.match(read('api/endpoints.js'), /api\.post\(`\/workspace\/loads\/\$\{loadId\}\/paper`, form/);
 });

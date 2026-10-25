@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { files, workspace } from '../api/endpoints.js';
 import { useToast } from '../context/ToastContext.jsx';
 import { Section } from './ui.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
+import { AddPaper } from './LoadPaper.jsx';
 import { formatDate } from '../utils/format.js';
 
 /**
@@ -100,7 +102,26 @@ export function LrShipments({ todo, onUpload, onChanged, onCount }) {
  * records.service `describeDispatch` loads] — the day, the models and pieces, how it went, and the
  * LR (or proof of delivery) to open; "LR awaited from Reception" where it has not come yet.
  */
-export function EnquiryShipments({ data }) {
+/** Dispatch and Reception add a shipment's proof of delivery or LR, from wherever it is seen — Admin too [server: `shipmentPaper`]. */
+export function useMayAddPaper() {
+  const { isManagement, departments = [] } = useAuth();
+  return isManagement || departments.includes('despatch') || departments.includes('reception');
+}
+
+/** The button on a shipment still without its paper, and the upload it opens. `load.mode` is the mode's key. */
+export function AddShipmentPaper({ load, onSaved }) {
+  const mayAdd = useMayAddPaper();
+  const [open, setOpen] = useState(false);
+  if (!mayAdd) return null;
+  return (
+    <>
+      <button type="button" className="row-action px-2 py-1 text-xs" onClick={() => setOpen(true)}>{load.mode === 'transporter' ? 'Upload LR' : 'Upload proof'}</button>
+      {open && <AddPaper load={load} onClose={() => setOpen(false)} onSaved={() => onSaved?.()} />}
+    </>
+  );
+}
+
+export function EnquiryShipments({ data, onChanged }) {
   const rows = (data?.dispatch?.requests || [])
     .flatMap((request) => (request.loads || []).map((load) => ({ ...load, order: request.order })))
     .sort((a, b) => new Date(b.at) - new Date(a.at));
@@ -136,7 +157,10 @@ export function EnquiryShipments({ data }) {
                       {row.needsLr && (row.lrSentAt ? <span className="text-success-400">Sent to buyer {formatDate(row.lrSentAt)}</span> : <span className="text-warn-400">Not sent to buyer yet</span>)}
                     </span>
                   ) : (
-                    <span className="font-semibold text-warn-400">{row.needsLr ? 'LR awaited from Reception' : 'Proof to come'}</span>
+                    <span className="flex flex-wrap items-center gap-2">
+                      <span className="font-semibold text-warn-400">{row.needsLr ? 'LR awaited from Reception' : 'Proof to come'}</span>
+                      <AddShipmentPaper load={{ ...row, mode: row.modeKey || (row.needsLr ? 'transporter' : 'own_vehicle') }} onSaved={onChanged} />
+                    </span>
                   )}
                 </td>
               </tr>

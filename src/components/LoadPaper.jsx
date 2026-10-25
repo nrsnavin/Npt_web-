@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { workspace } from '../api/endpoints.js';
 import { useToast } from '../context/ToastContext.jsx';
 import { Field, Modal, Notice } from './ui.jsx';
@@ -16,7 +16,13 @@ const TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
 const LIMIT = 1024 * 1024;
 const linesOf = (load) => (load.lines || []).map((line) => `${line.model} ${Number(line.quantity || 0).toLocaleString('en-IN')} pcs`).join(' · ');
 
-function AddPaper({ todo, load, onClose, onSaved }) {
+/**
+ * The paper for one shipment — its proof of delivery, signed receipt or LR copy, and its details —
+ * by the load itself, from wherever it is seen [server: handoff.controller `shipmentPaper`]: the
+ * Dispatch task, the enquiry's Shipments, a team job. Dispatch and Reception add it. `load.mode` is
+ * the mode's key (transporter, own_vehicle, party_collects).
+ */
+export function AddPaper({ load, from = null, onClose, onSaved }) {
   const { toast } = useToast();
   const proof = PROOF[load.mode] || 'Paper';
   const [file, setFile] = useState(null);
@@ -31,9 +37,9 @@ function AddPaper({ todo, load, onClose, onSaved }) {
     setBusy(true);
     setProblem(null);
     try {
-      const saved = await workspace.todos.loadProof({ id: todo._id, loadId: load._id, file, details: Object.fromEntries(changed) });
-      toast('Added to the load', file && load.mode === 'transporter' ? 'Reception has the LR copy to send to the buyer.' : linesOf(load));
-      onSaved(saved);
+      const saved = await workspace.todos.shipmentPaper({ loadId: load._id, file, details: Object.fromEntries(changed), from });
+      toast(saved.completed ? 'Added — the dispatch is complete' : 'Added to the load', saved.completed ? 'Every model has gone in full and each load has its paper: the request closed itself.' : file && load.mode === 'transporter' ? 'Reception has the LR copy to send to the buyer.' : linesOf(load));
+      onSaved(saved.data, saved);
       onClose();
     } catch (failure) {
       setProblem(failure.message);
@@ -61,13 +67,26 @@ function AddPaper({ todo, load, onClose, onSaved }) {
   );
 }
 
+/**
+ * On a Dispatch request: every shipment of the job still without its paper — sent from this
+ * request or another of the same job [server: handoff.service `shipmentsOf`] — each with its own
+ * upload. The request closes itself once every model has gone in full and each load has its paper.
+ */
 export default function LoadPaper({ todo, mayAdd, onChanged }) {
   const [adding, setAdding] = useState(null);
-  const pending = (todo?.loads || []).filter((load) => !load.attachment);
-  if (todo?.kind !== 'invoice_dispatch' || !pending.length) return null;
+  const [rows, setRows] = useState(null);
+  const isDispatch = todo?.kind === 'invoice_dispatch';
+  useEffect(() => {
+    if (!isDispatch) return undefined;
+    let live = true;
+    workspace.todos.shipments(todo._id).then((data) => { if (live) setRows(data); }).catch(() => setRows([]));
+    return () => { live = false; };
+  }, [isDispatch, todo?._id, todo?.updatedAt, todo?.loads?.length]);
+  const pending = (rows || []).filter((row) => !row.paper);
+  if (!isDispatch || !pending.length) return null;
   return (
     <div className="rounded-lg border border-warn-500/40 bg-warn-500/[0.07] px-3 py-2 text-xs" aria-label="Paper to add">
-      <p className="font-semibold text-warn-400">Paper to add — {pending.length} load{pending.length > 1 ? 's' : ''} went without it</p>
+      <p className="font-semibold text-warn-400">Paper to add — {pending.length} load{pending.length > 1 ? 's' : ''} of {rows.length} went without it</p>
       <ul className="mt-1 space-y-1">
         {pending.map((load) => (
           <li key={load._id} className="flex flex-wrap items-center justify-between gap-2">
@@ -79,7 +98,7 @@ export default function LoadPaper({ todo, mayAdd, onChanged }) {
           </li>
         ))}
       </ul>
-      {adding && <AddPaper todo={todo} load={adding} onClose={() => setAdding(null)} onSaved={(saved) => onChanged?.(saved)} />}
+      {adding && <AddPaper load={adding} from={todo._id} onClose={() => setAdding(null)} onSaved={(task) => onChanged?.(task)} />}
     </div>
   );
 }

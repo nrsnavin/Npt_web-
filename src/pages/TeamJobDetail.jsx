@@ -4,6 +4,7 @@ import { files, workspace } from '../api/endpoints.js';
 import { ErrorState, PageHeader, Section, Spinner } from '../components/ui.jsx';
 import ModelJourney from '../components/ModelJourney.jsx';
 import { NowPill } from './TeamJobs.jsx';
+import { AddShipmentPaper } from '../components/Shipments.jsx';
 import { formatCurrency, formatDate } from '../utils/format.js';
 
 /**
@@ -115,7 +116,7 @@ export default function TeamJobDetail() {
                 <span className="text-steel-100">{formatDate(row.at)} · {row.lines.map((line) => `${line.model} ${Number(line.quantity || 0).toLocaleString('en-IN')} pcs`).join(' · ')}<span className="text-xs text-steel-400">{row.modeLabel ? ` · ${row.modeLabel}` : ''}{row.lrNumber ? ` · LR ${row.lrNumber}` : ''}</span></span>
                 {row.paper
                   ? <button type="button" className="row-action px-2 py-1 text-xs" onClick={() => openFile(row.paper.key)}>{row.needsLr ? 'View LR' : 'View proof'}</button>
-                  : <span className="text-xs font-semibold text-warn-400">{row.needsLr ? 'LR awaited from Reception' : 'No paper'}</span>}
+                  : <span className="flex items-center gap-2"><span className="text-xs font-semibold text-warn-400">{row.needsLr ? 'LR awaited from Reception' : 'Proof to come'}</span><AddShipmentPaper load={row} onSaved={load} /></span>}
               </li>
             ))}
           </ul>
