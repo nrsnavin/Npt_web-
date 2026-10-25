@@ -67,7 +67,7 @@ export function MoveForm({ todo, form, step, onCancel, onMoved, noDates = false,
   /* Per model: a model that ends on this team gives its completion date, not a hand-over [utils/edd.js `dateLabelFor`]. */
   const dateLabel = dateLabelFor(todo, form.statusDate?.label || 'Ready date', fixedModels || (byModel ? picked : []));
   const dateNeeded = step.date === 'required' && !date;
-  const remarkNeeded = form.remarkRequired && note.trim().length < 3;
+  const remarkNeeded = (form.remarkRequired || step.comment) && note.trim().length < 3;
   const fieldMissing = asks.find((field) => field.required && !String(answers[field.key] || '').trim());
   const save = async (event) => {
     event.preventDefault();
@@ -151,7 +151,7 @@ export function MoveForm({ todo, form, step, onCancel, onMoved, noDates = false,
       {fieldMissing && <p className="text-xs text-warn-400">Fill in {fieldMissing.label.toLowerCase()} for {step.label}</p>}
       {noModel && <p className="text-xs text-warn-400">Tick at least one model</p>}
       {step.tellBuyer && <p className="text-xs text-steel-400">This sends the buyer a WhatsApp and email from the company number.</p>}
-      {step.confirmsInward && <p className="text-xs text-steel-400">Logged on the sales order’s RCV, and Accounts gets a task to confirm it in the bank. Once Accounts confirms the advance, this task closes and the SO team and marketing are told to release the order to production.</p>}
+      {step.confirmsInward && <p className="text-xs text-steel-400">It goes on Accounts’ Payments to confirm list. When Accounts confirms it in the bank, this task reads Paid and closes — or Part Paid, open for the rest.</p>}
       {step.done && step.fields?.length > 0 && form.documents?.length > 0 && (
         <p className="text-xs text-steel-400">Attach the {form.documents.map((doc) => doc.label.toLowerCase()).join(' or ')} under Documents, now or afterwards; it is kept on the record.</p>
       )}
@@ -627,7 +627,8 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
     /* A load is said from the dispatch form: the models and pieces, how it travels, its LR copy or proof of delivery. */
     if (step.loads) return setLoading(step);
     if (step.pdf) return setUploading(true);
-    if (step.comment) return setAsking(step);
+    /* A comment alone is the small dialog; one that also asks something (PRT to collect a cheque or follow up) is the form. */
+    if (step.comment && !step.fields?.length) return setAsking(step);
     /* A workflow whose every move says why, or says when — or a move that records something
        (who collected the sample) or tells the buyer: the form first. */
     /* Several models: always the form, to say which models move. */

@@ -22,7 +22,7 @@ test('a status that asks for a choice (the payment mode) shows a dropdown; Payme
   const workflow = readFileSync(new URL('../src/components/TaskWorkflow.jsx', import.meta.url), 'utf8');
   assert.match(workflow, /\{field\.options \? \(\s*<select/);
   assert.match(workflow, /step\.confirmsInward && <p/);
-  assert.match(workflow, /Accounts gets a task to confirm it in the bank/);
+  assert.match(workflow, /It goes on Accounts’ Payments to confirm list. When Accounts confirms it in the bank, this task reads Paid and closes — or Part Paid, open for the rest./);
   const desk = readFileSync(new URL('../src/components/DepartmentDesk.jsx', import.meta.url), 'utf8');
   assert.match(desk, /waiting for the advance — ₹\$\{Math\.round\(order\.advanceShort\)/);
 });

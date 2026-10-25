@@ -45,3 +45,8 @@ test('an invoice reads Paid only once Accounts has seen the money; until then it
     assert.match(read(page), /awaiting_confirmation: 'Paid — waiting for Accounts',/, page);
   }
 });
+
+test('Paid and Part Paid are never offered — they are Accounts’ word, shown only as the status a task reads', () => {
+  assert.match(read('utils/edd.js'), /const offered = statuses\.filter\(\(step\) => !step\.byApp \|\| step\.key === task\?\.status\);/);
+  assert.match(read('components/DeskTables.jsx'), /PRT to \{task\.brief\.prtMode\.toLowerCase\(\)\}/);
+});
