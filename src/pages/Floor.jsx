@@ -90,6 +90,9 @@ function ClearDialog({ machine, onClose, onDone }) {
  * operator does all shift a tap away: log the counter, a stop or rejects; finish the job; start
  * the next one; or call a breakdown. A job card's QR code opens this page on its job.
  */
+/* The mould change before a planned job's first run [server: floorPlanning.service `SETUP_STEPS`]. */
+const SETUP_STEPS = [['mouldOff', 'Mould off'], ['mouldOn', 'Mould on'], ['heated', 'Heated'], ['firstPiece', 'First piece OK']];
+
 export default function Floor() {
   const { canWrite } = useAuth();
   const mayRun = canWrite('production');
@@ -114,6 +117,16 @@ export default function Floor() {
     setParams({}, { replace: true });
   }, [scanned, tiles, dialog, mayRun, setParams]);
   const done = (title, detail) => { toast(title, detail); load(); };
+  /* One tap on the mould change checklist — a second tap takes it back. */
+  const { warn } = useToast();
+  const setupTap = async (job, step, undo) => {
+    try {
+      await workOrdersApi.setupStep({ id: job._id, step, undo });
+      load();
+    } catch (failure) {
+      warn('Not saved', failure.message);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -166,9 +179,24 @@ export default function Floor() {
                   {next.length === 0 && <p className="text-sm text-steel-500">Nothing planned on this press.</p>}
                   {next.map((job, index) => (
                     <div key={job._id} className="flex items-center justify-between gap-2 rounded-xl bg-line/[0.04] px-3 py-2">
-                      <div>
+                      <div className="min-w-0 flex-1">
                         <p className="font-semibold text-steel-100">{index === 0 ? 'Next: ' : ''}{job.mould || job.number}{job.colour ? ` · ${job.colour}` : ''}</p>
                         <p className="text-xs text-steel-400">{job.number} · {formatNumber(job.left)} pcs{job.dueDate ? ` · due ${formatDate(job.dueDate)}` : ''}</p>
+                        {/* Floor planning: the mould change before its first run, one tap each [server: floorPlanning.service `setupStep`]. */}
+                        {index === 0 && job.forTask && !job.started && (
+                          <div className="mt-2 flex flex-wrap gap-1.5" role="group" aria-label={`Mould change for ${job.number}`}>
+                            {SETUP_STEPS.map(([key, label]) => {
+                              const done = Boolean(job.setup?.[key]?.at);
+                              return (
+                                <button key={key} type="button" aria-pressed={done} disabled={!mayRun || down}
+                                  onClick={() => setupTap(job, key, done)}
+                                  className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${done ? 'border-success-500/50 bg-success-500/15 text-success-400' : 'border-line/[0.12] text-steel-300 hover:border-accent/50'}`}>
+                                  {done ? '✓ ' : ''}{label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                       {mayRun && index === 0 && !down && <button type="button" className="btn-primary px-4 py-3" onClick={() => setDialog({ kind: 'start', workOrder: job._id, machine: machine._id })}>Start</button>}
                       <button type="button" className="row-action" onClick={() => workOrdersApi.jobCard(job._id)}>Job card</button>

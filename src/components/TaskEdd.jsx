@@ -9,6 +9,7 @@ import { dateLabelFor, datesOfTask, eddByModelOf, eddOfTask, givesEdd, handOverD
 import TaskRouting from './TaskRouting.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { plantLead } from '../utils/plantSettings.js';
+import TaskPressPlan from './TaskPressPlan.jsx';
 
 /**
  * The dates on a department task. The EDD is marketing's [server: Enquiry `edd`] — read here,
@@ -260,6 +261,8 @@ export default function TaskEdd({ todo, mayAct = false, onChanged }) {
         {/* No EDD: asked for before anything else — the queue runs by it [EddNeeded]. */}
         {!routed && <EddNeeded todo={todo} onChanged={onChanged} />}
         <TaskRouting todo={todo} mayAct={plans} onChanged={onChanged} />
+        {/* Production floor planning on: each routed model's press, planned from here [TaskPressPlan]. */}
+        {routed && <TaskPressPlan todo={todo} mayPlan={plans} onChanged={onChanged} />}
         {routed && handsOnOf(todo).length > 0 && <HandOverDate todo={todo} mayAct={plans} onChanged={onChanged} />}
         {routed && !handsOnOf(todo).length && <EddBox todo={todo} mayAct={plans} onChanged={onChanged} toast={toast} editing={editing} setEditing={setEditing} />}
         {mayAct && !plans && !todo.completed && (

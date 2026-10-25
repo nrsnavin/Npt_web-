@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { production as productionApi, workOrdersApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import { loadPlant } from '../utils/plantSettings.js';
 import { ErrorState, Field, FormError, Modal, Notice, PageHeader, Spinner } from '../components/ui.jsx';
 import MachineSelect from '../components/MachineSelect.jsx';
 import PressChoices from '../components/PressChoices.jsx';
@@ -154,6 +155,9 @@ export default function PlanningBoard() {
   const [lateOnly, setLateOnly] = useState(false);
   const wallRef = useRef(null);
 
+  /* Admin's switch [Profile → Production floor planning]: off, Production tasks are not on this board. */
+  const [floorPlanning, setFloorPlanning] = useState(null);
+  useEffect(() => { loadPlant().then((plant) => setFloorPlanning(Boolean(plant?.floorPlanning))); }, []);
   const load = useCallback(() => productionApi.plan().then((value) => { setBoard(value); setError(null); }).catch(setError), []);
   useEffect(() => { load(); }, [load]);
   const choose = (next) => {
@@ -272,6 +276,9 @@ export default function PlanningBoard() {
           </>
         )}
       />
+      {floorPlanning === false && (
+        <Notice tone="info">Production floor planning is off — Production tasks run as before and are not put on presses here. An Admin turns it on in Profile.</Notice>
+      )}
       {error && <ErrorState error={error} onRetry={load} />}
       {!board && !error && <Spinner label="Loading the board" />}
       {board && (

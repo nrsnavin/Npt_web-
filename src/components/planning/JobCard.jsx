@@ -31,10 +31,16 @@ export default function JobCard({ job, picked = false, mayPlan, busy, onPick, on
             {job.pressDays ? ` · ${job.pressDays} day${job.pressDays === 1 ? '' : 's'}` : ''}
             {job.customer ? ` · ${job.customer}` : ''}
           </p>
+          {/* A Production task's model [floor planning]: which enquiry, and where it goes after moulding. */}
+          {job.forTask && (
+            <p className="mt-0.5 truncate text-xs text-accent" title={job.forTask.route}>
+              {job.forTask.enquiry ? `${job.forTask.enquiry} · ` : ''}{job.forTask.route}
+            </p>
+          )}
         </div>
         {job.dueDate && (
           <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${job.late ? 'bg-danger-500/15 text-danger-400' : 'bg-line/[0.06] text-steel-300'}`}>
-            Due {shortDay(job.dueDate)}{job.late ? ' · late' : ''}
+            {job.forTask ? 'Moulding due' : 'Due'} {shortDay(job.dueDate)}{job.late ? ' · late' : ''}
           </span>
         )}
       </div>
