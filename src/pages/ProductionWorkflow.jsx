@@ -19,6 +19,7 @@ import { dueWords } from '../utils/productionQueue.js';
 import { dateLabelFor, givenDateOf } from '../utils/edd.js';
 import { WORK_ORDER_STATUS } from '../utils/workOrders.js';
 import { DeliveryReading } from '../components/DeliveryRisk.jsx';
+import ModelJourney from '../components/ModelJourney.jsx';
 
 /**
  * One enquiry's production, worked in one place [server: productionQueue.controller
@@ -125,10 +126,17 @@ export default function ProductionWorkflow() {
           <p className={`text-lg font-bold tabular-nums ${band === 'late' ? 'text-danger-400' : 'text-steel-50'}`}>{edd ? formatDate(edd) : 'No EDD yet'}</p>
           <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${tone.chip}`}>{edd ? dueWords(edd) : 'marketing gives it on the enquiry'}</span>
         </div>
-        <p className="min-w-0 flex-1 text-sm leading-snug text-steel-200">{summary}</p>
+        <p className="min-w-[14rem] flex-1 text-sm leading-snug text-steel-200">{summary}</p>
       </div>
       {/* Will it make marketing's EDD — every model and team counted [server: deliveryRisk.service]. */}
       <DeliveryReading risk={delivery} />
+
+      {/* Each model's own journey: Production, Printing / Assembly as routed, Quality, Dispatch — and where it stands on each. */}
+      {data.journeys?.length > 0 && (
+        <Section title="Each model’s journey">
+          <ModelJourney journeys={data.journeys} />
+        </Section>
+      )}
 
       {/* Each model on a row: the route after moulding, each team's status, the EDD and the work orders. */}
       <Section title={`Models (${models.length})`}>

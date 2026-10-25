@@ -8,6 +8,7 @@ import { ErrorState, TableSkeleton } from './ui.jsx';
 import { formatDate, formatRelative } from '../utils/format.js';
 import { EDD_BANDS, dueWords } from '../utils/productionQueue.js';
 import { DELIVERY_TONE, DeliveryBadge, inDanger } from './DeliveryRisk.jsx';
+import ModelJourney from './ModelJourney.jsx';
 
 /**
  * Printing's and Assembly's queues, read at a glance [server: finishingQueue.controller]: one
@@ -256,6 +257,8 @@ export default function FinishingQueueList({ team, compact = false, onRows, onCh
                       </p>
                     ) : null}
                     <p className={`text-sm leading-snug ${row.task.issue ? 'font-semibold text-danger-400' : 'text-steel-200'}`}>{row.summary}</p>
+                    {/* Each model's own route and where it stands on it [ModelJourney]. */}
+                    <ModelJourney journeys={row.journeys} compact />
                     {row.models?.length > 0 && (
                       <ul className="space-y-0.5" aria-label="Models">
                         {row.models.map((entry) => <ModelLine key={entry.model} entry={entry} />)}

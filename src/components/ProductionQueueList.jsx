@@ -9,6 +9,7 @@ import { formatDate, formatRelative } from '../utils/format.js';
 import { EDD_BANDS, dueWords } from '../utils/productionQueue.js';
 import { WORK_ORDER_STATUS } from '../utils/workOrders.js';
 import { DELIVERY_TONE, DeliveryBadge, inDanger } from './DeliveryRisk.jsx';
+import ModelJourney from './ModelJourney.jsx';
 
 /**
  * The production queue, read at a glance [server: productionQueue.controller]: one line per
@@ -328,6 +329,8 @@ export default function ProductionQueueList({ compact = false, onRows }) {
                       </p>
                     ) : null}
                     <p className={`text-sm leading-snug ${row.task.issue ? 'font-semibold text-danger-400' : 'text-steel-200'}`}>{row.summary}</p>
+                    {/* Each model's own route and where it stands on it [ModelJourney]. */}
+                    <ModelJourney journeys={row.journeys} compact />
                     {row.workOrders?.length > 0 && (
                       <div className="flex flex-wrap gap-1.5">
                         {row.workOrders.map((wo) => <WorkOrderChip key={wo._id} wo={wo} orderId={row.order?._id} />)}
