@@ -132,6 +132,7 @@ export const DEPARTMENT_WORKSPACES = {
       { label: 'Floor', to: '/floor', module: 'production', hint: 'The tablet at the presses: log, finish, start the next job, call a breakdown' },
       { label: 'Shift handover', to: '/production/shift', module: 'production', hint: 'What the shift made, what stopped the presses, what the next shift picks up' },
       { label: 'Planning board', to: '/production/plan', module: 'production', hint: 'Presses by day — drag a work order onto a press; light-to-dark colour order' },
+      { label: 'Traded items', to: '/production/trading', module: 'production', hint: 'Models bought in for Production tasks, not moulded — mark ordered and received' },
       { label: 'Material needs', to: '/production/materials', module: 'production', hint: 'Resin, hooks and clips the plan needs, what is short, what to buy' },
       { label: 'Work orders', to: '/work-orders', module: 'production', hint: 'One per released order line — plan it onto a press and start the run from it' },
       { label: 'OEE', to: '/production/oee', module: 'production', hint: 'Availability, performance and quality by press, mould and shift, with the losses' },

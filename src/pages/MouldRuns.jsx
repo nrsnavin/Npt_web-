@@ -49,6 +49,9 @@ export function StartRun({ onClose, onStarted, initial = {} }) {
   const needsOrder = orders.length > 1 && !values.order;
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState(null);
+  /* Floor planning: a task's work order runs once its first piece is approved — or with a reason [server: `assertSetupDone`]. */
+  const [skipReason, setSkipReason] = useState('');
+  const setupOpen = Boolean(workOrder?.task && !workOrder?.setup?.firstPiece?.at && !workOrder?.firstRunAt);
   const set = (key) => (value) => setValues((current) => ({ ...current, [key]: value?.target ? value.target.value : value }));
   const save = async (event) => {
     event.preventDefault();
@@ -68,6 +71,7 @@ export function StartRun({ onClose, onStarted, initial = {} }) {
         operator: values.operator,
         counterStart: number(values.counterStart),
         resin: values.resinMaterial || values.resinName || values.resinBatch ? { material: values.resinMaterial || undefined, name: values.resinName, batch: values.resinBatch } : undefined,
+        ...(setupOpen && skipReason.trim() ? { setupSkipReason: skipReason.trim() } : {}),
       });
       onStarted();
       onClose();
@@ -84,6 +88,15 @@ export function StartRun({ onClose, onStarted, initial = {} }) {
           <div className="rounded-xl border border-accent/30 bg-accent/[0.05] px-3 py-2 text-sm">
             <p className="font-semibold text-steel-100">{workOrder.number} · {workOrder.mould?.mouldCode || workOrder.modelNumber}</p>
             <p className="text-xs text-steel-400">{[workOrder.customer?.name, workOrder.order?.number, workOrder.colour, `${formatNumber(workOrder.toMakeQty)} of ${formatNumber(workOrder.quantity)} still to make`].filter(Boolean).join(' · ')}</p>
+          </div>
+        )}
+        {setupOpen && (
+          <div className="rounded-xl border border-warn-500/40 bg-warn-500/[0.07] p-3 text-sm">
+            <p className="font-semibold text-warn-400">The first piece is not approved yet</p>
+            <p className="text-xs text-steel-300">Tick First piece OK on the floor tablet before the run — or say why it starts without it.</p>
+            <Field label="Why it starts without the first piece approved" className="mt-2">
+              <input className="input" value={skipReason} onChange={(event) => setSkipReason(event.target.value)} maxLength={300} placeholder="Repeat job — same mould and colour as yesterday" />
+            </Field>
           </div>
         )}
         <div className="grid gap-4 sm:grid-cols-2">

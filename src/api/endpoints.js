@@ -722,6 +722,20 @@ export const production = {
   sequenceByColour: (machineId) => api.post(`/production/plan/${machineId}/sequence-by-colour`).then(unwrap),
   /** Every press ranked for one work order, lowest score best: `{ choices, cannot, sized, why }`. */
   choices: (workOrderId) => api.get(`/production/plan/choices/${workOrderId}`, { feedback: false }).then(unwrap),
+  /** A Production task's press step, model by model — `{ on: false }` while floor planning is off. */
+  taskPlan: (taskId) => api.get(`/production/task-plan/${taskId}`).then(unwrap),
+  /** One model of the task put on a press; answers the task's press step again. */
+  placeTaskModel: ({ taskId, model, machine }) => api.post(`/production/task-plan/${taskId}/place`, { model, machine }, { feedback: false }).then(unwrap),
+  /** The auto-planner's proposals confirmed by the in charge — all, or `models`; answers the press step with `confirmed`, `failed`. */
+  confirmTaskPlan: ({ taskId, models }) => api.post(`/production/task-plan/${taskId}/confirm`, models?.length ? { models } : {}, { feedback: false }).then(unwrap),
+  /** The planner proposes again for the task's models not on a press. */
+  proposeTaskPlan: (taskId) => api.post(`/production/task-plan/${taskId}/propose`, {}, { feedback: false }).then(unwrap),
+  /** How often the in charge confirmed the planner as proposed: `{ accepted, changed, manual, agreement, days }`. */
+  plannerStats: () => api.get('/production/planner-stats', { feedback: false }).then(unwrap),
+  /** Traded models on Production tasks — bought in, not moulded: `{ rows, counts, late }`; `status: 'all'` for closed too. */
+  trading: (params) => api.get('/production/trading', { params }).then(unwrap),
+  /** A traded model moved: ordered (with `expectedOn`), part received / received (with `receivedQty`), or cancelled (with `note`). */
+  updateTrade: ({ id, ...body }) => api.patch(`/production/trading/${id}`, body, { feedback: false }).then(unwrap),
   /** Whether a mould can go on a press: `{ ok, blocks, warnings }`. */
   fit: (params) => api.get('/production/fit', { params }).then(unwrap),
   /** OEE for a span of days, by press, mould, shift and day, with the losses behind it. */
@@ -1282,6 +1296,8 @@ export const workOrdersApi = {
   list: (params) => api.get('/work-orders', { params }).then((response) => response.data),
   get: (id) => api.get(`/work-orders/${id}`).then(unwrap),
   plan: ({ id, ...payload }) => api.patch(`/work-orders/${id}`, payload, { feedback: false }).then(unwrap),
+  /** A tap on the mould change checklist: mouldOff, mouldOn, heated, firstPiece; `undo` takes it back. */
+  setupStep: ({ id, step, undo }) => api.post(`/work-orders/${id}/setup`, { step, ...(undo ? { undo: true } : {}) }, { feedback: false }).then(unwrap),
   /** The job card PDF, opened in a new tab for printing. */
   jobCard: async (id) => {
     const response = await api.get(`/work-orders/${id}/job-card`, { responseType: 'blob' });
@@ -1324,4 +1340,6 @@ export const settings = {
   setPlant: (payload) => api.put('/settings/plant', payload).then(unwrap),
   /** The days each finishing team gets before the EDD — the Production in charge, Admin or marketing. */
   setHandoverLead: (days) => api.put('/settings/handover-lead', { days }).then(unwrap),
+  /** Production floor planning on or off — Admin's switch. */
+  setFloorPlanning: (on) => api.put('/settings/floor-planning', { on }).then(unwrap),
 };

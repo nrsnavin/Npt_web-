@@ -9,6 +9,7 @@ import { disablePush, enablePush, pushState } from '../utils/push.js';
 import { settings as settingsApi } from '../api/endpoints.js';
 import { SetPinDialog, PinInput } from '../components/PinGate.jsx';
 import HandoverLeadCard from '../components/HandoverLeadCard.jsx';
+import FloorPlanningCard from '../components/FloorPlanningCard.jsx';
 
 const SIGN_IN_METHODS = {
   password: 'Email and password',
@@ -621,6 +622,8 @@ export default function Profile() {
       <SecurityPolicy />
       {/* The days each finishing team gets before the EDD — the Production in charge, Admin or marketing set it. */}
       <HandoverLeadCard />
+      {/* Admin's switch: Production tasks linked to work orders, presses, the board and the floor tablet. */}
+      <FloorPlanningCard />
 
       <section className="card mt-5 flex flex-wrap items-center justify-between gap-4 p-6">
         <div>

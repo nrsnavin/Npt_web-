@@ -66,6 +66,7 @@ const Oee = lazyPage(() => import('./pages/Oee.jsx'));
 const ProductionInsights = lazyPage(() => import('./pages/ProductionInsights.jsx'));
 const WorkOrders = lazyPage(() => import('./pages/WorkOrders.jsx'));
 const PlanningBoard = lazyPage(() => import('./pages/PlanningBoard.jsx'));
+const TradedSupply = lazyPage(() => import('./pages/TradedSupply.jsx'));
 const MaterialNeeds = lazyPage(() => import('./pages/MaterialNeeds.jsx'));
 const Floor = lazyPage(() => import('./pages/Floor.jsx'));
 const ShiftHandover = lazyPage(() => import('./pages/ShiftHandover.jsx'));
@@ -386,6 +387,15 @@ export default function App() {
             element={
               <RequireModule moduleKey={['production', 'materials']}>
                 <MaterialNeeds />
+              </RequireModule>
+            }
+          />
+          {/* Traded items: models on Production tasks bought in, not moulded — the floor planning checkpoint. */}
+          <Route
+            path="production/trading"
+            element={
+              <RequireModule moduleKey={['production', 'orders']}>
+                <TradedSupply />
               </RequireModule>
             }
           />
