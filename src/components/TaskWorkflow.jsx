@@ -15,7 +15,7 @@ import { useToast } from '../context/ToastContext.jsx';
 import { todayInIndia } from '../utils/taskForm.js';
 import { ladderOf } from '../utils/taskState.js';
 import { departmentLabel } from '../utils/pipeline.js';
-import { ROUTE_LABELS, dateLabelFor, datesOfTask, givenDateOf, goodsOf, modelStatusesOf, modelThrough, modelsForStep, modelsOfTask, movesByModel, needsRouting, nextStepForModel, pathOf, routeOf, statusesFor, statusesForModel } from '../utils/edd.js';
+import { ROUTE_LABELS, dateLabelFor, datesOfTask, givenDateOf, goodsOf, handOverDefault, handOverWarning, modelStatusesOf, modelThrough, modelsForStep, modelsOfTask, movesByModel, needsRouting, nextStepForModel, pathOf, routeOf, statusesFor, statusesForModel } from '../utils/edd.js';
 import { formatDate } from '../utils/format.js';
 
 /**
@@ -45,8 +45,13 @@ export function MoveForm({ todo, form, step, onCancel, onMoved, noDates = false,
    * changed, so a status move does not re-tell the next team a date it already has.
    */
   const given = fixedModels?.length === 1 ? datesOfTask(todo)[fixedModels[0]] || givenDateOf(todo) : givenDateOf(todo);
-  const initialDate = step.date === 'tomorrow' ? tomorrowInIndia() : given && given >= todayInIndia() ? given : '';
+  /* A hand-over with no date yet starts five days before the EDD [utils/edd.js `handOverDefault`]. */
+  const handing = Boolean(step.handsTo);
+  const fresh = (day) => (day && day >= todayInIndia() ? day : '');
+  const initialDate = step.date === 'tomorrow' ? tomorrowInIndia() : fresh(given) || (handing ? handOverDefault(todo, fixedModels?.length === 1 ? fixedModels[0] : null) : '');
   const [date, setDate] = useState(initialDate);
+  /* Several models on the move: a date for each, with one box to set them all [server: `setTaskStatus` dates]. */
+  const [perModel, setPerModel] = useState(() => Object.fromEntries(modelsOfTask(todo).map((model) => [model, fresh(datesOfTask(todo)[model]) || (handing ? handOverDefault(todo, model) : '') || initialDate])));
   const [note, setNote] = useState('');
   /* What this move records [server: departmentTaskForms `statuses[].fields`] — who collected a sample, say. */
   const asks = step.fields || [];
@@ -66,7 +71,10 @@ export function MoveForm({ todo, form, step, onCancel, onMoved, noDates = false,
   const dated = Boolean(form.statusDate) && !unrouted && !noDates;
   /* Per model: a model that ends on this team gives its completion date, not a hand-over [utils/edd.js `dateLabelFor`]. */
   const dateLabel = dateLabelFor(todo, form.statusDate?.label || 'Ready date', fixedModels || (byModel ? picked : []));
-  const dateNeeded = step.date === 'required' && !date;
+  const dateModels = fixedModels || (byModel ? picked : modelsOfTask(todo));
+  const eachModel = dated && dateModels.length > 1;
+  const sameForAll = eachModel && new Set(dateModels.map((model) => perModel[model] || '')).size === 1;
+  const dateNeeded = step.date === 'required' && (eachModel ? dateModels.some((model) => !perModel[model]) : !date);
   const remarkNeeded = (form.remarkRequired || step.comment) && note.trim().length < 3;
   const fieldMissing = asks.find((field) => field.required && !String(answers[field.key] || '').trim());
   const save = async (event) => {
@@ -78,7 +86,13 @@ export function MoveForm({ todo, form, step, onCancel, onMoved, noDates = false,
       .map((field) => [field.key, field.type === 'number' ? Number(answers[field.key]) : String(answers[field.key]).trim()]));
     try {
       onMoved(await workspace.todos.status({
-        id: todo._id, status: step.key, note, ...(date && dated && (date !== given || step.date) ? { date } : {}), ...(asks.length ? { fields } : {}),
+        id: todo._id, status: step.key, note,
+        ...(eachModel
+          ? (sameForAll
+            ? (perModel[dateModels[0]] && (perModel[dateModels[0]] !== given || step.date) ? { date: perModel[dateModels[0]] } : {})
+            : { dates: dateModels.filter((model) => perModel[model]).map((model) => ({ model, date: perModel[model] })) })
+          : (date && dated && (date !== given || step.date) ? { date } : {})),
+        ...(asks.length ? { fields } : {}),
         ...(fixedModels || (byModel && picked.length < allModels.length) ? { models: picked } : {}),
       }));
     } catch (failure) {
@@ -137,10 +151,34 @@ export function MoveForm({ todo, form, step, onCancel, onMoved, noDates = false,
             )}
           </Field>
         ))}
-        {dated && (
-          <Field label={dateLabel} required={step.date === 'required'}>
+        {dated && !eachModel && (
+          <Field label={dateLabel} required={step.date === 'required'} hint={handing ? handOverWarning(todo, fixedModels?.[0] || null, date) || undefined : undefined}>
             <input type="date" className="input" min={todayInIndia()} value={date} onChange={(event) => setDate(event.target.value)} />
           </Field>
+        )}
+        {eachModel && (
+          <fieldset className="space-y-1.5 rounded-lg border border-steel-700/60 px-3 py-2" aria-label={`${dateLabel} for each model`}>
+            <legend className="px-1 text-xs font-medium text-steel-300">{dateLabel} — each model, or one for all</legend>
+            <label className="flex flex-wrap items-center gap-2 text-xs text-steel-300">
+              <span className="font-semibold">Same for all</span>
+              <input type="date" className="input w-auto py-1.5" min={todayInIndia()} value={sameForAll ? perModel[dateModels[0]] || '' : ''}
+                onChange={(event) => setPerModel((current) => ({ ...current, ...Object.fromEntries(dateModels.map((model) => [model, event.target.value])) }))} />
+            </label>
+            {dateModels.map((model) => {
+              const label = dateLabelFor(todo, form.statusDate?.label || 'Ready date', model);
+              const warning = /^Hand-over/.test(label) ? handOverWarning(todo, model, perModel[model]) : null;
+              return (
+                <label key={model} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 text-sm text-steel-200">
+                  <span className="min-w-0">
+                    <span className="block truncate font-semibold">{model}</span>
+                    <span className="block text-xs font-normal text-steel-400">{label}</span>
+                    {warning && <span className="block text-xs font-normal text-warn-400">{warning}</span>}
+                  </span>
+                  <input type="date" aria-label={`${label} for ${model}`} className="input py-1.5" min={todayInIndia()} value={perModel[model] || ''} onChange={(event) => setPerModel((current) => ({ ...current, [model]: event.target.value }))} />
+                </label>
+              );
+            })}
+          </fieldset>
         )}
         <Field label={form.remark?.label || 'Remarks'} required={form.remarkRequired}>
           <textarea rows={2} className="input" placeholder={form.remark?.placeholder || ''} value={note} onChange={(event) => setNote(event.target.value)} autoFocus={!asks.length} />

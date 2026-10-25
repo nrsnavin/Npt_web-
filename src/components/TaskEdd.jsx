@@ -5,7 +5,7 @@ import { useToast } from '../context/ToastContext.jsx';
 import { todayInIndia } from '../utils/taskForm.js';
 import { departmentLabel } from '../utils/pipeline.js';
 import { formatDate } from '../utils/format.js';
-import { dateLabelFor, datesOfTask, eddByModelOf, eddOfTask, givesEdd, handsOnOf, incomingOf, modelsOfTask, needsRouting, routeEndOf, showsEdd, teamWords } from '../utils/edd.js';
+import { dateLabelFor, datesOfTask, eddByModelOf, eddOfTask, givesEdd, handOverDefault, handOverWarning, handsOnOf, incomingOf, modelsOfTask, needsRouting, routeEndOf, showsEdd, teamWords } from '../utils/edd.js';
 import TaskRouting from './TaskRouting.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 
@@ -22,9 +22,10 @@ import { useAuth } from '../context/AuthContext.jsx';
  * a date is asked for each model, with one box to fill them all at once; `given` is the date this
  * task gave each model before [server: Todo `modelDates`].
  */
-export function EddForm({ onSave, onCancel, initial = '', label = 'Give EDD', busyLabel = 'Saving…', dateLabel = 'EDD', models = [], given = {}, hintOf = null }) {
+export function EddForm({ onSave, onCancel, initial = '', label = 'Give EDD', busyLabel = 'Saving…', dateLabel = 'EDD', models = [], given = {}, hintOf = null, initialOf = null, warningOf = null }) {
   const [date, setDate] = useState(initial);
-  const [perModel, setPerModel] = useState(() => Object.fromEntries(models.map((model) => [model, given[model] || initial || ''])));
+  /* `initialOf`: the day a model starts with when it has none yet — a hand-over five days before its EDD [utils/edd.js `handOverDefault`]. */
+  const [perModel, setPerModel] = useState(() => Object.fromEntries(models.map((model) => [model, given[model] || (initialOf ? initialOf(model) : '') || initial || ''])));
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState(null);
@@ -59,6 +60,7 @@ export function EddForm({ onSave, onCancel, initial = '', label = 'Give EDD', bu
                 <span className="block truncate font-semibold">{model}</span>
                 {/* What this model's date is, by its route: a hand-over to the next team, or this team's completion date. */}
                 {hintOf && <span className="block text-xs font-normal text-steel-400">{hintOf(model)}</span>}
+                {warningOf && warningOf(model, perModel[model]) && <span className="block text-xs font-normal text-warn-400">{warningOf(model, perModel[model])}</span>}
               </span>
               <input type="date" aria-label={`${hintOf ? hintOf(model) : dateLabel} for ${model}`} className="input py-1.5" min={todayInIndia()} value={perModel[model] || ''} onChange={(event) => setPerModel({ ...perModel, [model]: event.target.value })} />
             </label>
@@ -69,7 +71,7 @@ export function EddForm({ onSave, onCancel, initial = '', label = 'Give EDD', bu
         </div>
       ) : (
       <div className="grid gap-2 sm:grid-cols-[auto_1fr]">
-        <Field label={dateLabel} required>
+        <Field label={dateLabel} required hint={warningOf ? warningOf(models[0] || null, date) || undefined : undefined}>
           <input type="date" className="input" min={todayInIndia()} value={date} onChange={(event) => setDate(event.target.value)} autoFocus required />
         </Field>
         <Field label="Remark">
@@ -189,7 +191,13 @@ function HandOverDate({ todo, mayAct, onChanged }) {
       <ModelEdds todo={todo} className="mt-1" />
       {gives && day && !editing && <button type="button" className="row-action mt-1" onClick={() => setEditing(true)}>Change hand-over date</button>}
       {gives && (!day || editing) && (
-        <EddForm onSave={save} onCancel={editing ? () => setEditing(false) : undefined} dateLabel={label} label={day ? 'Change hand-over date' : 'Give hand-over date'} models={modelsOfTask(todo)} given={datesOfTask(todo)} hintOf={(model) => dateLabelFor(todo, 'Completion date', model)} />
+        <EddForm
+          onSave={save} onCancel={editing ? () => setEditing(false) : undefined} dateLabel={label} label={day ? 'Change hand-over date' : 'Give hand-over date'}
+          models={modelsOfTask(todo)} given={datesOfTask(todo)} hintOf={(model) => dateLabelFor(todo, 'Completion date', model)}
+          initial={day ? '' : handOverDefault(todo, modelsOfTask(todo).length === 1 ? modelsOfTask(todo)[0] : null)}
+          initialOf={(model) => (/^Hand-over/.test(dateLabelFor(todo, 'Completion date', model)) ? handOverDefault(todo, model) : '')}
+          warningOf={(model, value) => (/^Hand-over/.test(dateLabelFor(todo, 'Completion date', model)) ? handOverWarning(todo, model, value) : null)}
+        />
       )}
     </div>
   );

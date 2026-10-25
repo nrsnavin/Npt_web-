@@ -12,7 +12,8 @@ import BuyerContactCard from '../components/BuyerContactCard.jsx';
 import { CustomerSelect, EnquirySelect } from '../components/pickers.jsx';
 import SampleLog from '../components/SampleLog.jsx';
 import SampleRequestForm from '../components/SampleRequestForm.jsx';
-import SamplePhotos from '../components/SamplePhotos.jsx';
+import SamplePhotos, { PhotoSlot } from '../components/SamplePhotos.jsx';
+import { shrinkImage } from '../utils/shrinkImage.js';
 import SampleReadyForm from '../components/SampleReadyForm.jsx';
 import SampleHandOverForm from '../components/SampleHandOverForm.jsx';
 import ItemList from '../components/ItemList.jsx';
@@ -40,7 +41,21 @@ const TONE_TEXT = {
  * somebody will ask about later and the answer is otherwise only in the head of whoever clicked;
  * the server refuses both without them. Cancelling asks why too: it ends somebody's request.
  */
-function StageForm({ sample, to, onClose, onSaved }) {
+/** "HIPS : NATURAL · Black · Chrome hook · 3 COLOUR print" — a model row's details in one line. */
+const rowDetails = (row) => [
+  row.materialRef?.name || row.material?.toUpperCase?.(), row.colour,
+  row.hookRef?.name && `${row.hookRef.name} hook`, row.clipRef?.name && `${row.clipRef.name} clip`,
+  (row.printRef?.name || row.printing) && `${row.printRef?.name || row.printing} print`,
+].filter(Boolean).join(' · ');
+
+function StageForm({ sample: given, to, onClose, onSaved }) {
+  /* The bag as it stands: a photo taken here lands on the row at once [samplesApi.setItemPhoto]. */
+  const [sample, setSample] = useState(given);
+  const rows = sample.items || [];
+  const several = rows.length > 1;
+  /* Several models: the pieces sent of each, starting from the pieces asked for. */
+  const [pieces, setPieces] = useState(() => Object.fromEntries(rows.map((row) => [row._id, String(row.dispatchedQuantity ?? row.quantity ?? '')])));
+  const [photoBusy, setPhotoBusy] = useState(null);
   const [note, setNote] = useState('');
   const [courier, setCourier] = useState(sample.courier || '');
   const [awbNumber, setAwbNumber] = useState(sample.awbNumber || '');
@@ -82,7 +97,8 @@ function StageForm({ sample, to, onClose, onSaved }) {
           note: text(note),
           courier: dispatching ? courier : undefined,
           awbNumber: dispatching ? awbNumber : undefined,
-          dispatchedQuantity: dispatching ? numeric(dispatchedQuantity) : undefined,
+          dispatchedQuantity: dispatching && !several ? numeric(dispatchedQuantity) : undefined,
+          ...(dispatching && several ? { itemQuantities: rows.map((row) => ({ item: row._id, quantity: Number(pieces[row._id]) || 0 })) } : {}),
           dispatchedColour: dispatching ? text(dispatchedColour) : undefined,
           ...(dispatching && substituting && sample.colourMandatory && anyway
             ? { colourOverride: true, colourOverrideReason: anywayReason.trim() }
@@ -119,6 +135,51 @@ function StageForm({ sample, to, onClose, onSaved }) {
           <p className="mb-3 text-sm text-steel-400">
             The customer needs to know how it is coming, so these are not optional.
           </p>
+          {/* Several models: each one with its details, its photo, and the pieces of it that went. */}
+          {several && (
+            <ol className="mb-4 space-y-2.5" aria-label="Models in the bag">
+              {rows.map((row, index) => (
+                <li key={row._id} className="rounded-xl border border-line/[0.08] bg-line/[0.02] p-3">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-steel-100">
+                        <span className="mr-2 rounded-md bg-flame-500/15 px-1.5 py-0.5 text-xs font-bold text-flame-400">{index + 1}</span>
+                        {row.modelNumber || row.mould?.name || `Item ${index + 1}`}
+                      </p>
+                      {rowDetails(row) && <p className="mt-0.5 text-xs text-steel-400">{rowDetails(row)}</p>}
+                      <p className="text-xs text-steel-500">{row.quantity ? `${row.quantity} pc asked` : ''}</p>
+                    </div>
+                    <Field label="Pieces sent" required className="w-28">
+                      <input type="number" min="0" required className="input" aria-label={`Pieces of ${row.modelNumber || `item ${index + 1}`} sent`}
+                        value={pieces[row._id] ?? ''} onChange={(event) => setPieces((current) => ({ ...current, [row._id]: event.target.value }))} />
+                    </Field>
+                  </div>
+                  <div className="mt-2">
+                    <PhotoSlot
+                      label="Finished piece"
+                      photo={row.photo}
+                      mayEdit
+                      capture="environment"
+                      busy={photoBusy === row._id}
+                      emptyText="Add the photo — camera or gallery"
+                      onPick={async (file) => {
+                        setPhotoBusy(row._id);
+                        try { setSample(await samplesApi.setItemPhoto({ id: sample._id, itemId: row._id, photo: await shrinkImage(file) })); } catch (photoError) { setError(photoError.message); } finally { setPhotoBusy(null); }
+                      }}
+                      onClear={async () => {
+                        setPhotoBusy(row._id);
+                        try { setSample(await samplesApi.clearItemPhoto({ id: sample._id, itemId: row._id })); } catch (photoError) { setError(photoError.message); } finally { setPhotoBusy(null); }
+                      }}
+                      onOpen={() => {}}
+                    />
+                  </div>
+                </li>
+              ))}
+              <li className="text-right text-xs text-steel-400">
+                {rows.reduce((sum, row) => sum + (Number(pieces[row._id]) || 0), 0)} pieces in all
+              </li>
+            </ol>
+          )}
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Courier" required>
               <input className="input" required value={courier} onChange={(event) => setCourier(event.target.value)} />
@@ -126,6 +187,7 @@ function StageForm({ sample, to, onClose, onSaved }) {
             <Field label="Tracking number" hint="The courier's AWB" required>
               <input className="input" required value={awbNumber} onChange={(event) => setAwbNumber(event.target.value)} />
             </Field>
+            {!several && (
             <Field label="Quantity sent" required>
               <input
                 type="number"
@@ -136,6 +198,7 @@ function StageForm({ sample, to, onClose, onSaved }) {
                 onChange={(event) => setDispatchedQuantity(event.target.value)}
               />
             </Field>
+            )}
 
             {/*
               What actually went in the bag, which the register had no field for until now. The
@@ -235,7 +298,7 @@ function StageForm({ sample, to, onClose, onSaved }) {
         <button
           type="submit"
           className={cancelling ? 'btn-danger' : 'btn-primary'}
-          disabled={busy || reasonShort || (dispatching && substituting && sample.colourMandatory && !(anyway && anywayReason.trim().length >= 5))}
+          disabled={busy || reasonShort || (dispatching && several && !rows.some((row) => Number(pieces[row._id]) > 0)) || (dispatching && substituting && sample.colourMandatory && !(anyway && anywayReason.trim().length >= 5))}
         >
           {busy
             ? 'Saving…'
@@ -1631,7 +1694,7 @@ export default function SampleDetail() {
                     { label: 'Courier', value: sample.courier },
                     { label: 'Tracking number', value: sample.awbNumber },
                     { label: 'Sent on', value: sample.dispatchedAt && formatDate(sample.dispatchedAt) },
-                    { label: 'Quantity sent', value: sample.dispatchedQuantity && formatNumber(sample.dispatchedQuantity) },
+                    { label: 'Quantity sent', value: sample.dispatchedQuantity && `${formatNumber(sample.dispatchedQuantity)}${(sample.items || []).some((row) => row.dispatchedQuantity != null) && sample.items.length > 1 ? ` — ${sample.items.map((row) => `${row.modelNumber || 'item'} ${formatNumber(row.dispatchedQuantity || 0)}`).join(' · ')}` : ''}` },
                     { label: 'Colour sent', value: sample.dispatchedColour },
                     { label: 'Delivered on', value: sample.deliveredAt && formatDate(sample.deliveredAt) },
                   ]}

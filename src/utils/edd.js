@@ -257,3 +257,35 @@ export const modelThrough = (statuses = [], status) => {
   const step = statuses.find((entry) => entry.key === status);
   return Boolean(step?.handsTo || step?.readyForDispatch || step?.done);
 };
+
+/** How many days before the EDD a hand-over to Printing or Assembly falls by default [server: handoff.service `HANDOVER_LEAD_DAYS`]. */
+export const HANDOVER_LEAD_DAYS = 5;
+const daysBefore = (day, count) => {
+  const at = new Date(`${day}T12:00:00Z`);
+  at.setUTCDate(at.getUTCDate() - count);
+  /* A calendar day in, a calendar day out — noon Greenwich keeps it the same day. */
+  return `${at.getUTCFullYear()}-${String(at.getUTCMonth() + 1).padStart(2, '0')}-${String(at.getUTCDate()).padStart(2, '0')}`;
+};
+/** Marketing's EDD for one model — the one set for it, else the task's [server: Enquiry `eddByModel`]. */
+export function eddForModel(task, model) {
+  const row = model ? eddByModelOf(task?.enquiry).find((entry) => entry.model === model) : null;
+  return row?.final?.date || eddOfTask(task)?.date || null;
+}
+/**
+ * The hand-over day a form starts with: HANDOVER_LEAD_DAYS before the model's EDD, never before
+ * `today`; '' with no EDD. The server refuses a hand-over on or after the EDD.
+ */
+export function handOverDefault(task, model = null, today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date())) {
+  const edd = eddForModel(task, model);
+  if (!edd) return '';
+  const day = daysBefore(edd, HANDOVER_LEAD_DAYS);
+  return day < today ? today : day;
+}
+/** How a hand-over day sits against the EDD: null when it is the full lead or more ahead. */
+export function handOverWarning(task, model, day) {
+  const edd = eddForModel(task, model);
+  if (!edd || !day) return null;
+  if (day >= edd) return `On or after the EDD (${formatDate(edd)}) — hand over before it`;
+  const gap = Math.round((Date.parse(`${edd}T00:00:00Z`) - Date.parse(`${day}T00:00:00Z`)) / 86400000);
+  return gap < HANDOVER_LEAD_DAYS ? `Only ${gap} day${gap === 1 ? '' : 's'} before the EDD (${formatDate(edd)}) — ${HANDOVER_LEAD_DAYS} is the usual` : null;
+}
