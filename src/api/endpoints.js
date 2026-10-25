@@ -128,9 +128,9 @@ export const workspace = {
     /** What the dispatch form offers: the models ordered and sent, ready or not, the plan and the modes [server: `dispatchSheet`]. */
     dispatchSheet: (id) => api.get(`/workspace/todos/${id}/dispatch`).then(unwrap),
     /** A load from the dispatch form: the models and pieces, how it travels, and its LR copy or proof of delivery. */
-    dispatchLoad: ({ id, status, mode, lines, note, file }) => {
+    /** A load from the dispatch form; the server picks Part / Fully Dispatched from what has gone. */
+    dispatchLoad: ({ id, mode, lines, note, file }) => {
       const form = new FormData();
-      form.append('status', status);
       form.append('mode', mode);
       form.append('lines', JSON.stringify(lines));
       if (note) form.append('note', note);
@@ -684,8 +684,10 @@ export const payments = {
   setContact: ({ id, ...payload }) => api.put(`/payments/${id}/contact`, payload).then(unwrap),
   /** Money in — Accounts, Payment Collection or PRT; only Accounts' counts at the payment gate until confirmed. */
   receipt: ({ id, ...payload }) => api.post(`/payments/${id}/receipts`, payload).then(unwrap),
-  /** Accounts has seen a collector's receipt in the bank. */
-  confirmReceipt: ({ id, receiptId }) => api.post(`/payments/${id}/receipts/${receiptId}/confirm`).then(unwrap),
+  /** Accounts has seen a logged payment in the bank — with the bank line: UTR, amount, day credited, account, remark. */
+  confirmReceipt: ({ id, receiptId, ...bankLine }) => api.post(`/payments/${id}/receipts/${receiptId}/confirm`, bankLine).then(unwrap),
+  /** Accounts did not find a logged payment in the bank — with the reason; whoever logged it is told. */
+  rejectReceipt: ({ id, receiptId, reason }) => api.post(`/payments/${id}/receipts/${receiptId}/reject`, { reason }).then(unwrap),
   /** Disputed or on hold, and clearing it again. Both stop the escalation ladder. */
   judgement: ({ id, ...payload }) => api.post(`/payments/${id}/judgement`, payload).then(unwrap),
   /** The advance a buyer owes before anything is made, against the order it belongs to. */

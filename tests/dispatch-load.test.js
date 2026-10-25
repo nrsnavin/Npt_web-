@@ -1,8 +1,8 @@
 /**
  * A load sent on a Dispatch request [components/DispatchLoadDialog.jsx]: the dispatch statuses
  * open the form — models ticked (Select all), pieces of each, the mode of travel, and the LR copy,
- * proof of delivery or signed receipt uploaded with it — and Fully Dispatched or Dispatched offers
- * to close the task. Reception sends the LR copy Dispatch uploaded.
+ * proof of delivery or signed receipt uploaded with it. The app picks Part / Fully Dispatched from
+ * what has gone, and Fully Dispatched offers to close the task. Reception sends the LR copy Dispatch uploaded.
  *
  *   node --test tests/dispatch-load.test.js
  */
@@ -16,7 +16,7 @@ const workflow = read('components/TaskWorkflow.jsx');
 
 test('the dispatch statuses open the dispatch form, never a bare move', () => {
   assert.match(workflow, /if \(step\.loads\) return setLoading\(step\);/);
-  assert.match(workflow, /<DispatchLoadDialog\s+todo=\{todo\}\s+step=\{loading\}/);
+  assert.match(workflow, /<DispatchLoadDialog\s+todo=\{todo\}\s+onClose=/);
 });
 
 test('models ticked with Select all — the ready ones first when it goes model by model — pieces of each, the mode, and the paper it needs', () => {
@@ -26,13 +26,16 @@ test('models ticked with Select all — the ready ones first when it goes model 
   assert.match(dialog, /role="radiogroup" aria-label="Mode of travel"/);
   assert.match(dialog, /<input type="file" required accept=\{TYPES\.join\(','\)\}/);
   assert.match(dialog, /const ready = chosen\.length > 0 && !missingPieces && how && file && !tooBig && !wrongType;/);
-  assert.match(read('api/endpoints.js'), /dispatchLoad: \(\{ id, status, mode, lines, note, file \}\) =>/);
+  assert.match(read('api/endpoints.js'), /dispatchLoad: \(\{ id, mode, lines, note, file \}\) =>/, 'no status — the server picks it');
 });
 
-test('Fully Dispatched or Dispatched offers to close the task', () => {
-  assert.match(dialog, /const closes = Boolean\(step\.next\) && step\.key !== 'part_dispatched';/);
-  assert.match(dialog, /if \(closes && !saved\.completed\) setOffer\(saved\);/);
+test('the app says what the load makes it; only Fully Dispatched offers to close the task', () => {
+  assert.match(dialog, /const outcome = models\.length && !stillToGo\.length \? 'Fully Dispatched' : 'Part Quantity Dispatched';/);
+  assert.match(dialog, /This load makes it \{outcome\}/);
+  assert.match(dialog, /Still to go: \{stillToGo\.map/);
+  assert.match(dialog, /if \(saved\.status === 'fully_dispatched' && !saved\.completed\) setOffer\(saved\);/);
   assert.match(dialog, /<CloseTaskPrompt/);
+  assert.doesNotMatch(dialog, /status: step\.key/, 'Dispatch never picks the status');
 });
 
 test('Reception sends the LR copy Dispatch uploaded — from the task and from its LR row', () => {

@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { Badge, ErrorState, Section } from './ui.jsx';
 import TaskPdfLink from './TaskPdfLink.jsx';
 import QcFlag from './QcFlag.jsx';
+import DispatchProgress from './DispatchProgress.jsx';
 import { formatNumber } from '../utils/format.js';
 
 /**
@@ -36,6 +37,8 @@ export function DispatchBody({ data, showOrder = false }) {
   ) : null);
   return (
     <div className="space-y-5">
+      {/* Each model ordered against what has gone, across every request [DispatchProgress]. */}
+      {data.models?.length > 0 && <DispatchProgress models={data.models} />}
       {data.requests.map((request, index) => (
         <div key={request._id} className="rounded-xl border border-line/[0.08] p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -47,6 +50,23 @@ export function DispatchBody({ data, showOrder = false }) {
           </div>
           {request.remark && <p className="mt-1 text-xs text-steel-400">{request.remark}</p>}
           {request.qc && <p className="mt-1"><QcFlag qc={request.qc} /></p>}
+          {/* Each load sent from the dispatch form: when, the models and pieces, how, who, and its proof. */}
+          {request.loads?.length > 0 && (
+            <ul className="mt-3 divide-y divide-line/[0.06] rounded-lg bg-line/[0.03] text-sm" aria-label="Loads sent">
+              {request.loads.map((load) => (
+                <li key={load._id} className="flex flex-wrap items-start justify-between gap-2 px-3 py-2">
+                  <span className="min-w-0">
+                    <span className="font-semibold text-steel-100">{load.lines.map((line) => `${line.model} ${formatNumber(line.quantity)} pcs`).join(' · ')}</span>
+                    <span className="block text-xs text-steel-400">
+                      {[when(load.at), load.mode, load.by && `by ${load.by}`, load.statusLabel].filter(Boolean).join(' · ')}
+                    </span>
+                    {load.note && <span className="block text-xs text-steel-500">{load.note}</span>}
+                  </span>
+                  <TaskPdfLink file={load.proof} />
+                </li>
+              ))}
+            </ul>
+          )}
           {request.trips.length ? (
             <ul className="mt-3 space-y-2 text-sm">
               {request.trips.map((leg) => (

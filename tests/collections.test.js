@@ -36,7 +36,7 @@ test('a receipt says whether Accounts has seen it, and only Accounts or Admin ma
   assert.match(page, /\{!receipt\.confirmed\?\.at && seesTheBank && \(/);
   assert.match(page, /Confirm — seen in the bank/);
   assert.match(page, /receivable\.awaitingConfirmation > 0 && \(/, 'the money the gate is still waiting on is said on the screen');
-  assert.match(read('api/endpoints.js'), /confirmReceipt: \(\{ id, receiptId \}\) => api\.post\(`\/payments\/\$\{id\}\/receipts\/\$\{receiptId\}\/confirm`\)/);
+  assert.match(read('api/endpoints.js'), /confirmReceipt: \(\{ id, receiptId, \.\.\.bankLine \}\) => api\.post\(`\/payments\/\$\{id\}\/receipts\/\$\{receiptId\}\/confirm`, bankLine\)/, 'with the bank line [payments-to-confirm.test.js]');
 });
 
 test('the rule’s proposal shows on the task and on the board; the day screen lists the cases beside the money', () => {

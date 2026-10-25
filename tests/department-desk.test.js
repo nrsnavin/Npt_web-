@@ -48,7 +48,7 @@ test('the dashboard lists department tasks as cards, with what was asked, their 
   assert.match(page, /data\?\.enquiries/);
   assert.match(page, /<TaskFacts button=\{button\} task=\{task\}/);
   /* One Tasks tab: To do, We asked, Replies, and what was finished a toggle away — the old tabs are gone. */
-  assert.match(page, /\{ key: 'tasks', label: 'Tasks', count: toDoCount \}/);
+  assert.match(page, /\{ key: 'tasks', label: 'Tasks', count: toDoCount \+ \(toConfirm\?\.length \|\| 0\) \}/, 'Accounts’ payments to confirm counted too');
   for (const section of ['To do', 'We asked', 'Replies']) assert.match(page, new RegExp(`<TaskSection title="${section}"`));
   assert.match(page, /<HandoffTaskList tasks=\{waitingOnOthers\} perspective="sender"/);
   assert.match(page, /<HandoffTaskList tasks=\{cameBack\} perspective="sender"/);

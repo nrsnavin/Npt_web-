@@ -9,6 +9,7 @@ import {
 import FollowUpForm from '../components/FollowUp.jsx';
 import PaymentContact from '../components/PaymentContact.jsx';
 import HistoryPanel from '../components/HistoryPanel.jsx';
+import { ConfirmPaymentDialog } from '../components/ConfirmPaymentDialog.jsx';
 import { formatCurrency, formatDate, humanise } from '../utils/format.js';
 
 /**
@@ -39,6 +40,8 @@ import { formatCurrency, formatDate, humanise } from '../utils/format.js';
 
 const STATE_LABELS = {
   paid: 'Paid',
+  /* Logged by the collector, not yet seen in the bank by Accounts [server: Receivable `state`]. */
+  awaiting_confirmation: 'Paid — waiting for Accounts',
   part_paid: 'Part paid',
   overdue: 'Overdue',
   due_today: 'Due today',
@@ -273,6 +276,8 @@ export default function PaymentDetail() {
   const [calling, setCalling] = useState(false);
   const [receipting, setReceipting] = useState(false);
   const [judging, setJudging] = useState(false);
+  /* The logged payment Accounts is confirming, with the bank line [ConfirmPaymentDialog]. */
+  const [confirming, setConfirming] = useState(null);
 
   if (loading) return <Spinner label="Loading" />;
   if (error) return <ErrorState error={error} onRetry={reload} />;
@@ -287,13 +292,10 @@ export default function PaymentDetail() {
   const statusLabel = (key) => statuses.find((row) => row.key === key)?.label || key;
 
   const absorb = (next) => setData({ ...data, data: next.data ?? next });
-  const confirm = async (receiptId) => {
-    try {
-      absorb(await paymentsApi.confirmReceipt({ id: receivable._id, receiptId }));
-    } catch (failure) {
-      window.alert(failure.message);
-    }
-  };
+  const confirm = (receipt) => setConfirming({
+    receivableId: receivable._id, receiptId: receipt._id, amount: receipt.amount, mode: receipt.mode, reference: receipt.reference,
+    receivedAt: receipt.receivedAt, by: receipt.recordedBy?.name, label: [receivable.customer?.name, receivable.order?.number || receivable.number].filter(Boolean).join(' · '),
+  });
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -483,12 +485,18 @@ export default function PaymentDetail() {
                       {/* Confirmed by Accounts, or waiting for them — with the button for whoever can see the bank. */}
                       <span className="flex w-full items-center justify-between gap-2 text-xs">
                         {receipt.confirmed?.at ? (
-                          <span className="text-success-400">Confirmed{receipt.confirmed.by?.name ? ` by ${receipt.confirmed.by.name}` : ''} · {formatDate(receipt.confirmed.at)}</span>
+                          <span className="text-success-400">
+                            Confirmed{receipt.confirmed.by?.name ? ` by ${receipt.confirmed.by.name}` : ''} · {formatDate(receipt.confirmed.at)}
+                            {/* What the bank line said [ConfirmPaymentDialog]. */}
+                            {receipt.confirmed.reference ? ` · UTR ${receipt.confirmed.reference}` : ''}
+                            {receipt.confirmed.bankAccount ? ` · into ${receipt.confirmed.bankAccount}` : ''}
+                            {receipt.confirmed.loggedAmount ? ` · logged as ${formatCurrency(receipt.confirmed.loggedAmount)}` : ''}
+                          </span>
                         ) : (
                           <span className="font-semibold text-warn-400">Awaiting Accounts’ confirmation</span>
                         )}
                         {!receipt.confirmed?.at && seesTheBank && (
-                          <button type="button" className="btn-secondary px-3 py-1 text-xs" onClick={() => confirm(receipt._id)}>
+                          <button type="button" className="btn-secondary px-3 py-1 text-xs" onClick={() => confirm(receipt)}>
                             Confirm — seen in the bank
                           </button>
                         )}
@@ -560,6 +568,7 @@ export default function PaymentDetail() {
         onClose={() => setReceipting(false)}
         onSaved={(next) => { setReceipting(false); absorb(next); reload(); }}
       />}
+      {confirming && <ConfirmPaymentDialog payment={confirming} onClose={() => setConfirming(null)} onDone={(next) => { setConfirming(null); absorb(next); }} />}
       <JudgementForm
         receivable={judging ? receivable : null}
         onClose={() => setJudging(false)}
