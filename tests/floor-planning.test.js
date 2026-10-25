@@ -138,3 +138,14 @@ test('the auto-planner’s proposals: shown on the task and the board, confirmed
   assert.match(endpoints, /proposeTaskPlan: \(taskId\) => api\.post\(`\/production\/task-plan\/\$\{taskId\}\/propose`/);
   assert.match(endpoints, /plannerStats: \(\) => api\.get\('\/production\/planner-stats'/);
 });
+
+test('a mould on the plant’s default values is said as such, on the mould and on the task', async () => {
+  const { defaultedWords } = await import('../src/utils/mouldDefaults.js');
+  assert.equal(defaultedWords(['cycleTimeSeconds']), 'cycle time');
+  assert.equal(defaultedWords(['cavities', 'cycleTimeSeconds', 'machine.tonnage']), 'cavities, cycle time and tonnage');
+  assert.equal(defaultedWords([]), '');
+  const detail = read('pages/MouldDetail.jsx');
+  assert.match(detail, /\{mould\.defaulted\?\.length > 0 && \(/);
+  assert.match(detail, /Set up with the plant’s default values/);
+  assert.match(read('components/TaskPressPlan.jsx'), /\{wo\.mouldDefaults && wo\.mould && \(/);
+});

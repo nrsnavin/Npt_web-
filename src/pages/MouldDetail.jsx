@@ -9,6 +9,7 @@ import {
 import { MouldThumb } from '../components/MouldPhoto.jsx';
 import MouldForm from '../components/MouldForm.jsx';
 import DeleteRecordButton from '../components/DeleteRecordButton.jsx';
+import { defaultedWords } from '../utils/mouldDefaults.js';
 import MouldHistory from '../components/MouldHistory.jsx';
 import { formatCurrency, formatDate, formatNumber, humanise } from '../utils/format.js';
 import { formatGrams } from '../utils/grams.js';
@@ -111,6 +112,14 @@ export default function MouldDetail() {
       {mould.isActive === false && (
         <Notice tone="warn">
           This mould is off the register — it will not be offered when a model is chosen.
+        </Notice>
+      )}
+
+      {/* Set up by floor planning on the plant's defaults: the plan's dates are only as good as these. */}
+      {mould.defaulted?.length > 0 && (
+        <Notice tone="info">
+          Set up with the plant’s default values — {defaultedWords(mould.defaulted)} {mould.defaulted.length === 1 ? 'is' : 'are'} not
+          measured yet. Measure {mould.defaulted.length === 1 ? 'it' : 'them'} and edit the mould; the planner’s dates follow.
         </Notice>
       )}
 

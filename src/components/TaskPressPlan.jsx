@@ -120,6 +120,11 @@ function ModelRow({ row, mayPlan, busy, onPlace, onChoose, onConfirm }) {
       {state.key === 'waiting' && row.best?.machine && (
         <p className="mt-1 text-xs text-steel-500">Best press {row.best.machine.code}, done {shortDay(row.best.end)}{row.best.late ? <span className="font-semibold text-warn-400"> · late even there</span> : ''}</p>
       )}
+      {wo.mouldDefaults && wo.mould && (
+        <p className="mt-1 text-xs text-steel-500">
+          Mould on plant default values — <Link to={`/moulds/${wo.mould}`} className="text-aqua-300 hover:underline">measure and correct it</Link> for true dates.
+        </p>
+      )}
       {state.key === 'blocked' && (
         <p className="mt-1 text-xs text-danger-400">{wo.mouldMissing ? `Add ${row.model} to the mould register to plan it.` : row.best?.why}</p>
       )}
