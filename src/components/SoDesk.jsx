@@ -20,6 +20,7 @@ import { piecesOf as pieces, rupeesOf as rupees, sizeWords } from '../utils/soDe
  *   buyer       the last order and its terms, the credit status, what is overdue
  *   duplicate   an order already open on the enquiry, or a second request for it
  *   question    a Needs Clarification's question and marketing's answer, inline
+ *   answered    every answer marketing gave on the request, kept after Got it (saved on the enquiry too)
  *
  * The queue as cards, one a request — the SO team's only view of its department tasks — plus the
  * week's bookings and where each went, and the prepared orders not yet in production. On each card:
@@ -90,6 +91,25 @@ function Question({ question, task, onChanged }) {
   );
 }
 
+/** Marketing's answers on the request, kept for good — the one shown above under Question is left out. */
+function Answered({ answered, question }) {
+  const list = question?.answer ? (answered || []).slice(0, -1) : answered || [];
+  if (!list.length) return null;
+  return (
+    <details className="rounded-lg border border-line/[0.08] px-3 py-2 text-xs" open={!question}>
+      <summary className="cursor-pointer font-semibold text-steel-200">Marketing’s answers ({list.length})</summary>
+      <ul className="mt-1.5 space-y-1.5">
+        {list.map((pair, at) => (
+          <li key={at}>
+            <p className="text-steel-400"><span className="font-semibold text-steel-300">Asked:</span> {pair.question || '—'}{pair.askedBy ? ` · ${pair.askedBy}` : ''}</p>
+            <p className="text-steel-100"><span className="font-semibold text-success-400">Answer:</span> {pair.answer}<span className="text-steel-500">{pair.answeredBy ? ` · ${pair.answeredBy}` : ''}{pair.answeredAt ? ` · ${formatDate(pair.answeredAt)}` : ''}</span></p>
+          </li>
+        ))}
+      </ul>
+    </details>
+  );
+}
+
 /** One request, as a card: what to do with it on top, the request as entered, the team's workflow under it. */
 function SoCard({ row, onChanged, onAsk }) {
   const { task, enquiry, so } = row;
@@ -122,6 +142,7 @@ function SoCard({ row, onChanged, onAsk }) {
       )}
       <BuyerLine buyer={so.buyer} />
       <Question question={so.question} task={task} onChanged={onChanged} />
+      <Answered answered={so.answered} question={so.question} />
       <TaskFacts button={button} task={task} />
       {task.notes && <p className="text-sm text-steel-300">“{task.notes}”</p>}
       <p className="text-xs text-steel-500">Here since {formatDate(row.since)} · {task.user?.name ? `with ${task.user.name}` : 'nobody has picked it up'}{owner ? ` · ${owner}’s buyer` : ''}</p>

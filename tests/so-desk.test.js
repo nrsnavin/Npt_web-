@@ -52,3 +52,17 @@ test('the SO task offers only Escalate to Admin beside its workflow — the form
   assert.match(actions, /\]\.filter\(\(choice\) => allows\(choice\.key\)\)\.concat\(escalate, adminClose\);/);
   for (const key of ['update', 'back', 'date']) assert.match(actions, new RegExp(`\\{allows\\('${key}'\\) && <button`));
 });
+
+test('marketing’s answers stay on the SO card, and on the enquiry for marketing and Admin', () => {
+  const desk = read('components/SoDesk.jsx');
+  assert.match(desk, /function Answered\(\{ answered, question \}\)/);
+  assert.match(desk, /<Answered answered=\{so\.answered\} question=\{so\.question\} \/>/);
+  assert.match(desk, /Marketing’s answers \(\{list\.length\}\)/);
+  /* The answer already shown under the question is not listed twice. */
+  assert.match(desk, /question\?\.answer \? \(answered \|\| \[\]\)\.slice\(0, -1\)/);
+  const panel = read('components/EnquiryClarifications.jsx');
+  assert.match(panel, /Questions answered \(\$\{list\.length\}\)/);
+  assert.match(panel, /pair\.answeredBy\?\.name/);
+  const page = read('pages/EnquiryDetail.jsx');
+  assert.match(page, /<EnquiryClarifications clarifications=\{enquiry\.clarifications\} \/>/);
+});

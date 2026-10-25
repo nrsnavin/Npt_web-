@@ -298,8 +298,8 @@ export function teamsAfter(task, model = null) {
 /**
  * The hand-over day a form starts with: the days each team after this one gets, back from the
  * model's EDD — printed and assembled, to Printing 2 × `lead` before and to Assembly `lead`
- * before; never before `today`; '' with no EDD or no team after. The server refuses a hand-over
- * on or after the EDD.
+ * before; never before `today`; '' with no EDD or no team after. A later day is allowed — the
+ * dates are for reference, and the server only notes one on or after the EDD.
  */
 export function handOverDefault(task, model = null, today = indiaToday(), lead = HANDOVER_LEAD_DAYS) {
   const edd = eddForModel(task, model);
@@ -317,7 +317,7 @@ export function handOverDefault(task, model = null, today = indiaToday(), lead =
 export function handOverWarning(task, model, day, lead = HANDOVER_LEAD_DAYS) {
   const edd = eddForModel(task, model);
   if (!day) return null;
-  if (edd && day >= edd) return `On or after the EDD (${formatDate(edd)}) — hand over before it`;
+  if (edd && day >= edd) return `On or after the EDD (${formatDate(edd)}) — for reference, it can still be saved`;
   const teams = teamsAfter(task, model) || 1;
   const gap = edd ? daysApart(day, edd) : null;
   if (gap != null && gap < lead * teams) {
