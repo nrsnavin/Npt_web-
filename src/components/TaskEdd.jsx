@@ -7,6 +7,7 @@ import { departmentLabel } from '../utils/pipeline.js';
 import { formatDate } from '../utils/format.js';
 import { dateLabelFor, datesOfTask, eddByModelOf, eddOfTask, givesEdd, handOverDefault, handOverWarning, handsOnOf, incomingOf, modelsOfTask, needsRouting, routeEndOf, showsEdd, teamWords } from '../utils/edd.js';
 import TaskRouting from './TaskRouting.jsx';
+import StartFrom from './StartFrom.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { plantLead } from '../utils/plantSettings.js';
 import TaskPressPlan from './TaskPressPlan.jsx';
@@ -260,7 +261,10 @@ export default function TaskEdd({ todo, mayAct = false, onChanged }) {
       <div className="space-y-2">
         {/* No EDD: asked for before anything else — the queue runs by it [EddNeeded]. */}
         {!routed && <EddNeeded todo={todo} onChanged={onChanged} />}
-        <TaskRouting todo={todo} mayAct={plans} onChanged={onChanged} />
+        {/* Asked with only the buyer's name: the in charge links it, or starts each model from where it is [StartFrom]. */}
+        {!todo.enquiry && !routed && plans && !todo.completed
+          ? <StartFrom todo={todo} onChanged={onChanged} />
+          : <TaskRouting todo={todo} mayAct={plans} onChanged={onChanged} />}
         {/* Production floor planning on: each routed model's press, planned from here [TaskPressPlan]. */}
         {routed && <TaskPressPlan todo={todo} mayPlan={plans} onChanged={onChanged} />}
         {routed && handsOnOf(todo).length > 0 && <HandOverDate todo={todo} mayAct={plans} onChanged={onChanged} />}

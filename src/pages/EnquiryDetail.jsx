@@ -13,7 +13,7 @@ import { useRecord } from '../hooks/useRecords.js';
 import {
   Badge, ErrorState, Facts, Field, FormError, Modal, Notice, PageHeader, Section, Spinner,
 } from '../components/ui.jsx';
-import Documents from '../components/Documents.jsx';
+import EnquiryDocuments from '../components/EnquiryDocuments.jsx';
 import EnquiryActivities from '../components/EnquiryActivities.jsx';
 import EnquiryContactPanel from '../components/EnquiryContactPanel.jsx';
 import EnquiryCheckCard from '../components/EnquiryCheckCard.jsx';
@@ -22,6 +22,7 @@ import TradingBadge, { isTradingLine } from '../components/TradingBadge.jsx';
 import DelegateEnquiry from '../components/DelegateEnquiry.jsx';
 import DepartmentDesk from '../components/DepartmentDesk.jsx';
 import EnquiryRecords, { EnquiryDispatch, dispatchStarted, useEnquiryRecords } from '../components/EnquiryRecords.jsx';
+import { EnquiryShipments } from '../components/Shipments.jsx';
 import ModelStatusGlance from '../components/ModelStatus.jsx';
 import { journeyFor } from '../utils/journey.js';
 import HistoryPanel from '../components/HistoryPanel.jsx';
@@ -727,6 +728,8 @@ export default function EnquiryDetail() {
           {/* Once the order is with the plant: where each model is, at a glance — the first thing on the page. */}
           <ModelStatusGlance journeys={records.data?.journeys} />
           {/* At the dispatch stage, how the goods went comes next, not at the bottom. */}
+          {/* Each shipment on its own line: the models and pieces, the day, the LR for that quantity [EnquiryShipments]. */}
+          <EnquiryShipments data={records.data} />
           {dispatchStarted(records.data) && <EnquiryDispatch data={records.data} highlight />}
           <DepartmentDesk enquiry={enquiry} onChanged={reload} />
 
@@ -784,7 +787,8 @@ export default function EnquiryDetail() {
 
           {/* §27: the print artwork and the buyer's drawing sit with the enquiry that asked
               for them, rather than in the thread they arrived on. */}
-          {mayReadEnquiries && <Documents collection="enquiries" id={enquiry._id} canWrite={mayWrite} />}
+          {/* Every paper on the enquiry — samples, quotation, SO and PO, dispatch and LR, what went to the teams — to open, save or email [EnquiryDocuments]. */}
+          {mayReadEnquiries && <EnquiryDocuments enquiry={enquiry} canWrite={mayWrite} />}
 
           {/* The stage history above says how it moved; this says who changed the quantity,
               the target price or the date the buyer is holding us to. */}

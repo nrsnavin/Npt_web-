@@ -13,7 +13,8 @@ const read = (path) => readFileSync(new URL(`../src/${path}`, import.meta.url), 
 
 test('the confirmation sends the bank line: UTR, amount, day credited, account, remark', () => {
   assert.match(read('api/endpoints.js'), /confirmReceipt: \(\{ id, receiptId, \.\.\.bankLine \}\) => api\.post\(`\/payments\/\$\{id\}\/receipts\/\$\{receiptId\}\/confirm`, bankLine\)/);
-  assert.match(read('api/endpoints.js'), /rejectReceipt: \(\{ id, receiptId, reason \}\) => api\.post\(`\/payments\/\$\{id\}\/receipts\/\$\{receiptId\}\/reject`, \{ reason \}\)/);
+  assert.match(read('api/endpoints.js'), /rejectReceipt: \(\{ id, receiptId, reasonKey, reason \}\) => api\.post\(`\/payments\/\$\{id\}\/receipts\/\$\{receiptId\}\/reject`, \{ reasonKey, \.\.\.\(reason \? \{ reason \} : \{\}\) \}\)/);
+  assert.match(read('api/endpoints.js'), /confirmLate: \(\{ id, receiptId, \.\.\.bankLine \}\) => api\.post\(`\/payments\/\$\{id\}\/rejected\/\$\{receiptId\}\/confirm`, bankLine\)/);
   const dialog = read('components/ConfirmPaymentDialog.jsx');
   for (const label of ['UTR number', 'Amount credited (₹)', 'Date credited', 'Bank account', 'Remarks']) assert.ok(dialog.includes(label), label);
   assert.match(dialog, /const utrNeeded = !cash && !values\.reference\.trim\(\);/, 'the UTR, except for cash');

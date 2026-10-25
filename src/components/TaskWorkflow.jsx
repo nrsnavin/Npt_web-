@@ -19,6 +19,9 @@ import { ROUTE_LABELS, dateLabelFor, datesOfTask, givenDateOf, goodsOf, handOver
 import { formatDate } from '../utils/format.js';
 import { plantLead } from '../utils/plantSettings.js';
 import LoadPaper from './LoadPaper.jsx';
+import DispatchModels from './DispatchModels.jsx';
+import { LrShipments } from './Shipments.jsx';
+import TaskReceipts, { RECEIPT_TASK_KINDS } from './NotInBank.jsx';
 
 /**
  * A department's own workflow on its task [server: config/departmentTaskForms.js `statuses`]:
@@ -128,7 +131,9 @@ export function MoveForm({ todo, form, step, onCancel, onMoved, noDates = false,
             {step.done && picked.length < allModels.length && <p className="mt-1 text-xs text-steel-400">The task stays open until every model is closed.</p>}
           </fieldset>
         )}
-        {asks.map((field) => (
+        {asks.map((field) => (field.type === 'dues' ? (
+          <DuesPicker key={field.key} todo={todo} value={answers[field.key]} onChange={(value) => setAnswers((current) => ({ ...current, [field.key]: value }))} />
+        ) : (
           <Field key={field.key} label={field.label} required={field.required}>
             {field.options ? (
               <select
@@ -152,7 +157,7 @@ export function MoveForm({ todo, form, step, onCancel, onMoved, noDates = false,
             />
             )}
           </Field>
-        ))}
+        )))}
         {dated && !eachModel && (
           <Field label={dateLabel} required={step.date === 'required'} hint={handing ? handOverWarning(todo, fixedModels?.[0] || null, date, plantLead()) || undefined : undefined}>
             <input type="date" className="input" min={todayInIndia()} value={date} onChange={(event) => setDate(event.target.value)} />
@@ -256,7 +261,36 @@ export function CommentDialog({ step, target, onClose, onSave }) {
   );
 }
 
-export function UploadDialog({ title, step, todo, form, reads = false, onClose, onDone }) {
+/**
+ * What money taken on a Payment Collection or PRT task goes against [server: paymentGates
+ * `duesOfTask`]: one of the buyer's dues, or — a task with no sales order — a new receipt on
+ * account for what came in. Left empty, the oldest due takes it (on account when nothing is owed).
+ */
+function DuesPicker({ todo, value, onChange }) {
+  const [state, setState] = useState(null);
+  useEffect(() => {
+    let live = true;
+    workspace.todos.dues(todo._id).then((data) => { if (live) setState(data); }).catch(() => setState({ dues: [], onAccount: false }));
+    return () => { live = false; };
+  }, [todo._id]);
+  if (!state || (!state.dues.length && !state.onAccount)) return null;
+  const money = (amount) => `₹${Math.round(amount || 0).toLocaleString('en-IN')}`;
+  return (
+    <Field label="Against" hint={state.dues.length ? 'Which of the buyer’s dues this pays — or a new receipt on account' : 'Nothing is owed on record — the payment gets its own receipt on account for Accounts to confirm'}>
+      <select className="input" value={value} onChange={(event) => onChange(event.target.value)} aria-label="Against">
+        <option value="">{state.dues.length ? 'The oldest due first' : 'On account — a new receipt'}</option>
+        {state.dues.map((row) => (
+          <option key={row._id} value={row._id}>
+            {[row.number, row.invoiceNumber && row.invoiceNumber !== 'On account' ? row.invoiceNumber : row.kind === 'advance' ? 'advance' : null, row.order?.number].filter(Boolean).join(' · ')} — {money(row.balance)} left
+          </option>
+        ))}
+        {state.onAccount && state.dues.length > 0 && <option value="on_account">On account — a new receipt</option>}
+      </select>
+    </Field>
+  );
+}
+
+export function UploadDialog({ title, step, todo, form, reads = false, shipment = null, onClose, onDone }) {
   const [file, setFile] = useState(null);
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
@@ -272,7 +306,7 @@ export function UploadDialog({ title, step, todo, form, reads = false, onClose, 
     setBusy(true);
     setProblem(null);
     try {
-      const answer = await workspace.todos.result({ id: todo._id, file, note });
+      const answer = await workspace.todos.result({ id: todo._id, file, note, loadId: shipment?._id });
       onDone(answer);
       onClose();
     } catch (failure) {
@@ -286,7 +320,7 @@ export function UploadDialog({ title, step, todo, form, reads = false, onClose, 
       open
       title={title}
       description={form.sendResult
-        ? `Marks the task ${step.label}, and sends the ${what} to the buyer by email and WhatsApp.`
+        ? `${shipment ? `For the shipment of ${formatDate(shipment.at)} (${shipment.lines.map((line) => `${line.model} ${Number(line.quantity || 0).toLocaleString('en-IN')} pcs`).join(' · ')}). ` : ''}Marks the task ${step.label}, and sends the ${what} to the buyer by email and WhatsApp.`
         : `Marks the task ${step.label}${step.done ? ' and finishes it' : ''}${step.next ? ' — the enquiry moves on to Production' : ''}.`}
       onClose={onClose}
     >
@@ -591,7 +625,10 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
   const [moving, setMoving] = useState(null);
   /* Dispatch's "Ask Production": the other department's form, filled from the enquiry. */
   const [askingDepartment, setAskingDepartment] = useState(null);
+  /* The upload dialog: `true` for the task's file, or the shipment an LR is for [LrShipments]. */
   const [uploading, setUploading] = useState(false);
+  /* Reception's LR task with shipments: each shipment's own Upload LR / Send replaces the single buttons. */
+  const [lrShipments, setLrShipments] = useState(0);
   /* Part Quantity Dispatched, Fully Dispatched, Dispatched: the dispatch form [DispatchLoadDialog]. */
   const [loading, setLoading] = useState(null);
   const [sending, setSending] = useState(false);
@@ -690,6 +727,12 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
           <button type="button" className="btn-primary px-3 py-1 text-xs" onClick={() => setOffer(todo)}>Close the task</button>
         </div>
       )}
+      {/* A Dispatch request: each model on its own — in the plant, ready, part sent, fully sent [DispatchModels]. */}
+      {todo.kind === 'invoice_dispatch' && <DispatchModels todo={todo} />}
+      {/* A payment task, or Accounts' A/C Clarify on one: the receipts by RCV number for Accounts to confirm [TaskReceipts]. */}
+      {RECEIPT_TASK_KINDS.includes(todo.kind) && <TaskReceipts todo={todo} onChanged={() => onChanged?.(todo)} />}
+      {/* Reception's LR Copy task: one LR a shipment — upload and send each on its own [LrShipments]. */}
+      {todo.kind === 'lr_copy' && <LrShipments todo={todo} onUpload={setUploading} onChanged={moved} onCount={setLrShipments} />}
       {/* Printing / Assembly: what came and is waiting to be taken on, and what is still to come. */}
       <GoodsIn todo={todo} statuses={button?.form?.statuses || []} onMoved={moved} />
       {/* Several models: one workflow each — a model moulded and handed to Printing while another has not started. */}
@@ -788,13 +831,13 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
             Fill a QC record
           </Link>
         )}
-        {resultStep && (
+        {resultStep && !lrShipments && (
           <button type="button" className="btn-primary px-3 py-1.5 text-xs" onClick={() => setUploading(true)}>
             {todo.resultFile && button.form.sendResult ? 'Upload again' : button.form.resultLabel || `Upload PDF — ${resultStep.label}`}
           </button>
         )}
         {/* The LR copy Dispatch uploaded with the load, waiting on this task: Reception sends it to the buyer [server: `handoffSendResult`]. */}
-        {button.form.sendResult && todo.resultFile && !resultSent(todo, statuses) && (
+        {button.form.sendResult && todo.resultFile && !resultSent(todo, statuses) && !lrShipments && (
           <button type="button" className="btn-primary px-3 py-1.5 text-xs" disabled={sending} onClick={sendToBuyer}>
             {sending ? 'Sending…' : `Send ${(button.form.resultTitle || 'file').toLowerCase()} to buyer`}
           </button>
@@ -845,6 +888,7 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
           form={button.form}
           /* The SO is read and the order drafted from it while this waits [server: soRead.llm]. */
           reads={Boolean(button.booksOrder)}
+          shipment={uploading === true ? null : uploading}
           onClose={() => setUploading(false)}
           onDone={(answer) => {
             /* Said per channel: which went, and why another did not. */

@@ -9,7 +9,7 @@ import {
 import FollowUpForm from '../components/FollowUp.jsx';
 import PaymentContact from '../components/PaymentContact.jsx';
 import HistoryPanel from '../components/HistoryPanel.jsx';
-import { ConfirmPaymentDialog } from '../components/ConfirmPaymentDialog.jsx';
+import { ConfirmPaymentDialog, NOT_IN_BANK_REASONS, NotInBankDialog } from '../components/ConfirmPaymentDialog.jsx';
 import { formatCurrency, formatDate, humanise } from '../utils/format.js';
 
 /**
@@ -278,6 +278,7 @@ export default function PaymentDetail() {
   const [judging, setJudging] = useState(false);
   /* The logged payment Accounts is confirming, with the bank line [ConfirmPaymentDialog]. */
   const [confirming, setConfirming] = useState(null);
+  const [rejecting, setRejecting] = useState(null);
 
   if (loading) return <Spinner label="Loading" />;
   if (error) return <ErrorState error={error} onRetry={reload} />;
@@ -292,10 +293,15 @@ export default function PaymentDetail() {
   const statusLabel = (key) => statuses.find((row) => row.key === key)?.label || key;
 
   const absorb = (next) => setData({ ...data, data: next.data ?? next });
-  const confirm = (receipt) => setConfirming({
+  const paymentOf = (receipt) => ({
     receivableId: receivable._id, receiptId: receipt._id, amount: receipt.amount, mode: receipt.mode, reference: receipt.reference,
-    receivedAt: receipt.receivedAt, by: receipt.recordedBy?.name, label: [receivable.customer?.name, receivable.order?.number || receivable.number].filter(Boolean).join(' · '),
+    receivedAt: receipt.receivedAt, by: receipt.recordedBy?.name, label: [receivable.customer?.name, receivable.number, receivable.order?.number].filter(Boolean).join(' · '),
   });
+  const confirm = (receipt) => setConfirming(paymentOf(receipt));
+  /* Payments Accounts did not find in the bank [server: `rejectReceipt`] — still open ones first, red. */
+  const reasonOf = (entry) => NOT_IN_BANK_REASONS.find((row) => row.key === entry.rejected?.reasonKey)?.label || 'Not in the bank';
+  const notInBank = (receivable.rejectedReceipts || []).filter((entry) => !entry.state || entry.state === 'not_in_bank');
+  const settledLabel = { confirmed_late: 'Came after all — confirmed', logged_again: 'Logged again' };
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -322,13 +328,20 @@ export default function PaymentDetail() {
                 </Link>
               </>
             ) : null}
-            {receivable.kind === 'advance' ? ' · advance' : ''}
+            {receivable.kind === 'advance' ? ' · advance' : receivable.kind === 'on_account' ? ' · on account' : ''}
           </>
         }
         actions={
           <Badge status={receivable.state}>{STATE_LABELS[receivable.state] || receivable.state}</Badge>
         }
       />
+
+      {notInBank.length > 0 && (
+        <div className="mb-5 rounded-xl border border-danger-500/50 bg-danger-500/[0.08] px-4 py-3 text-sm" role="alert">
+          <p className="font-bold text-danger-400">⚠ {notInBank.length === 1 ? 'A payment' : `${notInBank.length} payments`} on {receivable.number} not in the bank</p>
+          <p className="text-steel-300">Recheck with the buyer. If it comes after all, Accounts confirms it on the same entry below — nobody logs it again.</p>
+        </div>
+      )}
 
       <div className="grid gap-5 lg:grid-cols-[1.6fr_1fr]">
         <div className="space-y-5">
@@ -496,9 +509,14 @@ export default function PaymentDetail() {
                           <span className="font-semibold text-warn-400">Awaiting Accounts’ confirmation</span>
                         )}
                         {!receipt.confirmed?.at && seesTheBank && (
-                          <button type="button" className="btn-secondary px-3 py-1 text-xs" onClick={() => confirm(receipt)}>
-                            Confirm — seen in the bank
-                          </button>
+                          <span className="flex gap-1.5">
+                            <button type="button" className="btn-secondary px-3 py-1 text-xs" onClick={() => setRejecting(paymentOf(receipt))}>
+                              Not in bank
+                            </button>
+                            <button type="button" className="btn-secondary px-3 py-1 text-xs" onClick={() => confirm(receipt)}>
+                              Confirm — seen in the bank
+                            </button>
+                          </span>
                         )}
                       </span>
                     </li>
@@ -506,6 +524,37 @@ export default function PaymentDetail() {
               </ol>
             ) : (
               <p className="text-sm text-steel-500">Nothing has come in against this one.</p>
+            )}
+            {receivable.rejectedReceipts?.length > 0 && (
+              <div className="mt-4" aria-label="Not in the bank">
+                <p className="mb-1.5 text-xs font-bold uppercase tracking-wide text-steel-400">Not in the bank</p>
+                <ol className="space-y-2">
+                  {[...receivable.rejectedReceipts].reverse().map((entry) => {
+                    const open = !entry.state || entry.state === 'not_in_bank';
+                    return (
+                      <li key={entry._id} className={`rounded-lg border px-3 py-2 text-sm ${open ? 'border-danger-500/50 bg-danger-500/[0.06]' : 'border-line/[0.08] opacity-70'}`}>
+                        <p className="flex flex-wrap items-baseline justify-between gap-2">
+                          <span className={`font-bold tabular-nums ${open ? 'text-danger-400' : 'text-steel-200'}`}>{formatCurrency(entry.amount)}</span>
+                          <span className="text-xs text-steel-400">
+                            {(entry.mode || '').toUpperCase()}{entry.reference ? ` · ${entry.reference}` : ''}{entry.receivedAt ? ` · ${formatDate(entry.receivedAt)}` : ''}{entry.recordedBy?.name ? ` · logged by ${entry.recordedBy.name}` : ''}
+                          </span>
+                        </p>
+                        <p className="mt-1 flex flex-wrap items-center justify-between gap-2 text-xs">
+                          <span className={open ? 'font-semibold text-danger-400' : 'text-steel-400'}>
+                            {open ? 'Not in bank' : settledLabel[entry.state] || entry.state} — {reasonOf(entry)}{entry.rejected?.reason ? `: ${entry.rejected.reason}` : ''}
+                            {entry.rejected?.by?.name ? ` · ${entry.rejected.by.name}` : ''}{entry.rejected?.at ? `, ${formatDate(entry.rejected.at)}` : ''}
+                          </span>
+                          {open && seesTheBank && (
+                            <button type="button" className="btn-secondary px-3 py-1 text-xs" onClick={() => setConfirming({ ...paymentOf(entry), late: true, reason: reasonOf(entry) })}>
+                              Came after all — confirm
+                            </button>
+                          )}
+                        </p>
+                      </li>
+                    );
+                  })}
+                </ol>
+              </div>
             )}
           </Section>
         </div>
@@ -569,6 +618,7 @@ export default function PaymentDetail() {
         onSaved={(next) => { setReceipting(false); absorb(next); reload(); }}
       />}
       {confirming && <ConfirmPaymentDialog payment={confirming} onClose={() => setConfirming(null)} onDone={(next) => { setConfirming(null); absorb(next); }} />}
+      {rejecting && <NotInBankDialog payment={rejecting} onClose={() => setRejecting(null)} onDone={(next) => { setRejecting(null); absorb(next); }} />}
       <JudgementForm
         receivable={judging ? receivable : null}
         onClose={() => setJudging(false)}

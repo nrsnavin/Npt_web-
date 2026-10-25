@@ -86,6 +86,8 @@ export const workspace = {
      * a dropdown filling itself in does not raise "Record updated" at somebody.
      */
     suggest: (id) => api.get(`/workspace/todos/${id}/suggest`).then(unwrap),
+    /** The payments behind a Payment Collection, PRT or A/C Clarify task — by RCV number, where each stands [web: TaskReceipts]. */
+    receipts: (id) => api.get(`/workspace/todos/${id}/receipts`).then(unwrap),
     create: (payload) => api.post('/workspace/todos', payload).then(unwrap),
     update: ({ id, ...payload }) => api.patch(`/workspace/todos/${id}`, payload).then(unwrap),
     escalate: ({ id, ...payload }) =>
@@ -126,10 +128,12 @@ export const workspace = {
     /** The registers a task's hanger details are picked from — anyone working tasks may read them. */
     registers: () => api.get('/workspace/registers').then(unwrap),
     /** The work as a PDF — the sales order — which finishes the task; keeps `next` / `nextProblem`. */
-    result: ({ id, file, note }) => {
+    result: ({ id, file, note, loadId }) => {
       const form = new FormData();
       form.append('file', file);
       if (note) form.append('note', note);
+      /* Reception's LR: which shipment it is for [server: handoff.service `shipmentForLr`]. */
+      if (loadId) form.append('loadId', loadId);
       /* Said by the screen itself, with whether Production was asked [TaskWorkflow]. */
       return api.post(`/workspace/todos/${id}/result`, form, { feedback: false }).then((response) => response.data);
     },
@@ -157,7 +161,17 @@ export const workspace = {
       return api.post(`/workspace/todos/${id}/loads/${loadId}`, form, { feedback: false }).then(unwrap);
     },
     /** The file already on the task sent to the buyer — Reception sending the LR copy Dispatch uploaded; keeps `sent`. */
-    sendResult: (id) => api.post(`/workspace/todos/${id}/result/send`, {}, { feedback: false }).then((response) => response.data),
+    sendResult: (id, loadId) => api.post(`/workspace/todos/${id}/result/send`, loadId ? { loadId } : {}, { feedback: false }).then((response) => response.data),
+    /** The job's shipments, each with its own LR or proof [server: handoff.service `shipmentsOf`]. */
+    shipments: (id) => api.get(`/workspace/todos/${id}/shipments`).then(unwrap),
+    /** What a payment on a Payment Collection or PRT task can go against: the buyer's dues, or on account [server: `duesOfTask`]. */
+    dues: (id) => api.get(`/workspace/todos/${id}/dues`).then(unwrap),
+    /** A Production task with no enquiry: the buyer's open enquiries to link, and the start points [server: teamProduction.service]. */
+    linkOptions: (id) => api.get(`/workspace/todos/${id}/link-options`).then(unwrap),
+    /** Joins the buyer's enquiry — or closes onto the Production task it already has; keeps `mergedInto`. */
+    linkEnquiry: ({ id, enquiry }) => api.post(`/workspace/todos/${id}/link-enquiry`, { enquiry }, { feedback: false }).then((response) => response.data),
+    /** Each model started from where it is now. */
+    startFrom: ({ id, models }) => api.post(`/workspace/todos/${id}/start-from`, { models }, { feedback: false }).then(unwrap),
     /** Papers a department keeps on its task — Dispatch's invoice and dispatch details, Reception's. */
     documents: (id) => api.get(`/workspace/todos/${id}/documents`).then(unwrap),
     addDocument: ({ id, docType, file }) => {
@@ -552,6 +566,10 @@ export const enquiries = {
   sendMessage: ({ id, ...payload }) => api.post(`/enquiries/${id}/messages`, payload).then(unwrap),
   /** The papers to attach to a message: quote, enquiry and sample details, SO, invoice, dispatch details, LR. */
   attachables: (id) => api.get(`/enquiries/${id}/attachables`).then((response) => response.data),
+  /** Every paper on the enquiry, by section — the Documents section [server: enquiryDocuments `documentsFor`]; `meta.mayEmail`, `meta.buyer`. */
+  papers: (id) => api.get(`/enquiries/${id}/papers`).then((response) => response.data),
+  /** One paper's bytes, to open in a tab or save — the route needs the session's token. */
+  paperBlob: ({ id, type, docId }) => api.get(`/enquiries/${id}/papers/${type}/${docId}`, { responseType: 'blob' }).then((response) => response.data),
   /** Marketing's own status for the enquiry; two of them also start work (see MARKETING_STATUSES). */
   setMarketingStatus: ({ id, ...payload }) =>
     api.post(`/enquiries/${id}/marketing-status`, payload).then((response) => response.data),
@@ -713,8 +731,13 @@ export const payments = {
   ownerReceipt: ({ id, ...payload }) => api.post(`/payments/${id}/owner-receipts`, payload).then(unwrap),
   /** Accounts has seen a logged payment in the bank — with the bank line: UTR, amount, day credited, account, remark. */
   confirmReceipt: ({ id, receiptId, ...bankLine }) => api.post(`/payments/${id}/receipts/${receiptId}/confirm`, bankLine).then(unwrap),
-  /** Accounts did not find a logged payment in the bank — with the reason; whoever logged it is told. */
-  rejectReceipt: ({ id, receiptId, reason }) => api.post(`/payments/${id}/receipts/${receiptId}/reject`, { reason }).then(unwrap),
+  /**
+   * Accounts did not find a logged payment in the bank — which of the reasons (not received yet,
+   * UTR / amount mismatch, cheque bounced) and a note; the task it came from reopens and its people are told.
+   */
+  rejectReceipt: ({ id, receiptId, reasonKey, reason }) => api.post(`/payments/${id}/receipts/${receiptId}/reject`, { reasonKey, ...(reason ? { reason } : {}) }).then(unwrap),
+  /** The money came after all: Accounts confirms a payment marked Not in bank on that same entry, with the bank line. */
+  confirmLate: ({ id, receiptId, ...bankLine }) => api.post(`/payments/${id}/rejected/${receiptId}/confirm`, bankLine).then(unwrap),
   /** Disputed or on hold, and clearing it again. Both stop the escalation ladder. */
   judgement: ({ id, ...payload }) => api.post(`/payments/${id}/judgement`, payload).then(unwrap),
   /** The advance a buyer owes before anything is made, against the order it belongs to. */

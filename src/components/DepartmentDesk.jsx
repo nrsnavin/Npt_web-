@@ -21,6 +21,7 @@ import { formatDate, plural } from '../utils/format.js';
 import { timelineOf } from '../utils/taskHistory.js';
 import { bandOf } from '../utils/taskState.js';
 import DispatchPaymentHold from './DispatchPaymentHold.jsx';
+import { NotInBankBanner } from './NotInBank.jsx';
 
 /**
  * The enquiry's departments, and the tasks raised on them — the plant's own screen
@@ -438,6 +439,8 @@ export default function DepartmentDesk({ enquiry, onChanged }) {
           </div>
         )}
         {/* Goods ready, held for the money due before dispatch: the marketing person enters the payment, Accounts confirms it. */}
+        {/* A payment Accounts did not find in the bank: red, at the top of the enquiry, until it is confirmed late or logged again. */}
+        <NotInBankBanner rows={history?.notInBank} />
         <DispatchPaymentHold holds={history?.dispatchHolds} mayEnter={isManagement || owner === me} onChanged={refresh} />
         {/* With Dispatch: how soon the buyer needs it — Today (the day it reached Dispatch) until marketing or Admin confirms or changes it. */}
         {dispatchRequest && (

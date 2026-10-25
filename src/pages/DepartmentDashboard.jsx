@@ -33,6 +33,7 @@ import { DeliveryBadge, DeliveryRiskPanel, inDanger } from '../components/Delive
 import DispatchTable from '../components/DispatchTable.jsx';
 import DeskTables, { DESK_TABLE_KINDS, takesTable } from '../components/DeskTables.jsx';
 import PaymentsToConfirm from '../components/PaymentsToConfirm.jsx';
+import { DispatchModelList } from '../components/DispatchModels.jsx';
 
 /**
  * A department's dashboard [server: handoff.service `enquiriesHeldBy`, `departmentDashboard`].
@@ -157,8 +158,14 @@ function EnquiryCard({ row, department, me, onChanged, query = false }) {
       <p className="text-sm font-semibold text-steel-100">
         {query ? `${departmentLabel(task.fromDepartment) || 'Another team'} asks — when will it be ready?` : button?.label || task.title}
       </p>
+      {/* Several models on a Dispatch request: each its own state — in the plant, ready, part sent, fully sent [DispatchModelList]. */}
+      {row.dispatchModels?.length > 1 && (
+        <div className="-mt-1 rounded-lg bg-line/[0.04] px-2.5 py-1.5">
+          <DispatchModelList models={row.dispatchModels} compact />
+        </div>
+      )}
       {/* An order going out model by model [server: handoff.controller `withReadiness`]: what may go now, what has gone, what is still being made. */}
-      {row.readiness?.plan === 'by_model' && (
+      {row.readiness?.plan === 'by_model' && !(row.dispatchModels?.length > 1) && (
         <p className="-mt-1 rounded-lg bg-line/[0.04] px-2.5 py-1.5 text-xs text-steel-200" aria-label="Models to dispatch">
           <span className="font-semibold text-success-400">Ready to go: {row.readiness.ready.filter((model) => !(row.readiness.sent || []).includes(model)).join(', ') || 'none yet'}</span>
           {row.readiness.sent?.length > 0 && <span className="text-steel-400"> · Sent: {row.readiness.sent.join(', ')}</span>}
