@@ -13,7 +13,7 @@ import { humanise } from '../utils/format.js';
 import { departmentLabel } from '../utils/pipeline.js';
 import { simpleNavFor } from '../config/simpleNav.js';
 import { barItems, litItem, usesShortBar } from '../config/topBar.js';
-import { loadPlant } from '../utils/plantSettings.js';
+import { loadPlant, onPlantChange } from '../utils/plantSettings.js';
 
 /**
  * The plant's own layout: a dark bar across the top with Dashboard · Enquiries · Department
@@ -365,7 +365,15 @@ export default function Layout() {
   }, [location.pathname]);
 
   /* The plant's settings, read once: the hand-over days every date form starts from [utils/plantSettings.js]. */
-  useEffect(() => { if (user) loadPlant(); }, [user]);
+  /* Floor planning on or off [Admin's switch]: read with the plant's settings, followed as Admin flips it. */
+  const [floorPlanning, setFloorPlanning] = useState(false);
+  useEffect(() => {
+    if (!user) return undefined;
+    let live = true;
+    loadPlant().then((plant) => live && setFloorPlanning(Boolean(plant?.floorPlanning)));
+    const stop = onPlantChange((plant) => setFloorPlanning(Boolean(plant?.floorPlanning)));
+    return () => { live = false; stop(); };
+  }, [user]);
 
   /* "Lock the app" from the command palette lands on `?lock=1` [utils/commands.js]. */
   useEffect(() => {
@@ -415,8 +423,8 @@ export default function Layout() {
    * The bar [the plant's own layout]: Dashboard · Enquiries · Department Tasks · Quotations ·
    * Masters & Access, the department's own modules beside them, and the rest under More.
    */
-  /* The Production in charge gets the floor — planning board and presses — on the bar [topBar `PRODUCTION_FLOOR`]. */
-  const productionFloor = user?.productionInCharge === true && canRead('production');
+  /* The Production in charge gets the floor — planning board and presses — on the bar [topBar `PRODUCTION_FLOOR`], while Admin has floor planning on. */
+  const productionFloor = user?.productionInCharge === true && canRead('production') && floorPlanning;
   const items = useMemo(
     () => barItems(readable, simpleNavFor(departments, { isAdmin }) || [], { short: usesShortBar(departments, { isAdmin }), productionFloor }),
     [readable, departments, isAdmin, productionFloor],
