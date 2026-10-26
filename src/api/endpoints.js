@@ -107,7 +107,10 @@ export const workspace = {
     setDelivery: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/delivery`, payload).then(unwrap),
     reschedule: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/reschedule`, payload).then(unwrap),
     /** The department's own status on its task — SO Waiting, Preparing, Needs Clarification. */
-    status: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/status`, payload).then(unwrap),
+    /* Production's move also says what the floor did [server: productionStep.service] — kept on the task as `floorDone`. */
+    status: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/status`, payload).then((response) => (response.data.floor?.length ? { ...response.data.data, floorDone: response.data.floor } : response.data.data)),
+    /** Before a Production status move: the press, the run and the presses to choose from. */
+    pressStep: ({ id, status, models }) => api.get(`/workspace/todos/${id}/press-step`, { params: { status, ...(models?.length ? { models: models.join(',') } : {}) } }).then(unwrap),
     /** The EDD from the Production / Assembly / Printing task, without a status move; said by the screen. */
     edd: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/edd`, payload, { feedback: false }).then(unwrap),
     /** A job raised from the customer: its EDD, marketing's, set from any of its tasks [server: eddAsk.service `setJobEdd`]. */

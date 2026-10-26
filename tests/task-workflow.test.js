@@ -80,7 +80,7 @@ test('a workflow whose moves need a remark asks for it, with the ready date, bef
   assert.match(workflow, /\{ dates: dateModels\.filter\(\(model\) => perModel\[model\]\)\.map\(\(model\) => \(\{ model, date: perModel\[model\] \}\)\) \}/);
   assert.match(workflow, /— each model, or one for all/);
   assert.match(read('components/TaskEdd.jsx'), /initialOf=\{\(model\) => \(\/\^Hand-over\/\.test\(dateLabelFor\(todo, 'Completion date', model\)\) \? handOverDefault\(todo, model, undefined, plantLead\(\)\) : ''\)\}/);
-  assert.match(workflow, /disabled=\{busy \|\| dateNeeded \|\| remarkNeeded \|\| noModel \|\| Boolean\(fieldMissing\) \|\| \(unrouted && Boolean\(step\.date\)\)\}/);
+  assert.match(workflow, /disabled=\{busy \|\| dateNeeded \|\| remarkNeeded \|\| noModel \|\| Boolean\(fieldMissing\) \|\| Boolean\(press\.missing\) \|\| \(unrouted && Boolean\(step\.date\)\)\}/);
 });
 
 test('department moves on an enquiry show under "Needs your action": read, then dismiss', () => {
