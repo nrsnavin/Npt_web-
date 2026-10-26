@@ -8,6 +8,7 @@ import { TaskFacts } from './TaskHistory.jsx';
 import { EmptyState, ErrorState, Modal, TableSkeleton } from './ui.jsx';
 import { formatDate } from '../utils/format.js';
 import { piecesOf as pieces, rupeesOf as rupees, sizeWords } from '../utils/soDesk.js';
+import CustomerFilter, { byCustomer } from './CustomerFilter.jsx';
 
 /**
  * The SO team's desk [server: services/soDesk.service.js]. Every open SO request, read for what
@@ -192,6 +193,9 @@ function Tile({ label, value, hint, tone = 'text-steel-50' }) {
   );
 }
 
+/* A row's buyer, for the customer filter. */
+const buyerOf = (row) => row.enquiry?.customer?.name || row.task.customer?.name;
+
 export default function SoDesk({ onChanged }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
@@ -201,13 +205,15 @@ export default function SoDesk({ onChanged }) {
   useEffect(() => { load(); }, [load]);
   const changed = () => { load(); onChanged?.(); };
 
+  /* One buyer's requests [CustomerFilter]. */
+  const [customer, setCustomer] = useState('');
   const rows = useMemo(() => {
-    const all = data?.rows || [];
+    const all = byCustomer(data?.rows || [], buyerOf, customer);
     const term = search.trim().toLowerCase();
     if (!term) return all;
     return all.filter((row) => [row.enquiry?.number, row.enquiry?.customer?.name, row.task.customer?.name, ...(row.so.lines || []).map((line) => line.model)]
       .filter(Boolean).some((text) => String(text).toLowerCase().includes(term)));
-  }, [data, search]);
+  }, [data, search, customer]);
 
   if (error) return <ErrorState error={error} onRetry={load} />;
   if (!data) return <TableSkeleton rows={5} columns={4} />;
@@ -225,7 +231,8 @@ export default function SoDesk({ onChanged }) {
 
       <div className="flex flex-wrap items-center gap-2">
         <p className="text-xs text-steel-500">Ready first, then by the earliest EDD.</p>
-        <input aria-label="Search enquiry, buyer or model" type="search" className="input ml-auto w-full sm:w-64" placeholder="Search enquiry, buyer or model…" value={search} onChange={(event) => setSearch(event.target.value)} />
+        <CustomerFilter rows={data.rows} nameOf={buyerOf} value={customer} onChange={setCustomer} className="ml-auto" />
+        <input aria-label="Search enquiry, buyer or model" type="search" className="input w-full sm:w-64" placeholder="Search enquiry, buyer or model…" value={search} onChange={(event) => setSearch(event.target.value)} />
       </div>
 
       {rows.length === 0 ? (

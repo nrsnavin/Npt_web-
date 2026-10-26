@@ -4,6 +4,7 @@ import { ScopeTabs, TodoRow, dueLabel } from './dock/TodoPanel.jsx';
 import { EscalateTaskDialog } from './TaskEscalation.jsx';
 import { Notice, Section } from './ui.jsx';
 import { departmentLabel } from '../utils/pipeline.js';
+import CustomerFilter, { byCustomer, useQueuePlaces } from './CustomerFilter.jsx';
 
 /**
  * The day's tasks, on the dashboard rather than behind a dock icon.
@@ -43,6 +44,9 @@ const GROUPS = [
   { key: 'someday', title: 'No date', tone: 'text-steel-500' },
 ];
 
+/* A task's buyer — its own, or its enquiry's — for the customer filter. */
+const todoCustomer = (todo) => todo.customer?.name || todo.enquiry?.customer?.name;
+
 export default function TodoBoard() {
   const {
     todos, todoMeta, scope, setScope, addTodo, saveTodo, removeTodo, escalateTodo,
@@ -56,7 +60,11 @@ export default function TodoBoard() {
   const [error, setError] = useState(null);
   const [showDone, setShowDone] = useState(false);
 
-  const open = todos.filter((todo) => !todo.completed);
+  /* One buyer's tasks [CustomerFilter], and where each job stands in the plant's queues. */
+  const [customer, setCustomer] = useState('');
+  const places = useQueuePlaces();
+  const allOpen = todos.filter((todo) => !todo.completed);
+  const open = byCustomer(allOpen, todoCustomer, customer);
   /* Done is read when it is opened, a page at a time [WorkspaceContext `loadDone`]. */
   const done = doneLoaded || [];
   const openDone = () => {
@@ -116,6 +124,7 @@ export default function TodoBoard() {
     onDelete: removeTodo,
     onClaim: claim,
     onEscalate: setEscalating,
+    places,
   };
 
   return (
@@ -150,6 +159,9 @@ export default function TodoBoard() {
       {/* Whose list is being read. The default is `mine`, because this is the screen somebody
           plans their own morning from — the queue is one press away, not in the way. */}
       <ScopeTabs scope={scope} setScope={setScope} meta={todoMeta} className="mb-3" />
+      {!showDone && allOpen.length > 1 && (
+        <div className="mb-3"><CustomerFilter rows={allOpen} nameOf={todoCustomer} value={customer} onChange={setCustomer} /></div>
+      )}
 
       {/*
         * The headline, before the list. Somebody scanning this at nine o'clock wants to know

@@ -7,6 +7,7 @@ import { dueWords, urgencyTone } from '../utils/deliveryUrgency.js';
 import DeliveryUrgencyDialog from './DeliveryUrgencyDialog.jsx';
 import TaskPanel from './TaskPanel.jsx';
 import { DispatchModelList } from './DispatchModels.jsx';
+import CustomerFilter, { QueuePlace, byCustomer, placesForTask, useQueuePlaces } from './CustomerFilter.jsx';
 
 /**
  * The Dispatch desk as a table — one line a request, where the cards ran long. Each row: the
@@ -47,7 +48,14 @@ function GoodsCell({ goods, status }) {
   );
 }
 
-export default function DispatchTable({ rows = [], me, onChanged }) {
+/* A row's buyer, for the customer filter. */
+const buyerOf = (row) => row.enquiry?.customer?.name || row.task.customer?.name;
+
+export default function DispatchTable({ rows: all = [], me, onChanged }) {
+  /* One buyer's requests [CustomerFilter], and where each job stands in the plant's queues. */
+  const [customerPick, setCustomerPick] = useState('');
+  const places = useQueuePlaces();
+  const rows = byCustomer(all, buyerOf, customerPick);
   const { isAdmin, isManagement, departments = [] } = useAuth();
   const catalogue = useHandoffCatalogue();
   const [setting, setSetting] = useState(null);
@@ -58,6 +66,12 @@ export default function DispatchTable({ rows = [], me, onChanged }) {
   const maySetUrgency = (row) => isManagement || idOf(row.enquiry ? row.enquiry.assignedTo : row.task.createdBy) === me;
 
   return (
+    <div className="space-y-3">
+    {all.length > 1 && (
+      <div className="flex justify-end">
+        <CustomerFilter rows={all} nameOf={buyerOf} value={customerPick} onChange={setCustomerPick} />
+      </div>
+    )}
     <div className="card relative overflow-x-auto p-0">
       <table className="w-full min-w-[68rem] text-left text-sm" aria-label="Dispatch requests">
         <thead className="border-b border-line/[0.08] text-xs font-semibold uppercase tracking-wide text-steel-400">
@@ -90,7 +104,10 @@ export default function DispatchTable({ rows = [], me, onChanged }) {
             const about = [enquiry?.number || 'Team task', customer, models].filter(Boolean).join(' · ');
             return (
               <tr key={task._id} className={`border-b border-line/[0.05] align-top last:border-0 ${late ? 'bg-danger-500/[0.04]' : ''}`}>
-                <td className="max-w-[12rem] px-3 py-2.5 font-semibold text-steel-50"><span className="line-clamp-2">{customer}</span></td>
+                <td className="max-w-[12rem] px-3 py-2.5 font-semibold text-steel-50">
+                  <span className="line-clamp-2">{customer}</span>
+                  <QueuePlace places={placesForTask(places, task)} className="mt-0.5 font-normal" />
+                </td>
                 <td className="whitespace-nowrap px-3 py-2.5">
                   {enquiry ? <Link to={`/enquiries/${enquiry._id}`} className="font-semibold text-steel-100 hover:text-accent">{enquiry.number}</Link> : <span className="text-steel-300">Team task</span>}
                   {row.records?.order?.number && <span className="block text-xs text-steel-400">{row.records.order.number}</span>}
@@ -156,6 +173,7 @@ export default function DispatchTable({ rows = [], me, onChanged }) {
           onChanged={() => { setOpened(null); onChanged?.(); }}
         />
       )}
+    </div>
     </div>
   );
 }

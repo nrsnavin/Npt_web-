@@ -7,6 +7,7 @@ import { formatDate } from '../utils/format.js';
 import { byEdd, dueWords, eddBandOf } from '../utils/productionQueue.js';
 import { DeliveryBadge, inDanger } from './DeliveryRisk.jsx';
 import { TaskPdfChips, useTaskPdfs } from './TaskPdfs.jsx';
+import CustomerFilter, { QueuePlace, byCustomer, placesForTask, useQueuePlaces } from './CustomerFilter.jsx';
 
 /**
  * The Printing, Assembly and Quality desks, read at a glance [server: deskSummary.service]: one
@@ -15,9 +16,16 @@ import { TaskPdfChips, useTaskPdfs } from './TaskPdfs.jsx';
  * opens the enquiry's Production workflow page — every model, hand-over and work order — or the
  * task itself to move its status.
  */
-export default function FinishingDeskList({ rows = [], onChanged }) {
+/* A row's buyer, for the customer filter. */
+const buyerOf = (row) => row.enquiry?.customer?.name || row.task.customer?.name;
+
+export default function FinishingDeskList({ rows: all = [], onChanged }) {
   const { isAdmin, departments = [], user } = useAuth();
   const [opened, setOpened] = useState(null);
+  /* One buyer's tasks [CustomerFilter], and where each job stands in the plant's queues. */
+  const [customer, setCustomer] = useState('');
+  const places = useQueuePlaces();
+  const rows = byCustomer(all, buyerOf, customer);
   const me = String(user?.id || user?._id || '');
   const mayWork = (task) => isAdmin || departments.includes(task.department) || String(task.user?._id || task.user || '') === me;
   const ordered = byEdd(rows);
@@ -35,6 +43,9 @@ export default function FinishingDeskList({ rows = [], onChanged }) {
 
   return (
     <>
+      {all.length > 1 && (
+        <div className="mb-2 flex justify-end"><CustomerFilter rows={all} nameOf={buyerOf} value={customer} onChange={setCustomer} /></div>
+      )}
       <ol className="space-y-2" aria-label="Department tasks">
         {ordered.map((row) => {
           const band = eddBandOf(row);
@@ -54,6 +65,7 @@ export default function FinishingDeskList({ rows = [], onChanged }) {
                     <p className="font-bold text-steel-50">Team task</p>
                   )}
                   <p className="truncate text-sm text-steel-300">{row.enquiry?.customer?.name || row.task.customer?.name || '—'}</p>
+                  <QueuePlace places={placesForTask(places, row.task)} className="mt-0.5" />
                   <TaskPdfChips files={pdfs.byTask[row.task._id]} role="sent" />
                   {/* In danger of missing marketing's EDD [server: deliveryRisk.service]. */}
                   {inDanger(row.delivery) && <DeliveryBadge risk={row.delivery} className="mt-0.5" />}

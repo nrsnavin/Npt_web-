@@ -11,6 +11,7 @@ import { ErrorState, TableSkeleton } from './ui.jsx';
 import { formatDate, humanise } from '../utils/format.js';
 import { DEPARTMENT_CHOICES, departmentLabel, deskOf } from '../utils/pipeline.js';
 import { EDD_CHIP, eddChipOf } from '../utils/edd.js';
+import CustomerFilter, { QueuePlace, byCustomer, placesForTask, useQueuePlaces } from './CustomerFilter.jsx';
 
 /**
  * Department Tasks [the plant's own layout]: every open request this person follows — Admin all
@@ -79,6 +80,9 @@ function StatusReply({ task, statuses, mayWork, onPick }) {
   );
 }
 
+/* A task's buyer, for the customer filter. */
+const taskCustomer = (task) => task.customer?.name;
+
 export default function DepartmentTasksBoard({
   title = 'Department Tasks',
   subtitle = 'Follow the progress of requests for your customers.',
@@ -111,6 +115,9 @@ export default function DepartmentTasksBoard({
   const catalogue = useHandoffCatalogue();
   const [chip, setChip] = useState('all');
   const [search, setSearch] = useState('');
+  /* One buyer's tasks [CustomerFilter], and each job's place in the queues. */
+  const [customer, setCustomer] = useState('');
+  const places = useQueuePlaces();
   /* The task opened in its panel — from a status picked on the row, or from Open. */
   const [opened, setOpened] = useState(null);
   const [assigning, setAssigning] = useState(false);
@@ -136,7 +143,7 @@ export default function DepartmentTasksBoard({
   ];
   const shown = useMemo(() => {
     const term = search.trim().toLowerCase();
-    return tasks.filter((task) => {
+    return byCustomer(tasks, taskCustomer, customer).filter((task) => {
       if (chip === 'new' && !isFresh(task)) return false;
       if (chip === 'highlighted' && !isHighlighted(task)) return false;
       if (chip === 'payment' && !isPaymentFollowUp(task)) return false;
@@ -145,7 +152,7 @@ export default function DepartmentTasksBoard({
       return [task.customer?.name, task.enquiry?.number, modelOf(task), task.label, task.createdBy?.name, task.user?.name]
         .filter(Boolean).some((text) => text.toLowerCase().includes(term));
     });
-  }, [tasks, chip, search]);
+  }, [tasks, chip, search, customer]);
 
   /* The server's rule [handoff.service `mayWorkOnHandoff`]: Admin, the person it is assigned to, or its department. */
   const mayWork = (task) => isAdmin || (me && String(task.user?._id || task.user || '') === me) || departments.includes(task.department);
@@ -204,6 +211,7 @@ export default function DepartmentTasksBoard({
         >
           {STATES.map((entry) => <option key={entry.key} value={entry.key}>{entry.label}</option>)}
         </select>
+        <CustomerFilter rows={tasks} nameOf={taskCustomer} value={customer} onChange={setCustomer} />
         <input aria-label="Search customer, model or person"
           type="search"
           className="input w-full sm:w-60"
@@ -248,6 +256,7 @@ export default function DepartmentTasksBoard({
                         {modelOf(task) ? ` · ${modelOf(task)}` : ''}
                         {eddChipOf(task) && <> · <EddChip task={task} /></>}
                         {task.suggestion?.kind === 'escalate_prt' && !task.completed && <> · <span className="font-semibold text-warn-400">Escalate to PRT?</span></>}
+                        {!task.completed && <QueuePlace places={placesForTask(places, task)} className="ml-1 align-middle" />}
                         {task.enquiry?.number && <> · <Link className="text-accent hover:underline" to={`/enquiries/${task.enquiry._id}`}>{task.enquiry.number}</Link></>}
                         {' · '}
                         <button type="button" className="row-action" onClick={() => setOpened({ task })}>{mayWork(task) && !task.completed ? 'Open / update' : 'Open'}</button>
@@ -279,6 +288,7 @@ export default function DepartmentTasksBoard({
                   <div className="min-w-0">
                     <p className="truncate font-semibold text-steel-50">{task.customer?.name || task.label}</p>
                     <p className="text-xs text-steel-400">{task.label}{modelOf(task) ? ` · ${modelOf(task)}` : ''}{eddChipOf(task) && <> · <EddChip task={task} /></>}</p>
+                    {!task.completed && <QueuePlace places={placesForTask(places, task)} className="mt-0.5" />}
                   </div>
                   <span className={`shrink-0 text-xs ${isLate(task) ? 'font-semibold text-danger-400' : 'text-steel-400'}`}>
                     {whenOf(task)}

@@ -793,6 +793,8 @@ export const production = {
   plan: (params) => api.get('/production/plan', { params }).then(unwrap),
   /** The floor tablet's view: each press, its running job, its next work orders, any open call. */
   floor: () => api.get('/production/floor').then(unwrap),
+  /** Every job's place in the Production, Printing and Assembly queues: `{ tasks: {id: place}, enquiries: {id: [place]} }`. */
+  queuePlaces: () => api.get('/production/queue-places', { feedback: false }).then(unwrap),
   /** Today on the presses: each press, its run, the job next and whether its start has come; where task and floor disagree. */
   pressDay: () => api.get('/production/press-day').then(unwrap),
   /** On a work order: `confirm` it runs (`counterStart`), `hold` it a day (`reason`), `said-started`, `call-in` — `{ lines }`. */

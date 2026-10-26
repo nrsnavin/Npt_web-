@@ -11,6 +11,7 @@ import { WORK_ORDER_STATUS } from '../utils/workOrders.js';
 import { DELIVERY_TONE, DeliveryBadge, inDanger } from './DeliveryRisk.jsx';
 import ModelJourney from './ModelJourney.jsx';
 import { TaskPdfChips, useTaskPdfs } from './TaskPdfs.jsx';
+import CustomerFilter, { QueuePlace, byCustomer } from './CustomerFilter.jsx';
 
 /**
  * The production queue, read at a glance [server: productionQueue.controller]: one line per
@@ -161,6 +162,9 @@ export function WorkOrderChip({ wo, orderId }) {
     : <span className={tone}>{body}</span>;
 }
 
+/* A row's buyer, for the customer filter. */
+const customerName = (row) => row.enquiry?.customer?.name;
+
 export default function ProductionQueueList({ compact = false, onRows }) {
   const [rows, setRows] = useState(null);
   /* The PDF sent with each Production request, on its line [TaskPdfs]. */
@@ -171,6 +175,8 @@ export default function ProductionQueueList({ compact = false, onRows }) {
   const [band, setBand] = useState('all');
   const [risk, setRisk] = useState('all');
   const [search, setSearch] = useState('');
+  /* One buyer's rows [CustomerFilter]. */
+  const [customer, setCustomer] = useState('');
   const [stage, setStageState] = useState(() => keptStage(compact));
   const [adding, setAdding] = useState(null);
   const [deleting, setDeleting] = useState(null);
@@ -196,7 +202,7 @@ export default function ProductionQueueList({ compact = false, onRows }) {
 
   const shown = useMemo(() => {
     const term = search.trim().toLowerCase();
-    return (rows || []).filter((row) => {
+    return byCustomer(rows, customerName, customer).filter((row) => {
       if (stage === 'not_taken' && row.production?.taken) return false;
       if (stage === 'in_production' && !row.production?.taken) return false;
       if (band === 'problems' && !row.task.issue) return false;
@@ -206,7 +212,7 @@ export default function ProductionQueueList({ compact = false, onRows }) {
       return [row.enquiry.number || 'Team task', row.enquiry.customer?.name, row.order?.number, ...(row.models || []).map((entry) => entry.model)]
         .filter(Boolean).some((text) => String(text).toLowerCase().includes(term));
     });
-  }, [rows, band, risk, search, stage]);
+  }, [rows, band, risk, search, stage, customer]);
 
   if (error && !rows) return <ErrorState error={error} onRetry={load} />;
   if (!rows) return <TableSkeleton rows={6} columns={4} />;
@@ -246,14 +252,17 @@ export default function ProductionQueueList({ compact = false, onRows }) {
             {entry.label} <span className="tabular-nums opacity-75">{entry.count}</span>
           </button>
         ))}
-        <input
-          aria-label="Search enquiry, buyer, model or SO"
-          type="search"
-          className="input ml-auto w-full sm:w-64"
-          placeholder="Search enquiry, buyer, model, SO…"
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-        />
+        <div className="ml-auto flex w-full flex-wrap gap-2 sm:w-auto">
+          <CustomerFilter rows={rows} nameOf={customerName} value={customer} onChange={setCustomer} />
+          <input
+            aria-label="Search enquiry, buyer, model or SO"
+            type="search"
+            className="input w-full sm:w-56"
+            placeholder="Search enquiry, buyer, model, SO…"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+        </div>
       </div>
       <button type="button" className="link-muted text-sm print:hidden" aria-expanded={showMore} onClick={() => setShowMore((value) => !value)}>
         {showMore ? 'Fewer filters' : 'More filters'}{moreOn ? ` (${moreOn} on)` : ''}
@@ -308,6 +317,8 @@ export default function ProductionQueueList({ compact = false, onRows }) {
                       ? <p className="font-bold text-steel-50">Team task{row.task.raisedBy?.name ? <span className="font-normal text-steel-400"> · {row.task.raisedBy.name}</span> : null}</p>
                       : <Link to={`/enquiries/${row.enquiry._id}`} className="font-bold text-steel-50 hover:text-accent">{row.enquiry.number}</Link>}
                     <p className="truncate text-sm text-steel-300">{row.enquiry.customer?.name || '—'}</p>
+                    {/* Its place in the whole queue, by EDD [server: queuePlaces.service]. */}
+                    <QueuePlace place={row.place} className="mt-0.5" />
                     <TaskPdfChips files={pdfs.byTask[row.task._id]} />
                     <p className="truncate text-xs text-steel-500">{models.join(', ') || '—'}{row.order?.number ? ` · ${row.order.number}` : ''}</p>
                     {row.production && (
