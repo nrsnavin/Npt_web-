@@ -192,3 +192,13 @@ test('raising Production with the hanger left blank: told what is not mentioned,
   assert.match(flow, /Nothing was mentioned about the hanger/);
   assert.match(flow, /onClick=\{\(\) => setAdding\(true\)\}>Enter them<\/button>/);
 });
+
+test('Materials Ready — Waiting for Payment to Dispatch: offered where a model goes to Dispatch from Production; the task says it waits on the money', () => {
+  const edd = readFileSync(new URL('../src/utils/edd.js', import.meta.url), 'utf8');
+  assert.match(edd, /if \(step\.awaitsPayment\) return end === 'dispatch';/);
+  const flow = readFileSync(new URL('../src/components/TaskWorkflow.jsx', import.meta.url), 'utf8');
+  assert.match(flow, /const hold = todo\.kind === 'ask_edd' && todo\.paymentHold\?\.at && !todo\.paymentHold\.releasedAt \? todo\.paymentHold : null;/);
+  assert.match(flow, /Waiting for the payment before dispatch/);
+  assert.match(flow, /`\$\{formatCurrency\(hold\.amount\)\} with Payment Collection`/);
+  assert.match(flow, /const nextIsButton = next && !next\.pdf && !waiting\.length && !payingFirst && /, 'no button to skip the payment');
+});
