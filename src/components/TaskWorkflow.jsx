@@ -17,11 +17,12 @@ import { ladderOf } from '../utils/taskState.js';
 import { departmentLabel } from '../utils/pipeline.js';
 import { ROUTE_LABELS, dateLabelFor, datesOfTask, givenDateOf, goodsOf, handOverDefault, handOverWarning, modelStatusesOf, modelThrough, modelsForStep, modelsOfTask, movesByModel, needsRouting, nextStepForModel, pathOf, routeOf, statusesFor, statusesForModel } from '../utils/edd.js';
 import { formatDate } from '../utils/format.js';
-import { plantLead } from '../utils/plantSettings.js';
+import { loadPlant, plantLead } from '../utils/plantSettings.js';
 import LoadPaper from './LoadPaper.jsx';
 import DispatchModels from './DispatchModels.jsx';
 import { LrShipments } from './Shipments.jsx';
 import TaskReceipts, { RECEIPT_TASK_KINDS } from './NotInBank.jsx';
+import PressStep, { pressStepOf } from './PressStep.jsx';
 
 /**
  * A department's own workflow on its task [server: config/departmentTaskForms.js `statuses`]:
@@ -82,6 +83,19 @@ export function MoveForm({ todo, form, step, onCancel, onMoved, noDates = false,
   const dateNeeded = step.date === 'required' && (eachModel ? dateModels.some((model) => !perModel[model]) : !date);
   const remarkNeeded = (form.remarkRequired || step.comment) && note.trim().length < 3;
   const fieldMissing = asks.find((field) => field.required && !String(answers[field.key] || '').trim());
+  /* Production: the press goes with the move, and the floor follows it [PressStep]. */
+  const pressing = pressStepOf(todo, step.key);
+  const [press, setPress] = useState({ floor: null, label: null, missing: null });
+  const { toast } = useToast();
+  /* The press plan gives the ready date — the day moulding ends on its press — while the box is not touched. */
+  const [dateTouched, setDateTouched] = useState(false);
+  const readyKey = JSON.stringify(press.readyBy || null);
+  useEffect(() => {
+    const ready = press.readyBy;
+    if (!ready || dateTouched || !dated || ready.date < todayInIndia()) return;
+    if (!date) setDate(ready.date);
+    setPerModel((current) => ({ ...current, ...Object.fromEntries(Object.entries(ready.models).filter(([model, day]) => !current[model] && day >= todayInIndia())) }));
+  }, [readyKey]);
   const save = async (event) => {
     event.preventDefault();
     setBusy(true);
@@ -90,7 +104,7 @@ export function MoveForm({ todo, form, step, onCancel, onMoved, noDates = false,
       .filter((field) => String(answers[field.key] ?? '').trim() !== '')
       .map((field) => [field.key, field.type === 'number' ? Number(answers[field.key]) : String(answers[field.key]).trim()]));
     try {
-      onMoved(await workspace.todos.status({
+      const saved = await workspace.todos.status({
         id: todo._id, status: step.key, note,
         ...(eachModel
           ? (sameForAll
@@ -99,7 +113,10 @@ export function MoveForm({ todo, form, step, onCancel, onMoved, noDates = false,
           : (date && dated && (date !== given || step.date) ? { date } : {})),
         ...(asks.length ? { fields } : {}),
         ...(fixedModels || (byModel && picked.length < allModels.length) ? { models: picked } : {}),
-      }));
+        ...(pressing && press.floor ? { floor: press.floor } : {}),
+      });
+      if (saved?.floorDone?.length) toast('The floor follows', saved.floorDone.join(' · '));
+      onMoved(saved);
     } catch (failure) {
       setProblem(failure.message);
       setBusy(false);
@@ -160,7 +177,8 @@ export function MoveForm({ todo, form, step, onCancel, onMoved, noDates = false,
         )))}
         {dated && !eachModel && (
           <Field label={dateLabel} required={step.date === 'required'} hint={handing ? handOverWarning(todo, fixedModels?.[0] || null, date, plantLead()) || undefined : undefined}>
-            <input type="date" className="input" min={todayInIndia()} value={date} onChange={(event) => setDate(event.target.value)} />
+            <input type="date" className="input" min={todayInIndia()} value={date} onChange={(event) => { setDateTouched(true); setDate(event.target.value); }} />
+            {press.readyBy && date === press.readyBy.date && <span className="mt-1 block text-xs text-aqua-300">From the press plan — moulding ends then</span>}
           </Field>
         )}
         {eachModel && (
@@ -187,6 +205,7 @@ export function MoveForm({ todo, form, step, onCancel, onMoved, noDates = false,
             })}
           </fieldset>
         )}
+        {pressing && <PressStep todo={todo} status={step.key} models={fixedModels || (byModel ? picked : [])} onChange={setPress} />}
         <Field label={form.remark?.label || 'Remarks'} required={form.remarkRequired}>
           <textarea rows={2} className="input" placeholder={form.remark?.placeholder || ''} value={note} onChange={(event) => setNote(event.target.value)} autoFocus={!asks.length} />
         </Field>
@@ -195,6 +214,7 @@ export function MoveForm({ todo, form, step, onCancel, onMoved, noDates = false,
       {dateNeeded && !unrouted && <p className="text-xs text-warn-400">Give the {dateLabel.toLowerCase()} for {step.label}</p>}
       {fieldMissing && <p className="text-xs text-warn-400">Fill in {fieldMissing.label.toLowerCase()} for {step.label}</p>}
       {noModel && <p className="text-xs text-warn-400">Tick at least one model</p>}
+      {press.missing && <p className="text-xs text-warn-400">{press.missing}</p>}
       {step.tellBuyer && <p className="text-xs text-steel-400">This sends the buyer a WhatsApp and email from the company number.</p>}
       {step.confirmsInward && <p className="text-xs text-steel-400">It goes on Accounts’ Payments to confirm list. When Accounts confirms it in the bank, this task reads Paid and closes — or Part Paid, open for the rest.</p>}
       {step.done && step.fields?.length > 0 && form.documents?.length > 0 && (
@@ -203,7 +223,7 @@ export function MoveForm({ todo, form, step, onCancel, onMoved, noDates = false,
       {problem && <Notice tone="danger">{problem}</Notice>}
       <div className="flex justify-end gap-2">
         <button type="button" className="btn-ghost px-3 py-1.5 text-xs" onClick={onCancel} disabled={busy}>Cancel</button>
-        <button type="submit" className="btn-primary px-3 py-1.5 text-xs" disabled={busy || dateNeeded || remarkNeeded || noModel || Boolean(fieldMissing) || (unrouted && Boolean(step.date))}>{busy ? 'Saving…' : 'Update status'}</button>
+        <button type="submit" className="btn-primary px-3 py-1.5 text-xs" disabled={busy || dateNeeded || remarkNeeded || noModel || Boolean(fieldMissing) || Boolean(press.missing) || (unrouted && Boolean(step.date))}>{busy ? 'Saving…' : press.label || 'Update status'}</button>
       </div>
     </form>
   );
@@ -641,6 +661,9 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
   const [offer, setOffer] = useState(null);
   /* Said as a toast: the finished task leaves the list it was on. */
   const { toast, warn } = useToast();
+  /* Floor planning on: the run starts from the status move, not a separate screen. */
+  const [floorOn, setFloorOn] = useState(null);
+  useEffect(() => { loadPlant().then((plant) => setFloorOn(Boolean(plant?.floorPlanning))); }, []);
   /* After a move: the screen takes the task as saved; if nothing is left on it, the dialog to close it. */
   const moved = (saved) => {
     onChanged?.(saved);
@@ -818,8 +841,9 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
         {todo.kind === 'ask_edd' && todo.enquiry && !window.location.pathname.startsWith('/production/workflow/') && (
           <Link to={`/production/workflow/${todo._id}`} className="btn-secondary px-3 py-1.5 text-xs">Production workflow</Link>
         )}
-        {/* Production's job, on the press: a mould run for this enquiry's SO, started from the task. */}
-        {todo.kind === 'ask_edd' && todo.enquiry && canWrite('production') && (
+        {/* Production's job, on the press: a mould run for this enquiry's SO, started from the task.
+            With floor planning on, Production Started (or the press row's Confirm running) starts it on its press [PressStep]. */}
+        {todo.kind === 'ask_edd' && todo.enquiry && canWrite('production') && floorOn === false && (
           <Link
             to={`/mould-runs?start=1&enquiry=${todo.enquiry._id || todo.enquiry}${todo.order ? `&order=${todo.order._id || todo.order}` : ''}${todo.enquiry.number ? `&label=${encodeURIComponent(`${todo.enquiry.number}${todo.customer?.name ? ` — ${todo.customer.name}` : ''}`)}` : ''}`}
             className="btn-secondary px-3 py-1.5 text-xs"

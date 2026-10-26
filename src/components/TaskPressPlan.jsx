@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { production as productionApi } from '../api/endpoints.js';
 import { useToast } from '../context/ToastContext.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 import { Modal, Spinner } from './ui.jsx';
 import PressChoices from './PressChoices.jsx';
 import { formatNumber } from '../utils/format.js';
@@ -19,6 +20,9 @@ import { SETUP_KEYS, afterMoulding, lateWords, modelPress, pressAttention, propo
  * Routing a model lands it here already proposed on a press by the auto-planner [server:
  * floorPlanning.service `proposeTaskPlan`], with why — what it learned from the in charge's own
  * choices among the reasons. The in charge confirms (one model, or all), or changes the press.
+ *
+ * On a press and not running yet: "Confirm running on IM-05" — the run starts there and the model
+ * reads Started [server: pressDay.service `confirmStart`], the same as Today on the presses.
  */
 
 const PILL = {
@@ -59,7 +63,7 @@ function TradedRow({ row, state }) {
   );
 }
 
-function ModelRow({ row, mayPlan, busy, onPlace, onChoose, onConfirm }) {
+function ModelRow({ row, mayPlan, mayRun, busy, onPlace, onChoose, onConfirm, onRun }) {
   const wo = row.workOrder;
   const state = modelPress(row);
   if (!state) return null;
@@ -69,6 +73,8 @@ function ModelRow({ row, mayPlan, busy, onPlace, onChoose, onConfirm }) {
   const done = setupDone(wo);
   const late = lateWords(wo);
   const proposal = state.key === 'proposed' ? wo.proposal : null;
+  /* Its planned start has come and nothing runs it: the confirm is the row's one loud button. */
+  const startDue = onPress && wo.plannedStart && new Date(wo.plannedStart) <= new Date();
   return (
     <li className="relative py-3 pl-4 pr-1">
       {BAR[state.tone] && <span aria-hidden="true" className={`absolute inset-y-3 left-0 w-1 rounded-full ${BAR[state.tone]}`} />}
@@ -108,6 +114,11 @@ function ModelRow({ row, mayPlan, busy, onPlace, onChoose, onConfirm }) {
         {mayPlan && onPress && (
           <button type="button" className="row-action px-2 py-1 text-xs" disabled={busy} onClick={() => onChoose(row)}>Move</button>
         )}
+        {mayRun && onPress && wo.machine?.code && (
+          <button type="button" className={startDue ? 'btn-primary px-3 py-1.5 text-xs' : 'btn-secondary px-3 py-1.5 text-xs'} disabled={busy} onClick={() => onRun(row)}>
+            Confirm running on {wo.machine.code}
+          </button>
+        )}
       </div>
 
       {/* One line under the row, only when it says something. */}
@@ -129,6 +140,7 @@ function ModelRow({ row, mayPlan, busy, onPlace, onChoose, onConfirm }) {
         <p className="mt-1 text-xs text-danger-400">{wo.mouldMissing ? `Add ${row.model} to the mould register to plan it.` : row.best?.why}</p>
       )}
       {late && <p className="mt-1 text-xs font-semibold text-danger-400">{late}</p>}
+      {startDue && <p className="mt-1 text-xs font-semibold text-warn-400">Planned to start {shortDay(wo.plannedStart)} — nothing runs it yet</p>}
       {running && (
         <div className="mt-2 flex items-center gap-2">
           <div className="h-1 flex-1 overflow-hidden rounded-full bg-line/[0.08]" role="progressbar" aria-valuenow={wo.madePercent} aria-valuemin={0} aria-valuemax={100} aria-label={`${row.model} made`}>
@@ -151,6 +163,7 @@ function ModelRow({ row, mayPlan, busy, onPlace, onChoose, onConfirm }) {
 
 export default function TaskPressPlan({ todo, mayPlan, onChanged }) {
   const { toast, warn } = useToast();
+  const { canWrite } = useAuth();
   const [plan, setPlan] = useState(null);
   const [busy, setBusy] = useState(false);
   const [choosing, setChoosing] = useState(null);
@@ -194,6 +207,20 @@ export default function TaskPressPlan({ todo, mayPlan, onChanged }) {
       setBusy(false);
     }
   };
+  /* It is running on its press: the run starts there; the task reads Started. */
+  const run = async (row) => {
+    setBusy(true);
+    try {
+      const answer = await productionApi.pressDayMove({ id: row.workOrder._id, move: 'confirm' });
+      toast(`${row.model} running`, (answer.lines || []).join(' · '));
+      await load();
+      onChanged?.();
+    } catch (failure) {
+      warn(`${row.model} not started`, failure.message);
+    } finally {
+      setBusy(false);
+    }
+  };
   const proposeAgain = async () => {
     setBusy(true);
     try {
@@ -221,7 +248,7 @@ export default function TaskPressPlan({ todo, mayPlan, onChanged }) {
       </div>
       <ul className="mt-1 divide-y divide-line/[0.06]">
         {plan.models.map((row) => (
-          <ModelRow key={row.model} row={row} mayPlan={mayPlan} busy={busy} onPlace={place} onChoose={setChoosing} onConfirm={confirm} />
+          <ModelRow key={row.model} row={row} mayPlan={mayPlan} mayRun={canWrite('production')} busy={busy} onPlace={place} onChoose={setChoosing} onConfirm={confirm} onRun={run} />
         ))}
       </ul>
       {/* The auto-planner's proposals: the in charge confirms them all in one tap, or asks again. */}

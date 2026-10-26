@@ -107,7 +107,10 @@ export const workspace = {
     setDelivery: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/delivery`, payload).then(unwrap),
     reschedule: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/reschedule`, payload).then(unwrap),
     /** The department's own status on its task — SO Waiting, Preparing, Needs Clarification. */
-    status: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/status`, payload).then(unwrap),
+    /* Production's move also says what the floor did [server: productionStep.service] — kept on the task as `floorDone`. */
+    status: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/status`, payload).then((response) => (response.data.floor?.length ? { ...response.data.data, floorDone: response.data.floor } : response.data.data)),
+    /** Before a Production status move: the press, the run and the presses to choose from. */
+    pressStep: ({ id, status, models }) => api.get(`/workspace/todos/${id}/press-step`, { params: { status, ...(models?.length ? { models: models.join(',') } : {}) } }).then(unwrap),
     /** The EDD from the Production / Assembly / Printing task, without a status move; said by the screen. */
     edd: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/edd`, payload, { feedback: false }).then(unwrap),
     /** A job raised from the customer: its EDD, marketing's, set from any of its tasks [server: eddAsk.service `setJobEdd`]. */
@@ -790,6 +793,12 @@ export const production = {
   plan: (params) => api.get('/production/plan', { params }).then(unwrap),
   /** The floor tablet's view: each press, its running job, its next work orders, any open call. */
   floor: () => api.get('/production/floor').then(unwrap),
+  /** Today on the presses: each press, its run, the job next and whether its start has come; where task and floor disagree. */
+  pressDay: () => api.get('/production/press-day').then(unwrap),
+  /** On a work order: `confirm` it runs (`counterStart`), `hold` it a day (`reason`), `said-started`, `call-in` — `{ lines }`. */
+  pressDayMove: ({ id, move, ...payload }) => api.post(`/production/press-day/${id}/${move}`, payload, { feedback: false }).then(unwrap),
+  /** The shift change: the counter on each running press, and the pieces made — `{ lines }`. */
+  shiftReadings: (payload) => api.post('/production/press-day/shift', payload, { feedback: false }).then(unwrap),
   /** What one shift hands the next: per press, runs, pieces, stops, problems; presses still called in. */
   shiftSummary: (params) => api.get('/production/shift-summary', { params }).then(unwrap),
   /** What the open work orders need from the stores, what is short, and what to buy. */

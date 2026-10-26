@@ -129,6 +129,7 @@ export const DEPARTMENT_WORKSPACES = {
       { label: 'Printing queue', to: '/production/queue/printing', module: 'production', hint: 'What Printing has in hand and what is still on the press, in EDD order' },
       { label: 'Assembly queue', to: '/production/queue/assembling', module: 'production', hint: 'What Assembly has in hand and what is still with Production or Printing' },
       { label: 'Production status', to: '/production', module: 'production', hint: 'By customer and model' },
+      { label: 'Today on the presses', to: '/production/today', module: 'production', hint: 'Each press and its job: confirm what runs, hold a start, log the shift change' },
       { label: 'Floor', to: '/floor', module: 'production', hint: 'The tablet at the presses: log, finish, start the next job, call a breakdown' },
       { label: 'Shift handover', to: '/production/shift', module: 'production', hint: 'What the shift made, what stopped the presses, what the next shift picks up' },
       { label: 'Planning board', to: '/production/plan', module: 'production', hint: 'Presses by day — drag a work order onto a press; light-to-dark colour order' },

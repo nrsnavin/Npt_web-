@@ -40,6 +40,7 @@ export const usesShortBar = (departments = [], { isAdmin = false } = {}) => !isA
 export const PRODUCTION_FLOOR = {
   key: 'floor', label: 'Production floor', icon: '▦',
   features: [
+    { to: '/production/today', label: 'Today on the presses' },
     { to: '/production/plan', label: 'Planning board' },
     { to: '/floor', label: 'Floor — the presses' },
   ],

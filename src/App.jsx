@@ -68,6 +68,7 @@ const Oee = lazyPage(() => import('./pages/Oee.jsx'));
 const ProductionInsights = lazyPage(() => import('./pages/ProductionInsights.jsx'));
 const WorkOrders = lazyPage(() => import('./pages/WorkOrders.jsx'));
 const PlanningBoard = lazyPage(() => import('./pages/PlanningBoard.jsx'));
+const PressDay = lazyPage(() => import('./pages/PressDay.jsx'));
 const TradedSupply = lazyPage(() => import('./pages/TradedSupply.jsx'));
 const MaterialNeeds = lazyPage(() => import('./pages/MaterialNeeds.jsx'));
 const Floor = lazyPage(() => import('./pages/Floor.jsx'));
@@ -401,6 +402,15 @@ export default function App() {
             element={
               <RequireModule moduleKey={['production', 'orders']}>
                 <TradedSupply />
+              </RequireModule>
+            }
+          />
+          {/* Today on the presses: confirm what runs, hold a start, the shift change, where task and floor disagree. */}
+          <Route
+            path="production/today"
+            element={
+              <RequireModule moduleKey="production">
+                <PressDay />
               </RequireModule>
             }
           />

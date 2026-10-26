@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { production as productionApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -18,6 +18,7 @@ import { departmentLabel } from '../utils/pipeline.js';
 import { dueWords } from '../utils/productionQueue.js';
 import { dateLabelFor, givenDateOf } from '../utils/edd.js';
 import { WORK_ORDER_STATUS } from '../utils/workOrders.js';
+import { loadPlant } from '../utils/plantSettings.js';
 import { DeliveryReading } from '../components/DeliveryRisk.jsx';
 import ModelJourney from '../components/ModelJourney.jsx';
 import { TaskPdfList, useTaskPdfs } from '../components/TaskPdfs.jsx';
@@ -79,6 +80,8 @@ export default function ProductionWorkflow() {
   const { isAdmin, departments = [], user, canWrite, mayPlanProduction } = useAuth();
   const catalogue = useHandoffCatalogue();
   const [adding, setAdding] = useState(false);
+  const [floorOn, setFloorOn] = useState(null);
+  useEffect(() => { loadPlant().then((plant) => setFloorOn(Boolean(plant?.floorPlanning))); }, []);
   const fetch = useCallback(() => productionApi.workflow(taskId), [taskId]);
   const { data, loading, error, reload } = useRecord(fetch, `production-workflow-${taskId}`);
   /* The PDF sent with the Production request (the buyer's PO, a drawing), on the workflow [TaskPdfs]. */
@@ -113,7 +116,8 @@ export default function ProductionWorkflow() {
             {works && mayPlanProduction && !task.completed && !task.queuedAt && (
               <button type="button" className="btn-primary" onClick={() => setAdding(true)}>Add to production queue</button>
             )}
-            {canWrite('production') && !enquiry.team && (
+            {/* Floor planning on: started from the task's status (Production Started) or its press row. */}
+            {canWrite('production') && !enquiry.team && floorOn === false && (
               <Link to={`/mould-runs?start=1&enquiry=${enquiry._id}${orderId ? `&order=${orderId}` : ''}`} className="btn-secondary">Start a run</Link>
             )}
           </div>
