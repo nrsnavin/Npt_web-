@@ -121,6 +121,22 @@ export default function TeamJobDetail() {
       <Section title="What you asked">
         <p className="text-sm text-steel-100"><span className="font-semibold">{job.asked.what}</span> · {job.asked.team}{job.asked.models.length ? ` · ${job.asked.models.join(', ')}` : ''}</p>
         {job.asked.note && <p className="mt-1 whitespace-pre-line text-sm text-steel-300">{job.asked.note}</p>}
+        {/* The hanger's details — what was asked, and what a team filled where the asker left it out [server: teamJobs.service `detailsOf`]. */}
+        {job.hanger?.length > 0 ? (
+          <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm" aria-label="Hanger details">
+            {job.hanger.map((row) => (
+              <div key={row.key} className="contents">
+                <dt className="text-steel-400">{row.label}</dt>
+                <dd className="min-w-0 break-words text-steel-100">
+                  {row.value}
+                  {row.filledBy && <span className="ml-2 text-xs text-aqua-300">filled by {row.filledBy.team}{row.filledBy.name ? ` · ${row.filledBy.name}` : ''}</span>}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        ) : (
+          <p className="mt-2 text-xs text-steel-500">No model or material given yet — the team working it adds them on its task.</p>
+        )}
       </Section>
 
       <Section title={`Steps (${job.steps.length})`}>
