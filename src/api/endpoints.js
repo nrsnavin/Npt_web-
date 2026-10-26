@@ -793,6 +793,12 @@ export const production = {
   plan: (params) => api.get('/production/plan', { params }).then(unwrap),
   /** The floor tablet's view: each press, its running job, its next work orders, any open call. */
   floor: () => api.get('/production/floor').then(unwrap),
+  /** Today on the presses: each press, its run, the job next and whether its start has come; where task and floor disagree. */
+  pressDay: () => api.get('/production/press-day').then(unwrap),
+  /** On a work order: `confirm` it runs (`counterStart`), `hold` it a day (`reason`), `said-started`, `call-in` — `{ lines }`. */
+  pressDayMove: ({ id, move, ...payload }) => api.post(`/production/press-day/${id}/${move}`, payload, { feedback: false }).then(unwrap),
+  /** The shift change: the counter on each running press, and the pieces made — `{ lines }`. */
+  shiftReadings: (payload) => api.post('/production/press-day/shift', payload, { feedback: false }).then(unwrap),
   /** What one shift hands the next: per press, runs, pieces, stops, problems; presses still called in. */
   shiftSummary: (params) => api.get('/production/shift-summary', { params }).then(unwrap),
   /** What the open work orders need from the stores, what is short, and what to buy. */

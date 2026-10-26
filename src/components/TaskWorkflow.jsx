@@ -17,7 +17,7 @@ import { ladderOf } from '../utils/taskState.js';
 import { departmentLabel } from '../utils/pipeline.js';
 import { ROUTE_LABELS, dateLabelFor, datesOfTask, givenDateOf, goodsOf, handOverDefault, handOverWarning, modelStatusesOf, modelThrough, modelsForStep, modelsOfTask, movesByModel, needsRouting, nextStepForModel, pathOf, routeOf, statusesFor, statusesForModel } from '../utils/edd.js';
 import { formatDate } from '../utils/format.js';
-import { plantLead } from '../utils/plantSettings.js';
+import { loadPlant, plantLead } from '../utils/plantSettings.js';
 import LoadPaper from './LoadPaper.jsx';
 import DispatchModels from './DispatchModels.jsx';
 import { LrShipments } from './Shipments.jsx';
@@ -87,6 +87,15 @@ export function MoveForm({ todo, form, step, onCancel, onMoved, noDates = false,
   const pressing = pressStepOf(todo, step.key);
   const [press, setPress] = useState({ floor: null, label: null, missing: null });
   const { toast } = useToast();
+  /* The press plan gives the ready date — the day moulding ends on its press — while the box is not touched. */
+  const [dateTouched, setDateTouched] = useState(false);
+  const readyKey = JSON.stringify(press.readyBy || null);
+  useEffect(() => {
+    const ready = press.readyBy;
+    if (!ready || dateTouched || !dated || ready.date < todayInIndia()) return;
+    if (!date) setDate(ready.date);
+    setPerModel((current) => ({ ...current, ...Object.fromEntries(Object.entries(ready.models).filter(([model, day]) => !current[model] && day >= todayInIndia())) }));
+  }, [readyKey]);
   const save = async (event) => {
     event.preventDefault();
     setBusy(true);
@@ -168,7 +177,8 @@ export function MoveForm({ todo, form, step, onCancel, onMoved, noDates = false,
         )))}
         {dated && !eachModel && (
           <Field label={dateLabel} required={step.date === 'required'} hint={handing ? handOverWarning(todo, fixedModels?.[0] || null, date, plantLead()) || undefined : undefined}>
-            <input type="date" className="input" min={todayInIndia()} value={date} onChange={(event) => setDate(event.target.value)} />
+            <input type="date" className="input" min={todayInIndia()} value={date} onChange={(event) => { setDateTouched(true); setDate(event.target.value); }} />
+            {press.readyBy && date === press.readyBy.date && <span className="mt-1 block text-xs text-aqua-300">From the press plan — moulding ends then</span>}
           </Field>
         )}
         {eachModel && (
@@ -651,6 +661,9 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
   const [offer, setOffer] = useState(null);
   /* Said as a toast: the finished task leaves the list it was on. */
   const { toast, warn } = useToast();
+  /* Floor planning on: the run starts from the status move, not a separate screen. */
+  const [floorOn, setFloorOn] = useState(null);
+  useEffect(() => { loadPlant().then((plant) => setFloorOn(Boolean(plant?.floorPlanning))); }, []);
   /* After a move: the screen takes the task as saved; if nothing is left on it, the dialog to close it. */
   const moved = (saved) => {
     onChanged?.(saved);
@@ -828,8 +841,9 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
         {todo.kind === 'ask_edd' && todo.enquiry && !window.location.pathname.startsWith('/production/workflow/') && (
           <Link to={`/production/workflow/${todo._id}`} className="btn-secondary px-3 py-1.5 text-xs">Production workflow</Link>
         )}
-        {/* Production's job, on the press: a mould run for this enquiry's SO, started from the task. */}
-        {todo.kind === 'ask_edd' && todo.enquiry && canWrite('production') && (
+        {/* Production's job, on the press: a mould run for this enquiry's SO, started from the task.
+            With floor planning on, Production Started (or the press row's Confirm running) starts it on its press [PressStep]. */}
+        {todo.kind === 'ask_edd' && todo.enquiry && canWrite('production') && floorOn === false && (
           <Link
             to={`/mould-runs?start=1&enquiry=${todo.enquiry._id || todo.enquiry}${todo.order ? `&order=${todo.order._id || todo.order}` : ''}${todo.enquiry.number ? `&label=${encodeURIComponent(`${todo.enquiry.number}${todo.customer?.name ? ` — ${todo.customer.name}` : ''}`)}` : ''}`}
             className="btn-secondary px-3 py-1.5 text-xs"

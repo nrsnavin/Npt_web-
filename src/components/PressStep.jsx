@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { workspace } from '../api/endpoints.js';
+import { production as productionApi, workspace } from '../api/endpoints.js';
+import { todayInIndia } from '../utils/taskForm.js';
 
 /**
  * The floor, inside Production's status move [server: productionStep.service]. The in charge moves
@@ -9,6 +10,9 @@ import { workspace } from '../api/endpoints.js';
  *   Started                          confirm production on a press — the run starts on it
  *   Part 1 / Part 2 ready, Completed the good pieces made — the run ends (and goes on, for a part)
  *   Mould issue / Raw material       the press is called in (andon), with the remark
+ *   Machine Not Allotted             the alternate press, ranked best first — it reads Planning there
+ *
+ * The ready date starts from the press plan: the day moulding ends on the press it is planned on.
  *
  * Back to Started after a stop puts the press called in back to running. Nothing here is needed:
  * "Not on a press yet" moves the status alone. With floor planning off, the press chosen is
@@ -20,6 +24,7 @@ export const PRESS_STEPS = {
   started: 'start',
   part1_ready: 'made', part2_ready: 'made', completed: 'made',
   mould_issue: 'stop', raw_material: 'stop',
+  machine_not_allotted: 'plan',
 };
 
 /** A Production status move that also moves the floor. */
@@ -32,10 +37,18 @@ const pressLabel = (press) => [
   press.calledIn ? ' — called in' : '',
 ].join('');
 const pieces = (count) => Number(count || 0).toLocaleString('en-IN');
+/* Ranked presses first, best first; the rest after, as listed. */
+const rankedPresses = (presses, ranked) => (ranked
+  ? [...presses].sort((a, b) => (ranked.byId[a._id]?.rank ?? 1e6) - (ranked.byId[b._id]?.rank ?? 1e6))
+  : presses);
+
+const dayOf = (at) => (at ? todayInIndia(new Date(at)) : null);
+const shortDate = (at) => new Date(at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'Asia/Kolkata' });
 
 /**
- * `onChange({ floor, label, missing })`: what goes with the move as `floor`, the submit button's
- * words, and what is still to give before it can be sent.
+ * `onChange({ floor, label, missing, readyBy })`: what goes with the move as `floor`, the submit
+ * button's words, what is still to give before it can be sent, and — the press it is planned on
+ * kept — the day moulding ends there, for the ready date (`readyBy.date`, `readyBy.models`).
  */
 export default function PressStep({ todo, status, models, onChange }) {
   const kind = pressStepOf(todo, status);
@@ -46,6 +59,8 @@ export default function PressStep({ todo, status, models, onChange }) {
   const [counters, setCounters] = useState({});
   const [made, setMade] = useState({});
   const [stop, setStop] = useState(true);
+  /* Planning on a press (Machine Not Allotted, Planning): each model's presses ranked, best first. */
+  const [ranks, setRanks] = useState({});
   const modelsKey = models.join('|');
 
   useEffect(() => {
@@ -56,12 +71,28 @@ export default function PressStep({ todo, status, models, onChange }) {
     workspace.todos.pressStep({ id: todo._id, status, models }).then((data) => {
       if (!live) return;
       setPlan(data);
-      setPresses(Object.fromEntries((data.models || []).map((row) => [row.model, row.running?.machine?._id || row.suggested?._id || ''])));
+      /* An alternate press is asked for: never the one it is planned on now. */
+      const alternate = status === 'machine_not_allotted';
+      setPresses(Object.fromEntries((data.models || []).map((row) => [row.model,
+        alternate ? (row.suggested?._id && row.suggested._id !== row.planned?._id ? row.suggested._id : '') : row.running?.machine?._id || row.suggested?._id || ''])));
       /* Completed: what is left of the order, made now. */
       setMade(Object.fromEntries((data.models || []).filter((row) => row.workOrder).map((row) => [row.model, {
         good: status === 'completed' ? String(Math.max(0, row.workOrder.quantity - row.workOrder.goodQty)) : '',
         rejected: '',
       }])));
+      if (kind === 'plan' && data.on) {
+        for (const row of (data.models || []).filter((entry) => entry.workOrder && !entry.running)) {
+          productionApi.choices(row.workOrder._id).then((ranked) => {
+            if (!live) return;
+            const byId = Object.fromEntries((ranked?.choices || []).map((choice) => [choice.machine._id, { rank: choice.rank, end: choice.end, late: choice.late }]));
+            const cannot = Object.fromEntries((ranked?.cannot || []).map((entry) => [entry.machine._id, entry.why]));
+            setRanks((current) => ({ ...current, [row.model]: { byId, cannot } }));
+            /* Nothing chosen yet: the best press (other than the one it is on, for an alternate) starts the box. */
+            const best = (ranked?.choices || []).find((choice) => status !== 'machine_not_allotted' || choice.machine._id !== row.planned?._id);
+            if (best) setPresses((current) => ({ ...current, [row.model]: current[row.model] || best.machine._id }));
+          }).catch(() => {});
+        }
+      }
     }).catch((failure) => live && setProblem(failure.message));
     return () => { live = false; };
   }, [todo._id, status, modelsKey, kind]);
@@ -71,22 +102,30 @@ export default function PressStep({ todo, status, models, onChange }) {
   const onFloor = plan?.on ? rows.filter((row) => row.workOrder) : rows;
   const choosing = ['plan', 'start'].includes(kind);
   const running = rows.filter((row) => row.running);
+  /* A model running cannot move press from here — it is finished on the floor first. */
+  const pickable = kind === 'plan' ? onFloor.filter((row) => !row.running) : onFloor;
 
   const result = useMemo(() => {
     if (!kind || !plan) return { floor: null, label: null, missing: null };
     if (skip) return { floor: { skip: true }, label: null, missing: null };
     if (choosing) {
-      const chosen = onFloor.filter((row) => presses[row.model]).map((row) => ({
+      const chosen = pickable.filter((row) => presses[row.model]).map((row) => ({
         model: row.model,
         machine: presses[row.model],
         ...(kind === 'start' && counters[row.model] !== undefined && counters[row.model] !== '' ? { counterStart: Number(counters[row.model]) } : {}),
       }));
       const codes = [...new Set(chosen.map((row) => plan.presses.find((press) => press._id === row.machine)?.code).filter(Boolean))];
       const missing = kind === 'start' && onFloor.length && !chosen.length ? 'Pick the press it runs on — or tick “Not on a press yet”' : null;
+      /* Kept on the press it is planned on: moulding ends when the plan says. */
+      const readyModels = Object.fromEntries(pickable
+        .filter((row) => presses[row.model] && row.planned?._id === presses[row.model] && row.workOrder?.plannedEnd)
+        .map((row) => [row.model, dayOf(row.workOrder.plannedEnd)]));
+      const days = Object.values(readyModels).sort();
       return {
         floor: chosen.length ? { presses: chosen } : null,
         label: codes.length ? `${kind === 'start' ? 'Confirm production on' : 'Plan on'} ${codes.join(', ')}` : null,
         missing,
+        readyBy: days.length ? { date: days.at(-1), models: readyModels } : null,
       };
     }
     if (kind === 'made' && plan.on) {
@@ -115,7 +154,7 @@ export default function PressStep({ todo, status, models, onChange }) {
   return (
     <fieldset className="space-y-2 rounded-lg border border-aqua-500/30 bg-aqua-500/[0.04] px-3 py-2" aria-label="The press">
       <legend className="px-1 text-xs font-semibold text-aqua-300">
-        {kind === 'start' ? 'Confirm production on a press' : kind === 'plan' ? 'Plan it on a press' : kind === 'made' ? 'Pieces made' : 'Call in the press'}
+        {kind === 'start' ? 'Confirm production on a press' : status === 'machine_not_allotted' ? 'The alternate press' : kind === 'plan' ? 'Plan it on a press' : kind === 'made' ? 'Pieces made' : 'Call in the press'}
       </legend>
 
       {choosing && !skip && onFloor.map((row) => (
@@ -129,6 +168,8 @@ export default function PressStep({ todo, status, models, onChange }) {
             <span className="text-xs text-success-400">
               Running on {row.running.machine?.code} ({row.running.number}){row.running.machine?.calledIn ? ' — called in; Started puts it back to running' : ''}
             </span>
+          ) : kind === 'plan' && row.running ? (
+            <span className="text-xs text-steel-300">Running on {row.running.machine?.code} ({row.running.number}) — finish it on the floor before it moves press</span>
           ) : (
             <span className="flex flex-wrap items-center gap-2">
               <select
@@ -138,11 +179,15 @@ export default function PressStep({ todo, status, models, onChange }) {
                 onChange={(event) => setPresses((current) => ({ ...current, [row.model]: event.target.value }))}
               >
                 <option value="">Choose the press…</option>
-                {plan.presses.map((press) => (
-                  <option key={press._id} value={press._id} disabled={kind === 'start' && Boolean(press.running)}>
-                    {pressLabel(press)}{row.suggested?._id === press._id ? ` ★ ${row.suggestedWhy}` : ''}
-                  </option>
-                ))}
+                {rankedPresses(plan.presses, ranks[row.model]).map((press) => {
+                  const rank = ranks[row.model]?.byId[press._id];
+                  const cannot = ranks[row.model]?.cannot[press._id];
+                  return (
+                    <option key={press._id} value={press._id} disabled={(kind === 'start' && Boolean(press.running)) || Boolean(cannot)}>
+                      {pressLabel(press)}{rank ? ` · #${rank.rank} done ${shortDate(rank.end)}${rank.late ? ' (late)' : ''}` : ''}{cannot ? ` — can’t take it: ${cannot}` : ''}{status === 'machine_not_allotted' && row.planned?._id === press._id ? ' — on it now' : row.suggested?._id === press._id ? ` ★ ${row.suggestedWhy}` : ''}
+                    </option>
+                  );
+                })}
               </select>
               {kind === 'start' && plan.on && (
                 <input
@@ -178,6 +223,9 @@ export default function PressStep({ todo, status, models, onChange }) {
           )}
         </div>
       ))}
+      {kind === 'made' && status !== 'completed' && onFloor.some((row) => made[row.model]?.good !== '' && made[row.model]?.good !== undefined && Number(made[row.model].good) >= row.workOrder.quantity - row.workOrder.goodQty) && (
+        <p className="text-xs text-success-400">That makes the full quantity — the model reads Production Completed.</p>
+      )}
       {kind === 'made' && <p className="text-xs text-steel-400">{status === 'completed' ? 'The run ends with these pieces.' : 'The run ends with these pieces and the press goes on with the rest.'} Leave blank to move the status alone.</p>}
 
       {kind === 'stop' && (
@@ -195,6 +243,7 @@ export default function PressStep({ todo, status, models, onChange }) {
       )}
       {choosing && !plan.on && !skip && <p className="text-xs text-steel-400">Floor planning is off: the press is written on the status, for everyone to read.</p>}
       {kind === 'start' && plan.on && !skip && <p className="text-xs text-steel-400">The run starts on the press now — the floor, the planning board and the task all read it.</p>}
+      {status === 'machine_not_allotted' && plan.on && !skip && <p className="text-xs text-steel-400">Best first, with when it would be done. Picked, it reads Planning on that press.</p>}
     </fieldset>
   );
 }
