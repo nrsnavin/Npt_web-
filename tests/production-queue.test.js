@@ -141,13 +141,25 @@ test('Production adds a task to the queue from the desk or the workflow page: ro
   assert.match(list, /<AddToProductionQueue/);
   const dialog = readFileSync(new URL('../src/components/AddToProductionQueue.jsx', import.meta.url), 'utf8');
   assert.match(dialog, /workspace\.todos\.addToQueue\(\{/);
-  assert.match(dialog, /aria-label=\{`Printing for \$\{row\.model\}`\}/);
-  assert.match(dialog, /aria-label=\{`Assembly for \$\{row\.model\}`\}/);
+  assert.match(dialog, /aria-label=\{`Printing for \$\{label\}`\}/);
+  assert.match(dialog, /aria-label=\{`Assembly for \$\{label\}`\}/);
   assert.match(dialog, /\{pathOf\(row\)\} → Dispatch/, 'the cycle it will follow, said per model');
   assert.match(dialog, /type="date"/);
   const flow = readFileSync(new URL('../src/pages/ProductionWorkflow.jsx', import.meta.url), 'utf8');
   assert.match(flow, /works && mayPlanProduction && !task\.completed && !task\.queuedAt && \(/);
   assert.match(readFileSync(new URL('../src/api/endpoints.js', import.meta.url), 'utf8'), /api\.post\(`\/workspace\/todos\/\$\{id\}\/production-queue`, payload/);
+});
+
+test('the in charge gives each model’s details on the queue form where the enquiry left them out — model, material, pieces, hook, clip, print', () => {
+  const dialog = readFileSync(new URL('../src/components/AddToProductionQueue.jsx', import.meta.url), 'utf8');
+  assert.match(dialog, /\{ key: 'material', label: 'Material & colour', register: 'materials' \},\s+\{ key: 'quantity', label: 'Pieces', type: 'number' \},\s+\{ key: 'hook', label: 'Hook', register: 'hooks' \},\s+\{ key: 'clip', label: 'Clip', register: 'clips' \},\s+\{ key: 'print', label: 'Print', register: 'prints' \},/);
+  assert.match(dialog, /setRows\(known\.length \? known : \[blankRow\(\)\]\);/, 'nothing named: one model to give');
+  assert.match(dialog, />\+ Add a model<\/button>/);
+  assert.match(dialog, /<RegisterPick field=\{MODEL_FIELD\} register=\{registers\.moulds \|\| \[\]\}/, 'the model from the mould register');
+  assert.match(dialog, /noPieces \? `Give the pieces for \$\{noPieces\.model\}`/, 'pieces are needed to plan');
+  assert.match(dialog, /items: named\.map\(\(row\) => \(\{/);
+  assert.match(dialog, /Also correct the enquiry where I changed a detail it already gives\./);
+  assert.match(dialog, /From the SO — change it on the SO/);
 });
 
 test('a Production task raised from the customer, with no enquiry, is a job of its own on the queue and its workflow page', () => {
