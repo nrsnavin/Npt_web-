@@ -51,3 +51,22 @@ test('task lists load what is open; Done is read when opened, with Load more', (
   assert.match(jobs, /workspace\.todos\.teamJobs\(\{ state, page: page \+ 1 \}\)/);
   assert.match(jobs, />Load more done jobs<\/button>/);
 });
+
+test('Admin closes an enquiry, a task or a team job where it stands — with a reason; nothing is deleted', () => {
+  const dialog = read('components/CloseRecord.jsx');
+  assert.match(dialog, /reason\.trim\(\)\.length >= 5/, 'a reason first');
+  assert.match(dialog, /plan\.tasks\.map\(\(row\) => <li key=\{row\._id\}>\{row\.title\}<\/li>\)/, 'what closes with it');
+  assert.match(dialog, /Kept open until the money is in/);
+  const enquiry = read('pages/EnquiryDetail.jsx');
+  assert.match(enquiry, /\{isAdmin && enquiry\.stage !== 'closed' && \(\s*<CloseRecord\s+label="Close enquiry"/);
+  assert.match(enquiry, /close=\{\(reason\) => handoffsApi\.send\(\{ id: enquiry\._id, kind: 'task_closed', note: reason \}\)\}/);
+  const panel = read('components/TaskPanel.jsx');
+  assert.match(panel, /\{!task\.completed && task\.kind && !task\.holds && \(\s*<CloseRecord\s+label="Close task"/);
+  assert.match(panel, /workspace\.todos\.adminClose\(\{ id: task\._id, reason \}\)/);
+  const job = read('pages/TeamJobDetail.jsx');
+  assert.match(job, /\{!job\.now\.done && \(\s*<CloseRecord\s+label="Close job"/);
+  assert.match(job, /workspace\.todos\.closeJob\(\{ id: job\._id, reason \}\)/);
+  const api = read('api/endpoints.js');
+  assert.match(api, /closing: \(id\) => api\.get\(`\/enquiries\/\$\{id\}\/closing`\)/);
+  assert.match(api, /closeJob: \(\{ id, reason \}\) => api\.post\(`\/workspace\/team-jobs\/\$\{id\}\/close`, \{ reason \}/);
+});

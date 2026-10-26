@@ -7,6 +7,7 @@ import { NowPill } from './TeamJobs.jsx';
 import { AddShipmentPaper } from '../components/Shipments.jsx';
 import { CustomerSelect } from '../components/pickers.jsx';
 import DeleteRecord from '../components/DeleteRecord.jsx';
+import CloseRecord from '../components/CloseRecord.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { formatCurrency, formatDate } from '../utils/format.js';
 
@@ -83,7 +84,18 @@ export default function TeamJobDetail() {
         title={`${job.number || 'Job'} · ${job.customer?.name || 'No buyer'}`}
         subtitle={<><Link to="/team-jobs" className="hover:text-accent">Team jobs</Link> · given by {job.raisedBy || '—'} on {formatDate(job.raisedAt)}{job.edd ? ` · EDD ${formatDate(job.edd)}` : ''}</>}
         actions={isAdmin ? (
-          /* Admin: the job and every task on it [server: deletion.service]. */
+          <div className="flex flex-wrap gap-2">
+          {/* Admin: closed where it stands — every open task on it, with the reason [server: teamJobs.service `closeTeamJob`]. */}
+          {!job.now.done && (
+            <CloseRecord
+              label="Close job"
+              what={`job ${job.number || ''}`.trim()}
+              preview={async () => ({ tasks: job.steps.filter((step) => !step.completed).map((step) => ({ _id: step._id, title: `${step.team} — ${step.what}` })) })}
+              close={(reason) => workspace.todos.closeJob({ id: job._id, reason })}
+              onClosed={(fresh) => fresh && setJob(fresh)}
+            />
+          )}
+          {/* Admin: the job and every task on it [server: deletion.service]. */}
           <DeleteRecord
             label="Delete job"
             what={`job ${job.number || ''}`.trim()}
@@ -92,6 +104,7 @@ export default function TeamJobDetail() {
             remove={(reason) => workspace.todos.destroy({ id: job._id, reason })}
             onDeleted={() => navigate('/team-jobs', { replace: true })}
           />
+          </div>
         ) : null}
       />
 

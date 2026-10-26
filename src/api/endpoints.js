@@ -182,6 +182,8 @@ export const workspace = {
     teamJob: (id) => api.get(`/workspace/team-jobs/${id}`).then(unwrap),
     /** The buyer named on a job given with none — or `noBuyer`: it goes as it is (stock, a fair); the job read again. */
     nameJobBuyer: ({ id, customer, noBuyer }) => api.post(`/workspace/team-jobs/${id}/buyer`, noBuyer ? { noBuyer: true } : { customer }, { feedback: false }).then(unwrap),
+    /** Admin closes a team job where it stands — every open task on it, with the reason; the job read again. */
+    closeJob: ({ id, reason }) => api.post(`/workspace/team-jobs/${id}/close`, { reason }, { feedback: false }).then(unwrap),
     /** Joins the buyer's enquiry — or closes onto the Production task it already has; keeps `mergedInto`. */
     linkEnquiry: ({ id, enquiry }) => api.post(`/workspace/todos/${id}/link-enquiry`, { enquiry }, { feedback: false }).then((response) => response.data),
     /** Each model started from where it is now. */
@@ -556,6 +558,8 @@ export const enquiries = {
   get: (id) => api.get(`/enquiries/${id}`).then(unwrap),
   /** Admin: what deleting the enquiry would take — its tasks, samples, quotations — and what stops it. */
   deletion: (id) => api.get(`/enquiries/${id}/deletion`).then(unwrap),
+  /** Admin: what closing the enquiry would close — its open tasks, money cases kept open, samples stopped. */
+  closing: (id) => api.get(`/enquiries/${id}/closing`).then(unwrap),
   /** Admin deletes the enquiry and every task on it [server: deletion.service]. */
   remove: ({ id, reason }) => api.delete(`/enquiries/${id}`, { data: reason ? { reason } : {}, feedback: false }).then(unwrap),
   create: (payload) => api.post('/enquiries', payload).then(unwrap),
