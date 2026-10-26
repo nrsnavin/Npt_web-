@@ -10,6 +10,7 @@ import {
   CHIPS, SAMPLE_COURIERS, SETS, TILE_FILTERS, UNSENT, filterFor, needsReason, optionsFor,
 } from '../utils/samplingQueue.js';
 import { TaskPdfChips, useTaskPdfs } from './TaskPdfs.jsx';
+import CustomerFilter, { byCustomer } from './CustomerFilter.jsx';
 
 /**
  * The sampling department's work queue [server: sampleDashboard.controller `sampleQueue`].
@@ -413,6 +414,9 @@ export function HandoverForm({ row, onClose, onDone }) {
   );
 }
 
+/* A sample's buyer, for the customer filter. */
+const sampleBuyer = (row) => row.customer?.name;
+
 export default function SamplingWorkQueue() {
   const fetch = useCallback(() => samplesApi.queue(), []);
   const { data, loading, error, reload } = useRecord(fetch, 'sampling-queue');
@@ -430,13 +434,15 @@ export default function SamplingWorkQueue() {
   /* The PDF marketing sent with each Sample Request, on its row [TaskPdfs]. */
   const pdfs = useTaskPdfs({ enquiries: rows.map((row) => row.enquiry?._id), kinds: ['sample_request'] });
 
+  /* One buyer's samples [CustomerFilter]. */
+  const [customer, setCustomer] = useState('');
   const shown = useMemo(() => {
     const test = filterFor(chip);
     const term = search.trim().toLowerCase();
-    return rows.filter((row) => test(row) && (!term || [row.customer?.name, row.number, row.requestedBy, row.request, row.enquiry?.number]
+    return byCustomer(rows, sampleBuyer, customer).filter((row) => test(row) && (!term || [row.customer?.name, row.number, row.requestedBy, row.request, row.enquiry?.number]
       .filter(Boolean).some((text) => text.toLowerCase().includes(term))))
       .map((row) => ({ ...row, pdfs: pdfs.byEnquiry[row.enquiry?._id] }));
-  }, [rows, chip, search, pdfs]);
+  }, [rows, chip, search, pdfs, customer]);
 
   if (loading && !data) return <DashboardSkeleton label="Loading the work queue" tiles={4} />;
   if (error) return <ErrorState error={error} onRetry={reload} />;
@@ -507,9 +513,10 @@ export default function SamplingWorkQueue() {
             </button>
           );
         })}
+        <CustomerFilter rows={rows} nameOf={sampleBuyer} value={customer} onChange={setCustomer} className="ml-auto" />
         <input aria-label="Search buyer, model or request"
           type="search"
-          className="input ml-auto w-full sm:w-64"
+          className="input w-full sm:w-64"
           placeholder="Search buyer, model or request…"
           value={search}
           onChange={(event) => setSearch(event.target.value)}

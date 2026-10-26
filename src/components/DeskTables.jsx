@@ -11,6 +11,7 @@ import CloseTaskPrompt, { offersClose } from './CloseTaskPrompt.jsx';
 import TaskPanel from './TaskPanel.jsx';
 import { CommentDialog, ContactDialog, MoveForm, UploadDialog } from './TaskWorkflow.jsx';
 import { TaskPdfChips, useTaskPdfs } from './TaskPdfs.jsx';
+import CustomerFilter, { QueuePlace, byCustomer, placesForTask, useQueuePlaces } from './CustomerFilter.jsx';
 
 /**
  * The Reception, Payment Collection, Payment Recovery and Accounts desks as tables — one line a
@@ -291,6 +292,8 @@ function CustomerCell({ row, children }) {
   return (
     <td className={`max-w-[12rem] ${td}`}>
       <span className="line-clamp-2 font-semibold text-steel-50">{customerOf(row)}</span>
+      {/* Where the job stands in the plant's queues [server: queuePlaces.service]. */}
+      <QueuePlace places={row.places} className="mt-0.5" />
       <TaskPdfChips files={row.pdfs} role="sent" />
       {children}
     </td>
@@ -633,8 +636,27 @@ function Titled({ title, count, children }) {
   );
 }
 
-/** The desk's tables — Reception's two, one for every other desk. */
-export default function DeskTables({ department, rows = [], me, onChanged }) {
+/* A row's buyer, for the customer filter. */
+const buyerOf = (row) => row.enquiry?.customer?.name || row.task.customer?.name;
+
+/** The desk's tables — Reception's two, one for every other desk — with the customer filter over them. */
+export default function DeskTables({ department, rows: all = [], me, onChanged }) {
+  const [customer, setCustomer] = useState('');
+  const places = useQueuePlaces();
+  const rows = byCustomer(all, buyerOf, customer).map((row) => ({ ...row, places: placesForTask(places, row.task) }));
+  return (
+    <div className="space-y-3">
+      {all.length > 1 && (
+        <div className="flex justify-end">
+          <CustomerFilter rows={all} nameOf={buyerOf} value={customer} onChange={setCustomer} />
+        </div>
+      )}
+      <DeskTablesFor department={department} rows={rows} me={me} onChanged={onChanged} />
+    </div>
+  );
+}
+
+function DeskTablesFor({ department, rows = [], me, onChanged }) {
   const props = { me, onChanged };
   if (department === 'reception') {
     const samples = rows.filter((row) => row.task.kind === 'sample_collect');

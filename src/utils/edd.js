@@ -200,6 +200,8 @@ export function trimToRoute(task, statuses = [], end, keep) {
   return statuses.filter((step) => {
     if (keep && step.key === keep) return true;
     if (step.handsTo || step.readyForDispatch) return ends(step);
+    /* Waiting for the payment to dispatch: only for a model that goes to Dispatch from here. */
+    if (step.awaitsPayment) return end === 'dispatch';
     if (step.done) return false;
     return !(task?.kind === 'ask_edd' && step.key === 'assembling');
   });

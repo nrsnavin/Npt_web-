@@ -7,6 +7,7 @@ import { EscalateTaskDialog, TaskMeta } from '../TaskEscalation.jsx';
 import HandoffTaskActions, { HandoffDialog } from '../HandoffTaskActions.jsx';
 import { formatDate } from '../../utils/format.js';
 import { departmentLabel } from '../../utils/pipeline.js';
+import { QueuePlace, placesForTask } from '../CustomerFilter.jsx';
 
 const PRIORITY_TONE = {
   high: 'text-danger-400',
@@ -44,7 +45,7 @@ export function dueLabel(dueDate) {
  * checkbox and the bin go; escalating stays, because "this needs doing" is exactly what a
  * marketing person rings about and the one thing they can usefully do from here.
  */
-export function TodoRow({ todo, onToggle, onDelete, onClaim, onEscalate, readOnly = false, showDepartment = false }) {
+export function TodoRow({ todo, onToggle, onDelete, onClaim, onEscalate, readOnly = false, showDepartment = false, places = null }) {
   const due = dueLabel(todo.dueDate);
   const { reload } = useWorkspace();
   /* A department task about an enquiry is finished by saying what was done, not by a tick —
@@ -96,6 +97,8 @@ export function TodoRow({ todo, onToggle, onDelete, onClaim, onEscalate, readOnl
         </p>
         <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs">
           {due && !todo.completed && <span className={due.tone}>{due.text}</span>}
+          {/* Where the job stands in the plant's queues, where the list reads them [CustomerFilter `useQueuePlaces`]. */}
+          {places && !todo.completed && <QueuePlace places={placesForTask(places, todo)} />}
           {todo.priority !== 'normal' && !todo.completed && (
             <span className={PRIORITY_TONE[todo.priority]}>
               {todo.priority === 'high' ? 'High priority' : 'Low'}

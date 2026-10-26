@@ -9,6 +9,7 @@ import { formatDate, formatRelative } from '../utils/format.js';
 import { EDD_BANDS, dueWords } from '../utils/productionQueue.js';
 import { DELIVERY_TONE, DeliveryBadge, inDanger } from './DeliveryRisk.jsx';
 import ModelJourney from './ModelJourney.jsx';
+import CustomerFilter, { QueuePlace, byCustomer } from './CustomerFilter.jsx';
 
 /**
  * Printing's and Assembly's queues, read at a glance [server: finishingQueue.controller]: one
@@ -78,6 +79,9 @@ function ModelLine({ entry }) {
   );
 }
 
+/* A row's buyer, for the customer filter. */
+const customerName = (row) => row.enquiry?.customer?.name;
+
 export default function FinishingQueueList({ team, compact = false, onRows, onChanged }) {
   const words = TEAM_WORDS[team] || TEAM_WORDS.printing;
   const { isAdmin, departments = [], user } = useAuth();
@@ -91,6 +95,8 @@ export default function FinishingQueueList({ team, compact = false, onRows, onCh
   /* The "Against the EDD" chips: folded under More filters, as the less-used filter. */
   const [showMore, setShowMore] = useState(false);
   const [search, setSearch] = useState('');
+  /* One buyer's rows [CustomerFilter]. */
+  const [customer, setCustomer] = useState('');
   const [stage, setStageState] = useState(() => keptStage(team, compact));
   const [opened, setOpened] = useState(null);
   const [queuing, setQueuing] = useState(null);
@@ -126,7 +132,7 @@ export default function FinishingQueueList({ team, compact = false, onRows, onCh
 
   const shown = useMemo(() => {
     const term = search.trim().toLowerCase();
-    return (rows || []).filter((row) => {
+    return byCustomer(rows, customerName, customer).filter((row) => {
       if (stage !== 'all' && row.goods?.stage !== stage) return false;
       if (band === 'problems' && !row.task.issue) return false;
       if (!['all', 'problems'].includes(band) && row.band !== band) return false;
@@ -135,7 +141,7 @@ export default function FinishingQueueList({ team, compact = false, onRows, onCh
       return [row.enquiry.number || 'Team task', row.enquiry.customer?.name, row.order?.number, ...(row.models || []).map((entry) => entry.model)]
         .filter(Boolean).some((text) => String(text).toLowerCase().includes(term));
     });
-  }, [rows, band, risk, search, stage]);
+  }, [rows, band, risk, search, stage, customer]);
 
   if (error && !rows) return <ErrorState error={error} onRetry={load} />;
   if (!rows) return <TableSkeleton rows={6} columns={4} />;
@@ -183,14 +189,17 @@ export default function FinishingQueueList({ team, compact = false, onRows, onCh
             {entry.label} <span className="tabular-nums opacity-75">{entry.count}</span>
           </button>
         ))}
-        <input
-          aria-label="Search enquiry, buyer, model or SO"
-          type="search"
-          className="input ml-auto w-full sm:w-64"
-          placeholder="Search enquiry, buyer, model, SO…"
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-        />
+        <div className="ml-auto flex w-full flex-wrap gap-2 sm:w-auto">
+          <CustomerFilter rows={rows} nameOf={customerName} value={customer} onChange={setCustomer} />
+          <input
+            aria-label="Search enquiry, buyer, model or SO"
+            type="search"
+            className="input w-full sm:w-56"
+            placeholder="Search enquiry, buyer, model, SO…"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+        </div>
       </div>
       <button type="button" className="link-muted text-sm print:hidden" aria-expanded={showMore} onClick={() => setShowMore((value) => !value)}>
         {showMore ? 'Fewer filters' : 'More filters'}{risk !== 'all' ? ' (1 on)' : ''}
@@ -233,6 +242,8 @@ export default function FinishingQueueList({ team, compact = false, onRows, onCh
                       ? <p className="font-bold text-steel-50">Team task{row.task.raisedBy?.name ? <span className="font-normal text-steel-400"> · {row.task.raisedBy.name}</span> : null}</p>
                       : <Link to={`/enquiries/${row.enquiry._id}`} className="font-bold text-steel-50 hover:text-accent">{row.enquiry.number}</Link>}
                     <p className="truncate text-sm text-steel-300">{row.enquiry.customer?.name || '—'}</p>
+                    {/* Its place in the whole queue, by date [server: queuePlaces.service]. */}
+                    <QueuePlace place={row.place} className="mt-0.5" />
                     <p className="truncate text-xs text-steel-500">{(row.models || []).map((entry) => entry.model).join(', ') || row.enquiry.model || '—'}{row.order?.number ? ` · ${row.order.number}` : ''}</p>
                     <span
                       className={`mt-1 inline-block max-w-full truncate rounded-full px-2 py-0.5 text-xs font-semibold ${goods.all ? 'bg-success-500/15 text-success-400' : goods.inHand ? 'bg-accent/15 text-accent' : 'bg-warn-500/15 text-warn-400'}`}

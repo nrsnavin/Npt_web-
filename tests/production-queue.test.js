@@ -141,13 +141,25 @@ test('Production adds a task to the queue from the desk or the workflow page: ro
   assert.match(list, /<AddToProductionQueue/);
   const dialog = readFileSync(new URL('../src/components/AddToProductionQueue.jsx', import.meta.url), 'utf8');
   assert.match(dialog, /workspace\.todos\.addToQueue\(\{/);
-  assert.match(dialog, /aria-label=\{`Printing for \$\{row\.model\}`\}/);
-  assert.match(dialog, /aria-label=\{`Assembly for \$\{row\.model\}`\}/);
+  assert.match(dialog, /aria-label=\{`Printing for \$\{label\}`\}/);
+  assert.match(dialog, /aria-label=\{`Assembly for \$\{label\}`\}/);
   assert.match(dialog, /\{pathOf\(row\)\} → Dispatch/, 'the cycle it will follow, said per model');
   assert.match(dialog, /type="date"/);
   const flow = readFileSync(new URL('../src/pages/ProductionWorkflow.jsx', import.meta.url), 'utf8');
   assert.match(flow, /works && mayPlanProduction && !task\.completed && !task\.queuedAt && \(/);
   assert.match(readFileSync(new URL('../src/api/endpoints.js', import.meta.url), 'utf8'), /api\.post\(`\/workspace\/todos\/\$\{id\}\/production-queue`, payload/);
+});
+
+test('the in charge gives each model’s details on the queue form where the enquiry left them out — model, material, pieces, hook, clip, print', () => {
+  const dialog = readFileSync(new URL('../src/components/AddToProductionQueue.jsx', import.meta.url), 'utf8');
+  assert.match(dialog, /\{ key: 'material', label: 'Material & colour', register: 'materials' \},\s+\{ key: 'quantity', label: 'Pieces', type: 'number' \},\s+\{ key: 'hook', label: 'Hook', register: 'hooks' \},\s+\{ key: 'clip', label: 'Clip', register: 'clips' \},\s+\{ key: 'print', label: 'Print', register: 'prints' \},/);
+  assert.match(dialog, /setRows\(known\.length \? known : \[blankRow\(\)\]\);/, 'nothing named: one model to give');
+  assert.match(dialog, />\+ Add a model<\/button>/);
+  assert.match(dialog, /<RegisterPick field=\{MODEL_FIELD\} register=\{registers\.moulds \|\| \[\]\}/, 'the model from the mould register');
+  assert.match(dialog, /noPieces \? `Give the pieces for \$\{noPieces\.model\}`/, 'pieces are needed to plan');
+  assert.match(dialog, /items: named\.map\(\(row\) => \(\{/);
+  assert.match(dialog, /Also correct the enquiry where I changed a detail it already gives\./);
+  assert.match(dialog, /From the SO — change it on the SO/);
 });
 
 test('a Production task raised from the customer, with no enquiry, is a job of its own on the queue and its workflow page', () => {
@@ -166,4 +178,27 @@ test('Admin deletes a Production task from the desk, in the queue or not — clo
   assert.match(list, /await workspace\.todos\.adminClose\(\{ id: row\.task\._id, reason \}\)/, 'closed on the server, never wiped');
   assert.match(list, /disabled=\{busy \|\| reason\.trim\(\)\.length < 5\}/, 'a reason first');
   assert.match(list, /onDeleted=\{\(\) => load\(\)\}/, 'the desk reloads without it');
+});
+
+test('raising Production with the hanger left blank: told what is not mentioned, sent only once ticked; the in charge sees it and enters it', () => {
+  const dialog = readFileSync(new URL('../src/components/DepartmentTaskDialog.jsx', import.meta.url), 'utf8');
+  assert.match(dialog, /const BARE_DETAILS = \[\['model', 'model'\], \['material', 'material'\], \['quantity', 'pieces'\]\];/);
+  assert.match(dialog, /const bare = kind === 'ask_edd' && !fromTask && prefill \?/);
+  assert.match(dialog, /\(bare\.length > 0 && !bareOk\)/, 'not sent until said so');
+  assert.match(dialog, /Nothing is mentioned about the hanger — no model, material or pieces/);
+  assert.match(dialog, /Send without \{bare\.length === 1 \? 'it' : 'them'\} — the Production in charge fills/);
+  const flow = readFileSync(new URL('../src/pages/ProductionWorkflow.jsx', import.meta.url), 'utf8');
+  assert.match(flow, /const bare = data\.missingDetails \|\| \[\];/);
+  assert.match(flow, /Nothing was mentioned about the hanger/);
+  assert.match(flow, /onClick=\{\(\) => setAdding\(true\)\}>Enter them<\/button>/);
+});
+
+test('Materials Ready — Waiting for Payment to Dispatch: offered where a model goes to Dispatch from Production; the task says it waits on the money', () => {
+  const edd = readFileSync(new URL('../src/utils/edd.js', import.meta.url), 'utf8');
+  assert.match(edd, /if \(step\.awaitsPayment\) return end === 'dispatch';/);
+  const flow = readFileSync(new URL('../src/components/TaskWorkflow.jsx', import.meta.url), 'utf8');
+  assert.match(flow, /const hold = todo\.kind === 'ask_edd' && todo\.paymentHold\?\.at && !todo\.paymentHold\.releasedAt \? todo\.paymentHold : null;/);
+  assert.match(flow, /Waiting for the payment before dispatch/);
+  assert.match(flow, /`\$\{formatCurrency\(hold\.amount\)\} with Payment Collection`/);
+  assert.match(flow, /const nextIsButton = next && !next\.pdf && !waiting\.length && !payingFirst && /, 'no button to skip the payment');
 });

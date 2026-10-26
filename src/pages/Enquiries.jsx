@@ -23,6 +23,7 @@ import {
 import useOpenFromLink from '../hooks/useOpenFromLink.js';
 import { useHandoffCatalogue } from '../hooks/useHandoffCatalogue.js';
 import { DeliveryBadge, inDanger } from '../components/DeliveryRisk.jsx';
+import { QueuePlace, useQueuePlaces } from '../components/CustomerFilter.jsx';
 
 /**
  * What the list hook fetches while the board is showing: nothing.
@@ -61,6 +62,8 @@ export default function Enquiries({ embedded = false }) {
   useOpenFromLink(() => setCreating(true));
 
   const term = useDebounced(search);
+  /* Each enquiry's place in the Production, Printing and Assembly queues. */
+  const places = useQueuePlaces();
 
   // "Due" is the morning follow-up list: everything open whose date has arrived.
   const endOfToday = useCallback(() => {
@@ -205,6 +208,22 @@ export default function Enquiries({ embedded = false }) {
           value={search}
           onChange={(event) => change(setSearch)(event.target.value)}
         />
+        {/* One buyer's enquiries, every stage [server: `customer`] — the same as arriving from the customer. */}
+        <div className="w-full sm:w-64">
+          <CustomerSelect
+            value={forCustomer || ''}
+            allowCreate={false}
+            emptyLabel="All customers"
+            onChange={(value) => {
+              const next = new URLSearchParams(searchParams);
+              const id = value?._id || value || '';
+              if (id) next.set('customer', id);
+              else next.delete('customer');
+              setSearchParams(next);
+              setPage(1);
+            }}
+          />
+        </div>
 
         <div role="tablist" aria-label="View" className="tab-track grid-flow-col">
           {views.map((option) => (
@@ -359,6 +378,8 @@ export default function Enquiries({ embedded = false }) {
                             {enquiry.number}
                           </Link>
                           <p className="text-xs text-steel-400">{formatDate(enquiry.enquiryDate)}</p>
+                          {/* Where its work stands in the plant's queues [server: queuePlaces.service]. */}
+                          <QueuePlace places={places.enquiries?.[enquiry._id]} className="mt-1" />
                         </td>
                         <td className="px-1.5 py-3.5">
                           {enquiry.customer && !opensCustomer(enquiry.customer) ? (

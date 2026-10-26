@@ -16,7 +16,7 @@ import { todayInIndia } from '../utils/taskForm.js';
 import { ladderOf } from '../utils/taskState.js';
 import { departmentLabel } from '../utils/pipeline.js';
 import { ROUTE_LABELS, dateLabelFor, datesOfTask, givenDateOf, goodsOf, handOverDefault, handOverWarning, modelStatusesOf, modelThrough, modelsForStep, modelsOfTask, movesByModel, needsRouting, nextStepForModel, pathOf, routeOf, statusesFor, statusesForModel } from '../utils/edd.js';
-import { formatDate } from '../utils/format.js';
+import { formatCurrency, formatDate } from '../utils/format.js';
 import { loadPlant, plantLead } from '../utils/plantSettings.js';
 import LoadPaper from './LoadPaper.jsx';
 import DispatchModels from './DispatchModels.jsx';
@@ -501,7 +501,8 @@ function ModelWorkflows({ todo, form, statuses, offered, noDates, onMoved }) {
         /* Closed here: Task Closed, or the model gone on from this team — handed over, or ready for dispatch from the last team [server: handoff.service `closesModel`]. */
         const closed = Boolean(current?.done || current?.handsTo || current?.readyForDispatch);
         const next = nextStepForModel(todo, statuses, row.model, row.status);
-        const nextIsButton = next && own.some((entry) => entry.key === next.key) && !next.pdf && !(noDates && (next.date || next.plans));
+        const payingFirst = row.status === 'ready_awaiting_payment' && todo.paymentHold?.at && !todo.paymentHold.releasedAt;
+        const nextIsButton = next && own.some((entry) => entry.key === next.key) && !next.pdf && !payingFirst && !(noDates && (next.date || next.plans));
         const route = routeOf(todo, row.model);
         const date = dates[row.model];
         const open = moving?.model === row.model ? moving.step : null;
@@ -688,7 +689,9 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
   const missing = missingDetails(todo, details);
   /* The obvious move — the rung after the one the task stands on — as the one big button. */
   const next = ladderOf(button, todo)?.next;
-  const nextIsButton = next && !next.pdf && !waiting.length && !(noDates && (next.date || next.plans));
+  /* Waiting for the buyer's money: the money moves it on, so no button offers to skip it [server: dispatchPayment.service]. */
+  const payingFirst = todo.status === 'ready_awaiting_payment' && todo.paymentHold?.at && !todo.paymentHold.releasedAt;
+  const nextIsButton = next && !next.pdf && !waiting.length && !payingFirst && !(noDates && (next.date || next.plans));
   /* The statuses this person may pick — where the task stands is always listed, so the list reads it. */
   const offered = noDates ? statuses.filter((entry) => (!entry.date && !entry.plans) || entry.key === todo.status) : statuses;
 
@@ -741,8 +744,21 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
     return null;
   };
 
+  /* Made and held for the buyer's money [server: dispatchPayment.service]: Payment Collection has the amount; Accounts' confirmation sends it on. */
+  const hold = todo.kind === 'ask_edd' && todo.paymentHold?.at && !todo.paymentHold.releasedAt ? todo.paymentHold : null;
+
   return (
     <div className="space-y-2">
+      {hold && (
+        <div className="rounded-lg bg-warn-500/10 px-3 py-2 ring-1 ring-warn-500/20" role="status" aria-label="Waiting for payment">
+          <p className="text-xs text-warn-400">
+            <span className="font-semibold">Waiting for the payment before dispatch</span>
+            {' — '}{hold.amount ? `${formatCurrency(hold.amount)} with Payment Collection` : 'with Payment Collection, the amount from marketing'}
+            {hold.models?.length ? ` · ${hold.models.join(', ')}` : ''}
+          </p>
+          <p className="text-xs text-steel-300">Once Accounts confirms it in the bank, it moves to Ready for Dispatch and Dispatch is asked — nothing to do here.</p>
+        </div>
+      )}
       {/* Nothing left to do here [server: taskClosable.service]: the task says so until somebody closes it. */}
       {offersClose(todo) && (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-success-500/10 px-3 py-2 ring-1 ring-success-500/20" role="status">

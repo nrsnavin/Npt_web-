@@ -102,6 +102,8 @@ export default function ProductionWorkflow() {
   const works = mayWork(task);
   const changed = () => reload();
   const orderId = task.order?._id || task.order || null;
+  /* What the task still lacks to plan — model, material, pieces [server: handoff.service `missingDetailsOf`]. */
+  const bare = data.missingDetails || [];
 
   return (
     <div className="mx-auto max-w-6xl space-y-5">
@@ -126,6 +128,17 @@ export default function ProductionWorkflow() {
       <ProductionInChargeLine />
 
       <AddToProductionQueue open={adding} task={task} enquiryNumber={enquiry.number || 'this team task'} onClose={() => setAdding(false)} onAdded={changed} />
+
+      {/* Raised with the hanger's details left out [server: handoff.service `bareDetails`]: the in charge gives them on the queue form. */}
+      {bare.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-warn-500/50 bg-warn-500/[0.08] px-4 py-3" role="alert" aria-label="Hanger details not given">
+          <p className="text-sm text-warn-400">
+            <span className="font-bold">{bare.length === 3 ? 'Nothing was mentioned about the hanger' : `Not mentioned: ${bare.join(', ')}`}</span>
+            <span className="text-steel-200"> — {mayPlanProduction ? 'enter them on Add to production queue before the plan' : 'the Production in charge enters them before the plan'}.</span>
+          </p>
+          {works && mayPlanProduction && <button type="button" className="btn-primary px-3 py-1.5 text-xs" onClick={() => setAdding(true)}>Enter them</button>}
+        </div>
+      )}
 
       {/* Where it stands, as the queue says it. */}
       <div className={`card border-l-4 ${tone.edge} flex flex-wrap items-center gap-4 p-4`}>
