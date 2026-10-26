@@ -179,3 +179,16 @@ test('Admin deletes a Production task from the desk, in the queue or not — clo
   assert.match(list, /disabled=\{busy \|\| reason\.trim\(\)\.length < 5\}/, 'a reason first');
   assert.match(list, /onDeleted=\{\(\) => load\(\)\}/, 'the desk reloads without it');
 });
+
+test('raising Production with the hanger left blank: told what is not mentioned, sent only once ticked; the in charge sees it and enters it', () => {
+  const dialog = readFileSync(new URL('../src/components/DepartmentTaskDialog.jsx', import.meta.url), 'utf8');
+  assert.match(dialog, /const BARE_DETAILS = \[\['model', 'model'\], \['material', 'material'\], \['quantity', 'pieces'\]\];/);
+  assert.match(dialog, /const bare = kind === 'ask_edd' && !fromTask && prefill \?/);
+  assert.match(dialog, /\(bare\.length > 0 && !bareOk\)/, 'not sent until said so');
+  assert.match(dialog, /Nothing is mentioned about the hanger — no model, material or pieces/);
+  assert.match(dialog, /Send without \{bare\.length === 1 \? 'it' : 'them'\} — the Production in charge fills/);
+  const flow = readFileSync(new URL('../src/pages/ProductionWorkflow.jsx', import.meta.url), 'utf8');
+  assert.match(flow, /const bare = data\.missingDetails \|\| \[\];/);
+  assert.match(flow, /Nothing was mentioned about the hanger/);
+  assert.match(flow, /onClick=\{\(\) => setAdding\(true\)\}>Enter them<\/button>/);
+});

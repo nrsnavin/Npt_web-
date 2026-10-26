@@ -29,6 +29,8 @@ import {
  */
 
 const PDF_LIMIT = 1024 * 1024;
+/* The hanger's details a Production request should carry: the form's keys, as said when left out. */
+const BARE_DETAILS = [['model', 'model'], ['material', 'material'], ['quantity', 'pieces']];
 const PRIORITIES = [['normal', 'Normal'], ['high', 'High'], ['low', 'Low']];
 
 function Answer({ field, value, prefill, onChange }) {
@@ -190,6 +192,8 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
   const [started, setStarted] = useState({});
   /* A detail changed here: the enquiry follows when this stays ticked [server: itemDetails.service]. */
   const [updateEnquiry, setUpdateEnquiry] = useState(true);
+  /* Production asked with the hanger's details left blank: sent only once the person says so. */
+  const [bareOk, setBareOk] = useState(false);
   useEffect(() => {
     if (!button || !prefill) return;
     const fresh = startingAnswers(button, prefill);
@@ -227,7 +231,13 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
    * marketing and Admin are told, and the plant follows the revised SO.
    */
   const running = !team && !fromTask && kind === 'po_so' ? runningOrder || prefill?.orderInProduction || null : null;
-  const blocked = !prefill || Boolean(missing) || mustExplain || tooBig || notPdf || eddMissing || (orders.length > 1 && !order && !fromTask && !team) || (running && !stopOk);
+  /*
+   * Production asked with no model, material or pieces [server: handoff.service `bareDetails`]: the
+   * person is told what is not mentioned before it goes, and the Production in charge enters it
+   * on "Add to production queue" [AddToProductionQueue] — the task says so.
+   */
+  const bare = kind === 'ask_edd' && !fromTask && prefill ? BARE_DETAILS.filter(([key]) => !String(answers[key] ?? '').trim()).map(([, word]) => word) : [];
+  const blocked = !prefill || Boolean(missing) || mustExplain || tooBig || notPdf || eddMissing || (orders.length > 1 && !order && !fromTask && !team) || (running && !stopOk) || (bare.length > 0 && !bareOk);
 
   const submit = async (event, { anyway = false } = {}) => {
     event?.preventDefault();
@@ -433,6 +443,18 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
             <label className="mt-2 flex items-start gap-2 text-sm text-steel-200">
               <input type="checkbox" className="mt-0.5" checked={updateEnquiry} onChange={(event) => setUpdateEnquiry(event.target.checked)} />
               <span>Also update the enquiry with these changes <span className="block text-xs text-steel-400">Every later task starts from them either way; untick to keep the enquiry as the buyer first asked.</span></span>
+            </label>
+          </div>
+        )}
+        {bare.length > 0 && (
+          <div className="rounded-xl border border-warn-500/50 bg-warn-500/[0.08] p-3" role="alert" aria-label="Hanger details not mentioned">
+            <p className="text-sm font-bold text-warn-400">
+              ⚠ {bare.length === BARE_DETAILS.length ? 'Nothing is mentioned about the hanger — no model, material or pieces' : `Not mentioned: ${bare.join(', ')}`}
+            </p>
+            <p className="mt-1 text-xs text-steel-200">Fill {bare.length === 1 ? 'it' : 'them'} above if you know. Sent without, the Production in charge enters {bare.length === 1 ? 'it' : 'them'} before the job goes on the production queue — the task tells them.</p>
+            <label className="mt-2 flex items-start gap-2 text-sm font-semibold text-steel-100">
+              <input type="checkbox" className="mt-0.5" checked={bareOk} onChange={(event) => setBareOk(event.target.checked)} />
+              Send without {bare.length === 1 ? 'it' : 'them'} — the Production in charge fills {bare.length === 1 ? 'it' : 'them'} in
             </label>
           </div>
         )}
