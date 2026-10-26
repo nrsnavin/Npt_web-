@@ -17,5 +17,12 @@ export function loadPlant() {
 /** Days each finishing team gets before the EDD — the plant's, else five. */
 export const plantLead = () => Number(plant?.handoverLeadDays) || 5;
 
-/** Kept fresh after somebody changes it here. */
-export const rememberPlant = (value) => { plant = value || plant; };
+/* Screens that follow a setting as it changes — the bar hides the Production floor when Admin turns floor planning off. */
+const listeners = new Set();
+export const onPlantChange = (listener) => { listeners.add(listener); return () => listeners.delete(listener); };
+
+/** Kept fresh after somebody changes it here — and whoever follows it is told. */
+export const rememberPlant = (value) => {
+  plant = value || plant;
+  for (const listener of listeners) listener(plant);
+};

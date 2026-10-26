@@ -213,5 +213,7 @@ test('the Production in charge has the floor on the bar, right after My work: pl
   assert.equal(litItem('/production/plan', items), 'floor');
   assert.equal(barItems(production, ['dashboard', 'production', 'queries'], { short: true }).some((item) => item.key === 'floor'), false, 'not for the rest of Production');
   const layout = readFileSync(new URL('../src/components/Layout.jsx', import.meta.url), 'utf8');
-  assert.match(layout, /const productionFloor = user\?\.productionInCharge === true && canRead\('production'\);/);
+  assert.match(layout, /const productionFloor = user\?\.productionInCharge === true && canRead\('production'\) && floorPlanning;/, 'only while Admin has floor planning on');
+  assert.match(layout, /onPlantChange\(\(plant\) => setFloorPlanning\(Boolean\(plant\?\.floorPlanning\)\)\)/, 'followed as Admin flips it');
+  assert.match(readFileSync(new URL('../src/utils/plantSettings.js', import.meta.url), 'utf8'), /for \(const listener of listeners\) listener\(plant\);/);
 });

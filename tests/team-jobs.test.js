@@ -59,3 +59,10 @@ test('raising the same ask twice: the open job is offered, and a second raised o
   assert.match(dialog, /onClick=\{\(\) => submit\(null, \{ anyway: true \}\)\}>Raise another anyway<\/button>/);
   assert.match(dialog, /\.\.\.\(anyway \? \{ allowDuplicate: true \} : \{\}\)/);
 });
+
+test('the job page shows the hanger details — what a team filled where the asker left them out, with who filled them', () => {
+  const page = read('pages/TeamJobDetail.jsx');
+  assert.match(page, /job\.hanger\.map\(\(row\) => \(/);
+  assert.match(page, /filled by \{row\.filledBy\.team\}/);
+  assert.match(page, /No model or material given yet — the team working it adds them on its task\./);
+});
