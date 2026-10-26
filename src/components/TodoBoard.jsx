@@ -46,6 +46,7 @@ const GROUPS = [
 export default function TodoBoard() {
   const {
     todos, todoMeta, scope, setScope, addTodo, saveTodo, removeTodo, escalateTodo,
+    done: doneLoaded, doneTotal, doneLoading, loadDone,
   } = useWorkspace();
   const [escalating, setEscalating] = useState(null);
   const [title, setTitle] = useState('');
@@ -56,7 +57,13 @@ export default function TodoBoard() {
   const [showDone, setShowDone] = useState(false);
 
   const open = todos.filter((todo) => !todo.completed);
-  const done = todos.filter((todo) => todo.completed);
+  /* Done is read when it is opened, a page at a time [WorkspaceContext `loadDone`]. */
+  const done = doneLoaded || [];
+  const openDone = () => {
+    setShowDone(true);
+    if (!doneLoaded) loadDone();
+  };
+  const moreDone = doneTotal != null && done.length < doneTotal;
 
   const buckets = Object.fromEntries(GROUPS.map((group) => [group.key, []]));
   for (const todo of open) buckets[bucketOf(todo)].push(todo);
@@ -130,12 +137,12 @@ export default function TodoBoard() {
           </button>
           <button
             type="button"
-            onClick={() => setShowDone(true)}
+            onClick={openDone}
             className={`rounded px-2 py-0.5 text-xs font-semibold ${
               showDone ? 'text-flame-400' : 'text-steel-400 hover:text-steel-200'
             }`}
           >
-            Done ({done.length})
+            Done{doneTotal != null ? ` (${doneTotal})` : ''}
           </button>
         </div>
       }
@@ -209,13 +216,20 @@ export default function TodoBoard() {
 
       {showDone ? (
         done.length ? (
-          <ul className="divide-y divide-line/[0.04]">
-            {done.slice(0, 20).map((todo) => (
-              <TodoRow key={todo._id} todo={todo} {...rowProps} />
-            ))}
-          </ul>
+          <>
+            <ul className="divide-y divide-line/[0.04]">
+              {done.map((todo) => (
+                <TodoRow key={todo._id} todo={todo} {...rowProps} />
+              ))}
+            </ul>
+            {moreDone && (
+              <button type="button" className="row-action mt-2" disabled={doneLoading} onClick={() => loadDone({ more: true })}>
+                {doneLoading ? 'Loading…' : `Load more done (${doneTotal - done.length} more)`}
+              </button>
+            )}
+          </>
         ) : (
-          <p className="py-6 text-center text-sm text-steel-500">Nothing finished yet today.</p>
+          <p className="py-6 text-center text-sm text-steel-500">{doneLoading || !doneLoaded ? 'Loading done tasks…' : 'Nothing finished yet.'}</p>
         )
       ) : (
         <div className="space-y-4">

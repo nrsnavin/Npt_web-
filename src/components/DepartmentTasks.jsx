@@ -18,8 +18,9 @@ export default function DepartmentTasks() {
 
   const load = useCallback(() => {
     Promise.all([
-      workspace.todos.list({ scope: 'department' }).catch(() => ({ data: [] })),
-      workspace.todos.list({ scope: 'mine' }).catch(() => ({ data: [] })),
+      /* Open only — this card shows what is waiting, so the done ones are never fetched. */
+      workspace.todos.list({ scope: 'department', status: 'open' }).catch(() => ({ data: [] })),
+      workspace.todos.list({ scope: 'mine', status: 'open' }).catch(() => ({ data: [] })),
     ]).then(([department, mine]) => {
       const seen = new Map();
       for (const task of [...(department.data || []), ...(mine.data || [])]) {

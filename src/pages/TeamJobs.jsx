@@ -23,12 +23,27 @@ export function NowPill({ now }) {
   );
 }
 
+/* Done jobs come a page at a time [server: teamJobs.service `listTeamJobs`]. */
+const DONE_PAGE = 50;
+
 export function useTeamJobs({ state = 'open', search = '' } = {}) {
   const [rows, setRows] = useState(null);
   const [error, setError] = useState(null);
-  const load = useCallback(() => workspace.todos.teamJobs({ state, ...(search ? { search } : {}) }).then((data) => { setRows(data); setError(null); }).catch(setError), [state, search]);
+  const [page, setPage] = useState(1);
+  const [more, setMore] = useState(false);
+  const load = useCallback(() => workspace.todos.teamJobs({ state, ...(search ? { search } : {}) }).then((data) => {
+    setRows(data);
+    setPage(1);
+    setMore(state === 'done' && !search && data.length >= DONE_PAGE - 5);
+    setError(null);
+  }).catch(setError), [state, search]);
   useEffect(() => { load(); }, [load]);
-  return { rows, error, load };
+  const loadMore = useCallback(() => workspace.todos.teamJobs({ state, page: page + 1 }).then((data) => {
+    setRows((current) => [...(current || []), ...data.filter((row) => !(current || []).some((seen) => seen._id === row._id))]);
+    setPage(page + 1);
+    setMore(data.length >= DONE_PAGE - 5);
+  }).catch(setError), [state, page]);
+  return { rows, error, load, more, loadMore };
 }
 
 /** On the home page: the jobs you gave still open, where each is now — the full list one tap away. */
@@ -66,7 +81,7 @@ export default function TeamJobs() {
   const state = params.get('state') || 'open';
   const [search, setSearch] = useState(params.get('search') || '');
   const [applied, setApplied] = useState(search);
-  const { rows, error, load } = useTeamJobs({ state, search: applied });
+  const { rows, error, load, more, loadMore } = useTeamJobs({ state, search: applied });
   useEffect(() => {
     const timer = setTimeout(() => setApplied(search.trim()), 300);
     return () => clearTimeout(timer);
@@ -139,6 +154,7 @@ export default function TeamJobs() {
               </li>
             ))}
           </ul>
+          {more && <button type="button" className="row-action mt-3" onClick={loadMore}>Load more done jobs</button>}
         </>
       )}
     </div>

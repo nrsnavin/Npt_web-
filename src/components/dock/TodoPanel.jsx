@@ -204,6 +204,7 @@ export function ScopeTabs({ scope, setScope, meta, className = '' }) {
 export default function TodoPanel() {
   const {
     todos, todoMeta, scope, setScope, addTodo, saveTodo, removeTodo, escalateTodo,
+    done: doneLoaded, doneTotal, doneLoading, loadDone,
   } = useWorkspace();
   const [escalating, setEscalating] = useState(null);
   const [title, setTitle] = useState('');
@@ -214,7 +215,13 @@ export default function TodoPanel() {
   const [showDone, setShowDone] = useState(false);
 
   const open = todos.filter((todo) => !todo.completed);
-  const done = todos.filter((todo) => todo.completed);
+  /* Done is read when it is opened, a page at a time [WorkspaceContext `loadDone`]. */
+  const done = doneLoaded || [];
+  const openDone = () => {
+    setShowDone(true);
+    if (!doneLoaded) loadDone();
+  };
+  const moreDone = doneTotal != null && done.length < doneTotal;
   const visible = showDone ? done : open;
 
   /* Marketing's window on a buyer's work is read-only [§29] — see `TodoRow`. */
@@ -320,12 +327,12 @@ export default function TodoPanel() {
         </button>
         <button
           type="button"
-          onClick={() => setShowDone(true)}
+          onClick={openDone}
           className={`rounded px-2 py-0.5 text-xs font-semibold ${
             showDone ? 'text-flame-400' : 'text-steel-400 hover:text-steel-200'
           }`}
         >
-          Done ({done.length})
+          Done{doneTotal != null ? ` (${doneTotal})` : ''}
         </button>
       </div>
 
@@ -346,7 +353,12 @@ export default function TodoPanel() {
             ))}
           </ul>
         ) : (
-          <p className="py-10 text-center text-xs text-steel-500">{emptyLine}</p>
+          <p className="py-10 text-center text-xs text-steel-500">{showDone && (doneLoading || !doneLoaded) ? 'Loading done tasks…' : emptyLine}</p>
+        )}
+        {showDone && moreDone && (
+          <button type="button" className="row-action my-3" disabled={doneLoading} onClick={() => loadDone({ more: true })}>
+            {doneLoading ? 'Loading…' : `Load more done (${doneTotal - done.length} more)`}
+          </button>
         )}
       </div>
 

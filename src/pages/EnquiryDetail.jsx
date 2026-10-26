@@ -5,7 +5,7 @@ import AuthedImage from '../components/AuthedImage.jsx';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import {
-  enquiries as enquiriesApi, quotations as quotationsApi,
+  enquiries as enquiriesApi, handoffs as handoffsApi, quotations as quotationsApi,
   samples as samplesApi,
 } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -20,6 +20,8 @@ import EnquiryCheckCard from '../components/EnquiryCheckCard.jsx';
 import BuyerContactCard from '../components/BuyerContactCard.jsx';
 import TradingBadge, { isTradingLine } from '../components/TradingBadge.jsx';
 import DelegateEnquiry from '../components/DelegateEnquiry.jsx';
+import DeleteRecord from '../components/DeleteRecord.jsx';
+import CloseRecord from '../components/CloseRecord.jsx';
 import DepartmentDesk from '../components/DepartmentDesk.jsx';
 import EnquiryRecords, { EnquiryDispatch, dispatchStarted, useEnquiryRecords } from '../components/EnquiryRecords.jsx';
 import { EnquiryShipments } from '../components/Shipments.jsx';
@@ -676,6 +678,27 @@ export default function EnquiryDetail() {
             )}
             {/* At any stage, Admin only: hand it to marketing, another Admin, or take it on. */}
             {isAdmin && <DelegateEnquiry enquiry={enquiry} onDone={afterHandover} />}
+            {/* Admin, at any stage: closed where it stands — its open tasks close with it, the record stays [server: `task_closed`]. */}
+            {isAdmin && enquiry.stage !== 'closed' && (
+              <CloseRecord
+                label="Close enquiry"
+                what={`enquiry ${enquiry.number}`}
+                preview={() => enquiriesApi.closing(enquiry._id)}
+                close={(reason) => handoffsApi.send({ id: enquiry._id, kind: 'task_closed', note: reason })}
+                onClosed={reload}
+              />
+            )}
+            {/* Admin only: the enquiry and every task on it go — refused while an order, money or the plant's work stands on it [server: deletion.service]. */}
+            {isAdmin && (
+              <DeleteRecord
+                label="Delete enquiry"
+                what={`enquiry ${enquiry.number}`}
+                confirmWord={enquiry.number}
+                preview={() => enquiriesApi.deletion(enquiry._id)}
+                remove={(reason) => enquiriesApi.remove({ id: enquiry._id, reason })}
+                onDeleted={() => navigate('/enquiries', { replace: true })}
+              />
+            )}
             {mayWrite && enquiry.isNewDevelopment && mayWriteMoulds && (
               <button type="button" className="btn-secondary" onClick={() => setPromoting(true)}>
                 Add to the register

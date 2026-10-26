@@ -138,6 +138,8 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
   const [file, setFile] = useState(null);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState(null);
+  /* The same ask already open for the buyer and model [server: handoff.service `sameOpenJob`]: that job, offered. */
+  const [duplicate, setDuplicate] = useState(null);
   const { toast, warn } = useToast();
   const { canWrite, isAdmin, departments = [] } = useAuth();
   /* The EDD — marketing's — asked on the form of a task the queues run by [server: eddAsk.service]. */
@@ -227,10 +229,11 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
   const running = !team && !fromTask && kind === 'po_so' ? runningOrder || prefill?.orderInProduction || null : null;
   const blocked = !prefill || Boolean(missing) || mustExplain || tooBig || notPdf || eddMissing || (orders.length > 1 && !order && !fromTask && !team) || (running && !stopOk);
 
-  const submit = async (event) => {
-    event.preventDefault();
+  const submit = async (event, { anyway = false } = {}) => {
+    event?.preventDefault();
     setBusy(true);
     setProblem(null);
+    setDuplicate(null);
     try {
       /* A department that already has this task open gets the request added to it. */
       const payload = {
@@ -246,7 +249,7 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
       const sent = fromTask
         ? await workspace.todos.ask({ id: fromTask._id, ...payload }).then((answer) => ({ task: answer.raised, addedTo: answer.addedTo }))
         : team
-          ? await workspace.teamTasks.create({ ...payload, ...(customer ? { customer } : {}) })
+          ? await workspace.teamTasks.create({ ...payload, ...(customer ? { customer } : {}), ...(anyway ? { allowDuplicate: true } : {}) })
           : await handoffsApi.send({ id: enquiry._id, addToOpen: true, ...payload, ...(order ? { order } : {}) });
       if (team) toast(`Sent to ${form.team || 'the team'}`, 'It is on their dashboard now — no enquiry needed.');
       /* A sample the buyer collects at reception is internal: Reception has it, not the sampling queue. */
@@ -283,6 +286,7 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
     } catch (failure) {
       /* Production started since the form opened: the alert, rather than a bare refusal. */
       if (failure.details?.code === 'SO_IN_PRODUCTION') setRunningOrder({ ...failure.details.order, words: failure.message });
+      else if (failure.details?.code === 'DUPLICATE_JOB') setDuplicate({ ...failure.details.job, words: failure.message });
       else setProblem(failure.message);
     } finally {
       setBusy(false);
@@ -435,6 +439,16 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
         {missing && prefill && <p className="text-xs text-warn-400">Still needed: {missing}</p>}
         {mustExplain && <p className="text-xs text-warn-400">{fromTask ? 'Say what you need from them' : button.form.noteRequired.message}</p>}
         {problem && <Notice tone="danger">{problem}</Notice>}
+        {duplicate && (
+          <div className="rounded-xl border border-warn-500/50 bg-warn-500/[0.08] p-3" role="alert" aria-label="Already asked">
+            <p className="text-sm font-bold text-warn-400">Already asked — {duplicate.number || 'an open job'}</p>
+            <p className="mt-1 text-xs text-steel-200">{duplicate.words}</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <button type="button" className="btn-secondary px-3 py-1.5 text-xs" onClick={() => { onClose(); navigate(`/team-jobs/${duplicate._id}`); }}>Open {duplicate.number || 'that job'}</button>
+              <button type="button" className="btn-ghost px-3 py-1.5 text-xs" disabled={busy} onClick={() => submit(null, { anyway: true })}>Raise another anyway</button>
+            </div>
+          </div>
+        )}
         <div className="flex justify-end gap-2">
           <button type="button" className="btn-ghost" onClick={onClose} disabled={busy}>Cancel</button>
           <button type="submit" className="btn-primary" disabled={busy || blocked}>

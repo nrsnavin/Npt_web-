@@ -42,3 +42,20 @@ test('home: "Tasks you gave" and "My tasks" — only what is assigned to the rea
   assert.match(board, /\{isAdmin && !assignedToMe && \(/, 'no department picker on the home board');
   assert.match(read('pages/DepartmentTasks.jsx'), /<DepartmentTasksBoard headingAs="h1" department=\{department\} state=\{state\} onFilter=\{onFilter\} \/>/, 'Department Tasks reads every department');
 });
+
+test('the job page: a linked job points at its enquiry; a job with no buyer has the buyer named here — or sent as it is', () => {
+  const page = read('pages/TeamJobDetail.jsx');
+  assert.match(page, /\{job\.linked && <p[^>]*>It follows the enquiry from here — <Link to=\{`\/enquiries\/\$\{job\.linked\._id\}`\}/);
+  assert.match(page, /\{job\.mayNameBuyer && <NameBuyer job=\{job\} onNamed=\{setJob\} \/>\}/);
+  assert.match(page, /workspace\.todos\.nameJobBuyer\(\{ id: job\._id, \.\.\.body \}\)/);
+  assert.match(page, /\{waiting && <button[^>]*onClick=\{\(\) => send\(\{ noBuyer: true \}\)\}>No buyer — send as it is<\/button>\}/, 'only while the goods wait for one');
+  assert.match(read('api/endpoints.js'), /nameJobBuyer: \(\{ id, customer, noBuyer \}\) => api\.post\(`\/workspace\/team-jobs\/\$\{id\}\/buyer`, noBuyer \? \{ noBuyer: true \} : \{ customer \}/);
+});
+
+test('raising the same ask twice: the open job is offered, and a second raised only when asked to', () => {
+  const dialog = read('components/DepartmentTaskDialog.jsx');
+  assert.match(dialog, /failure\.details\?\.code === 'DUPLICATE_JOB'\) setDuplicate\(/);
+  assert.match(dialog, /navigate\(`\/team-jobs\/\$\{duplicate\._id\}`\)/);
+  assert.match(dialog, /onClick=\{\(\) => submit\(null, \{ anyway: true \}\)\}>Raise another anyway<\/button>/);
+  assert.match(dialog, /\.\.\.\(anyway \? \{ allowDuplicate: true \} : \{\}\)/);
+});

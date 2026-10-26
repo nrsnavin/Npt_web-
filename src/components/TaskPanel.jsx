@@ -10,6 +10,8 @@ import { TaskFacts, TaskTimeline } from './TaskHistory.jsx';
 import { buttonFor, useHandoffCatalogue } from '../hooks/useHandoffCatalogue.js';
 import { formatDate } from '../utils/format.js';
 import { departmentLabel } from '../utils/pipeline.js';
+import DeleteRecord from './DeleteRecord.jsx';
+import CloseRecord from './CloseRecord.jsx';
 
 /**
  * One department task, opened from the Department Tasks board: what was asked, every update so
@@ -103,6 +105,28 @@ export default function TaskPanel({ task, startWith, mayWork, onClose, onChanged
         ) : !task.completed ? (
           <p className="text-xs text-steel-500">Read-only — this task is on the {departmentLabel(task.department)} queue.</p>
         ) : null}
+
+        {/* Admin: delete it — a team job's first task takes its whole job; refused when it records something that happened [server: deletion.service]. */}
+        {isManagement && (
+          <div className="flex flex-wrap justify-end gap-2 border-t border-line/[0.06] pt-3">
+            {/* Admin: closed where it stands, with a reason — nothing follows [server: handoff.service `closeByAdmin`]. The enquiry's own task closes with the enquiry. */}
+            {!task.completed && task.kind && !task.holds && (
+              <CloseRecord
+                label="Close task"
+                what="this task"
+                close={(reason) => workspace.todos.adminClose({ id: task._id, reason })}
+                onClosed={() => { onClose?.(); onChanged?.(); }}
+              />
+            )}
+            <DeleteRecord
+              label="Delete task"
+              what="this task"
+              preview={() => workspace.todos.deletion(task._id)}
+              remove={(reason) => workspace.todos.destroy({ id: task._id, reason })}
+              onDeleted={() => { onClose?.(); onChanged?.(); }}
+            />
+          </div>
+        )}
       </div>
     </Modal>
   );
