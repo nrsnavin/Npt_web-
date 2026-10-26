@@ -10,6 +10,7 @@ import { TaskFacts, TaskTimeline } from './TaskHistory.jsx';
 import { buttonFor, useHandoffCatalogue } from '../hooks/useHandoffCatalogue.js';
 import { formatDate } from '../utils/format.js';
 import { departmentLabel } from '../utils/pipeline.js';
+import DeleteRecord from './DeleteRecord.jsx';
 
 /**
  * One department task, opened from the Department Tasks board: what was asked, every update so
@@ -103,6 +104,19 @@ export default function TaskPanel({ task, startWith, mayWork, onClose, onChanged
         ) : !task.completed ? (
           <p className="text-xs text-steel-500">Read-only — this task is on the {departmentLabel(task.department)} queue.</p>
         ) : null}
+
+        {/* Admin: delete it — a team job's first task takes its whole job; refused when it records something that happened [server: deletion.service]. */}
+        {isManagement && (
+          <div className="flex justify-end border-t border-line/[0.06] pt-3">
+            <DeleteRecord
+              label="Delete task"
+              what="this task"
+              preview={() => workspace.todos.deletion(task._id)}
+              remove={(reason) => workspace.todos.destroy({ id: task._id, reason })}
+              onDeleted={() => { onClose?.(); onChanged?.(); }}
+            />
+          </div>
+        )}
       </div>
     </Modal>
   );

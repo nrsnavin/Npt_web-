@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { files, workspace } from '../api/endpoints.js';
 import { ErrorState, PageHeader, Section, Spinner } from '../components/ui.jsx';
 import ModelJourney from '../components/ModelJourney.jsx';
 import { NowPill } from './TeamJobs.jsx';
 import { AddShipmentPaper } from '../components/Shipments.jsx';
 import { CustomerSelect } from '../components/pickers.jsx';
+import DeleteRecord from '../components/DeleteRecord.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 import { formatCurrency, formatDate } from '../utils/format.js';
 
 /**
@@ -66,6 +68,8 @@ function NameBuyer({ job, onNamed }) {
 
 export default function TeamJobDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const { isAdmin } = useAuth();
   const [job, setJob] = useState(null);
   const [error, setError] = useState(null);
   const load = useCallback(() => workspace.todos.teamJob(id).then((data) => { setJob(data); setError(null); }).catch(setError), [id]);
@@ -78,6 +82,17 @@ export default function TeamJobDetail() {
       <PageHeader
         title={`${job.number || 'Job'} · ${job.customer?.name || 'No buyer'}`}
         subtitle={<><Link to="/team-jobs" className="hover:text-accent">Team jobs</Link> · given by {job.raisedBy || '—'} on {formatDate(job.raisedAt)}{job.edd ? ` · EDD ${formatDate(job.edd)}` : ''}</>}
+        actions={isAdmin ? (
+          /* Admin: the job and every task on it [server: deletion.service]. */
+          <DeleteRecord
+            label="Delete job"
+            what={`job ${job.number || ''}`.trim()}
+            confirmWord={job.number || 'DELETE'}
+            preview={() => workspace.todos.deletion(job._id)}
+            remove={(reason) => workspace.todos.destroy({ id: job._id, reason })}
+            onDeleted={() => navigate('/team-jobs', { replace: true })}
+          />
+        ) : null}
       />
 
       {/* Where it is now, first — the question the job page answers. */}

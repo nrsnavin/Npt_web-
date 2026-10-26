@@ -20,6 +20,7 @@ import EnquiryCheckCard from '../components/EnquiryCheckCard.jsx';
 import BuyerContactCard from '../components/BuyerContactCard.jsx';
 import TradingBadge, { isTradingLine } from '../components/TradingBadge.jsx';
 import DelegateEnquiry from '../components/DelegateEnquiry.jsx';
+import DeleteRecord from '../components/DeleteRecord.jsx';
 import DepartmentDesk from '../components/DepartmentDesk.jsx';
 import EnquiryRecords, { EnquiryDispatch, dispatchStarted, useEnquiryRecords } from '../components/EnquiryRecords.jsx';
 import { EnquiryShipments } from '../components/Shipments.jsx';
@@ -676,6 +677,17 @@ export default function EnquiryDetail() {
             )}
             {/* At any stage, Admin only: hand it to marketing, another Admin, or take it on. */}
             {isAdmin && <DelegateEnquiry enquiry={enquiry} onDone={afterHandover} />}
+            {/* Admin only: the enquiry and every task on it go — refused while an order, money or the plant's work stands on it [server: deletion.service]. */}
+            {isAdmin && (
+              <DeleteRecord
+                label="Delete enquiry"
+                what={`enquiry ${enquiry.number}`}
+                confirmWord={enquiry.number}
+                preview={() => enquiriesApi.deletion(enquiry._id)}
+                remove={(reason) => enquiriesApi.remove({ id: enquiry._id, reason })}
+                onDeleted={() => navigate('/enquiries', { replace: true })}
+              />
+            )}
             {mayWrite && enquiry.isNewDevelopment && mayWriteMoulds && (
               <button type="button" className="btn-secondary" onClick={() => setPromoting(true)}>
                 Add to the register

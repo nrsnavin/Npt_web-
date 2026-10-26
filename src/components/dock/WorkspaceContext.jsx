@@ -15,6 +15,14 @@ export function WorkspaceProvider({ children }) {
   const me = selfId(user);
 
   const [todos, setTodos] = useState([]);
+  /*
+   * Done tasks are read only when somebody opens Done, a page at a time [server: listTodos
+   * `status=done`]: a year of finished work is not shipped to every screen to show what is open.
+   */
+  const [done, setDone] = useState(null);
+  const [doneTotal, setDoneTotal] = useState(null);
+  const [donePage, setDonePage] = useState(0);
+  const [doneLoading, setDoneLoading] = useState(false);
   /**
    * Which question the list is currently answering [§35].
    *
@@ -52,7 +60,7 @@ export function WorkspaceProvider({ children }) {
     setLoading(true);
     try {
       const [todoResult, reminderResult, noteResult] = await Promise.allSettled([
-        workspace.todos.list({ scope }),
+        workspace.todos.list({ scope, status: 'open' }),
         workspace.todos.reminders(),
         workspace.notes.list(),
       ]);
@@ -80,12 +88,39 @@ export function WorkspaceProvider({ children }) {
   useEffect(() => {
     load();
   }, [load]);
+  /* Another list (mine, the queue, my buyers): its done half is its own. */
+  useEffect(() => {
+    setDone(null);
+    setDoneTotal(null);
+    setDonePage(0);
+  }, [scope]);
+
+  /** The next page of done tasks — the first when none are loaded yet. */
+  const loadDone = useCallback(async ({ more = false } = {}) => {
+    if (!isAuthenticated) return;
+    const page = more ? donePage + 1 : 1;
+    setDoneLoading(true);
+    try {
+      const answer = await workspace.todos.list({ scope, status: 'done', page, limit: 30 });
+      setDone((current) => (more && current ? [...current, ...answer.data.filter((row) => !current.some((seen) => seen._id === row._id))] : answer.data));
+      setDoneTotal(answer.pagination?.total ?? answer.total ?? answer.data.length);
+      setDonePage(page);
+    } catch {
+      /* Keeps what it showed; the Done list is asked for again on the next press. */
+    } finally {
+      setDoneLoading(false);
+    }
+  }, [isAuthenticated, scope, donePage]);
 
   const value = useMemo(
     () => ({
       loading,
       todos,
       todoMeta,
+      done,
+      doneTotal,
+      doneLoading,
+      loadDone,
       scope,
       setScope,
       reminders,
@@ -109,11 +144,19 @@ export function WorkspaceProvider({ children }) {
          */
         const stillHere =
           scope !== 'mine' || String(updated.user?._id || updated.user || '') === me;
-        setTodos((current) =>
-          stillHere
-            ? current.map((todo) => (todo._id === updated._id ? updated : todo))
-            : current.filter((todo) => todo._id !== updated._id)
-        );
+        /* Ticked done: it leaves the open list for the Done one (if loaded); unticked, it comes back. */
+        if (updated.completed) {
+          setTodos((current) => current.filter((todo) => todo._id !== updated._id));
+          setDone((current) => (current ? [updated, ...current.filter((todo) => todo._id !== updated._id)] : current));
+          setDoneTotal((current) => (current == null ? current : current + 1));
+        } else {
+          setDone((current) => (current ? current.filter((todo) => todo._id !== updated._id) : current));
+          setTodos((current) => {
+            const known = current.some((todo) => todo._id === updated._id);
+            if (!stillHere) return current.filter((todo) => todo._id !== updated._id);
+            return known ? current.map((todo) => (todo._id === updated._id ? updated : todo)) : [updated, ...current];
+          });
+        }
         await refreshReminders();
         return updated;
       },
@@ -137,6 +180,7 @@ export function WorkspaceProvider({ children }) {
       async removeTodo(id) {
         await workspace.todos.remove(id);
         setTodos((current) => current.filter((todo) => todo._id !== id));
+        setDone((current) => (current ? current.filter((todo) => todo._id !== id) : current));
         await refreshReminders();
       },
 
@@ -182,7 +226,7 @@ export function WorkspaceProvider({ children }) {
     }),
     [
       loading, todos, todoMeta, scope, me, reminders, notes, announcements, announcementMeta,
-      load, refreshReminders,
+      load, refreshReminders, done, doneTotal, doneLoading, loadDone,
     ]
   );
 

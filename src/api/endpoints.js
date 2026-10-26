@@ -196,6 +196,10 @@ export const workspace = {
       return api.post(`/workspace/todos/${id}/documents`, form, { feedback: false }).then(unwrap);
     },
     remove: (id) => api.delete(`/workspace/todos/${id}`).then(unwrap),
+    /** Admin: what deleting a task (a team job's first task: its whole job) would take, and what stops it [server: deletion.service]. */
+    deletion: (id) => api.get(`/workspace/todos/${id}/deletion`).then(unwrap),
+    /** Admin deletes a department task — refused, with the reason, when it records something that happened. */
+    destroy: ({ id, reason }) => api.delete(`/workspace/todos/${id}`, { data: reason ? { reason } : {}, feedback: false }).then(unwrap),
   },
   /**
    * The review [§25]: what matters now, ranked.
@@ -550,6 +554,10 @@ export const enquiries = {
   owners: () => api.get('/enquiries/owners').then(unwrap),
   list: (params) => api.get('/enquiries', { params }).then(listed),
   get: (id) => api.get(`/enquiries/${id}`).then(unwrap),
+  /** Admin: what deleting the enquiry would take — its tasks, samples, quotations — and what stops it. */
+  deletion: (id) => api.get(`/enquiries/${id}/deletion`).then(unwrap),
+  /** Admin deletes the enquiry and every task on it [server: deletion.service]. */
+  remove: ({ id, reason }) => api.delete(`/enquiries/${id}`, { data: reason ? { reason } : {}, feedback: false }).then(unwrap),
   create: (payload) => api.post('/enquiries', payload).then(unwrap),
   createGroup: (payload) => api.post('/enquiries/group', payload).then(unwrap),
   /**
