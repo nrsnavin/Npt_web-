@@ -51,3 +51,40 @@ test('the mould register carries a model’s own HSN and GST %; the quotation st
   assert.doesNotMatch(quote, /hsnCode|taxOn|CGST|IGST/, 'no tax on the quotation');
   assert.doesNotMatch(read('pages/QuotationDetail.jsx'), /taxOn|CGST|IGST|Round off/);
 });
+
+test('a buyer with no state or GSTIN is found: the list chip and row badge, the page notice, and the order page links to the record', () => {
+  const list = read('pages/Customers.jsx');
+  assert.match(list, /gstMissing: gstMissing \? 'true' : undefined,/, 'the filter asks the server for them');
+  assert.match(list, /Missing state \/ GSTIN\{meta\?\.gstMissing != null \? ` \(\$\{meta\.gstMissing\}\)` : ''\}/, 'the chip carries the count');
+  assert.match(list, /\{gstUnknown\(customer\) && \(/, 'the row says so');
+  assert.match(list, /No state \/ GSTIN/);
+  const detail = read('pages/CustomerDetail.jsx');
+  assert.match(detail, /\{gstUnknown\(customer\) && \(\s*<Notice tone="warn">/);
+  assert.match(detail, /GST on this buyer's orders assumes Tamil Nadu \(CGST \+ SGST\)/);
+  assert.match(detail, /onClick=\{\(\) => setEditing\(true\)\}>Add the state or GSTIN<\/button>/);
+  const order = read('pages/OrderDetail.jsx');
+  assert.match(order, /<Link to=\{`\/customers\/\$\{order\.customer\._id\}`\} className="underline">set it on the customer<\/Link>/);
+});
+
+test('a GSTIN on the customer form is checked and fills a blank state from its first two digits', () => {
+  const list = read('pages/Customers.jsx');
+  assert.match(list, /const stateFromGstin = GSTIN_PATTERN\.test\(gstinTyped\) \? stateOfGstin\(gstinTyped\) : null;/);
+  assert.match(list, /if \(stateFromGstin && !String\(getValues\('state'\) \|\| ''\)\.trim\(\)\) setValue\('state', stateFromGstin, \{ shouldDirty: true \}\);/);
+  assert.match(list, /const checkForDuplicate = async \(\) => \{\s*fillStateFromGstin\(\);/, 'leaving the GST field fills the state before the duplicate check');
+  assert.match(list, /validate: \(value\) => !String\(value \|\| ''\)\.trim\(\) \|\| GSTIN_PATTERN\.test\(String\(value\)\.trim\(\)\.toUpperCase\(\)\) \|\| 'Not a GSTIN — 15 characters, like 33ABCDE1234F1Z5'/);
+  assert.match(list, /Registered in \$\{stateFromGstin\} — the state fills from it/);
+});
+
+test('the GST helpers: the state of a GSTIN, and whether a buyer has neither', async () => {
+  const { GSTIN_PATTERN, gstUnknown, stateOfGstin } = await import('../src/utils/gst.js');
+  assert.equal(stateOfGstin('29ABCDE1234F1Z5'), 'Karnataka');
+  assert.equal(stateOfGstin('33bcEps2165m1zc'), 'Tamil Nadu');
+  assert.equal(stateOfGstin('99ABCDE1234F1Z5'), null);
+  assert.equal(GSTIN_PATTERN.test('33ABCDE1234F1Z5'), true);
+  assert.equal(GSTIN_PATTERN.test('33ABCDE1234F1Z'), false, 'fourteen characters');
+  assert.equal(GSTIN_PATTERN.test('33ABCDE1234F0Z5'), false, 'the entity digit is never 0');
+  assert.equal(gstUnknown({ name: 'A' }), true);
+  assert.equal(gstUnknown({ state: ' ' , gstin: '' }), true);
+  assert.equal(gstUnknown({ state: 'Kerala' }), false);
+  assert.equal(gstUnknown({ gstin: '29ABCDE1234F1Z5' }), false);
+});

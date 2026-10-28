@@ -939,7 +939,13 @@ export default function OrderDetail() {
                   <p className={`mt-2 text-right text-xs ${order.placeOfSupply.known ? 'text-steel-500' : 'text-warn-400'}`}>
                     Place of supply: {order.placeOfSupply.state}{order.placeOfSupply.code ? ` (${order.placeOfSupply.code})` : ''}
                     {order.tax?.isExport ? '' : order.placeOfSupply.intraState ? ' — within the state, CGST + SGST' : ' — another state, IGST'}
-                    {!order.placeOfSupply.known && ' · assumed: the customer has no state or GSTIN on record — set it on the customer and save the order again'}
+                    {!order.placeOfSupply.known && (
+                      <>
+                        {' · assumed: the customer has no state or GSTIN on record — '}
+                        {order.customer?._id ? <Link to={`/customers/${order.customer._id}`} className="underline">set it on the customer</Link> : 'set it on the customer'}
+                        {' and save the order again'}
+                      </>
+                    )}
                   </p>
                 )}
               </div>
