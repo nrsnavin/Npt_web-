@@ -214,8 +214,8 @@ const PUSH_SAYS = {
   unsupported: 'This browser cannot take notifications here. On a phone, install the app first (Add to Home Screen), then turn them on.',
   unconfigured: 'Notifications are not switched on for the plant yet — ask an administrator.',
   denied: 'This device has blocked notifications for the app. Allow them in the browser settings.',
-  on: 'This device is told the moment a task is raised for your team, a query is flagged urgent, or somebody tags you.',
-  off: 'Get told on this device the moment a task is raised for your team or somebody tags you — even with the app closed.',
+  on: 'This device is told the moment a task is raised for your team, a query is flagged urgent, or somebody tags you. Admin and the enquiry’s marketing person also hear a sales order created, a job added to the production, printing or assembly queue, production, printing or assembly completed, and every dispatch with the pieces sent.',
+  off: 'Get told on this device the moment a task is raised for your team or somebody tags you — even with the app closed. Admin and marketing also hear sales orders created, jobs queued and completed, and every dispatch with the pieces sent.',
 };
 
 /** Pushes to this device — a tag reaches the phone in the pocket. */

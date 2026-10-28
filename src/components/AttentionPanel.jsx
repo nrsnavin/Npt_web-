@@ -178,8 +178,14 @@ function Update({ notice, onChanged }) {
           {' · '}
           {notice.enquiry ? (
             <Link to={`/enquiries/${notice.enquiry?._id || notice.enquiry}`} onClick={opened} className="text-accent hover:underline">{notice.enquiry?.number}</Link>
+          ) : notice.order ? (
+            /* A sales order booked with no enquiry behind it [server: orderNotices.service]. */
+            <Link to={`/orders/${notice.order?._id || notice.order}`} onClick={opened} className="text-accent hover:underline">{notice.order?.number || 'Sales order'}</Link>
           ) : (
             <span className="font-normal text-steel-300">Team task</span>
+          )}
+          {notice.enquiry && notice.order && (
+            <> · <Link to={`/orders/${notice.order?._id || notice.order}`} onClick={opened} className="text-accent hover:underline">{notice.order?.number || 'Sales order'}</Link></>
           )}
           {notice.customer?.name && <span className="font-normal text-steel-300"> · {notice.customer.name}</span>}
         </p>

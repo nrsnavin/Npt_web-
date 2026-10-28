@@ -29,3 +29,11 @@ test('at the top of every dashboard, above the tabs, on every tab', () => {
   assert.ok(page.indexOf('<AttentionPanel') < page.indexOf('role="tablist"'), 'above the tabs');
   assert.ok(!/tab === '[a-z]+' && <AttentionPanel/.test(page), 'not tied to one tab');
 });
+
+test('a sales order booked shows under the updates, linked to the order — beside the enquiry when there is one', () => {
+  assert.match(panel, /A sales order booked with no enquiry behind it \[server: orderNotices\.service\]/);
+  assert.match(panel, /<Link to=\{`\/orders\/\$\{notice\.order\?\._id \|\| notice\.order\}`\} onClick=\{opened\} className="text-accent hover:underline">\{notice\.order\?\.number \|\| 'Sales order'\}<\/Link>/);
+  assert.match(panel, /\{notice\.enquiry && notice\.order && \(/, 'both links when the order has an enquiry');
+  const profile = read('pages/Profile.jsx');
+  assert.match(profile, /a sales order created, a job added to the production, printing or assembly queue, production, printing or assembly completed, and every dispatch with the pieces sent/);
+});
