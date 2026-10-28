@@ -647,6 +647,11 @@ export const orders = {
   act: ({ id, ...payload }) => api.post(`/orders/${id}/actions`, payload).then(unwrap),
   /* One click: the checks still open confirmed, and the order released — with its checklist back [server: applyOrderAction `confirmAll`]. */
   release: ({ id, ...payload }) => api.post(`/orders/${id}/actions`, { ...payload, action: 'release', confirmAll: true }).then((r) => r.data),
+  /** The draft the SO upload made, with its review: who verified or confirmed it, who still must [server: soDraftReview.service]. Keeps the envelope (`data`, `review`). */
+  draft: (id) => api.get(`/orders/${id}/draft`).then((r) => r.data),
+  /** The SO team's verification of the draft; marketing's or Admin's confirmation. Keeps the envelope (`data`, `review`, `outcome`). */
+  verifyDraft: ({ id, ...payload }) => api.post(`/orders/${id}/draft/verify`, payload).then((r) => r.data),
+  confirmDraft: ({ id, ...payload }) => api.post(`/orders/${id}/draft/confirm`, payload).then((r) => r.data),
   /** Where the order stands against its payment terms, before production and before dispatch. */
   payment: (id) => api.get(`/orders/${id}/payment`).then(unwrap),
   /** Admin lets production or dispatch go on before the money is in: `{ stage, reason }`. */

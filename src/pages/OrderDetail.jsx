@@ -21,6 +21,7 @@ import DispatchTracker from '../components/DispatchTracker.jsx';
 import OrderDispatchDetails from '../components/OrderDispatchDetails.jsx';
 import OrderQcRecords from '../components/OrderQcRecords.jsx';
 import TaskPdfLink from '../components/TaskPdfLink.jsx';
+import SalesOrderDraft from '../components/SalesOrderDraft.jsx';
 import { ProductionLineDialog, ProductionStatusPicker } from '../components/ProductionLine.jsx';
 import { formatCurrency, formatDate, formatNumber, isoDay } from '../utils/format.js';
 import {
@@ -710,21 +711,10 @@ export default function OrderDetail() {
         or from the request's lines — and where the SO and the request disagree, said line by line,
         for whoever checks it before release.
       */}
+      {/* Drafted by reading the SO PDF (or the request's lines): the SO team verifies it and marketing or Admin confirms it here, on the task or on the enquiry [components/SalesOrderDraft.jsx]. */}
       {order.drafted?.from && (
         <div className="mb-5">
-          <Notice tone={order.drafted.differences?.length ? 'warn' : 'info'}>
-            <p className="font-semibold">
-              {order.drafted.from === 'so_pdf'
-                ? `Drafted by reading the SO PDF${order.drafted.soNumber ? ` (${order.drafted.soNumber}${order.drafted.soDate ? `, ${order.drafted.soDate}` : ''})` : ''} — check the lines before release`
-                : 'Drafted from the SO request’s lines — check them before release'}
-            </p>
-            {order.drafted.readProblem && <p className="text-xs">The SO PDF was not used: {order.drafted.readProblem}.</p>}
-            {order.drafted.differences?.length > 0 && (
-              <ul className="mt-1 list-disc pl-5 text-xs">
-                {order.drafted.differences.map((line) => <li key={line}>{line}</li>)}
-              </ul>
-            )}
-          </Notice>
+          <SalesOrderDraft orderId={order._id} onChanged={reload} />
         </div>
       )}
 

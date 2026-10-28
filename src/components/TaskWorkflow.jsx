@@ -943,7 +943,8 @@ export default function TaskWorkflow({ todo, onChanged, startWith }) {
             if (answer.sent) {
               if (went.length) toast(`${button.form.resultTitle || 'File'} sent to the buyer`, went.map((entry) => `${channel(entry)} to ${entry.recipient}`).join(' · '));
               if (missed.length) warn(`${missed.map(channel).join(' and ')} not sent`, missed.map((entry) => `${channel(entry)}: ${String(entry.reason || entry.status).replaceAll('_', ' ')}`).join(' · '));
-            } else if (answer.held) toast(`${resultStep.label} — held with marketing`, ['Production was not confirmed on the request: it is under Production Holded Orders until Admin or its marketing person moves it on.', orderWords(answer.order)].filter(Boolean).join(' '));
+            } else if (answer.order?.draftPending) toast(`${resultStep.label} — the order is drafted`, ['Read the draft below and verify it; marketing or Admin confirms it on the enquiry. Production is asked once both have.', orderWords(answer.order)].filter(Boolean).join(' '));
+            else if (answer.held) toast(`${resultStep.label} — held with marketing`, ['Production was not confirmed on the request: it is under Production Holded Orders until Admin or its marketing person moves it on.', orderWords(answer.order)].filter(Boolean).join(' '));
             else if (answer.nextProblem) warn(`${resultStep.label} — but Production was not asked yet`, [answer.nextProblem, orderWords(answer.order)].filter(Boolean).join(' '));
             else toast(`${resultStep.label}`, ['The task is done and Production has its task.', orderWords(answer.order)].filter(Boolean).join(' '));
             /* The request's lines could not become an order: said loudly, so the SO team books it by hand. */

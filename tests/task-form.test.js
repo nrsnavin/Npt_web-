@@ -164,9 +164,17 @@ test('the SO upload reads the PDF and drafts the order; the order says how it wa
   const workflow = read('components/TaskWorkflow.jsx');
   assert.match(workflow, /reads=\{Boolean\(button\.booksOrder\)\}/);
   assert.match(workflow, /Reading the SO and drafting the order…/);
-  const order = read('pages/OrderDetail.jsx');
-  assert.match(order, /Drafted by reading the SO PDF/);
-  assert.match(order, /order\.drafted\.differences\.map/);
+  /* The draft is read in one panel — on the order, the SO task and the enquiry [components/SalesOrderDraft.jsx]. */
+  const draft = read('components/SalesOrderDraft.jsx');
+  assert.match(draft, /Drafted by reading the SO PDF/);
+  assert.match(draft, /review\.differences\.map/);
+  assert.match(draft, /button="Verify the draft" onClick=\{act\(ordersApi\.verifyDraft\)\}/);
+  assert.match(draft, /button="Confirm the draft" onClick=\{act\(ordersApi\.confirmDraft\)\}/);
+  assert.match(draft, /Nothing goes to production until both have read it/);
+  assert.match(read('pages/OrderDetail.jsx'), /<SalesOrderDraft orderId=\{order\._id\} onChanged=\{reload\} \/>/);
+  assert.match(read('components/TaskPanel.jsx'), /task\.kind === 'po_so' && \(task\.order\?\._id \|\| task\.order\) && \(/);
+  assert.match(read('components/EnquiryRecords.jsx'), /order\.draftPending && canRead\('orders'\) && \(/);
+  assert.match(workflow, /answer\.order\?\.draftPending\) toast\(/, 'the upload says the order is a draft to read');
 });
 
 test('a task raised without the hanger details offers to fill them, from the registers', async () => {
