@@ -56,6 +56,8 @@ export default function MouldForm({ mould, onClose, onSaved }) {
       ? {
           ...mould,
           sizeMm: mould.sizeMm ?? '',
+          hsnCode: mould.hsnCode ?? '',
+          gstPercent: mould.gstPercent ?? '',
           moq: mould.moq ?? '',
           packingQty: mould.packingQty ?? '',
           jobWorkCost: mould.jobWorkCost ?? '',
@@ -148,6 +150,9 @@ export default function MouldForm({ mould, onClose, onSaved }) {
     const payload = {
       name: values.name,
       material: values.material,
+      /* The tax a piece off it carries on an order, where it differs from the plant's [server: utils/gst.js]. */
+      hsnCode: values.hsnCode ? String(values.hsnCode).trim() : '',
+      gstPercent: number(values.gstPercent),
       /* What the catalogue used to carry. Facts about the piece the steel throws. */
       category: values.category || undefined,
       sizeMm: number(values.sizeMm),
@@ -316,6 +321,12 @@ export default function MouldForm({ mould, onClose, onSaved }) {
                 <option key={option.value} value={option.value}>{option.label}</option>
               ))}
             </select>
+          </Field>
+          <Field label="HSN code" hint="Blank: the plant's heading, 3926 90">
+            <input className="input" maxLength={10} placeholder="39269099" {...register('hsnCode')} />
+          </Field>
+          <Field label="GST %" hint="Blank: the order's rate (18% as a rule)">
+            <input type="number" step="any" min="0" max="100" className="input" {...register('gstPercent')} />
           </Field>
           <Field label="Part weight (g)" error={errors.partWeightGrams} hint="One moulded piece" required>
             <input type="number" step={GRAM_STEP} className="input" {...register('partWeightGrams', { required: 'A piece has a weight' })} />

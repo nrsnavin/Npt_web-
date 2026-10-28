@@ -52,6 +52,9 @@ import { TaskPdfList, idOf, useTaskPdfs } from '../components/TaskPdfs.jsx';
  */
 
 const rupees = (value) => (value === undefined || value === null ? '—' : formatCurrency(value));
+/* The tax rate words beside CGST / SGST (half each) and IGST (the whole) [server: utils/gst.js]. */
+const ratesOnly = (rates = []) => rates.map((rate) => `${rate}%`).join(' / ');
+const halfWords = (rates = []) => rates.map((rate) => `${Math.round((rate / 2) * 100) / 100}%`).join(' / ');
 
 /* --------------------------------- The gate --------------------------------- */
 
@@ -638,6 +641,8 @@ export default function OrderDetail() {
     user?.department === 'management';
   /* The plant only exists on this screen once the order has passed the §13 gate. */
   const released = !PRE_RELEASE_STAGES.includes(order.status) && order.status !== 'cancelled';
+  /* The tax on a line, as the server worked it out beside the order [server: utils/gst.js `taxOn`]. */
+  const taxLine = (line) => (order.tax?.lines || [])[(order.lines || []).indexOf(line)] || null;
   /* A settled order has nothing left to re-promise — the server says so too. */
   const closed = CLOSED_ORDER_STAGES.includes(order.status);
   /* The parts column earns its width only where something is actually fitted [§28]. */
@@ -739,6 +744,9 @@ export default function OrderDetail() {
                     {released && <th className="px-3 py-2.5 text-right">Made</th>}
                     {released && <th className="px-3 py-2.5">Where it is</th>}
                     {!order.valueHidden && <th className="px-3 py-2.5 text-right">Rate</th>}
+                    {/* The tax on each line: its HSN and GST %, and the tax that makes [server: utils/gst.js]. */}
+                    <th className="px-3 py-2.5">HSN</th>
+                    {!order.valueHidden && <th className="px-3 py-2.5 text-right">GST</th>}
                     <th className="px-3 py-2.5">Wanted by</th>
                     {released && mayRecord && <th className="px-3 py-2.5" />}
                   </tr>
@@ -833,6 +841,12 @@ export default function OrderDetail() {
                           {rupees(line.unitPrice)}
                         </td>
                       )}
+                      <td className="whitespace-nowrap px-3 py-3 text-xs tabular-nums text-steel-300">{taxLine(line)?.hsnCode || line.hsnCode || '—'}</td>
+                      {!order.valueHidden && (
+                        <td className="whitespace-nowrap px-3 py-3 text-right tabular-nums text-steel-200">
+                          {taxLine(line) ? <>{taxLine(line).gstPercent}%<p className="text-xs text-steel-500">{rupees(taxLine(line).tax)}</p></> : '—'}
+                        </td>
+                      )}
                       {/*
                         What the buyer is owed, and the plant's own forecast under it when the
                         two differ. This drew only the PO's date, so a line the buyer had agreed
@@ -892,9 +906,42 @@ export default function OrderDetail() {
                 Rates and totals are not shown on this screen for your department.
               </p>
             ) : (
-              <div className="mt-3 flex justify-end gap-6 border-t border-line/[0.06] pt-3 text-sm">
-                <span className="text-steel-400">Before tax</span>
-                <span className="tabular-nums font-semibold text-steel-100">{rupees(order.netValue)}</span>
+              <div className="mt-3 border-t border-line/[0.06] pt-3 text-sm" aria-label="GST and total">
+                {/* The invoice's own sums [server: utils/gst.js]: taxable, the tax split by the place of supply, the round-off, the total. */}
+                <dl className="ml-auto grid w-full max-w-sm grid-cols-[1fr_auto] gap-x-6 gap-y-1">
+                  <dt className="text-steel-400">Taxable value</dt>
+                  <dd className="text-right tabular-nums text-steel-100">{rupees(order.tax?.taxable ?? order.netValue)}</dd>
+                  {order.tax?.isExport && <><dt className="text-steel-400">GST</dt><dd className="text-right text-xs text-steel-400">Export — zero-rated</dd></>}
+                  {!order.tax?.isExport && order.tax?.intraState && (
+                    <>
+                      <dt className="text-steel-400">CGST {halfWords(order.tax.rates)}</dt>
+                      <dd className="text-right tabular-nums text-steel-100">{rupees(order.tax.cgst)}</dd>
+                      <dt className="text-steel-400">SGST {halfWords(order.tax.rates)}</dt>
+                      <dd className="text-right tabular-nums text-steel-100">{rupees(order.tax.sgst)}</dd>
+                    </>
+                  )}
+                  {!order.tax?.isExport && order.tax && !order.tax.intraState && (
+                    <>
+                      <dt className="text-steel-400">IGST {ratesOnly(order.tax.rates)}</dt>
+                      <dd className="text-right tabular-nums text-steel-100">{rupees(order.tax.igst)}</dd>
+                    </>
+                  )}
+                  {Boolean(order.tax?.roundOff) && (
+                    <>
+                      <dt className="text-steel-400">Round off</dt>
+                      <dd className="text-right tabular-nums text-steel-300">{order.tax.roundOff > 0 ? '+' : '−'}{Math.abs(order.tax.roundOff).toFixed(2)}</dd>
+                    </>
+                  )}
+                  <dt className="font-semibold text-steel-100">Total</dt>
+                  <dd className="text-right tabular-nums font-semibold text-steel-50">{rupees(order.tax?.total ?? order.netValue)}</dd>
+                </dl>
+                {order.placeOfSupply?.state && (
+                  <p className={`mt-2 text-right text-xs ${order.placeOfSupply.known ? 'text-steel-500' : 'text-warn-400'}`}>
+                    Place of supply: {order.placeOfSupply.state}{order.placeOfSupply.code ? ` (${order.placeOfSupply.code})` : ''}
+                    {order.tax?.isExport ? '' : order.placeOfSupply.intraState ? ' — within the state, CGST + SGST' : ' — another state, IGST'}
+                    {!order.placeOfSupply.known && ' · assumed: the customer has no state or GSTIN on record — set it on the customer and save the order again'}
+                  </p>
+                )}
               </div>
             )}
           </Section>

@@ -9,6 +9,7 @@ import {
 import ProductDetailsConfirm, { missingDetails, sayList } from './ProductDetailsConfirm.jsx';
 import { formatCurrency } from '../utils/format.js';
 import { HANGER_CATEGORIES, numeric, text } from '../utils/pipeline.js';
+import { ratesWords, taxOn } from '../utils/gst.js';
 
 /* The order screens round to the rupee: a line value is thousands of pieces, and paise on a
    figure that size is noise. Rates are shown to the paisa where they are entered. */
@@ -33,6 +34,8 @@ const blankLine = () => ({
   hookRef: '', clipRef: '', printRef: '',
   category: '', packing: '',
   quantity: '', unitPrice: '', deliveryDate: '',
+  /* The tax on the line: blank, the mould's HSN and rate, else the plant's heading and the order's rate [server: utils/gst.js]. */
+  hsnCode: '', gstPercent: '',
 });
 
 export default function OrderForm({ order, onClose, onSaved, enquiry: forEnquiry }) {
@@ -56,6 +59,8 @@ export default function OrderForm({ order, onClose, onSaved, enquiry: forEnquiry
           packing: line.packing ?? '',
           quantity: line.quantity ?? '',
           unitPrice: line.unitPrice ?? '',
+          hsnCode: line.hsnCode ?? '',
+          gstPercent: line.gstPercent ?? '',
           deliveryDate: line.deliveryDate ? line.deliveryDate.slice(0, 10) : '',
         }))
       : [blankLine()]
@@ -103,10 +108,9 @@ export default function OrderForm({ order, onClose, onSaved, enquiry: forEnquiry
   const removeLine = (index) =>
     setLines(lines.length === 1 ? lines : lines.filter((unused, at) => at !== index));
 
-  const total = lines.reduce(
-    (sum, line) => sum + (Number(line.quantity) || 0) * (Number(line.unitPrice) || 0),
-    0
-  );
+  /* What the buyer pays: each line at its rate (else the order's), rounded to the rupee at the end [utils/gst.js]. */
+  const tax = taxOn({ lines, gstPercent: terms.gstPercent });
+  const total = tax.taxable;
 
   const submit = async (event) => {
     event.preventDefault();
@@ -137,6 +141,8 @@ export default function OrderForm({ order, onClose, onSaved, enquiry: forEnquiry
             colour: text(line.colour),
             quantity: Number(line.quantity),
             unitPrice: Number(line.unitPrice),
+            hsnCode: text(line.hsnCode),
+            ...(line.gstPercent !== '' && line.gstPercent != null ? { gstPercent: Number(line.gstPercent) } : {}),
             deliveryDate: text(line.deliveryDate),
             /* Carried so the server can tell a corrected line from a new one. */
             ...(line._id ? { _id: line._id } : {}),
@@ -223,7 +229,9 @@ export default function OrderForm({ order, onClose, onSaved, enquiry: forEnquiry
       <div>
         <div className="mb-2 flex items-baseline justify-between">
           <p className="eyebrow">What was ordered</p>
-          <p className="text-xs tabular-nums text-steel-400">{rupees(total)} before tax</p>
+          <p className="text-xs tabular-nums text-steel-400">
+            {rupees(total)} before tax{tax.tax ? <> · {ratesWords(tax.rates)} {rupees(tax.tax)} · <span className="font-semibold text-steel-200">{rupees(tax.total)} total</span>{tax.roundOff ? ` (rounded ${tax.roundOff > 0 ? '+' : ''}${tax.roundOff.toFixed(2)})` : ''}</> : null}
+          </p>
         </div>
 
         <div className="space-y-3">
@@ -310,7 +318,7 @@ export default function OrderForm({ order, onClose, onSaved, enquiry: forEnquiry
                 </Field>
               </div>
 
-              <div className="mt-3 grid gap-3 sm:grid-cols-3">
+              <div className="mt-3 grid gap-3 sm:grid-cols-5">
                 <Field label={index === 0 ? 'Quantity' : ''}>
                   <input
                     type="number"
@@ -328,6 +336,30 @@ export default function OrderForm({ order, onClose, onSaved, enquiry: forEnquiry
                     className="input"
                     value={line.unitPrice}
                     onChange={(event) => setLine(index, 'unitPrice')(event.target.value)}
+                  />
+                </Field>
+                {/* The tax on the line: blank takes the mould's HSN and rate, else the plant's and the order's. */}
+                <Field label={index === 0 ? 'GST %' : ''} hint={index === 0 ? `Blank: the model's, else ${terms.gstPercent || 0}%` : undefined}>
+                  <input
+                    type="number"
+                    step="any"
+                    min="0"
+                    max="100"
+                    className="input"
+                    placeholder={String(terms.gstPercent || '')}
+                    value={line.gstPercent}
+                    onChange={(event) => setLine(index, 'gstPercent')(event.target.value)}
+                    aria-label={`GST % on line ${index + 1}`}
+                  />
+                </Field>
+                <Field label={index === 0 ? 'HSN' : ''} hint={index === 0 ? 'Blank: the model’s, else 3926 90' : undefined}>
+                  <input
+                    className="input"
+                    maxLength={10}
+                    placeholder="39269099"
+                    value={line.hsnCode}
+                    onChange={(event) => setLine(index, 'hsnCode')(event.target.value.replace(/[^\d]/g, ''))}
+                    aria-label={`HSN on line ${index + 1}`}
                   />
                 </Field>
                 <Field label={index === 0 ? 'Wanted by' : ''}>
@@ -393,10 +425,12 @@ export default function OrderForm({ order, onClose, onSaved, enquiry: forEnquiry
             onChange={(event) => setTerms({ ...terms, paymentTerms: event.target.value })}
           />
         </Field>
-        <Field label="GST %">
+        <Field label="GST % on the order" hint="Every line is taxed at this unless it gives its own — CGST + SGST within the state, IGST outside it">
           <input
             type="number"
             step="any"
+            min="0"
+            max="100"
             className="input"
             value={terms.gstPercent}
             onChange={(event) => setTerms({ ...terms, gstPercent: event.target.value })}
