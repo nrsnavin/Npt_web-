@@ -18,6 +18,7 @@ import {
   stageLabel,
 } from '../utils/pipeline.js';
 import { CustomerForm } from './Customers.jsx';
+import { gstUnknown } from '../utils/gst.js';
 import CustomerTimeline from '../components/CustomerTimeline.jsx';
 
 function ContactCard({ contact }) {
@@ -161,6 +162,16 @@ export default function CustomerDetail() {
           </div>
         }
       />
+
+      {/* The GST split on this buyer's orders needs their state [server: utils/gst.js `placeOfSupplyFor`]: without one, or a GSTIN, it assumes the plant's own. */}
+      {gstUnknown(customer) && (
+        <Notice tone="warn">
+          No state or GSTIN on record — GST on this buyer's orders assumes Tamil Nadu (CGST + SGST) until one is given.
+          {mayWrite && (
+            <button type="button" className="ml-2 font-semibold underline" onClick={() => setEditing(true)}>Add the state or GSTIN</button>
+          )}
+        </Notice>
+      )}
 
       {fromQuery && (
         <Notice tone="info">

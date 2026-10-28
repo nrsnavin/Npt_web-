@@ -15,6 +15,7 @@ import PlaceInput from '../components/PlaceInput.jsx';
 import { SortHeader, useSort } from '../components/SortHeader.jsx';
 import { formatCompactCurrency, formatDate } from '../utils/format.js';
 import { CUSTOMER_TYPES, LANDMARK_ROUTES, SOURCES, optionLabel } from '../utils/pipeline.js';
+import { GSTIN_PATTERN, gstUnknown, stateOfGstin } from '../utils/gst.js';
 import useOpenFromLink from '../hooks/useOpenFromLink.js';
 import QcStandardsFields, { standardsPayload } from '../components/QcStandardsFields.jsx';
 
@@ -149,7 +150,15 @@ export function CustomerForm({ customer, onClose, onSaved, onCreate, submitLabel
         },
   });
 
+  /* The GSTIN's first two digits name the buyer's state [utils/gst.js]: a blank State takes it — the GST split on their orders depends on it. */
+  const gstinTyped = String(watch('gstin') || '').trim().toUpperCase();
+  const stateFromGstin = GSTIN_PATTERN.test(gstinTyped) ? stateOfGstin(gstinTyped) : null;
+  const fillStateFromGstin = () => {
+    if (stateFromGstin && !String(getValues('state') || '').trim()) setValue('state', stateFromGstin, { shouldDirty: true });
+  };
+
   const checkForDuplicate = async () => {
+    fillStateFromGstin();
     const { gstin, mobile, whatsapp } = getValues();
     if (!gstin && !mobile && !whatsapp) return;
     try {
@@ -244,8 +253,18 @@ export function CustomerForm({ customer, onClose, onSaved, onCreate, submitLabel
         <Field label="Email" error={errors.email}>
           <input type="email" className="input" {...register('email')} />
         </Field>
-        <Field label="GST number" hint="The strongest way to spot a duplicate">
-          <input className="input uppercase" onBlurCapture={checkForDuplicate} {...register('gstin')} />
+        <Field
+          label="GST number"
+          hint={stateFromGstin ? `Registered in ${stateFromGstin} — the state fills from it` : 'The strongest way to spot a duplicate; it also says the buyer’s state for GST'}
+          error={errors.gstin}
+        >
+          <input
+            className="input uppercase"
+            placeholder="33ABCDE1234F1Z5"
+            maxLength={15}
+            onBlurCapture={checkForDuplicate}
+            {...register('gstin', { validate: (value) => !String(value || '').trim() || GSTIN_PATTERN.test(String(value).trim().toUpperCase()) || 'Not a GSTIN — 15 characters, like 33ABCDE1234F1Z5' })}
+          />
         </Field>
         {/*
           The street address, which is what a lorry needs. §19 will not let a consignment leave
@@ -420,6 +439,8 @@ export default function Customers() {
   const [search, setSearch] = useState('');
   const [type, setType] = useState('');
   const [status, setStatus] = useState('');
+  /* Only the buyers with neither a state nor a GSTIN — the GST on their orders assumes the plant's own state until one is given. */
+  const [gstMissing, setGstMissing] = useState(false);
   const [page, setPage] = useState(1);
   const [creating, setCreating] = useState(false);
   /* The buyer's side panel [components/CustomerPanel.jsx], as on the dashboard's party master. */
@@ -439,8 +460,9 @@ export default function Customers() {
     search: term || undefined,
     customerType: type || undefined,
     status: status || undefined,
+    gstMissing: gstMissing ? 'true' : undefined,
   };
-  const { data, pagination, loading, error, reload } = useRecordList(customersApi.list, {
+  const { data, pagination, meta, loading, error, reload } = useRecordList(customersApi.list, {
     ...filters,
     sort: sort || undefined,
     page,
@@ -492,6 +514,17 @@ export default function Customers() {
           <option value="on_hold">On hold</option>
           <option value="inactive">Inactive</option>
         </select>
+        {(gstMissing || meta?.gstMissing > 0) && (
+          <button
+            type="button"
+            aria-pressed={gstMissing}
+            title="Buyers with neither a state nor a GSTIN on record — the GST on their orders assumes the plant's own state (CGST + SGST) until one is given"
+            className={`rounded-full px-3 py-1.5 text-xs font-semibold ring-1 ring-inset ${gstMissing ? 'bg-warn-500/20 text-warn-300 ring-warn-500/40' : 'bg-warn-500/10 text-warn-400 ring-warn-500/25 hover:bg-warn-500/20'}`}
+            onClick={() => { setGstMissing((current) => !current); setPage(1); }}
+          >
+            Missing state / GSTIN{meta?.gstMissing != null ? ` (${meta.gstMissing})` : ''}
+          </button>
+        )}
       </div>
 
       {loading && <TableSkeleton columns={6} />}
@@ -566,6 +599,11 @@ export default function Customers() {
                       </td>
                       <td className="px-4 py-3.5 text-steel-300">
                         {[customer.city, customer.state].filter(Boolean).join(', ') || customer.country || '—'}
+                        {gstUnknown(customer) && (
+                          <span className="ml-2 rounded-full bg-warn-500/15 px-2 py-0.5 text-xs font-semibold text-warn-400" title="No state or GSTIN on record — GST on this buyer's orders assumes the plant's own state">
+                            No state / GSTIN
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-3.5 text-steel-300">{customer.assignedTo?.name || '—'}</td>
                       <td className="px-4 py-3.5 text-right tabular-nums text-steel-100">
