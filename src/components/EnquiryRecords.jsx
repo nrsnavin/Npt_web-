@@ -4,6 +4,7 @@ import { enquiryRecords, qcRecordsApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { Badge, ErrorState, Section } from './ui.jsx';
 import { DispatchBody } from './OrderDispatchDetails.jsx';
+import SalesOrderDraft from './SalesOrderDraft.jsx';
 import { formatDate, formatNumber } from '../utils/format.js';
 import { orderStageLabel } from '../utils/pipeline.js';
 import { QC_STAGES, QC_VERDICTS, labelOf, toneOf } from '../utils/records.js';
@@ -60,6 +61,10 @@ export default function EnquiryRecords({ enquiry, records, dispatchAbove = false
           <ul className="divide-y divide-line/[0.06] text-sm">
             {data.orders.map((order) => (
               <li key={order._id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                {/* A draft from the SO upload still to be read: marketing or Admin confirms it here [components/SalesOrderDraft.jsx]. */}
+                {order.draftPending && canRead('orders') && (
+                  <div className="w-full pb-2"><SalesOrderDraft orderId={order._id} onChanged={load} /></div>
+                )}
                 <span>
                   {canRead('orders')
                     ? <Link to={`/orders/${order._id}`} className="font-semibold text-steel-100 hover:text-accent">{order.number}</Link>

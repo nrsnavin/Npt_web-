@@ -5,6 +5,7 @@ import HandoffTaskActions from './HandoffTaskActions.jsx';
 import TaskWorkflow from './TaskWorkflow.jsx';
 import TaskEdd from './TaskEdd.jsx';
 import DeliveryUrgencyPrompt from './DeliveryUrgencyPrompt.jsx';
+import SalesOrderDraft from './SalesOrderDraft.jsx';
 import { Modal, Notice } from './ui.jsx';
 import { TaskFacts, TaskTimeline } from './TaskHistory.jsx';
 import { buttonFor, useHandoffCatalogue } from '../hooks/useHandoffCatalogue.js';
@@ -70,6 +71,10 @@ export default function TaskPanel({ task, startWith, mayWork, onClose, onChanged
         <TaskEdd todo={task} mayAct={mayWork} onChanged={onChanged} />
         {/* A Dispatch request: its delivery urgency, confirmed or changed by marketing or Admin — Dispatch reads it [server: deliveryUrgency.service]. */}
         <DeliveryUrgencyPrompt task={task} maySet={isManagement || (departments.includes('marketing') && !departments.includes(task.department))} onSaved={onChanged} />
+        {/* The SO task's draft: the SO team verifies it, marketing or Admin confirms it, right here [server: soDraftReview.service]. */}
+        {task.kind === 'po_so' && (task.order?._id || task.order) && (
+          <SalesOrderDraft orderId={task.order?._id || task.order} onChanged={onChanged} />
+        )}
 
         {/* The rule's proposal on a collection case — the collector or Admin presses Escalated to PRT, or not. */}
         {!task.completed && task.suggestion?.kind === 'escalate_prt' && (
