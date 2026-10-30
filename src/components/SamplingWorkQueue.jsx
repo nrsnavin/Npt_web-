@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
+import { QuickVisitButton } from './TaskVisits.jsx';
 import { Link } from 'react-router-dom';
 import { documents as documentsApi, samples as samplesApi } from '../api/endpoints.js';
 import { useRecord } from '../hooks/useRecords.js';
@@ -559,13 +560,17 @@ export default function SamplingWorkQueue() {
                     </td>
                     <td className="px-4 py-3"><PriorityCell row={row} /></td>
                     <td className="px-4 py-3">
-                      {UNSENT.includes(row.queueStatus) && !row.closed ? (
-                        <button type="button" className="btn-secondary whitespace-nowrap px-3 py-1.5 text-xs" onClick={() => setHanding(row)}>
-                          Sample handover
-                        </button>
-                      ) : (
-                        <Link to={row.link} className="text-xs font-semibold text-steel-400 hover:text-accent">Open sample</Link>
-                      )}
+                      <div className="flex flex-col items-start gap-2">
+                        {UNSENT.includes(row.queueStatus) && !row.closed ? (
+                          <button type="button" className="btn-secondary whitespace-nowrap px-3 py-1.5 text-xs" onClick={() => setHanding(row)}>
+                            Sample handover
+                          </button>
+                        ) : (
+                          <Link to={row.link} className="text-xs font-semibold text-steel-400 hover:text-accent">Open sample</Link>
+                        )}
+                        {/* At the buyer's place: one press records where and when, with a satellite picture, on the enquiry's Sampling task [server: taskVisit.service]. */}
+                        {row.visit?.task && <QuickVisitButton taskId={row.visit.task} summary={row.visit} />}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -595,6 +600,7 @@ export default function SamplingWorkQueue() {
                     </button>
                   )}
                 </div>
+                {row.visit?.task && <QuickVisitButton taskId={row.visit.task} summary={row.visit} />}
                 <p className="text-xs text-steel-500">Assigned to {row.assignedTo?.name || 'Sampling Team'}</p>
               </article>
             ))}

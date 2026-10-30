@@ -8,6 +8,7 @@ import { AddShipmentPaper } from '../components/Shipments.jsx';
 import { CustomerSelect } from '../components/pickers.jsx';
 import DeleteRecord from '../components/DeleteRecord.jsx';
 import CloseRecord from '../components/CloseRecord.jsx';
+import { VisitList } from '../components/TaskVisits.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { formatCurrency, formatDate } from '../utils/format.js';
 
@@ -173,6 +174,13 @@ export default function TeamJobDetail() {
           ))}
         </ol>
       </Section>
+
+      {/* Visits to the buyer's place recorded from the phone on the job's tasks — PRT, Payment Collection [server: taskVisit.service]: when, who, where, the satellite picture. */}
+      {job.visits?.length > 0 && (
+        <Section title={`Visits to the buyer (${job.visits.length})`}>
+          <VisitList visits={job.visits} showTask />
+        </Section>
+      )}
 
       {job.payments?.length > 0 && (
         <Section title="Payments">
