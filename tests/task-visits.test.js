@@ -42,7 +42,9 @@ test('every visit shows its time, the nearest town, the fix’s accuracy, a map 
   assert.match(visits, /\{visitPlace\(visit\)\}/);
   assert.match(visits, /accuracyLabel\(visit\.accuracyM\)/);
   assert.match(visits, /<a href=\{mapsUrl\(visit\)\} target="_blank" rel="noreferrer" className="text-accent hover:underline">Open in Maps<\/a>/);
-  assert.match(visits, /<AuthedImage attachmentKey=\{visit\.image\.key\} alt=\{`Satellite view of the visit near \$\{visitPlace\(visit\)\}`\}/);
+  assert.match(visits, /<AuthedImage attachmentKey=\{visit\.image\.key\} alt=\{`Satellite view of the visit near \$\{visitPlace\(visit\)\}`\} className="block aspect-\[10\/7\] w-full object-cover" \/>/, 'shown whole at 50 × 35 m proportions, never cropped');
+  assert.match(visits, /absolute left-1\/2 top-1\/2 h-4 w-4 -translate-x-1\/2 -translate-y-1\/2 rounded-full/, 'the spot marked at the centre');
+  assert.match(visits, /\$\{visit\.imageSpan\.widthM\} m × \$\{visit\.imageSpan\.heightM\} m/, 'what the picture covers');
   assert.match(visits, /\{visit\.imageProblem \? ` · \$\{visit\.imageProblem\}` : ''\}/, 'and why there is no picture, when there is none');
 });
 

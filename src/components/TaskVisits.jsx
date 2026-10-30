@@ -176,8 +176,21 @@ export function VisitList({ visits = [], showTask = false, className = '' }) {
             {coords(visit)} · <a href={mapsUrl(visit)} target="_blank" rel="noreferrer" className="text-accent hover:underline">Open in Maps</a>
             {visit.imageProblem ? ` · ${visit.imageProblem}` : ''}
           </p>
+          {/*
+            The satellite picture: 50 × 35 m round the fix, at the finest the imagery has there (about
+            0.3 m a pixel) [server: taskVisit.service `satelliteImage`] — shown whole and scaled up, never
+            cropped, with the spot the phone gave marked at its centre.
+          */}
           {visit.image?.key && (
-            <AuthedImage attachmentKey={visit.image.key} alt={`Satellite view of the visit near ${visitPlace(visit)}`} className="mt-2 max-h-64 w-full rounded-lg object-cover" />
+            <figure className="mt-2 w-full max-w-md">
+              <div className="relative overflow-hidden rounded-lg">
+                <AuthedImage attachmentKey={visit.image.key} alt={`Satellite view of the visit near ${visitPlace(visit)}`} className="block aspect-[10/7] w-full object-cover" />
+                <span aria-hidden="true" className="pointer-events-none absolute left-1/2 top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-danger-500 shadow" />
+              </div>
+              <figcaption className="mt-1 text-xs text-steel-500">
+                Satellite view{visit.imageSpan?.widthM ? ` · ${visit.imageSpan.widthM} m × ${visit.imageSpan.heightM} m` : ''}{visit.imageSpan?.metresPerPixel ? ` · ${visit.imageSpan.metresPerPixel} m per pixel` : ''} · the dot is where the phone was
+              </figcaption>
+            </figure>
           )}
         </li>
       ))}
