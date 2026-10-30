@@ -86,11 +86,101 @@ const pressLabel = (recorder, idle) => (recorder.saving ? 'Recording…'
   : recorder.status === 'locating' ? (recorder.best ? `Locating… ${accuracyLabel(recorder.best.accuracyM)}` : 'Locating…')
     : idle);
 
+/**
+ * A visit's note in the visitor's own few words [server: taskVisit.service `noteVisit`]: who they
+ * met, what happened, what the buyer said. Rough is fine — any language, no full stops — the server
+ * writes it up for Admin and the marketing person [visitNote.llm.js] and keeps these words beside it.
+ */
+const NOTE_FIELDS = [
+  { key: 'met', label: 'Who did you meet?', placeholder: 'Manager Suresh / accounts madam' },
+  { key: 'happened', label: 'What happened?', placeholder: 'Gave 3 sample pcs / cheque not ready' },
+  { key: 'response', label: 'What did they say?', placeholder: 'Will confirm PO next week / pay tmrw 11 am' },
+];
+const hasWords = (words) => NOTE_FIELDS.some((field) => String(words?.[field.key] || '').trim());
+
+export function VisitNoteForm({ taskId, visit, onSaved, onCancel, compact = false }) {
+  const { toast, warn } = useToast();
+  const [words, setWords] = useState({ met: visit?.met || '', happened: visit?.happened || '', response: visit?.response || '' });
+  const [saving, setSaving] = useState(false);
+  const save = async (event) => {
+    event.preventDefault();
+    if (!hasWords(words)) return;
+    setSaving(true);
+    try {
+      const answer = await workspace.todos.visitNote({ id: taskId, visitId: visit._id, ...words });
+      toast('Visit note saved', answer.visit?.report?.text || 'Admin and the marketing person are told.');
+      onSaved?.(answer.data, answer.visit);
+    } catch (failure) {
+      warn('Note not saved', failure?.response?.data?.message || failure.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+  return (
+    <form onSubmit={save} className={`space-y-2 rounded-lg border border-line/[0.1] bg-line/[0.03] p-2.5 ${compact ? 'w-full' : ''}`} aria-label="Visit note">
+      <p className="text-xs text-steel-400">A few words is enough — in any language. Admin and the marketing person get it written up clearly.</p>
+      {NOTE_FIELDS.map((field) => (
+        <label key={field.key} className="block text-xs text-steel-300">
+          {field.label}
+          <input
+            className="input mt-0.5"
+            aria-label={field.label}
+            placeholder={field.placeholder}
+            maxLength={field.key === 'met' ? 500 : 1000}
+            value={words[field.key]}
+            onChange={(event) => setWords((current) => ({ ...current, [field.key]: event.target.value }))}
+          />
+        </label>
+      ))}
+      <div className="flex flex-wrap gap-2">
+        <button type="submit" className="btn-primary px-3 py-1.5 text-xs" disabled={saving || !hasWords(words)}>{saving ? 'Writing it up…' : 'Save note'}</button>
+        {onCancel && <button type="button" className="btn-secondary px-3 py-1.5 text-xs" disabled={saving} onClick={onCancel}>Cancel</button>}
+      </div>
+    </form>
+  );
+}
+
+/** The visit's report as Admin and marketing read it, with the visitor's own words one tap away. */
+function VisitReport({ visit }) {
+  const [words, setWords] = useState(false);
+  if (!visit.report?.text) return null;
+  const tone = { positive: 'border-success-500/30 bg-success-500/[0.05]', negative: 'border-danger-500/30 bg-danger-500/[0.05]' }[visit.report.outcome] || 'border-line/[0.1] bg-line/[0.03]';
+  return (
+    <div className={`mt-2 rounded-lg border p-2.5 ${tone}`} aria-label="Visit report">
+      <p className="text-xs font-semibold text-steel-300">Visit report{visit.report.writtenBy === 'model' ? ' · written up from the visitor’s note' : ''}</p>
+      <p className="mt-0.5 text-sm text-steel-100">{visit.report.text}</p>
+      <button type="button" className="mt-1 text-xs text-accent hover:underline" onClick={() => setWords((shown) => !shown)}>
+        {words ? 'Hide their words' : 'Their own words'}
+      </button>
+      {words && (
+        <dl className="mt-1 grid gap-0.5 text-xs text-steel-300">
+          {NOTE_FIELDS.filter((field) => visit[field.key]).map((field) => (
+            <div key={field.key}><dt className="inline text-steel-500">{field.label} </dt><dd className="inline">“{visit[field.key]}”</dd></div>
+          ))}
+        </dl>
+      )}
+    </div>
+  );
+}
+
 /** The task's block: the button, a word about the visit, and what the phone is doing. */
 export function RecordVisitButton({ todo, onRecorded, className = '' }) {
-  const [note, setNote] = useState('');
-  const recorded = useCallback((task, visit) => { setNote(''); onRecorded?.(task, visit); }, [onRecorded]);
-  const recorder = useVisitRecorder(todo._id, { note, onRecorded: recorded });
+  const { warn } = useToast();
+  const [words, setWords] = useState({ met: '', happened: '', response: '' });
+  /* Recorded, then — if a word was given — the note on the new visit, written up for Admin and marketing. */
+  const recorded = useCallback(async (task, visit) => {
+    let latest = task;
+    if (visit?._id && hasWords(words)) {
+      try {
+        latest = (await workspace.todos.visitNote({ id: todo._id, visitId: visit._id, ...words })).data || task;
+      } catch (failure) {
+        warn('Visit recorded, note not saved', failure?.response?.data?.message || failure.message);
+      }
+    }
+    setWords({ met: '', happened: '', response: '' });
+    onRecorded?.(latest, visit);
+  }, [onRecorded, todo._id, words, warn]);
+  const recorder = useVisitRecorder(todo._id, { onRecorded: recorded });
   return (
     <div className={`space-y-2 rounded-xl border border-aqua-500/25 bg-aqua-500/[0.05] p-3 ${className}`} aria-label="Record a visit">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -102,7 +192,15 @@ export function RecordVisitButton({ todo, onRecorded, className = '' }) {
           {pressLabel(recorder, 'Record location')}
         </button>
       </div>
-      <input className="input" placeholder="A word about the visit (optional) — who you met, what was agreed" aria-label="Note with the visit" value={note} onChange={(event) => setNote(event.target.value)} />
+      <div className="grid gap-2 sm:grid-cols-3">
+        {NOTE_FIELDS.map((field) => (
+          <label key={field.key} className="block text-xs text-steel-300">
+            {field.label} <span className="text-steel-500">(optional)</span>
+            <input className="input mt-0.5" aria-label={field.label} placeholder={field.placeholder} value={words[field.key]} onChange={(event) => setWords((current) => ({ ...current, [field.key]: event.target.value }))} />
+          </label>
+        ))}
+      </div>
+      <p className="text-xs text-steel-500">A few words is enough, in any language — Admin and the marketing person get it written up clearly. You can add it after too.</p>
       <Precision recorder={recorder} />
     </div>
   );
@@ -128,7 +226,10 @@ export const summaryOf = (task) => {
 export function QuickVisitButton({ taskId, summary, onRecorded, className = '' }) {
   const [shown, setShown] = useState(summary || null);
   useEffect(() => { setShown(summary || null); }, [summary]);
-  const recorded = useCallback((task) => { setShown(summaryOf(task)); onRecorded?.(task); }, [onRecorded]);
+  /* The visit just recorded here: its note is asked for on the spot, in a few words. */
+  const [justVisited, setJustVisited] = useState(null);
+  const [noting, setNoting] = useState(false);
+  const recorded = useCallback((task, visit) => { setShown(summaryOf(task)); setJustVisited(visit || null); onRecorded?.(task); }, [onRecorded]);
   const recorder = useVisitRecorder(taskId, { onRecorded: recorded });
   if (!taskId) return null;
   return (
@@ -145,12 +246,26 @@ export function QuickVisitButton({ taskId, summary, onRecorded, className = '' }
       </button>
       <Precision recorder={recorder} compact />
       <span className={`text-xs ${shown?.count ? 'text-success-400' : 'text-steel-500'}`}>{visitLine(shown)}</span>
+      {justVisited?._id && !noting && !justVisited.report?.text && (
+        <button type="button" className="text-xs font-semibold text-accent hover:underline" onClick={() => setNoting(true)}>+ Add what happened</button>
+      )}
+      {justVisited?._id && justVisited.report?.text && <span className="text-xs text-steel-400">Note saved — Admin and marketing are told.</span>}
+      {noting && justVisited?._id && (
+        <VisitNoteForm
+          compact
+          taskId={taskId}
+          visit={justVisited}
+          onCancel={() => setNoting(false)}
+          onSaved={(task, visit) => { setNoting(false); setJustVisited(visit); onRecorded?.(task); }}
+        />
+      )}
     </div>
   );
 }
 
 /** Every visit on a task — or, on the enquiry, across its tasks (`showTask`). */
-export function VisitList({ visits = [], showTask = false, className = '' }) {
+export function VisitList({ visits = [], showTask = false, className = '', mayNote = false, taskId = null, onNoted }) {
+  const [noting, setNoting] = useState(null);
   if (!visits.length) return null;
   return (
     <ul className={`space-y-3 ${className}`} aria-label="Visits">
@@ -172,6 +287,18 @@ export function VisitList({ visits = [], showTask = false, className = '' }) {
             </span>
           </div>
           {visit.note && <p className="mt-1 text-sm text-steel-200">“{visit.note}”</p>}
+          <VisitReport visit={visit} />
+          {/* Whoever works the task adds the note, or corrects it — written up again for Admin and marketing. */}
+          {mayNote && taskId && noting !== String(visit._id) && (
+            <button type="button" className="mt-1 text-xs font-semibold text-accent hover:underline" onClick={() => setNoting(String(visit._id))}>
+              {visit.report?.text ? 'Edit note' : '+ Add what happened'}
+            </button>
+          )}
+          {mayNote && taskId && noting === String(visit._id) && (
+            <div className="mt-2">
+              <VisitNoteForm taskId={taskId} visit={visit} onCancel={() => setNoting(null)} onSaved={(task, saved) => { setNoting(null); onNoted?.(task, saved); }} />
+            </div>
+          )}
           <p className="mt-1 text-xs text-steel-400">
             {coords(visit)} · <a href={mapsUrl(visit)} target="_blank" rel="noreferrer" className="text-accent hover:underline">Open in Maps</a>
             {visit.imageProblem ? ` · ${visit.imageProblem}` : ''}
@@ -209,7 +336,7 @@ export default function TaskVisits({ todo, mayWork }) {
   return (
     <div className="space-y-3">
       {mayWork && !todo.completed && <RecordVisitButton todo={todo} onRecorded={recorded} />}
-      <VisitList visits={visits} />
+      <VisitList visits={visits} mayNote={mayWork} taskId={todo._id} onNoted={(task) => task?.visits && setVisits(task.visits)} />
     </div>
   );
 }
