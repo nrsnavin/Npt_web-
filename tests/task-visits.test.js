@@ -13,7 +13,7 @@ const read = (path) => readFileSync(new URL(`../src/${path}`, import.meta.url), 
 const visits = read('components/TaskVisits.jsx');
 
 test('Record location waits for a precise fix and sends it to the task, with a note if given', () => {
-  assert.match(visits, /export const VISIT_KINDS = \['sample_request', 'team_payment_followup', 'my_payment_followup', 'prt_recovery'\]/);
+  assert.match(visits, /export const VISIT_KINDS = \['sample_request', 'team_payment_followup', 'my_payment_followup', 'prt_recovery', 'request_prt_visit'\]/);
   assert.match(visits, /const location = usePreciseLocation\(\);/, 'the precise fix, not the first one');
   assert.match(visits, /if \(status !== 'ready' \|\| !fix \|\| saving\) return;/, 'sent only once the fix is good enough — or accepted as it is');
   assert.match(visits, /workspace\.todos\.visit\(\{ id: taskId, \.\.\.fix, \.\.\.\(note\?\.trim\(\) \? \{ note: note\.trim\(\) \} : \{\}\) \}\)/);
@@ -72,4 +72,10 @@ test('Record location in one press on the Sampling queue’s rows and cards, the
 test('on every desk card of a Sampling, Payment Collection or PRT task — the PRT home’s Cards view included', () => {
   const desk = read('pages/DepartmentDashboard.jsx');
   assert.match(desk, /\{VISIT_KINDS\.includes\(task\.kind\) && <QuickVisitButton taskId=\{task\._id\} summary=\{summaryOf\(task\)\} \/>\}/);
+});
+
+test('a job given without an enquiry — a PRT job on the buyer’s dues — shows its visits on the team job page', () => {
+  const job = read('pages/TeamJobDetail.jsx');
+  assert.match(job, /<Section title=\{`Visits to the buyer \(\$\{job\.visits\.length\}\)`\}>/);
+  assert.match(job, /<VisitList visits=\{job\.visits\} showTask \/>/);
 });

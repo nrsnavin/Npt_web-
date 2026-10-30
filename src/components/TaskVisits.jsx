@@ -16,7 +16,7 @@ import { departmentLabel } from '../utils/pipeline.js';
  * sure the fix was, a map link and the picture — on the task, and on the enquiry for Admin and its
  * marketing person [components/EnquiryRecords.jsx].
  */
-export const VISIT_KINDS = ['sample_request', 'team_payment_followup', 'my_payment_followup', 'prt_recovery'];
+export const VISIT_KINDS = ['sample_request', 'team_payment_followup', 'my_payment_followup', 'prt_recovery', 'request_prt_visit'];
 
 const when = (value) => (value ? new Date(value).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '');
 const coords = (visit) => `${Number(visit.lat).toFixed(5)}, ${Number(visit.lng).toFixed(5)}`;
