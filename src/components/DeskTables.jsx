@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { QuickVisitButton, summaryOf } from './TaskVisits.jsx';
 import { Link } from 'react-router-dom';
 import { files as filesApi, workspace } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -563,6 +564,8 @@ function RecoveryRow({ row, button, mayWork, onOpen, onChanged }) {
       <td className={`whitespace-nowrap ${td} text-xs`}>
         <p className={visitor ? 'font-semibold text-steel-100' : 'text-warn-400'}>{visitor || 'Nobody named'}</p>
         <p className="text-steel-400">{brief.visitDate ? `Visit ${formatDate(brief.visitDate)}` : 'No visit fixed'}</p>
+        {/* At the buyer's place: one press records where and when, with a satellite picture [server: taskVisit.service]. */}
+        {mayWork && <QuickVisitButton taskId={task._id} summary={summaryOf(task)} className="mt-1.5" />}
       </td>
       <td className={`whitespace-nowrap ${td} text-xs`}>
         {money ? (

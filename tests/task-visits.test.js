@@ -40,3 +40,21 @@ test('on the task panel for those tasks, and on the enquiry for Admin and its ma
   assert.match(records, /&& !visits\.length\) return null;/, 'an enquiry with only visits still shows them');
   assert.match(read('api/endpoints.js'), /visit: \(\{ id, \.\.\.payload \}\) => api\.post\(`\/workspace\/todos\/\$\{id\}\/visit`, payload\)/);
 });
+
+test('Record location in one press on the Sampling queue’s rows and cards, the PRT desk row and the PRT case card', () => {
+  assert.match(visits, /export function QuickVisitButton\(\{ taskId, summary, onRecorded, className = '' \}\)/);
+  assert.match(visits, /onClick=\{\(\) => \{ setAsking\(true\); location\.locate\(\); \}\}/, 'one press — no form');
+  assert.match(visits, /workspace\.todos\.visit\(\{ id: taskId, \.\.\.location\.fix \}\)/);
+  assert.match(visits, /\{visitLine\(shown\)\}/, 'the last visit said under the button');
+  const queue = read('components/SamplingWorkQueue.jsx');
+  assert.equal((queue.match(/\{row\.visit\?\.task && <QuickVisitButton taskId=\{row\.visit\.task\} summary=\{row\.visit\} \/>\}/g) || []).length, 2, 'the table row and the phone card');
+  assert.match(read('components/DeskTables.jsx'), /\{mayWork && <QuickVisitButton taskId=\{task\._id\} summary=\{summaryOf\(task\)\} className="mt-1\.5" \/>\}/);
+  const home = read('pages/PaymentsHome.jsx');
+  assert.match(home, /const mayVisit = row\.kind === 'prt_recovery' && \(isAdmin \|\| departments\.includes\(row\.department \|\| 'payment_recovery'\) \|\| \(row\.user && String\(row\.user\) === me\)\);/);
+  assert.match(home, /\{mayVisit && <QuickVisitButton taskId=\{row\._id\} summary=\{row\.visit\} className="mt-2" \/>\}/);
+});
+
+test('on every desk card of a Sampling, Payment Collection or PRT task — the PRT home’s Cards view included', () => {
+  const desk = read('pages/DepartmentDashboard.jsx');
+  assert.match(desk, /\{VISIT_KINDS\.includes\(task\.kind\) && <QuickVisitButton taskId=\{task\._id\} summary=\{summaryOf\(task\)\} \/>\}/);
+});

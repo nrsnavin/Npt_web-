@@ -66,6 +66,71 @@ export function RecordVisitButton({ todo, onRecorded, className = '' }) {
   );
 }
 
+/** "Visited 30 Oct, 05:23 pm · Tiruppur · 2 visits" — a task's visits, short, from its summary or its own list. */
+export function visitLine(summary) {
+  if (!summary?.count) return 'No visit recorded yet';
+  const at = summary.last?.at ? new Date(summary.last.at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+  return [`Visited ${at}`.trim(), summary.last?.place, summary.count > 1 && `${summary.count} visits`].filter(Boolean).join(' · ');
+}
+export const summaryOf = (task) => {
+  const visits = task?.visits || [];
+  const last = visits.at(-1);
+  return { task: task?._id, count: visits.length, last: last ? { at: last.capturedAt || last.at, place: last.place?.name || null } : null };
+};
+
+/**
+ * Record location in one press, on a queue row or a card [SamplingWorkQueue, DeskTables PRT,
+ * PaymentsHome]: the phone's fix goes to the task at once, and the line under the button says
+ * the last visit. No form — the person is standing at the buyer's gate.
+ */
+export function QuickVisitButton({ taskId, summary, onRecorded, className = '' }) {
+  const { toast, warn } = useToast();
+  const location = useCurrentLocation();
+  const [asking, setAsking] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [shown, setShown] = useState(summary || null);
+  useEffect(() => { setShown(summary || null); }, [summary]);
+
+  useEffect(() => {
+    if (!saving && asking && location.status === 'ready' && location.fix) {
+      setSaving(true);
+      workspace.todos.visit({ id: taskId, ...location.fix })
+        .then((answer) => {
+          toast('Visit recorded', `${when(answer.visit?.capturedAt)} · ${visitPlace(answer.visit || location.fix)}${answer.visit?.imageProblem ? ` — ${answer.visit.imageProblem}` : ' — satellite picture kept'}`);
+          setShown(summaryOf(answer.data));
+          setAsking(false);
+          onRecorded?.(answer.data);
+        })
+        .catch((failure) => { warn('Visit not recorded', failure?.response?.data?.message || failure.message); setAsking(false); })
+        .finally(() => setSaving(false));
+    }
+  }, [asking, location.status, location.fix, saving, taskId, onRecorded, toast, warn]);
+  useEffect(() => {
+    if (asking && ['denied', 'unsupported', 'failed'].includes(location.status)) {
+      warn('Location not found', location.message);
+      setAsking(false);
+    }
+  }, [asking, location.status, location.message, warn]);
+
+  if (!taskId) return null;
+  const busy = saving || (asking && location.status === 'locating');
+  return (
+    <div className={`flex flex-col items-start gap-0.5 ${className}`}>
+      <button
+        type="button"
+        className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg bg-aqua-500/15 px-3 py-1.5 text-xs font-semibold text-aqua-300 ring-1 ring-inset ring-aqua-500/30 hover:bg-aqua-500/25 disabled:opacity-60"
+        aria-label="Record location of this visit"
+        disabled={busy}
+        onClick={() => { setAsking(true); location.locate(); }}
+      >
+        <span aria-hidden="true">📍</span>
+        {saving ? 'Recording…' : busy ? 'Finding you…' : 'Record location'}
+      </button>
+      <span className={`text-xs ${shown?.count ? 'text-success-400' : 'text-steel-500'}`}>{visitLine(shown)}</span>
+    </div>
+  );
+}
+
 /** Every visit on a task — or, on the enquiry, across its tasks (`showTask`). */
 export function VisitList({ visits = [], showTask = false, className = '' }) {
   if (!visits.length) return null;

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { payments as paymentsApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
+import { QuickVisitButton } from '../components/TaskVisits.jsx';
 import { ErrorState, PageHeader, Spinner } from '../components/ui.jsx';
 import FollowUpForm from '../components/FollowUp.jsx';
 import EscalationFeed from '../components/EscalationFeed.jsx';
@@ -276,6 +277,10 @@ function Group({ title, hint, children, count }) {
  * buyer, because the next thing to do is on that screen, not this one.
  */
 function CaseRow({ row }) {
+  const { user, isAdmin, departments = [] } = useAuth();
+  /* A PRT case: whoever works it records the visit from the card itself [server: taskVisit.service]. */
+  const me = String(user?.id || user?._id || '');
+  const mayVisit = row.kind === 'prt_recovery' && (isAdmin || departments.includes(row.department || 'payment_recovery') || (row.user && String(row.user) === me));
   return (
     <li className={`rounded-xl border p-3 ${row.priority === 'high' || row.suggestion?.kind ? 'border-warn-500/40 bg-warn-500/[0.04]' : 'border-line/10'}`}>
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
@@ -294,6 +299,7 @@ function CaseRow({ row }) {
       {row.suggestion?.kind === 'escalate_prt' && (
         <p className="mt-1 text-xs font-semibold text-warn-400">Escalate to PRT? {row.suggestion.reason}</p>
       )}
+      {mayVisit && <QuickVisitButton taskId={row._id} summary={row.visit} className="mt-2" />}
     </li>
   );
 }
