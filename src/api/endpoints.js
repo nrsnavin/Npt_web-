@@ -193,6 +193,8 @@ export const workspace = {
     startFrom: ({ id, models }) => api.post(`/workspace/todos/${id}/start-from`, { models }, { feedback: false }).then(unwrap),
     /** Papers a department keeps on its task — Dispatch's invoice and dispatch details, Reception's. */
     documents: (id) => api.get(`/workspace/todos/${id}/documents`).then(unwrap),
+    /** A visit to the buyer's place, from the phone on the spot: `{ lat, lng, accuracyM, capturedAt, note }` [server: taskVisit.service]. Keeps the envelope (`data`, `visit`). */
+    visit: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/visit`, payload).then((r) => r.data),
     addDocument: ({ id, docType, file }) => {
       const form = new FormData();
       form.append('docType', docType);
