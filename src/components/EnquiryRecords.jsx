@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { Badge, ErrorState, Section } from './ui.jsx';
 import { DispatchBody } from './OrderDispatchDetails.jsx';
 import SalesOrderDraft from './SalesOrderDraft.jsx';
+import { VisitList } from './TaskVisits.jsx';
 import { formatDate, formatNumber } from '../utils/format.js';
 import { orderStageLabel } from '../utils/pipeline.js';
 import { QC_STAGES, QC_VERDICTS, labelOf, toneOf } from '../utils/records.js';
@@ -51,11 +52,18 @@ export default function EnquiryRecords({ enquiry, records, dispatchAbove = false
   const mayEditOrder = canRead('orders') && (isAdmin || user?.department === 'management' || String(enquiry.assignedTo?._id || enquiry.assignedTo || '') === String(user?.id || user?._id || ''));
   if (error) return <Section title="Orders, QC and dispatch"><ErrorState error={error} onRetry={load} /></Section>;
   if (!data) return null;
+  const visits = data.visits || [];
   /* An enquiry that has not reached an order yet has nothing here to show. */
-  if (!data.orders.length && !data.qc?.length && !data.dispatch.requests.length && !data.dispatch.lr.length) return null;
+  if (!data.orders.length && !data.qc?.length && !data.dispatch.requests.length && !data.dispatch.lr.length && !visits.length) return null;
 
   return (
     <>
+      {/* Visits to the buyer's place recorded from the phone — Sampling's, Payment Collection's, the PRT's: when, who, where, with the satellite picture [server: taskVisit.service]. */}
+      {visits.length > 0 && (
+        <Section title={`Visits to the buyer (${visits.length})`}>
+          <VisitList visits={visits} showTask />
+        </Section>
+      )}
       <Section title={`Sales orders (${data.orders.length})`}>
         {data.orders.length ? (
           <ul className="divide-y divide-line/[0.06] text-sm">
