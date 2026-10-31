@@ -81,3 +81,21 @@ test('a job given without an enquiry — a PRT job on the buyer’s dues — sho
   assert.match(job, /<Section title=\{`Visits to the buyer \(\$\{job\.visits\.length\}\)`\}>/);
   assert.match(job, /<VisitList visits=\{job\.visits\} showTask \/>/);
 });
+
+test('a visit note in a few words — who was met, what happened, what they said — saved and shown written up', () => {
+  assert.match(visits, /\{ key: 'met', label: 'Who did you meet\?'/);
+  assert.match(visits, /\{ key: 'happened', label: 'What happened\?'/);
+  assert.match(visits, /\{ key: 'response', label: 'What did they say\?'/);
+  assert.match(visits, /A few words is enough — in any language\. Admin and the marketing person get it written up clearly\./);
+  assert.match(visits, /workspace\.todos\.visitNote\(\{ id: taskId, visitId: visit\._id, \.\.\.words \}\)/);
+  assert.match(visits, /\{saving \? 'Writing it up…' : 'Save note'\}/);
+  /* With the record on the task, after a one-press record on a card, and on each visit for whoever works the task. */
+  assert.match(visits, /if \(visit\?\._id && hasWords\(words\)\) \{\s*try \{\s*latest = \(await workspace\.todos\.visitNote\(\{ id: todo\._id, visitId: visit\._id, \.\.\.words \}\)\)\.data \|\| task;/);
+  assert.match(visits, /onClick=\{\(\) => setNoting\(true\)\}>\+ Add what happened<\/button>/);
+  assert.match(visits, /\{visit\.report\?\.text \? 'Edit note' : '\+ Add what happened'\}/);
+  assert.match(visits, /<VisitList visits=\{visits\} mayNote=\{mayWork\} taskId=\{todo\._id\}/);
+  /* The report Admin and marketing read, with the visitor's own words one tap away. */
+  assert.match(visits, /Visit report\{visit\.report\.writtenBy === 'model' \? ' · written up from the visitor’s note' : ''\}/);
+  assert.match(visits, /\{words \? 'Hide their words' : 'Their own words'\}/);
+  assert.match(read('api/endpoints.js'), /visitNote: \(\{ id, visitId, \.\.\.payload \}\) => api\.post\(`\/workspace\/todos\/\$\{id\}\/visits\/\$\{visitId\}\/note`, payload\)/);
+});

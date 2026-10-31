@@ -195,6 +195,8 @@ export const workspace = {
     documents: (id) => api.get(`/workspace/todos/${id}/documents`).then(unwrap),
     /** A visit to the buyer's place, from the phone on the spot: `{ lat, lng, accuracyM, capturedAt, note }` [server: taskVisit.service]. Keeps the envelope (`data`, `visit`). */
     visit: ({ id, ...payload }) => api.post(`/workspace/todos/${id}/visit`, payload).then((r) => r.data),
+    /** A visit's note — who was met, what happened, their response — written up for Admin and marketing [server: visitNote.llm]. Keeps the envelope (`data`, `visit`). */
+    visitNote: ({ id, visitId, ...payload }) => api.post(`/workspace/todos/${id}/visits/${visitId}/note`, payload).then((r) => r.data),
     addDocument: ({ id, docType, file }) => {
       const form = new FormData();
       form.append('docType', docType);
