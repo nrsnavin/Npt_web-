@@ -6,7 +6,7 @@ import { useToast } from '../context/ToastContext.jsx';
 import useCurrentLocation from '../hooks/useCurrentLocation.js';
 import usePreciseLocation from '../hooks/usePreciseLocation.js';
 import AttendanceCard from '../components/AttendanceCard.jsx';
-import { CheckInButton, visitStatusLabel } from '../components/FieldVisitButton.jsx';
+import { CheckInButton, gpsWords, visitStatusLabel } from '../components/FieldVisitButton.jsx';
 import { Badge, DashboardSkeleton, ErrorState, Modal, Notice, PageHeader, Section } from '../components/ui.jsx';
 import { formatDate, isoDay } from '../utils/format.js';
 import { accuracyLabel, mapsUrl } from '../utils/maps.js';
@@ -37,10 +37,15 @@ const TONE = { planned: 'neutral', checked_in: 'progress', completed: 'success',
 function useStayPings(visit, everyMs, { warn } = {}) {
   const [last, setLast] = useState(null);
   const [discrepancy, setDiscrepancy] = useState(null);
+  const [poor, setPoor] = useState(null);
   const sending = useRef(false);
   const precise = usePreciseLocation();
   const took = useCallback((answer) => {
-    setLast({ at: new Date(), distanceM: answer.distanceM, flags: answer.flags, count: answer.pings, strikes: answer.strikes, limit: answer.limit });
+    setLast({ at: new Date(), distanceM: answer.distanceM, accuracyM: answer.accuracyM, flags: answer.flags, count: answer.pings, strikes: answer.strikes, limit: answer.limit });
+    /* A fix too poor to judge is said, not held against the person; a rough re-check settles nothing. */
+    setPoor(answer.poor ? answer.message : null);
+    if (answer.inconclusive) { warn?.('Not close enough to tell', answer.message); return; }
+    if (answer.verifiedLater) warn?.('GPS verified', 'A good fix at the place verified your check-in.', 'ok');
     if (answer.discrepancy) {
       setDiscrepancy(answer.discrepancy);
       warn?.('Your location looks off', `${answer.discrepancy.detail} — strike ${answer.discrepancy.strikes} of ${answer.discrepancy.limit}. If you are still at the place, re-check the GPS now.`);
@@ -81,7 +86,7 @@ function useStayPings(visit, everyMs, { warn } = {}) {
       .finally(() => { setRechecking(false); reset(); });
   }, [status, fix, visit?._id, rechecking, took, warn, reset]);
   useEffect(() => { setDiscrepancy(visit?.tracking?.pendingRecheck ? { ...(visit.tracking.lastDiscrepancy || {}), strikes: visit.tracking.strikes, suspect: Boolean(visit.tracking.suspectAt) } : null); }, [visit?._id, visit?.tracking?.pendingRecheck, visit?.tracking?.strikes, visit?.tracking?.lastDiscrepancy, visit?.tracking?.suspectAt]);
-  return { last, discrepancy, recheck: precise.locate, rechecking: rechecking || status === 'locating', precise };
+  return { last, discrepancy, poor, recheck: precise.locate, rechecking: rechecking || status === 'locating', precise };
 }
 
 /** What came of the visit — the category's outcomes and the details each one needs [config/fieldVisits.js]. */
@@ -352,7 +357,7 @@ function VisitRow({ visit, me, onCheckedIn, onCheckOut, onSettle }) {
               In {time(visit.checkIn.at)}{visit.checkOut?.at ? ` · out ${time(visit.checkOut.at)} · ${minutes(visit.checkIn.at, visit.checkOut.at)} min` : ''}
               {visit.checkIn.place?.name ? ` · ${visit.checkIn.place.name}` : ''}
               {visit.checkIn.lat != null && <> · <a href={mapsUrl(visit.checkIn)} target="_blank" rel="noreferrer" className="text-accent hover:underline">Map</a></>}
-              {visit.checkIn.verified ? ' · GPS verified' : ' · GPS not verified'}
+              {` · ${gpsWords(visit.checkIn)}`}
             </p>
           )}
           {visit.outcome?.label && (
@@ -384,7 +389,7 @@ export default function FieldDay() {
   const load = useCallback(() => field.me().then((mine) => { setData(mine); setError(null); }).catch(setError), []);
   useEffect(() => { load(); }, [load]);
   const { toast, warn } = useToast();
-  const { last: pings, discrepancy, recheck, rechecking, precise } = useStayPings(data?.checkedIn, data?.rules?.pingEveryMs, { warn: (title, body) => (title === 'Location confirmed' ? toast(title, body) : warn(title, body)) });
+  const { last: pings, discrepancy, poor, recheck, rechecking, precise } = useStayPings(data?.checkedIn, data?.rules?.pingEveryMs, { warn: (title, body, tone) => (tone === 'ok' || title === 'Location confirmed' ? toast(title, body) : warn(title, body)) });
   if (error) return <ErrorState error={error} onRetry={load} />;
   if (!data) return <DashboardSkeleton label="Loading your field day" tiles={2} />;
   const { marks, checkedIn, visits, carried, people } = data;
@@ -420,6 +425,8 @@ export default function FieldDay() {
             </div>
             <button type="button" className="btn-primary" onClick={() => setDialog({ kind: 'out', visit: checkedIn })}>Check out</button>
           </div>
+          {/* A fix too poor to judge: said, never a strike [server: fieldVisit.service `ping`]. */}
+          {poor && !discrepancy && <p className="mt-2 rounded-lg bg-line/[0.05] px-2.5 py-2 text-xs text-steel-300" role="status">{poor}</p>}
           {/* A fix that strayed: what the phone said, and the re-check on the spot [server: fieldVisit.service `ping`]. */}
           {discrepancy && (
             <div className="mt-3 rounded-lg border border-warn-500/40 bg-warn-500/10 p-3 text-sm text-warn-400" role="alert" aria-label="GPS discrepancy">

@@ -49,7 +49,7 @@ test('My field day: the visit checked into with a fix every five minutes while t
 test('Needs visit on the Sampling queue row and card and on the PRT card: planned in two taps; then Check in for the person it is for', () => {
   assert.match(button, /export const FIELD_TASK_KINDS = \['sample_request', 'prt_recovery', 'request_prt_visit', 'team_payment_followup', 'my_payment_followup'\];/);
   assert.match(button, /const visit = await field\.plan\(\{ task: taskId, assignee, date, time: time \|\| undefined, note: note\.trim\(\) \|\| undefined \}\);/);
-  assert.match(button, /field\.checkIn\(\{ id: visitId, fix, device: navigator\.userAgent\?\.slice\(0, 120\) \}\)/, 'the precise fix and the phone');
+  assert.match(button, /field\.checkIn\(\{ id: visitId, fix: sent \|\| null, \.\.\.\(why\?\.trim\(\) \? \{ reason: why\.trim\(\) \} : \{\}\), device: navigator\.userAgent\?\.slice\(0, 120\) \}\)/, 'the fix, why when it is rough or missing, and the phone');
   assert.match(button, /\{mine && <CheckInButton visitId=\{current\._id\}/, 'Check in only for the person it is planned for');
   assert.match(button, /check out on My field day/, 'checked in, the row points to the day');
   assert.match(button, /if \(!\(marks\.mayAssign \|\| marks\.maySelfPlan \|\| user\?\.role === 'admin'\)\) return null;/, 'Needs visit for whoever may plan');
@@ -118,4 +118,20 @@ test('a fix that strays: the person is told and re-checks the GPS on the spot; a
   assert.match(team, /the GPS strayed \{visit\.strikes\} times/);
   assert.match(team, /<Badge tone="danger">Something wrong · \{row\.suspects\.length\}<\/Badge>/);
   assert.match(read('components/AttentionPanel.jsx'), /<Link to=\{notice\.link\} onClick=\{opened\} className="text-accent hover:underline">Open<\/Link>/, 'the notice opens Field today');
+});
+
+test('when the phone cannot get under 10 m: within 50 m is approximate and quiet; rougher asks why; no GPS checks in with why; a later good fix verifies it; poor fixes are never strikes', () => {
+  assert.match(button, /export const GPS_TIERS = \{ preciseM: 10, acceptableM: 50 \};/);
+  assert.match(button, /if \(checkIn\.verifiedLaterAt\) return `GPS verified later \(\$\{timeOf\(checkIn\.verifiedLaterAt\)\}\)`;/);
+  assert.match(button, /if \(checkIn\.grade === 'approximate'\) return `GPS approximate \(±\$\{checkIn\.accuracyM\} m\)`;/);
+  assert.match(button, /send\(fix, fix\.accuracyM > GPS_TIERS\.acceptableM \? reason : ''\);/, 'a rough fix carries why');
+  assert.match(button, /near \? `The closest the phone got was \$\{accuracyLabel\(fix\.accuracyM\)\} — near enough: it is kept as approximate\.` : message/);
+  assert.match(button, /disabled=\{saving \|\| \(!near && reason\.trim\(\)\.length < 3\)\}/, 'rougher than 50 m needs why');
+  assert.match(button, /onClick=\{\(\) => withoutGps\(reason\)\} disabled=\{saving \|\| reason\.trim\(\)\.length < 3\}>Check in without GPS<\/button>/);
+  assert.match(button, /A good fix while you are there verifies the check-in by itself\./);
+  assert.match(day, /setPoor\(answer\.poor \? answer\.message : null\);/);
+  assert.match(day, /if \(answer\.verifiedLater\) warn\?\.\('GPS verified', 'A good fix at the place verified your check-in\.', 'ok'\);/);
+  assert.match(day, /if \(answer\.inconclusive\) \{ warn\?\.\('Not close enough to tell', answer\.message\); return; \}/);
+  for (const file of ['components/FieldVisitList.jsx', 'pages/FieldTeam.jsx', 'pages/FieldDay.jsx']) assert.match(read(file), /\$\{gpsWords\(visit\.checkIn\)\}/, `${file} says how the GPS read`);
+  assert.match(team, /fixes too poor to judge/);
 });
