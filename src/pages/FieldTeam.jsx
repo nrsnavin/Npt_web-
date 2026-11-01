@@ -8,6 +8,7 @@ import { gpsWords, visitStatusLabel } from '../components/FieldVisitButton.jsx';
 import { Badge, DashboardSkeleton, EmptyState, ErrorState, Modal, Notice, PageHeader } from '../components/ui.jsx';
 import { formatDate, isoDay } from '../utils/format.js';
 import { mapsUrl } from '../utils/maps.js';
+import CustomerName from '../components/CustomerName.jsx';
 
 /**
  * Field today [server: fieldVisit.service `teamDay`]: the day's report, for Admin and for whoever
@@ -65,7 +66,7 @@ function VisitDetail({ visit, isAdmin, onEdit }) {
     <li className="rounded-lg border border-line/[0.08] p-2.5 text-xs">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0 space-y-0.5">
-          <p className="text-sm font-semibold text-steel-100">{visit.purpose}{visit.customer?.name ? <span className="font-normal text-steel-400"> · {visit.customer.name}</span> : null}</p>
+          <p className="text-sm font-semibold text-steel-100">{visit.purpose}{visit.customer?.name ? <span className="font-normal text-steel-400"> · <CustomerName name={visit.customer.name} /></span> : null}</p>
           <p className="text-steel-400">
             {visit.category.replace(/_/g, ' ')} · planned {formatDate(visit.plannedDate)}{visit.plannedTime ? ` ${visit.plannedTime}` : ''}{visit.assignedBy?.name ? ` by ${visit.assignedBy.name}` : ''}
             {visit.task?.title && visit.task.title !== visit.purpose ? ` · ${visit.task.title}` : ''}

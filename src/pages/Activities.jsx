@@ -6,6 +6,7 @@ import {
 } from '../components/ui.jsx';
 import { activityLabel, formatWhen, useActivityTypes } from '../components/EnquiryActivities.jsx';
 import { inDays } from '../utils/pipeline.js';
+import CustomerName from '../components/CustomerName.jsx';
 
 /**
  * Recent calls, WhatsApps, emails, visits and meetings across the enquiries this person may see
@@ -104,7 +105,7 @@ export default function Activities() {
                         {row.enquiry.number}
                       </Link>
                       <p className="text-xs text-steel-500">
-                        {row.enquiry.customer?.name}
+                        <CustomerName name={row.enquiry.customer?.name} />
                         {row.enquiry.modelNumber && ` · ${row.enquiry.modelNumber}`}
                       </p>
                     </td>

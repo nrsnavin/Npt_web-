@@ -11,6 +11,7 @@ import QuotationPdf from '../components/QuotationPdf.jsx';
 import { CLOSED_QUOTATION_STATUSES } from './Quotations.jsx';
 import { SortHeader, useSort } from '../components/SortHeader.jsx';
 import { formatDate, formatNumber, humanise } from '../utils/format.js';
+import CustomerName from '../components/CustomerName.jsx';
 
 /**
  * What has actually gone to a buyer, and what each price was worked out from [BLUEPRINT §7, §10].
@@ -264,7 +265,7 @@ export default function SentQuotations() {
                               its own now, so it can be sorted by. */}
                           <p className="text-xs text-steel-400">Rev {row.revision}</p>
                         </td>
-                        <td className="px-3 py-3.5 text-steel-200">{row.customer?.name || '—'}</td>
+                        <td className="px-3 py-3.5 text-steel-200"><CustomerName name={row.customer?.name} fallback="—" /></td>
                         <td className="px-3 py-3.5 text-steel-300">
                           {lines.length === 1
                             ? lines[0].modelNumber || '—'

@@ -7,6 +7,7 @@ import {
   CLOSED_SAMPLE_STAGES, WITH_CUSTOMER_STAGES, followUpState, nextSampleStagesFrom, numeric,
 } from '../../utils/pipeline.js';
 import { formatNumber } from '../../utils/format.js';
+import CustomerName from '../CustomerName.jsx';
 
 /**
  * The sample bench as a board — the follow-up view of what has been asked for and where it is.
@@ -104,7 +105,7 @@ export default function SampleBoard({ filters, canMove, perColumn = 20 }) {
         return (
           <>
             <p className="truncate text-xs font-semibold text-steel-100">
-              {card.customer?.name || 'Internal trial'}
+              <CustomerName name={card.customer?.name} fallback="Internal trial" />
             </p>
             <p className="truncate text-[0.75rem] text-steel-400">
               {card.number} · {card.modelNumber || card.mould?.mouldCode || 'New development'}

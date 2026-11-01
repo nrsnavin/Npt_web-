@@ -28,6 +28,7 @@ import {
   CLOSED_ORDER_STAGES, PRE_RELEASE_STAGES, orderStageLabel,
 } from '../utils/pipeline.js';
 import { TaskPdfList, idOf, useTaskPdfs } from '../components/TaskPdfs.jsx';
+import CustomerName from '../components/CustomerName.jsx';
 
 /**
  * One sales order [BLUEPRINT §12–13].
@@ -660,7 +661,7 @@ export default function OrderDetail() {
         subtitle={
           <>
             <Link to={`/customers/${order.customer?._id}`} className="hover:text-accent">
-              {order.customer?.name}
+              <CustomerName name={order.customer?.name} />
             </Link>
             {' · '}
             {formatNumber(order.orderedQty)} pcs

@@ -3,6 +3,7 @@ import { quotations as quotationsApi } from '../api/endpoints.js';
 import { Field, Notice, Spinner } from './ui.jsx';
 import { formatDate } from '../utils/format.js';
 import { sendLabel, sendProblem } from '../utils/quoteSend.js';
+import CustomerName from './CustomerName.jsx';
 
 /**
  * Sending a quotation to the buyer: the email and the WhatsApp message, pre-filled from the quote
@@ -83,7 +84,7 @@ export default function SendQuotationForm({ quotation, onCancel, onSent, onRefus
       }}
     >
       <p className="text-sm text-steel-400">
-        To <span className="font-semibold text-steel-100">{preview.customer?.name}</span>. Everything below is filled in from the
+        To <span className="font-semibold text-steel-100"><CustomerName name={preview.customer?.name} /></span>. Everything below is filled in from the
         quote and their record — change anything before it goes.
       </p>
 

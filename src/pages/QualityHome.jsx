@@ -7,6 +7,7 @@ import { ErrorState, PageHeader, Spinner } from '../components/ui.jsx';
 import EscalationFeed from '../components/EscalationFeed.jsx';
 import { formatCurrency, formatDate, formatNumber } from '../utils/format.js';
 import { inspectionStageLabel } from '../utils/pipeline.js';
+import CustomerName from '../components/CustomerName.jsx';
 
 /**
  * The bench's front page [BLUEPRINT §15].
@@ -65,7 +66,7 @@ function Held({ row, defectLabel }) {
       </div>
 
       <p className="mt-1 text-sm text-steel-300">
-        {row.order?.customer?.name || 'Customer not named'}
+        <CustomerName name={row.order?.customer?.name} fallback="Customer not named" />
         {row.order?.number ? (
           <>
             {' · '}

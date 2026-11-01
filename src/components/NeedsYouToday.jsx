@@ -5,6 +5,7 @@ import { useWorkspace } from './dock/WorkspaceContext.jsx';
 import { Notice } from './ui.jsx';
 import { departmentLabel } from '../utils/pipeline.js';
 import { formatDate, plural } from '../utils/format.js';
+import CustomerName from './CustomerName.jsx';
 
 /**
  * What needs somebody in this department today [BLUEPRINT §25, §35].
@@ -101,7 +102,7 @@ function Row({ task, onTake, busy }) {
             to={`/customers/${task.customer._id}`}
             className="transition-colors hover:text-accent"
           >
-            {task.customer.name}
+            <CustomerName name={task.customer.name} />
           </Link>
         )}
         {task.order?.number && (

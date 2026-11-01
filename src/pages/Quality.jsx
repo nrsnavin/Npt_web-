@@ -11,6 +11,7 @@ import { SortHeader, useSort } from '../components/SortHeader.jsx';
 import {
   INSPECTION_STAGES, VERDICTS, inspectionStageLabel, verdictLabel, verdictTone,
 } from '../utils/pipeline.js';
+import CustomerName from '../components/CustomerName.jsx';
 
 /**
  * Every inspection [BLUEPRINT §15].
@@ -179,7 +180,7 @@ export default function Quality() {
                         ) : (
                           <span className="text-steel-500">—</span>
                         )}
-                        <p className="text-xs text-steel-500">{row.order?.customer?.name}</p>
+                        <p className="text-xs text-steel-500"><CustomerName name={row.order?.customer?.name} /></p>
                       </td>
                       <td className="px-4 py-3.5">
                         <span className="text-steel-300">{inspectionStageLabel(row.stage)}</span>

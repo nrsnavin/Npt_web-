@@ -13,6 +13,7 @@ import EscalationFeed from '../components/EscalationFeed.jsx';
 import NeedsYouToday from '../components/NeedsYouToday.jsx';
 import WhatMattersNow from '../components/WhatMattersNow.jsx';
 import { formatDate, formatNumber } from '../utils/format.js';
+import CustomerName from '../components/CustomerName.jsx';
 
 /**
  * The despatch team's front page.
@@ -106,7 +107,7 @@ function Consignment({ row, tone, mayAct, mayPromise, onDone }) {
     >
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <p className="text-base font-bold text-steel-50">
-          {row.customer?.name || 'Customer not named'}
+          <CustomerName name={row.customer?.name} fallback="Customer not named" />
         </p>
         <p className="text-sm font-semibold text-steel-300">
           <Link to={row.link} className="transition-colors hover:text-accent">{row.number}</Link>
@@ -182,7 +183,7 @@ function Waiting({ row }) {
           <p className="text-base font-bold text-accent">{formatNumber(row.available)} pcs free</p>
         </div>
         <p className="mt-1 text-sm text-steel-300">
-          {row.order.customer?.name || 'Customer not named'} · {row.order.number}
+          <CustomerName name={row.order.customer?.name} fallback="Customer not named" /> · {row.order.number}
         </p>
         <p className="mt-2 text-sm text-steel-400">
           {row.deliveryDate

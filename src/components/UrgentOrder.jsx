@@ -4,6 +4,7 @@ import { orderQueries as queriesApi } from '../api/endpoints.js';
 import { Notice } from './ui.jsx';
 import RaiseConcern from './RaiseConcern.jsx';
 import { formatDate, formatNumber, humanise } from '../utils/format.js';
+import CustomerName from './CustomerName.jsx';
 
 /**
  * An order somebody escalated, on whichever screen is reading it [§29].
@@ -109,7 +110,7 @@ export default function UrgentOrder({ row, mine, onRaise, onAnswered }) {
     >
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <p className="text-base font-bold text-steel-50">
-          {row.customer?.name || 'Customer not named'}
+          <CustomerName name={row.customer?.name} fallback="Customer not named" />
         </p>
         <p className={`text-sm font-bold ${critical ? 'text-danger-400' : 'text-warn-400'}`}>
           {critical ? 'Critical' : 'Pulled forward'}

@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { Badge } from './ui.jsx';
 import { formatDate, formatNumber } from '../utils/format.js';
 import { MAINTENANCE_TYPES, QC_STAGES, QC_VERDICTS, RUN_STATUSES, labelOf, toneOf } from '../utils/records.js';
+import CustomerName from './CustomerName.jsx';
 
 /**
  * The history tables a machine and a mould share: maintenance, runs, QC records. One copy, so the
@@ -72,7 +73,7 @@ export function RunsTable({ rows, showMould = false, showMachine = false, empty,
               <td className="py-2 pr-3"><span className="font-semibold text-steel-100">{run.number}</span><p className="text-xs text-steel-500">{formatDate(run.startedAt)}{run.shift ? ` · Shift ${run.shift}` : ''}{run.operator ? ` · ${run.operator}` : ''}</p></td>
               {showMould && <td className="py-2 pr-3"><Link to={`/moulds/${run.mould?._id}`} className="text-steel-200 hover:text-accent">{run.mould?.mouldCode}</Link></td>}
               {showMachine && <td className="py-2 pr-3">{run.machine ? <Link to={`/machines/${run.machine._id}`} className="text-steel-200 hover:text-accent">{run.machine.code}</Link> : '—'}</td>}
-              <td className="py-2 pr-3 text-steel-200">{run.customer?.name || '—'}{(run.order?.number || run.enquiry?.number) && <p className="text-xs text-steel-500">{[run.order?.number, run.enquiry?.number, run.colour].filter(Boolean).join(' · ')}</p>}</td>
+              <td className="py-2 pr-3 text-steel-200"><CustomerName name={run.customer?.name} fallback="—" />{(run.order?.number || run.enquiry?.number) && <p className="text-xs text-steel-500">{[run.order?.number, run.enquiry?.number, run.colour].filter(Boolean).join(' · ')}</p>}</td>
               <td className="py-2 pr-3 text-right tabular-nums text-steel-200">{run.shots != null ? formatNumber(run.shots) : '—'}</td>
               <td className="py-2 pr-3 text-right tabular-nums text-steel-200">
                 {run.goodPieces != null ? formatNumber(run.goodPieces) : '—'} · {run.rejectedPieces != null ? formatNumber(run.rejectedPieces) : '—'}

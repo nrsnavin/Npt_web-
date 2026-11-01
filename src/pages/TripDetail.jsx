@@ -4,6 +4,7 @@ import QcFlag, { AskLocation } from '../components/QcFlag.jsx';
 import { tripsApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { ErrorState, PageHeader, Spinner } from '../components/ui.jsx';
+import CustomerName from '../components/CustomerName.jsx';
 
 /**
  * One trip [server: services/trip.service.js]: the stops in the order the vehicle reaches them,
@@ -50,7 +51,7 @@ function StopRow({ stop, index, count, editable, onTheRoad, onMove, onRemove, on
         <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent/15 text-sm font-bold text-accent">{index + 1}</span>
         <div className="min-w-0 flex-1">
           <p className="font-semibold text-steel-50">
-            {customer.name || 'Buyer'}
+            <CustomerName name={customer.name} fallback="Buyer" />
             {stop.enquiry && <Link to={`/enquiries/${stop.enquiry._id}`} className="ml-2 text-xs font-normal text-accent hover:underline">{stop.enquiry.number}</Link>}
           </p>
           {address && <p className="text-sm text-steel-300">{address}</p>}

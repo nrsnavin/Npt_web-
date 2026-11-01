@@ -5,6 +5,7 @@ import { useBoard } from '../../hooks/useBoard.js';
 import { ENQUIRY_BOARD, daysInColumn, isSettled } from '../../utils/boards.js';
 import { CLOSED_STAGES, followUpState, nextStagesFrom, numeric } from '../../utils/pipeline.js';
 import { formatCompactCurrency, formatNumber, humanise } from '../../utils/format.js';
+import CustomerName from '../CustomerName.jsx';
 
 /**
  * The enquiry funnel as a board.
@@ -103,7 +104,7 @@ export default function EnquiryBoard({ filters, canMove, perColumn = 20 }) {
         return (
           <>
             <p className="truncate text-xs font-semibold text-steel-100">
-              {card.customer?.name || 'No customer'}
+              <CustomerName name={card.customer?.name} fallback="No customer" />
             </p>
             <p className="truncate text-[0.75rem] text-steel-400">
               {card.number} · {card.requirement?.modelNumber || card.mould?.mouldCode || 'New development'}

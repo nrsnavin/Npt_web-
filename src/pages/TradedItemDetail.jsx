@@ -10,6 +10,7 @@ import SupplierCheck from '../components/SupplierCheck.jsx';
 import { MouldThumb } from '../components/MouldPhoto.jsx';
 import { formatDate } from '../utils/format.js';
 import { HANGER_CATEGORIES, optionLabel } from '../utils/pipeline.js';
+import CustomerName from '../components/CustomerName.jsx';
 
 const rupees = (value) => (value === undefined || value === null ? '—' : `₹${Number(value).toFixed(2)}`);
 
@@ -100,7 +101,7 @@ export default function TradedItemDetail() {
                       <li key={row._id} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
                         <div>
                           <Link to={`/quotations/${row._id}`} className="font-semibold text-steel-100 hover:text-accent">{row.number}</Link>
-                          <span className="ml-2 text-xs text-steel-400">{row.customer?.name}</span>
+                          <span className="ml-2 text-xs text-steel-400"><CustomerName name={row.customer?.name} /></span>
                         </div>
                         <span className={`text-xs tabular-nums ${costedAt !== item.inwardPrice ? 'text-warn-400' : 'text-steel-400'}`}>
                           Costed at {rupees(costedAt)} · {row.status}

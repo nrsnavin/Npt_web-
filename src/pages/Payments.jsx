@@ -7,6 +7,7 @@ import {
 } from '../components/ui.jsx';
 import { formatCurrency, formatDate } from '../utils/format.js';
 import { SortHeader, useSort } from '../components/SortHeader.jsx';
+import CustomerName from '../components/CustomerName.jsx';
 
 /**
  * Everything owed [BLUEPRINT §20].
@@ -210,7 +211,7 @@ export default function Payments() {
                         </p>
                       </td>
                       <td className="px-4 py-3.5">
-                        <p className="text-steel-200">{row.customer?.name}</p>
+                        <p className="text-steel-200"><CustomerName name={row.customer?.name} /></p>
                         <p className="text-xs text-steel-500">{row.assignedTo?.name}</p>
                       </td>
                       <td className="px-4 py-3.5 text-right tabular-nums text-steel-300">

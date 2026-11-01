@@ -9,6 +9,7 @@ import {
 import MaterialForm from '../components/MaterialForm.jsx';
 import { formatDate, humanise } from '../utils/format.js';
 import { MATERIAL_TYPES, optionLabel } from '../utils/pipeline.js';
+import CustomerName from '../components/CustomerName.jsx';
 
 /**
  * One resin on the register, in full.
@@ -175,7 +176,7 @@ export default function MaterialDetail() {
                             {row.number}
                           </Link>
                           <p className="text-xs text-steel-400">
-                            {row.customer?.name || 'No customer'}
+                            <CustomerName name={row.customer?.name} fallback="No customer" />
                             {line.modelNumber ? ` · ${line.modelNumber}` : ''}
                             {line.cost?.rawMaterialRate
                               ? ` · costed at ₹${Number(line.cost.rawMaterialRate).toFixed(2)}/kg`

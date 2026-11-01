@@ -18,6 +18,7 @@ import { formatCompactCurrency, formatCurrency, formatDate, formatNumber, humani
 import { inDays } from '../utils/pipeline.js';
 import TradingBadge, { isTradingLine } from '../components/TradingBadge.jsx';
 import { TaskPdfChips, idOf, useTaskPdfs } from '../components/TaskPdfs.jsx';
+import CustomerName from '../components/CustomerName.jsx';
 
 /**
  * Quotations [BLUEPRINT §10].
@@ -771,7 +772,7 @@ export default function Quotations() {
                         </p>
                         <TaskPdfChips files={pdfs.byEnquiry[idOf(row.enquiry)]} />
                       </td>
-                      <td className="px-3 py-3.5 text-steel-200">{row.customer?.name || '—'}</td>
+                      <td className="px-3 py-3.5 text-steel-200"><CustomerName name={row.customer?.name} fallback="—" /></td>
                       {/*
                         One model named, or a count. Naming the first of eight and leaving the
                         rest implied is how a row comes to describe a document it does not

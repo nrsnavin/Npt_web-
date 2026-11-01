@@ -13,6 +13,7 @@ import {
 } from '../utils/samplingQueue.js';
 import { TaskPdfChips, useTaskPdfs } from './TaskPdfs.jsx';
 import CustomerFilter, { byCustomer } from './CustomerFilter.jsx';
+import CustomerName from './CustomerName.jsx';
 
 /**
  * The sampling department's work queue [server: sampleDashboard.controller `sampleQueue`].
@@ -55,7 +56,7 @@ function CustomerCell({ row }) {
       <div className="flex flex-wrap items-center gap-2">
         {/* The sample's own page: its photos, the buyer's reference, the log [pages/SampleDetail.jsx]. */}
         <Link to={row.link} className="font-semibold text-steel-50 hover:text-accent">
-          {row.customer?.name || 'No buyer named'}
+          <CustomerName name={row.customer?.name} fallback="No buyer named" />
         </Link>
         {row.fresh && <span className="rounded-full bg-flame-500/15 px-2 py-0.5 text-[0.75rem] font-bold uppercase tracking-wide text-flame-400">New Enquiry</span>}
       </div>

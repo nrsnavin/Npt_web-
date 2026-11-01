@@ -18,6 +18,7 @@ import { CUSTOMER_TYPES, LANDMARK_ROUTES, SOURCES, optionLabel } from '../utils/
 import { GSTIN_PATTERN, gstUnknown, stateOfGstin } from '../utils/gst.js';
 import useOpenFromLink from '../hooks/useOpenFromLink.js';
 import QcStandardsFields, { standardsPayload } from '../components/QcStandardsFields.jsx';
+import CustomerName from '../components/CustomerName.jsx';
 
 const RATINGS = [
   { value: 'A', label: 'A — key account' },
@@ -408,7 +409,7 @@ export function CustomerForm({ customer, onClose, onSaved, onCreate, submitLabel
         <Notice tone="warn">
           {duplicate.customer ? (
             <>
-              {duplicate.customer.name} ({duplicate.customer.code}) already exists with the same{' '}
+              <CustomerName name={duplicate.customer.name} /> ({duplicate.customer.code}) already exists with the same{' '}
               {duplicate.matchedOn}. Raise the enquiry against that record rather than creating
               a second one.
             </>
@@ -587,7 +588,7 @@ export default function Customers() {
                       )}
                       <td className="px-4 py-3.5">
                         <Link to={`/customers/${customer._id}`} className="font-semibold text-steel-100 hover:text-accent">
-                          {customer.name}
+                          <CustomerName name={customer.name} />
                         </Link>
                         <p className="text-xs text-steel-400">
                           {customer.code}

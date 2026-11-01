@@ -26,6 +26,7 @@ import {
   sampleMovesFrom, sampleStageLabel, text,
 } from '../utils/pipeline.js';
 import { TaskPdfList, idOf, useTaskPdfs } from '../components/TaskPdfs.jsx';
+import CustomerName from '../components/CustomerName.jsx';
 
 const TONE_TEXT = {
   danger: 'text-danger-400',
@@ -1456,7 +1457,7 @@ export default function SampleDetail() {
           <>
             {sample.customer ? (
               <Link to={`/customers/${sample.customer._id}`} className="hover:text-accent">
-                {sample.customer.name}
+                <CustomerName name={sample.customer.name} />
               </Link>
             ) : (
               'Internal request'

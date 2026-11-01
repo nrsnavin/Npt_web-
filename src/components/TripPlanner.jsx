@@ -7,6 +7,7 @@ import SuggestTrips from './SuggestTrips.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { EmptyState, ErrorState, Field, Modal, Spinner } from './ui.jsx';
 import { formatDate } from '../utils/format.js';
+import CustomerName from './CustomerName.jsx';
 
 /**
  * Plan trips [server: services/dispatchPlanning.service.js]. The open dispatch requests whose
@@ -77,7 +78,7 @@ function Stop({ stop, index, checked, onToggle, canPlan }) {
       )}
       <div className="min-w-0 flex-1">
         <p className="font-semibold text-steel-100">
-          {stop.customer?.name || 'Unknown buyer'}
+          <CustomerName name={stop.customer?.name} fallback="Unknown buyer" />
           {stop.enquiry && (
             <Link to={`/enquiries/${stop.enquiry._id}`} className="ml-2 text-xs font-normal text-accent hover:underline">{stop.enquiry.number}</Link>
           )}
@@ -330,7 +331,7 @@ function WaitingList({ title, rows, tone }) {
           {rows.map((row) => (
             <li key={row.task} className="rounded-lg border border-line/[0.06] px-3 py-2 text-sm">
               <p className="font-semibold text-steel-100">
-                {row.customer?.name || 'Unknown buyer'}
+                <CustomerName name={row.customer?.name} fallback="Unknown buyer" />
                 {row.enquiry && <Link to={`/enquiries/${row.enquiry._id}`} className="ml-2 text-xs font-normal text-accent hover:underline">{row.enquiry.number}</Link>}
               </p>
               <p className="text-xs text-steel-400">{[row.why, pcs(row.quantity), row.due && `due ${formatDate(row.due)}`].filter(Boolean).join(' · ')}</p>

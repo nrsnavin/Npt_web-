@@ -9,6 +9,7 @@ import { RunsTable } from '../components/RecordTables.jsx';
 import { formatNumber } from '../utils/format.js';
 import { SHIFTS } from '../utils/records.js';
 import { CodedRows, codedForSave, useRunReasons } from '../components/RunReasons.jsx';
+import CustomerName from '../components/CustomerName.jsx';
 
 /**
  * Mould runs [server: records.service `startRun` / `finishRun`]: which mould is on which machine for
@@ -362,7 +363,7 @@ export default function MouldRuns() {
                 <div>
                   <p className="text-xs font-semibold text-success-400">Running · {elapsed(run.startedAt)}</p>
                   <p className="mt-1 text-base font-bold text-steel-50">{run.mould?.mouldCode}{run.machine ? <span className="font-normal text-steel-400"> on {run.machine.code}</span> : null}</p>
-                  <p className="text-sm text-steel-300">{run.customer?.name || 'Stock'}{run.enquiry?.number ? ` · ${run.enquiry.number}` : ''}</p>
+                  <p className="text-sm text-steel-300"><CustomerName name={run.customer?.name} fallback="Stock" />{run.enquiry?.number ? ` · ${run.enquiry.number}` : ''}</p>
                   <p className="mt-1 text-xs text-steel-500">{[run.number, run.colour, run.plannedQuantity && `${formatNumber(run.plannedQuantity)} planned`, run.operator].filter(Boolean).join(' · ')}</p>
                   {(run.counterLog?.length > 0 || run.downtimeMinutes > 0 || run.rejectedPieces > 0) && (
                     <p className="mt-1 text-xs text-steel-400">{[run.counterLog?.length && `Counter ${formatNumber(run.counterLog.at(-1).counter)}`, run.downtimeMinutes > 0 && `${formatNumber(run.downtimeMinutes)} min stopped`, run.rejectedPieces > 0 && `${formatNumber(run.rejectedPieces)} rejects`].filter(Boolean).join(' · ')}</p>

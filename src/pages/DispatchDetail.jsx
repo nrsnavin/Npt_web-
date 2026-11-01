@@ -15,6 +15,7 @@ import {
   CLOSED_DISPATCH_STAGES, GONE_DISPATCH_STAGES, PRE_LOAD_DISPATCH_STAGES,
   dispatchStageLabel, text,
 } from '../utils/pipeline.js';
+import CustomerName from '../components/CustomerName.jsx';
 
 /**
  * One consignment [BLUEPRINT §18–19].
@@ -302,7 +303,7 @@ export default function DispatchDetail() {
             </Link>
             {' · '}
             <Link to={`/customers/${dispatch.customer?._id}`} className="hover:text-accent">
-              {dispatch.customer?.name}
+              <CustomerName name={dispatch.customer?.name} />
             </Link>
             {' · '}
             {formatNumber(dispatch.dispatchQty)} pcs

@@ -6,6 +6,7 @@ import { departmentLabel } from '../utils/pipeline.js';
 import { formatDate } from '../utils/format.js';
 import TaskWorkflow from './TaskWorkflow.jsx';
 import { Notice } from './ui.jsx';
+import CustomerName from './CustomerName.jsx';
 
 /**
  * What needs this person now, highlighted at the top of their dashboard [server: handoff.service
@@ -48,7 +49,7 @@ function Question({ task, onChanged }) {
           {asking && <span className="font-normal text-steel-400"> · {asking.label}</span>}
           {' · '}
           <Link to={`/enquiries/${task.enquiry?._id || task.enquiry}`} className="text-accent hover:underline">{task.enquiry?.number}</Link>
-          {task.customer?.name && <span className="font-normal text-steel-300"> · {task.customer.name}</span>}
+          {task.customer?.name && <span className="font-normal text-steel-300"> · <CustomerName name={task.customer.name} /></span>}
         </p>
         <span className="text-xs text-steel-400">{formatDate(task.createdAt)}</span>
       </div>
@@ -89,7 +90,7 @@ function Reply({ task, onChanged }) {
           <span className="font-normal text-steel-400"> · {button?.label || task.title}</span>
           {' · '}
           <Link to={`/enquiries/${task.enquiry?._id || task.enquiry}`} className="text-accent hover:underline">{task.enquiry?.number}</Link>
-          {task.customer?.name && <span className="font-normal text-steel-300"> · {task.customer.name}</span>}
+          {task.customer?.name && <span className="font-normal text-steel-300"> · <CustomerName name={task.customer.name} /></span>}
         </p>
         <span className="text-xs text-steel-400">{formatDate(task.attention.at)}</span>
       </div>
@@ -135,7 +136,7 @@ function Escalation({ notice, onChanged }) {
           ) : (
             <span className="font-normal text-steel-300">Team task</span>
           )}
-          {notice.customer?.name && <span className="font-normal text-steel-300"> · {notice.customer.name}</span>}
+          {notice.customer?.name && <span className="font-normal text-steel-300"> · <CustomerName name={notice.customer.name} /></span>}
         </p>
         <span className="text-xs text-steel-400">{notice.by?.name ? `${notice.by.name} · ` : ''}{formatDate(notice.at)}</span>
       </div>
@@ -190,7 +191,7 @@ function Update({ notice, onChanged }) {
           {notice.enquiry && notice.order && (
             <> · <Link to={`/orders/${notice.order?._id || notice.order}`} onClick={opened} className="text-accent hover:underline">{notice.order?.number || 'Sales order'}</Link></>
           )}
-          {notice.customer?.name && <span className="font-normal text-steel-300"> · {notice.customer.name}</span>}
+          {notice.customer?.name && <span className="font-normal text-steel-300"> · <CustomerName name={notice.customer.name} /></span>}
         </p>
         <span className="text-xs text-steel-400">{notice.by?.name ? `${notice.by.name} · ` : ''}{formatDate(notice.at)}</span>
       </div>

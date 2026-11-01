@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Badge } from './ui.jsx';
 import { DRAG_TYPE, LabelDot, droppedIds } from './QueryLabelling.jsx';
 import { UNLABELLED, boardColumns, moveRequests } from '../utils/labelBoard.js';
+import CustomerName from './CustomerName.jsx';
 
 function Card({ row, column }) {
   return (
@@ -28,7 +29,7 @@ function Card({ row, column }) {
           </span>
         )}
       </div>
-      <p className="mt-1 truncate text-xs text-steel-400">{row.customer?.name || 'No customer'}</p>
+      <p className="mt-1 truncate text-xs text-steel-400"><CustomerName name={row.customer?.name} fallback="No customer" /></p>
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         {row.isUrgent && <Badge tone="danger">Urgent</Badge>}
         <Badge status={row.status} />

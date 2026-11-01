@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ConfirmPaymentDialog, NotInBankDialog } from './ConfirmPaymentDialog.jsx';
 import { formatCurrency, formatDate } from '../utils/format.js';
+import CustomerName from './CustomerName.jsx';
 
 /**
  * Accounts' own list on its desk [server: paymentGates `paymentsToConfirm`]: every payment
@@ -66,7 +67,7 @@ export default function PaymentsToConfirm({ rows = [], onChanged }) {
             {rows.map((row) => (
               <tr key={row.receipt._id} className="border-b border-line/[0.04] last:border-0">
                 <td className="px-3 py-2 tabular-nums text-steel-300">{formatDate(row.receipt.loggedAt)}</td>
-                <td className="px-3 py-2 text-steel-100">{row.customer?.name || '—'}</td>
+                <td className="px-3 py-2 text-steel-100"><CustomerName name={row.customer?.name} fallback="—" /></td>
                 <td className="px-3 py-2">{where(row)}</td>
                 <td className="px-3 py-2 text-right font-semibold tabular-nums text-steel-50">{formatCurrency(row.receipt.amount)}</td>
                 <td className="px-3 py-2 text-steel-300">{modeWords(row.receipt)}</td>
@@ -84,7 +85,7 @@ export default function PaymentsToConfirm({ rows = [], onChanged }) {
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-lg font-bold tabular-nums text-steel-50">{formatCurrency(row.receipt.amount)}</p>
-                <p className="truncate text-sm text-steel-300">{row.customer?.name || '—'}</p>
+                <p className="truncate text-sm text-steel-300"><CustomerName name={row.customer?.name} fallback="—" /></p>
               </div>
               <p className="text-right text-sm">{where(row)}</p>
             </div>

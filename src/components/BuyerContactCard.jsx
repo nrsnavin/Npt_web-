@@ -5,6 +5,7 @@ import { FormError, Modal, Notice, Section } from './ui.jsx';
 import { CustomerSelect } from './pickers.jsx';
 import { CustomerForm } from '../pages/Customers.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
+import CustomerName from './CustomerName.jsx';
 
 /* `+919840070001` read as a person would say it; anything not Indian shown as stored. */
 const phoneText = (phone) => {
@@ -92,8 +93,8 @@ export default function BuyerContactCard({ enquiry, canConvert, onConverted }) {
     <Section title="Contact card">
       <p className="-mt-1 mb-2 text-xs text-steel-400">
         {opensCustomer(customer)
-          ? <Link to={`/customers/${customer._id}`} className="font-semibold text-steel-200 hover:text-accent">{customer.name}</Link>
-          : <span className="font-semibold text-steel-200">{customer.name}</span>}
+          ? <Link to={`/customers/${customer._id}`} className="font-semibold text-steel-200 hover:text-accent"><CustomerName name={customer.name} /></Link>
+          : <span className="font-semibold text-steel-200"><CustomerName name={customer.name} /></span>}
         {customer.code ? ` · ${customer.code}` : ''}
       </p>
       <div className="space-y-2">

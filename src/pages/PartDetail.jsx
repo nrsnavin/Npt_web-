@@ -9,6 +9,7 @@ import {
 import PartForm, { KINDS } from '../components/PartForm.jsx';
 import PartStore from '../components/PartStore.jsx';
 import { formatDate, humanise } from '../utils/format.js';
+import CustomerName from '../components/CustomerName.jsx';
 
 /**
  * One hook, clip or print job, in full.
@@ -144,7 +145,7 @@ export default function PartDetail({ kind }) {
                           {row.number}
                         </Link>
                         <p className="text-xs text-steel-400">
-                          {row.customer?.name || 'No customer'}
+                          <CustomerName name={row.customer?.name} fallback="No customer" />
                           {(() => {
                             const named = (row.lines || []).filter((line) => [line.hookRef, line.clipRef, line.printRef].map(String).includes(String(part._id)));
                             return named.length ? ` · ${named.map((line) => line.modelNumber).filter(Boolean).join(', ')}` : '';

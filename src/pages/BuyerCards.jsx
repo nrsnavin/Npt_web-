@@ -13,6 +13,7 @@ import {
   CARD_STATUS, COLOUR_TYPES, KIND_LABEL, NEXT_STEPS, blankModel, cardProblem, itemsOf, modelName, modelsFrom, namesModel,
   nextStepOf, otherSuggestions, quantityOf, suggestWordsOf, todayIso, tomorrowIso, withoutStepFields,
 } from '../utils/buyerCards.js';
+import CustomerName from '../components/CustomerName.jsx';
 
 /**
  * Draft enquiries.
@@ -350,7 +351,7 @@ function CardEditor({ card, onDone }) {
         {card.status === 'confirmed' && card.enquiry && (
           <Notice tone="success">
             Saved as enquiry <Link className="font-semibold underline" to={`/enquiries/${card.enquiry._id}`}>{card.enquiry.number}</Link>
-            {card.customer ? <> for <Link className="font-semibold underline" to={`/customers/${card.customer._id}`}>{card.customer.name}</Link></> : ''}
+            {card.customer ? <> for <Link className="font-semibold underline" to={`/customers/${card.customer._id}`}><CustomerName name={card.customer.name} /></Link></> : ''}
             {card.decidedBy ? ` by ${card.decidedBy.name}` : ''}.
           </Notice>
         )}
