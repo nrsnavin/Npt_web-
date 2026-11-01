@@ -6,7 +6,7 @@ import { useToast } from '../context/ToastContext.jsx';
 import useCurrentLocation from '../hooks/useCurrentLocation.js';
 import usePreciseLocation from '../hooks/usePreciseLocation.js';
 import AttendanceCard from '../components/AttendanceCard.jsx';
-import { CheckInButton, gpsWords, visitStatusLabel } from '../components/FieldVisitButton.jsx';
+import { CheckInButton, CheckedInTimer, gpsWords, visitStatusLabel } from '../components/FieldVisitButton.jsx';
 import { Badge, DashboardSkeleton, ErrorState, Modal, Notice, PageHeader, Section } from '../components/ui.jsx';
 import { formatDate, isoDay } from '../utils/format.js';
 import { accuracyLabel, mapsUrl } from '../utils/maps.js';
@@ -258,7 +258,7 @@ function PlanForm({ config, onDone, onCancel }) {
         <label className="block text-xs text-steel-300">Day<input type="date" className="input mt-0.5" aria-label="Day" value={date} min={isoDay()} onChange={(event) => setDate(event.target.value)} required /></label>
         <label className="block text-xs text-steel-300">Time<input type="time" className="input mt-0.5" aria-label="Time" value={timeAt} onChange={(event) => setTimeAt(event.target.value)} /></label>
       </div>
-      <p className="text-xs text-steel-500">A visit for a buyer’s sample or payment is planned from its task — Needs visit on the queue or the card — so the task carries it.</p>
+      <p className="text-xs text-steel-500">A visit for a buyer’s sample or payment is planned from its task — Plan a visit on the queue or the card — so the task carries it.</p>
       <div className="flex justify-end gap-2">
         <button type="button" className="btn-secondary" onClick={onCancel} disabled={saving}>Cancel</button>
         <button type="submit" className="btn-primary" disabled={saving || !purpose.trim() || !assignee}>{saving ? 'Planning…' : 'Plan the visit'}</button>
@@ -417,7 +417,7 @@ export default function FieldDay() {
             <div>
               <p className="text-sm font-bold text-steel-50">Checked in at “{checkedIn.purpose}”</p>
               <p className="mt-0.5 text-xs text-steel-400">
-                Since {time(checkedIn.checkIn?.at)} · {minutes(checkedIn.checkIn?.at)} min
+                Since {time(checkedIn.checkIn?.at)} · <CheckedInTimer since={checkedIn.checkIn?.at} className="font-semibold text-steel-100" />
                 {checkedIn.checkIn?.place?.name ? ` · ${checkedIn.checkIn.place.name}` : ''}
                 {pings?.at ? ` · last fix ${time(pings.at)}${pings.distanceM != null ? `, ${pings.distanceM} m from where you checked in` : ''}` : ' · the phone sends your location every 5 minutes while this page is open'}
                 {pings?.failedAt && !pings?.at ? ' · the last fix could not be sent' : ''}
@@ -443,7 +443,7 @@ export default function FieldDay() {
       )}
 
       {marks.allowed && !checkedIn && visits.length + carried.length === 0 && (
-        <Notice tone="info">No visits planned for today. {mayPlan ? 'Plan one above, or ' : 'A visit for a buyer is planned from its task — '}Needs visit on the Sampling queue or the PRT card.</Notice>
+        <Notice tone="info">No visits planned for today. {mayPlan ? 'Plan one above, or ' : 'A visit for a buyer is planned from its task — '}Plan a visit on the Sampling queue or the PRT card.</Notice>
       )}
 
       {carried.length > 0 && (

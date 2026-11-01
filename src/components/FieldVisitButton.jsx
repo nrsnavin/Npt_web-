@@ -29,6 +29,33 @@ export const FIELD_TASK_KINDS = ['sample_request', 'prt_recovery', 'request_prt_
 const STATUS_WORDS = { planned: 'Visit planned', checked_in: 'Checked in', completed: 'Visited', not_completed: 'Not completed', rescheduled: 'Put off', cancelled: 'Cancelled' };
 export const visitStatusLabel = (status) => STATUS_WORDS[status] || status;
 
+/** Time since a moment, ticking every second — the clock on a check-in. */
+export const elapsedWords = (since, now = Date.now()) => {
+  const total = Math.max(0, Math.floor((now - new Date(since).getTime()) / 1000));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  return `${h ? `${h}h ` : ''}${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`;
+};
+export function useElapsed(since) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    if (!since) return undefined;
+    setNow(Date.now());
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [since]);
+  return since ? elapsedWords(since, now) : '';
+}
+export function CheckedInTimer({ since, className = '' }) {
+  const words = useElapsed(since);
+  if (!since) return null;
+  return <span className={`tabular-nums ${className}`} aria-live="off" title={`Checked in at ${timeOf(since)}`}>{words}</span>;
+}
+
+/** The open visit on a task, as the cards carry it [server: fieldVisit.service `fieldVisitSummary`]. */
+const summaryOfVisit = (visit) => (visit ? { _id: visit._id, status: visit.status, user: visit.user, date: visit.plannedDate, time: visit.plannedTime, checkInAt: visit.checkIn?.at || null } : null);
+
 /**
  * Check in at the gate: the precise fix [hooks/usePreciseLocation.js], then the visit is checked
  * into — the day starts if it has not, and the task gets the visit with its satellite picture.
@@ -186,7 +213,8 @@ export function PlanVisitForm({ taskId, onPlanned, onCancel, compact = true }) {
 }
 
 /**
- * Needs visit, on a Sampling queue row or a PRT card [SamplingWorkQueue, PaymentsHome]: plan the
+ * Plan a visit, on a Sampling queue row, a PRT card or a department task card [SamplingWorkQueue,
+ * PaymentsHome, DeskTables, DepartmentDashboard]: plan the
  * visit in two taps. Once planned, the row says so — and offers Check in to the person it is for;
  * checked in, it points to My field day, where the check-out asks what came of it.
  */
@@ -194,14 +222,21 @@ export default function NeedsVisitButton({ taskId, fieldVisit, className = '' })
   const { user } = useAuth();
   const [planning, setPlanning] = useState(false);
   const [current, setCurrent] = useState(fieldVisit || null);
-  useEffect(() => { setCurrent(fieldVisit || null); }, [fieldVisit]);
+  useEffect(() => { if (fieldVisit !== undefined) setCurrent(fieldVisit || null); }, [fieldVisit]);
+  /* A card that was not handed the open visit asks for it — the desk's PRT rows, the department cards. */
+  useEffect(() => {
+    if (fieldVisit !== undefined || !taskId) return undefined;
+    let live = true;
+    field.ofTask(taskId).then((rows) => { if (live) setCurrent(summaryOfVisit(rows.find((row) => ['planned', 'checked_in'].includes(row.status)))); }).catch(() => {});
+    return () => { live = false; };
+  }, [taskId, fieldVisit]);
   const me = String(user?.id || user?._id || '');
   const marks = user?.fieldVisit || {};
   if (!taskId) return null;
   if (current?.status === 'checked_in') {
     return (
       <p className={`text-xs text-aqua-300 ${className}`}>
-        Checked in{current.user?.name ? ` · ${current.user.name}` : ''} · <Link to="/field" className="text-accent hover:underline">check out on My field day</Link>
+        Checked in{current.user?.name ? ` · ${current.user.name}` : ''}{current.checkInAt ? <> · <CheckedInTimer since={current.checkInAt} className="font-semibold" /></> : null} · <Link to="/field" className="text-accent hover:underline">check out on My field day</Link>
       </p>
     );
   }
@@ -210,17 +245,17 @@ export default function NeedsVisitButton({ taskId, fieldVisit, className = '' })
     return (
       <div className={`space-y-1 ${className}`}>
         <p className="text-xs text-steel-300">Visit planned · {current.user?.name || 'someone'} · {formatDate(current.date)}{current.time ? ` ${current.time}` : ''}</p>
-        {mine && <CheckInButton visitId={current._id} onDone={(visit) => setCurrent({ _id: visit._id, status: visit.status, user: visit.user, date: visit.plannedDate, time: visit.plannedTime })} />}
+        {mine && <CheckInButton visitId={current._id} onDone={(visit) => setCurrent(summaryOfVisit(visit))} />}
       </div>
     );
   }
   if (!(marks.mayAssign || marks.maySelfPlan || user?.role === 'admin')) return null;
   if (planning) {
-    return <PlanVisitForm taskId={taskId} onPlanned={(visit) => { setCurrent({ _id: visit._id, status: visit.status, user: visit.user, date: visit.plannedDate, time: visit.plannedTime }); setPlanning(false); }} onCancel={() => setPlanning(false)} />;
+    return <PlanVisitForm taskId={taskId} onPlanned={(visit) => { setCurrent(summaryOfVisit(visit)); setPlanning(false); }} onCancel={() => setPlanning(false)} />;
   }
   return (
     <button type="button" className={`btn-secondary px-3 py-1.5 text-xs ${className}`} onClick={() => setPlanning(true)} aria-label="Plan a field visit for this task">
-      Needs visit
+      Plan a visit
     </button>
   );
 }
