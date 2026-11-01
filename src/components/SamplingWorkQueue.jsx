@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { QuickVisitButton } from './TaskVisits.jsx';
+import NeedsVisitButton from './FieldVisitButton.jsx';
 import { Link } from 'react-router-dom';
 import { documents as documentsApi, samples as samplesApi } from '../api/endpoints.js';
 import { useRecord } from '../hooks/useRecords.js';
@@ -570,6 +571,8 @@ export default function SamplingWorkQueue() {
                         )}
                         {/* At the buyer's place: one press records where and when, with a satellite picture, on the enquiry's Sampling task [server: taskVisit.service]. */}
                         {row.visit?.task && <QuickVisitButton taskId={row.visit.task} summary={row.visit} />}
+                        {/* Plan the delivery as a field visit — the day's list, check-in, check-out [server: fieldVisit.service]. */}
+                        {row.visit?.task && <NeedsVisitButton taskId={row.visit.task} fieldVisit={row.fieldVisit} />}
                       </div>
                     </td>
                   </tr>
@@ -601,6 +604,7 @@ export default function SamplingWorkQueue() {
                   )}
                 </div>
                 {row.visit?.task && <QuickVisitButton taskId={row.visit.task} summary={row.visit} />}
+                {row.visit?.task && <NeedsVisitButton taskId={row.visit.task} fieldVisit={row.fieldVisit} />}
                 <p className="text-xs text-steel-500">Assigned to {row.assignedTo?.name || 'Sampling Team'}</p>
               </article>
             ))}

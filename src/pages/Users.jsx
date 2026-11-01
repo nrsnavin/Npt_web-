@@ -171,6 +171,69 @@ function ProductionInCharge({ checked, onChange, disabled }) {
   );
 }
 
+/**
+ * Field visits [server: models/User.js `fieldVisit`]: Admin marks who goes out on visits (they see
+ * Field Duty Start and the visits planned for them), who plans visits for others — and for whom,
+ * from the people who go out — and who may plan their own. Saved as it is ticked; any mark grants
+ * the Field visits module. Admin holds every mark.
+ */
+function FieldVisitMarks({ user, onSaved }) {
+  const [marks, setMarks] = useState(user.fieldVisit || { allowed: false, mayAssign: false, assignTo: [], maySelfPlan: false });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  /* Everyone active, so the people who go out can be ticked whichever page of the list they are on. */
+  const [people, setPeople] = useState([]);
+  useEffect(() => {
+    let live = true;
+    usersApi.list({ isActive: true, limit: 200 }).then((list) => { if (live) setPeople(list.data || []); }).catch(() => {});
+    return () => { live = false; };
+  }, []);
+  useEffect(() => { setMarks(user.fieldVisit || { allowed: false, mayAssign: false, assignTo: [], maySelfPlan: false }); }, [user.fieldVisit]);
+  const save = async (next) => {
+    setBusy(true);
+    setError(null);
+    try {
+      const updated = await usersApi.update({ id: user.id, fieldVisit: next });
+      setMarks(updated.fieldVisit);
+      onSaved(updated);
+    } catch (saveError) {
+      setError(saveError.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const goers = (people || []).filter((row) => row.id !== user.id && row.fieldVisit?.allowed);
+  const toggleTo = (id) => save({ assignTo: marks.assignTo.includes(id) ? marks.assignTo.filter((entry) => entry !== id) : [...marks.assignTo, id] });
+  return (
+    <fieldset className="space-y-2 rounded-lg border border-line/[0.06] p-3 text-sm text-steel-200" disabled={busy}>
+      <legend className="px-1 text-xs font-semibold text-steel-400">Field visits</legend>
+      <label className="flex items-start gap-2">
+        <input type="checkbox" className="mt-0.5" checked={marks.allowed} onChange={(event) => save({ allowed: event.target.checked })} />
+        <span><span className="font-semibold text-steel-100">Goes out on field visits</span><span className="block text-xs text-steel-400">Sees Field Duty Start / End and the visits planned for them; checks in at each place with the phone. Their account then works on one device at a time.</span></span>
+      </label>
+      <label className="flex items-start gap-2">
+        <input type="checkbox" className="mt-0.5" checked={marks.maySelfPlan} onChange={(event) => save({ maySelfPlan: event.target.checked })} disabled={!marks.allowed} />
+        <span><span className="font-semibold text-steel-100">May plan their own visits</span><span className="block text-xs text-steel-400">The bank, a courier, a buyer — on their own day, without an assigner.</span></span>
+      </label>
+      <label className="flex items-start gap-2">
+        <input type="checkbox" className="mt-0.5" checked={marks.mayAssign} onChange={(event) => save({ mayAssign: event.target.checked })} />
+        <span><span className="font-semibold text-steel-100">May assign visits to others</span><span className="block text-xs text-steel-400">Plans visits onto the days of the people ticked below, and reads their day on Field today.</span></span>
+      </label>
+      {marks.mayAssign && (
+        <div className="ml-6 flex flex-wrap gap-2" aria-label="Can assign to">
+          {goers.length ? goers.map((row) => (
+            <label key={row.id} className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs ${marks.assignTo.includes(row.id) ? 'border-accent/50 bg-accent/10 text-steel-100' : 'border-line/10 text-steel-300'}`}>
+              <input type="checkbox" checked={marks.assignTo.includes(row.id)} onChange={() => toggleTo(row.id)} />
+              {row.name}
+            </label>
+          )) : <span className="text-xs text-steel-500">Nobody else is marked as going out yet.</span>}
+        </div>
+      )}
+      {error && <Notice tone="danger">{error}</Notice>}
+    </fieldset>
+  );
+}
+
 function UserForm({ catalogue, onClose, onSaved }) {
   const [grants, setGrants] = useState({});
   const [extras, setExtras] = useState([]);
@@ -386,6 +449,8 @@ function AccessForm({ user, catalogue, onClose, onSaved }) {
       </div>
 
       <ProductionInCharge checked={Boolean(saved.productionInCharge)} onChange={setInCharge} disabled={busy} />
+
+      {user.role !== 'admin' && <FieldVisitMarks user={saved} onSaved={(updated) => { setSaved(updated); setGrants(grantsToMap(updated.moduleAccess)); onSaved(updated); }} />}
 
       <AccessPicker modules={catalogue.modules} value={grants} onChange={setGrants} disabled={busy} />
 
@@ -640,6 +705,8 @@ export default function Users() {
                           {row.role === 'admin' ? 'Admin' : 'Member'}
                         </Badge>
                         {row.productionInCharge && <> <Badge tone="progress">Production in charge</Badge></>}
+                        {row.fieldVisit?.allowed && <> <Badge tone="neutral">Field</Badge></>}
+                        {row.fieldVisit?.mayAssign && <> <Badge tone="neutral">Assigns visits</Badge></>}
                       </td>
                       <td className="px-4 py-3.5">
                         {row.role === 'admin' ? (

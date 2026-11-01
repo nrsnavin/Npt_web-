@@ -168,6 +168,19 @@ const MODULES = [
       { to: '/trading', label: 'Trading master', module: 'materials' },
     ],
   },
+  /*
+   * Field visits [pages/FieldDay.jsx, FieldTeam.jsx]: for the people Admin marked — the grant comes
+   * with the mark. Field today is the assigners' and Admin's.
+   */
+  {
+    key: 'field_visits',
+    label: 'Field visits',
+    module: 'field_visits',
+    features: [
+      { to: '/field', label: 'My field day' },
+      { to: '/field/team', label: 'Field today', assigner: true },
+    ],
+  },
   {
     key: 'admin',
     label: 'Administration',
@@ -403,6 +416,8 @@ export default function Layout() {
   const readable = useMemo(() => {
     const mayOpen = (feature, entry) => {
       if (feature.admin && !isAdmin) return false;
+      /* Field today: Admin and whoever plans visits for others [server: models/User.js `fieldVisit.mayAssign`]. */
+      if (feature.assigner && !isAdmin && !user?.fieldVisit?.mayAssign) return false;
       /* A list means any one of them: the tool room reads the machines without the production grant. */
       const grant = feature.module ?? entry.module;
       return !grant || [].concat(grant).some(canRead);
@@ -417,7 +432,7 @@ export default function Layout() {
           children: (feature.children || []).filter((child) => mayOpen(child, entry)),
         })),
     })).filter((entry) => entry.features.length);
-  }, [canRead, isAdmin]);
+  }, [canRead, isAdmin, user?.fieldVisit?.mayAssign]);
 
   /*
    * The bar [the plant's own layout]: Dashboard · Enquiries · Department Tasks · Quotations ·
