@@ -2,6 +2,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import lazyPage from '../utils/lazyPage.js';
 import Dashboard from './Dashboard.jsx';
 import DepartmentTasks from '../components/DepartmentTasks.jsx';
+import AttendanceCard from '../components/AttendanceCard.jsx';
 
 const SampleHome = lazyPage(() => import('./SampleHome.jsx'));
 const ManagementHome = lazyPage(() => import('./ManagementHome.jsx'));
@@ -90,8 +91,10 @@ export default function Home() {
   const own = HOME_BY_DEPARTMENT[user?.department];
 
   /* What other departments have sent this one comes first, whichever home follows. */
+  /* The day's attendance first — Punch in, or Field duty for the people who go out [components/AttendanceCard.jsx]. */
   return (
     <>
+      <div className="mx-auto mb-4 max-w-7xl"><AttendanceCard compact /></div>
       <DepartmentTasks />
       {own ? own() : <Dashboard />}
     </>

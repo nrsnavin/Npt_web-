@@ -7,6 +7,7 @@ import TaskEdd from './TaskEdd.jsx';
 import DeliveryUrgencyPrompt from './DeliveryUrgencyPrompt.jsx';
 import SalesOrderDraft from './SalesOrderDraft.jsx';
 import TaskVisits from './TaskVisits.jsx';
+import TaskFieldVisits from './TaskFieldVisits.jsx';
 import { Modal, Notice } from './ui.jsx';
 import { TaskFacts, TaskTimeline } from './TaskHistory.jsx';
 import { buttonFor, useHandoffCatalogue } from '../hooks/useHandoffCatalogue.js';
@@ -78,6 +79,8 @@ export default function TaskPanel({ task, startWith, mayWork, onClose, onChanged
         )}
         {/* Sampling's and the payment teams' visits to the buyer's place: Record location, and the visits so far [server: taskVisit.service]. */}
         <TaskVisits todo={task} mayWork={mayWork} />
+        {/* The field visits planned on the task — Needs visit, Check in — and how each went [server: fieldVisit.service]. */}
+        <TaskFieldVisits todo={task} />
 
         {/* The rule's proposal on a collection case — the collector or Admin presses Escalated to PRT, or not. */}
         {!task.completed && task.suggestion?.kind === 'escalate_prt' && (

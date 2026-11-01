@@ -47,6 +47,8 @@ const DepartmentDashboard = lazyPage(() => import('./pages/DepartmentDashboard.j
 const DepartmentsOverview = lazyPage(() => import('./pages/DepartmentsOverview.jsx'));
 const DepartmentTasks = lazyPage(() => import('./pages/DepartmentTasks.jsx'));
 const TeamJobs = lazyPage(() => import('./pages/TeamJobs.jsx'));
+const FieldDay = lazyPage(() => import('./pages/FieldDay.jsx'));
+const FieldTeam = lazyPage(() => import('./pages/FieldTeam.jsx'));
 const TeamJobDetail = lazyPage(() => import('./pages/TeamJobDetail.jsx'));
 const Quotations = lazyPage(() => import('./pages/Quotations.jsx'));
 const SentQuotations = lazyPage(() => import('./pages/SentQuotations.jsx'));
@@ -227,6 +229,9 @@ export default function App() {
           {/* The tasks Admin and marketing gave with no enquiry — each read like an enquiry. */}
           <Route path="team-jobs" element={<TeamJobs />} />
           <Route path="team-jobs/:id" element={<TeamJobDetail />} />
+          {/* Field visits: the person's own day, and the day's report for Admin and whoever plans visits for others [server: fieldVisit.service]. */}
+          <Route path="field" element={<FieldDay />} />
+          <Route path="field/team" element={<FieldTeam />} />
 
           {/* Phase 1: the pipeline that runs from a customer to an enquiry. */}
           {/* "Dashboard" is everyone's one screen: their department's enquiries and all they may see. */}

@@ -237,6 +237,28 @@ export const workspace = {
 };
 
 /** Admin-only user administration. Gated server-side on the users module. */
+/**
+ * Field visits [server: services/fieldVisit.service.js]: the day (office punch, field duty, lunch),
+ * the visits planned for a person, check-in with the fix, a fix every five minutes while there,
+ * check-out with the outcome, and Field today for Admin and whoever plans visits for others.
+ */
+export const field = {
+  me: (params) => api.get('/field/me', { params }).then(unwrap),
+  day: (params) => api.get('/field/day', { params }).then(unwrap),
+  team: (params) => api.get('/field/team', { params }).then(unwrap),
+  act: (payload) => api.post('/field/day', payload).then(unwrap),
+  ofTask: (taskId) => api.get(`/field/tasks/${taskId}`).then(unwrap),
+  plan: (payload) => api.post('/field/visits', payload).then(unwrap),
+  late: (payload) => api.post('/field/visits/late', payload).then(unwrap),
+  get: (id) => api.get(`/field/visits/${id}`).then(unwrap),
+  edit: ({ id, ...payload }) => api.patch(`/field/visits/${id}`, payload).then(unwrap),
+  settle: ({ id, ...payload }) => api.post(`/field/visits/${id}/settle`, payload).then(unwrap),
+  checkIn: ({ id, ...payload }) => api.post(`/field/visits/${id}/check-in`, payload).then(unwrap),
+  ping: ({ id, fix }) => api.post(`/field/visits/${id}/ping`, { fix }, { feedback: false }).then(unwrap),
+  checkOut: ({ id, ...payload }) => api.post(`/field/visits/${id}/check-out`, payload).then(unwrap),
+  times: ({ id, ...payload }) => api.post(`/field/visits/${id}/times`, payload).then(unwrap),
+};
+
 export const users = {
   catalogue: () => api.get('/users/catalogue').then(unwrap),
   list: (params) => api.get('/users', { params }).then((response) => response.data),

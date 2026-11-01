@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { payments as paymentsApi } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { QuickVisitButton } from '../components/TaskVisits.jsx';
+import NeedsVisitButton from '../components/FieldVisitButton.jsx';
 import { ErrorState, PageHeader, Spinner } from '../components/ui.jsx';
 import FollowUpForm from '../components/FollowUp.jsx';
 import EscalationFeed from '../components/EscalationFeed.jsx';
@@ -300,6 +301,8 @@ function CaseRow({ row }) {
         <p className="mt-1 text-xs font-semibold text-warn-400">Escalate to PRT? {row.suggestion.reason}</p>
       )}
       {mayVisit && <QuickVisitButton taskId={row._id} summary={row.visit} className="mt-2" />}
+      {/* The collection call as a field visit: planned onto the collector's day, checked into at the gate, checked out with what was collected [server: fieldVisit.service]. */}
+      {row.kind === 'prt_recovery' && <NeedsVisitButton taskId={row._id} fieldVisit={row.fieldVisit} className="mt-2" />}
     </li>
   );
 }

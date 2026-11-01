@@ -54,7 +54,7 @@ function useVisitRecorder(taskId, { note, onRecorded } = {}) {
 }
 
 /** What the phone is doing while it looks, and the choice when it could not get close enough. */
-function Precision({ recorder, compact = false }) {
+export function Precision({ recorder, compact = false }) {
   const { status, best, fix, message, targetM, locate, accept, reset } = recorder;
   if (status === 'locating') {
     return (
@@ -82,7 +82,7 @@ function Precision({ recorder, compact = false }) {
   return null;
 }
 
-const pressLabel = (recorder, idle) => (recorder.saving ? 'Recording…'
+export const pressLabel = (recorder, idle) => (recorder.saving ? 'Recording…'
   : recorder.status === 'locating' ? (recorder.best ? `Locating… ${accuracyLabel(recorder.best.accuracyM)}` : 'Locating…')
     : idle);
 
