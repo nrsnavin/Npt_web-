@@ -10,6 +10,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { barItems } from '../src/config/topBar.js';
 
 const read = (path) => readFileSync(new URL(`../src/${path}`, import.meta.url), 'utf8');
 const day = read('pages/FieldDay.jsx');
@@ -91,4 +92,18 @@ test('the plan and the outcome read on the enquiry, the team job and the task pa
   assert.match(day, /The money is logged on the buyer’s task for Accounts to confirm; a cheque reads Cheque Collected, cash or a transfer reads Payment Received\./);
   assert.match(day, /The sample is recorded as handed over and the Sample Request closes\./);
   assert.match(day, /the next follow-up moves to the day you give\./);
+});
+
+test('My field day on every header bar, right after Dashboard — the office’s punch, the field’s visits — with Field today beside it for Admin and the assigners', () => {
+  const dashboard = [{ key: 'dashboard', label: 'Dashboard', features: [{ to: '/departments/mine', label: 'Dashboard' }] }];
+  const field = [{ key: 'field_visits', label: 'Field visits', features: [{ to: '/field', label: 'My field day' }, { to: '/field/team', label: 'Field today' }] }];
+  const office = barItems(dashboard, ['dashboard'], { short: true, fieldDay: true });
+  assert.deepEqual(office.map((item) => item.label).slice(0, 2), ['My work', 'My field day'], 'everyone, on the short bar too');
+  assert.deepEqual(office[1].features.map((row) => row.to), ['/field'], 'the office sees its own day only');
+  const assigner = barItems([...dashboard, ...field], [], { fieldDay: true, fieldTeam: true });
+  assert.deepEqual(assigner[1].features.map((row) => row.label), ['My field day', 'Field today']);
+  assert.ok(!assigner.some((item) => item.key === 'more'), 'the module’s screens are on the bar, not repeated under More');
+  assert.ok(!barItems(dashboard).some((item) => item.key === 'field'), 'off unless asked, as the tests of the bar expect');
+  const layout = read('components/Layout.jsx');
+  assert.match(layout, /fieldDay: Boolean\(user\), fieldTeam: isAdmin \|\| Boolean\(user\?\.fieldVisit\?\.mayAssign\)/);
 });

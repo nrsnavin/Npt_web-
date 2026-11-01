@@ -441,8 +441,9 @@ export default function Layout() {
   /* The Production in charge gets the floor — planning board and presses — on the bar [topBar `PRODUCTION_FLOOR`], while Admin has floor planning on. */
   const productionFloor = user?.productionInCharge === true && canRead('production') && floorPlanning;
   const items = useMemo(
-    () => barItems(readable, simpleNavFor(departments, { isAdmin }) || [], { short: usesShortBar(departments, { isAdmin }), productionFloor }),
-    [readable, departments, isAdmin, productionFloor],
+    /* My field day for everyone; Field today beside it for Admin and whoever plans visits for others [topBar FIELD_DAY]. */
+    () => barItems(readable, simpleNavFor(departments, { isAdmin }) || [], { short: usesShortBar(departments, { isAdmin }), productionFloor, fieldDay: Boolean(user), fieldTeam: isAdmin || Boolean(user?.fieldVisit?.mayAssign) }),
+    [readable, departments, isAdmin, productionFloor, user],
   );
   const lit = litItem(location.pathname, items);
 
