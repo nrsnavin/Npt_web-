@@ -254,7 +254,7 @@ export const field = {
   edit: ({ id, ...payload }) => api.patch(`/field/visits/${id}`, payload).then(unwrap),
   settle: ({ id, ...payload }) => api.post(`/field/visits/${id}/settle`, payload).then(unwrap),
   checkIn: ({ id, ...payload }) => api.post(`/field/visits/${id}/check-in`, payload).then(unwrap),
-  ping: ({ id, fix }) => api.post(`/field/visits/${id}/ping`, { fix }, { feedback: false }).then(unwrap),
+  ping: ({ id, fix, recheck }) => api.post(`/field/visits/${id}/ping`, { fix, ...(recheck ? { recheck: true } : {}) }, { feedback: false }).then(unwrap),
   checkOut: ({ id, ...payload }) => api.post(`/field/visits/${id}/check-out`, payload).then(unwrap),
   times: ({ id, ...payload }) => api.post(`/field/visits/${id}/times`, payload).then(unwrap),
 };

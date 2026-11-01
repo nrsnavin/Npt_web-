@@ -4,6 +4,7 @@ import { field } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import useCurrentLocation from '../hooks/useCurrentLocation.js';
+import usePreciseLocation from '../hooks/usePreciseLocation.js';
 import AttendanceCard from '../components/AttendanceCard.jsx';
 import { CheckInButton, visitStatusLabel } from '../components/FieldVisitButton.jsx';
 import { Badge, DashboardSkeleton, ErrorState, Modal, Notice, PageHeader, Section } from '../components/ui.jsx';
@@ -27,24 +28,40 @@ const minutes = (from, to = new Date()) => Math.max(0, Math.round((new Date(to) 
 const message = (failure) => failure?.response?.data?.message || failure.message;
 const TONE = { planned: 'neutral', checked_in: 'progress', completed: 'success', not_completed: 'warn', rescheduled: 'neutral', cancelled: 'neutral' };
 
-/** The phone's fix every five minutes while checked in, and whenever the page comes back to the front. */
-function useStayPings(visit, everyMs) {
+/**
+ * The phone's fix every five minutes while checked in, and whenever the page comes back to the
+ * front. A fix that strays [server: fieldVisit.service `ping`] comes back as a discrepancy: the
+ * person is told what the phone said and may re-check the GPS on the spot — a precise fix, sent
+ * as a re-check, confirms the place. At the server's limit of strikes Admin has been told.
+ */
+function useStayPings(visit, everyMs, { warn } = {}) {
   const [last, setLast] = useState(null);
+  const [discrepancy, setDiscrepancy] = useState(null);
   const sending = useRef(false);
+  const precise = usePreciseLocation();
+  const took = useCallback((answer) => {
+    setLast({ at: new Date(), distanceM: answer.distanceM, flags: answer.flags, count: answer.pings, strikes: answer.strikes, limit: answer.limit });
+    if (answer.discrepancy) {
+      setDiscrepancy(answer.discrepancy);
+      warn?.('Your location looks off', `${answer.discrepancy.detail} — strike ${answer.discrepancy.strikes} of ${answer.discrepancy.limit}. If you are still at the place, re-check the GPS now.`);
+    } else if (answer.confirmed) {
+      setDiscrepancy(null);
+    }
+  }, [warn]);
   const send = useCallback(() => {
     if (!visit?._id || sending.current || typeof navigator === 'undefined' || !('geolocation' in navigator)) return;
     sending.current = true;
     navigator.geolocation.getCurrentPosition(
       (position) => {
         field.ping({ id: visit._id, fix: { lat: position.coords.latitude, lng: position.coords.longitude, accuracyM: position.coords.accuracy, capturedAt: new Date(position.timestamp || Date.now()).toISOString() } })
-          .then((answer) => setLast({ at: new Date(), distanceM: answer.distanceM, flags: answer.flags, count: answer.pings }))
+          .then(took)
           .catch(() => setLast((current) => ({ ...(current || {}), failedAt: new Date() })))
           .finally(() => { sending.current = false; });
       },
       () => { sending.current = false; setLast((current) => ({ ...(current || {}), failedAt: new Date(), noFix: true })); },
       { enableHighAccuracy: true, maximumAge: 60_000, timeout: 30_000 },
     );
-  }, [visit?._id]);
+  }, [visit?._id, took]);
   useEffect(() => {
     if (!visit?._id) return undefined;
     const timer = setInterval(send, everyMs || 5 * 60_000);
@@ -52,7 +69,19 @@ function useStayPings(visit, everyMs) {
     document.addEventListener('visibilitychange', onShow);
     return () => { clearInterval(timer); document.removeEventListener('visibilitychange', onShow); };
   }, [visit?._id, everyMs, send]);
-  return last;
+  /* The re-check: a precise fix, never a cached one, sent as such. */
+  const { status, fix, reset } = precise;
+  const [rechecking, setRechecking] = useState(false);
+  useEffect(() => {
+    if (status !== 'ready' || !fix || !visit?._id || rechecking) return;
+    setRechecking(true);
+    field.ping({ id: visit._id, fix, recheck: true })
+      .then((answer) => { took(answer); if (answer.confirmed) warn?.('Location confirmed', 'You are at the place — the earlier fix was the phone’s.'); })
+      .catch(() => {})
+      .finally(() => { setRechecking(false); reset(); });
+  }, [status, fix, visit?._id, rechecking, took, warn, reset]);
+  useEffect(() => { setDiscrepancy(visit?.tracking?.pendingRecheck ? { ...(visit.tracking.lastDiscrepancy || {}), strikes: visit.tracking.strikes, suspect: Boolean(visit.tracking.suspectAt) } : null); }, [visit?._id, visit?.tracking?.pendingRecheck, visit?.tracking?.strikes, visit?.tracking?.lastDiscrepancy, visit?.tracking?.suspectAt]);
+  return { last, discrepancy, recheck: precise.locate, rechecking: rechecking || status === 'locating', precise };
 }
 
 /** What came of the visit — the category's outcomes and the details each one needs [config/fieldVisits.js]. */
@@ -354,7 +383,8 @@ export default function FieldDay() {
   const [dialog, setDialog] = useState(null);
   const load = useCallback(() => field.me().then((mine) => { setData(mine); setError(null); }).catch(setError), []);
   useEffect(() => { load(); }, [load]);
-  const pings = useStayPings(data?.checkedIn, data?.rules?.pingEveryMs);
+  const { toast, warn } = useToast();
+  const { last: pings, discrepancy, recheck, rechecking, precise } = useStayPings(data?.checkedIn, data?.rules?.pingEveryMs, { warn: (title, body) => (title === 'Location confirmed' ? toast(title, body) : warn(title, body)) });
   if (error) return <ErrorState error={error} onRetry={load} />;
   if (!data) return <DashboardSkeleton label="Loading your field day" tiles={2} />;
   const { marks, checkedIn, visits, carried, people } = data;
@@ -390,6 +420,18 @@ export default function FieldDay() {
             </div>
             <button type="button" className="btn-primary" onClick={() => setDialog({ kind: 'out', visit: checkedIn })}>Check out</button>
           </div>
+          {/* A fix that strayed: what the phone said, and the re-check on the spot [server: fieldVisit.service `ping`]. */}
+          {discrepancy && (
+            <div className="mt-3 rounded-lg border border-warn-500/40 bg-warn-500/10 p-3 text-sm text-warn-400" role="alert" aria-label="GPS discrepancy">
+              <p className="font-semibold">Your location looks off — {discrepancy.detail}{discrepancy.strikes ? ` (strike ${discrepancy.strikes} of ${discrepancy.limit || data.rules?.suspectStrikes || 5})` : ''}.</p>
+              <p className="mt-0.5 text-xs">If you are still at the place, stand in the open and re-check the GPS now. {discrepancy.suspect ? 'Admin and whoever planned this visit have been told something is wrong with it.' : 'Repeated strays bring the visit to Admin’s notice.'}</p>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <button type="button" className="btn-primary px-3 py-1.5 text-xs" onClick={recheck} disabled={rechecking}>{rechecking ? 'Checking the GPS…' : 'Re-check GPS now'}</button>
+                {precise.status === 'rough' && <button type="button" className="btn-secondary px-3 py-1.5 text-xs" onClick={precise.accept}>Send it anyway ({accuracyLabel(precise.fix.accuracyM)})</button>}
+                {precise.status === 'locating' && precise.best && <span className="text-xs">{accuracyLabel(precise.best.accuracyM)} so far…</span>}
+              </div>
+            </div>
+          )}
         </section>
       )}
 

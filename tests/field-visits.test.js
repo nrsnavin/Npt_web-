@@ -57,7 +57,7 @@ test('Needs visit on the Sampling queue row and card and on the PRT card: planne
   assert.equal((queue.match(/<NeedsVisitButton taskId=\{row\.visit\.task\} fieldVisit=\{row\.fieldVisit\} \/>/g) || []).length, 2, 'the table row and the phone card');
   assert.match(read('pages/PaymentsHome.jsx'), /\{row\.kind === 'prt_recovery' && <NeedsVisitButton taskId=\{row\._id\} fieldVisit=\{row\.fieldVisit\} className="mt-2" \/>\}/);
   assert.match(read('components/TaskPanel.jsx'), /<TaskFieldVisits todo=\{task\} \/>/, 'and on the task’s panel');
-  assert.match(read('api/endpoints.js'), /ping: \(\{ id, fix \}\) => api\.post\(`\/field\/visits\/\$\{id\}\/ping`, \{ fix \}, \{ feedback: false \}\)\.then\(unwrap\)/);
+  assert.match(read('api/endpoints.js'), /ping: \(\{ id, fix, recheck \}\) => api\.post\(`\/field\/visits\/\$\{id\}\/ping`, \{ fix, \.\.\.\(recheck \? \{ recheck: true \} : \{\}\) \}, \{ feedback: false \}\)\.then\(unwrap\)/);
 });
 
 test('Field today for Admin and the assigners: one row a person with the day’s numbers and flags; Admin corrects times with why', () => {
@@ -106,4 +106,16 @@ test('My field day on every header bar, right after Dashboard — the office’s
   assert.ok(!barItems(dashboard).some((item) => item.key === 'field'), 'off unless asked, as the tests of the bar expect');
   const layout = read('components/Layout.jsx');
   assert.match(layout, /fieldDay: Boolean\(user\), fieldTeam: isAdmin \|\| Boolean\(user\?\.fieldVisit\?\.mayAssign\)/);
+});
+
+test('a fix that strays: the person is told and re-checks the GPS on the spot; at the limit Admin and the planner see it on Field today and under Needs your action', () => {
+  assert.match(day, /warn\?\.\('Your location looks off', `\$\{answer\.discrepancy\.detail\} — strike \$\{answer\.discrepancy\.strikes\} of \$\{answer\.discrepancy\.limit\}\. If you are still at the place, re-check the GPS now\.`\);/);
+  assert.match(day, /field\.ping\(\{ id: visit\._id, fix, recheck: true \}\)/, 'a precise fix, sent as a re-check');
+  assert.match(day, /onClick=\{recheck\} disabled=\{rechecking\}>\{rechecking \? 'Checking the GPS…' : 'Re-check GPS now'\}<\/button>/);
+  assert.match(day, /Admin and whoever planned this visit have been told something is wrong with it\./);
+  assert.match(read('api/endpoints.js'), /ping: \(\{ id, fix, recheck \}\) => api\.post\(`\/field\/visits\/\$\{id\}\/ping`, \{ fix, \.\.\.\(recheck \? \{ recheck: true \} : \{\}\) \}/);
+  assert.match(team, /Something wrong in a field visit — look at these:/);
+  assert.match(team, /the GPS strayed \{visit\.strikes\} times/);
+  assert.match(team, /<Badge tone="danger">Something wrong · \{row\.suspects\.length\}<\/Badge>/);
+  assert.match(read('components/AttentionPanel.jsx'), /<Link to=\{notice\.link\} onClick=\{opened\} className="text-accent hover:underline">Open<\/Link>/, 'the notice opens Field today');
 });
