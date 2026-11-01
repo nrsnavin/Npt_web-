@@ -197,6 +197,24 @@
     border-color: var(--field-border-hover);
   }
 
+  /*
+   * Date and time fields on iPhones: Safari gives them their own width — wider than a grid cell
+   * when filled, a small pill when empty — so they spilled off the screen beside each other.
+   * Pinned to the field like any other input, with a left-aligned face and no shrinking.
+   */
+  input[type='date'].input,
+  input[type='time'].input,
+  input[type='datetime-local'].input {
+    @apply block min-w-0 appearance-none text-left;
+    -webkit-appearance: none;
+    -webkit-min-logical-width: 0;
+  }
+  input[type='date'].input::-webkit-date-and-time-value,
+  input[type='time'].input::-webkit-date-and-time-value,
+  input[type='datetime-local'].input::-webkit-date-and-time-value {
+    @apply min-h-6 text-left;
+  }
+
   /* Segmented control: the track recedes, the selected segment lifts off it. */
   .tab-track {
     @apply grid gap-1 rounded-lg border border-line/[0.06] p-1;

@@ -193,7 +193,7 @@ export function PlanVisitForm({ taskId, onPlanned, onCancel, compact = true }) {
           {(people || []).map((person) => <option key={person._id} value={person._id}>{person.self ? `${person.name} (me)` : person.name}</option>)}
         </select>
       </label>
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <label className="block text-xs text-steel-300">
           Day
           <input type="date" className="input mt-0.5" aria-label="Day of the visit" value={date} min={isoDay()} onChange={(event) => setDate(event.target.value)} required />

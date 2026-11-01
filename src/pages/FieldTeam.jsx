@@ -46,9 +46,9 @@ function TimesForm({ visit, onDone, onCancel }) {
   return (
     <form onSubmit={submit} className="space-y-3" aria-label="Correct the visit’s times">
       <p className="text-sm text-steel-300">{visit.purpose} · {visit.user?.name}</p>
-      <div className="grid grid-cols-2 gap-2">
-        <label className="block text-xs text-steel-300">Checked in<input type="datetime-local" className="input mt-0.5" aria-label="Checked in at" value={inAt} onChange={(event) => setInAt(event.target.value)} required /></label>
-        <label className="block text-xs text-steel-300">Checked out<input type="datetime-local" className="input mt-0.5" aria-label="Checked out at" value={outAt} onChange={(event) => setOutAt(event.target.value)} /></label>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <label className="block min-w-0 text-xs text-steel-300">Checked in<input type="datetime-local" className="input mt-0.5" aria-label="Checked in at" value={inAt} onChange={(event) => setInAt(event.target.value)} required /></label>
+        <label className="block min-w-0 text-xs text-steel-300">Checked out<input type="datetime-local" className="input mt-0.5" aria-label="Checked out at" value={outAt} onChange={(event) => setOutAt(event.target.value)} /></label>
       </div>
       <label className="block text-xs text-steel-300">Why<input className="input mt-0.5" aria-label="Why the times change" value={reason} onChange={(event) => setReason(event.target.value)} required minLength={5} maxLength={500} /></label>
       <p className="text-xs text-steel-500">Corrected times are marked “edited by Admin” and read as not GPS verified; the history keeps what they were.</p>

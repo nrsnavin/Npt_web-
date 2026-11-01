@@ -146,3 +146,14 @@ test('Plan a visit on the PRT desk row and the department task card too — the 
   assert.match(day, /Since \{time\(checkedIn\.checkIn\?\.at\)\} · <CheckedInTimer since=\{checkedIn\.checkIn\?\.at\} className="font-semibold text-steel-100" \/>/, 'and on My field day');
   assert.match(button, /return `\$\{h \? `\$\{h\}h ` : ''\}\$\{String\(m\)\.padStart\(2, '0'\)\}m \$\{String\(s\)\.padStart\(2, '0'\)\}s`;/, 'hours, minutes, seconds');
 });
+
+test('on a phone the date and time fields stack and never spill: Safari’s own-width date inputs are pinned to the field', () => {
+  const css = read('index.css');
+  assert.match(css, /input\[type='datetime-local'\]\.input \{\s*@apply block min-w-0 appearance-none text-left;/);
+  assert.match(css, /::-webkit-date-and-time-value \{\s*@apply min-h-6 text-left;/, 'an empty field keeps its height');
+  for (const file of ['pages/FieldDay.jsx', 'pages/FieldTeam.jsx', 'components/FieldVisitButton.jsx']) {
+    assert.doesNotMatch(read(file), /grid grid-cols-2 gap-2/, `${file}: two columns only from small screens up`);
+    assert.match(read(file), /grid grid-cols-1 gap-2 sm:grid-cols-2/);
+  }
+  assert.match(day, /<label className="block min-w-0 text-xs text-steel-300">Left<input type="datetime-local" className="input mt-0\.5" aria-label="Left at" value=\{outAt\} max=\{local\(new Date\(\)\)\}/, 'a cell may shrink; the moment is not in the future');
+});
