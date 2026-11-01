@@ -135,3 +135,25 @@ test('when the phone cannot get under 10 m: within 50 m is approximate and quiet
   for (const file of ['components/FieldVisitList.jsx', 'pages/FieldTeam.jsx', 'pages/FieldDay.jsx']) assert.match(read(file), /\$\{gpsWords\(visit\.checkIn\)\}/, `${file} says how the GPS read`);
   assert.match(team, /fixes too poor to judge/);
 });
+
+test('Plan a visit on the PRT desk row and the department task card too — the card asks for the open visit itself — and a clock runs from the check-in', () => {
+  assert.match(button, /field\.ofTask\(taskId\)\.then\(\(rows\) => \{ if \(live\) setCurrent\(summaryOfVisit\(rows\.find\(\(row\) => \['planned', 'checked_in'\]\.includes\(row\.status\)\)\)\); \}\)/, 'a card not handed the visit asks for it');
+  assert.match(button, />\s*Plan a visit\s*<\/button>/);
+  assert.match(button, /const timer = setInterval\(\(\) => setNow\(Date\.now\(\)\), 1000\);/, 'ticking every second');
+  assert.match(button, /\{current\.checkInAt \? <> · <CheckedInTimer since=\{current\.checkInAt\} className="font-semibold" \/><\/> : null\}/, 'the clock on the card while checked in');
+  assert.match(read('components/DeskTables.jsx'), /<NeedsVisitButton taskId=\{task\._id\} className="mt-1\.5" \/>/);
+  assert.match(read('pages/DepartmentDashboard.jsx'), /\{FIELD_TASK_KINDS\.includes\(task\.kind\) && <NeedsVisitButton taskId=\{task\._id\} \/>\}/);
+  assert.match(day, /Since \{time\(checkedIn\.checkIn\?\.at\)\} · <CheckedInTimer since=\{checkedIn\.checkIn\?\.at\} className="font-semibold text-steel-100" \/>/, 'and on My field day');
+  assert.match(button, /return `\$\{h \? `\$\{h\}h ` : ''\}\$\{String\(m\)\.padStart\(2, '0'\)\}m \$\{String\(s\)\.padStart\(2, '0'\)\}s`;/, 'hours, minutes, seconds');
+});
+
+test('on a phone the date and time fields stack and never spill: Safari’s own-width date inputs are pinned to the field', () => {
+  const css = read('index.css');
+  assert.match(css, /input\[type='datetime-local'\]\.input \{\s*@apply block min-w-0 appearance-none text-left;/);
+  assert.match(css, /::-webkit-date-and-time-value \{\s*@apply min-h-6 text-left;/, 'an empty field keeps its height');
+  for (const file of ['pages/FieldDay.jsx', 'pages/FieldTeam.jsx', 'components/FieldVisitButton.jsx']) {
+    assert.doesNotMatch(read(file), /grid grid-cols-2 gap-2/, `${file}: two columns only from small screens up`);
+    assert.match(read(file), /grid grid-cols-1 gap-2 sm:grid-cols-2/);
+  }
+  assert.match(day, /<label className="block min-w-0 text-xs text-steel-300">Left<input type="datetime-local" className="input mt-0\.5" aria-label="Left at" value=\{outAt\} max=\{local\(new Date\(\)\)\}/, 'a cell may shrink; the moment is not in the future');
+});

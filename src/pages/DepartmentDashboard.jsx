@@ -9,6 +9,7 @@ import { TaskFacts } from '../components/TaskHistory.jsx';
 import TaskWorkflow from '../components/TaskWorkflow.jsx';
 import TaskEdd from '../components/TaskEdd.jsx';
 import { QuickVisitButton, VISIT_KINDS, summaryOf } from '../components/TaskVisits.jsx';
+import NeedsVisitButton, { FIELD_TASK_KINDS } from '../components/FieldVisitButton.jsx';
 import AttentionPanel from '../components/AttentionPanel.jsx';
 import DepartmentTaskDialog from '../components/DepartmentTaskDialog.jsx';
 import TripPlanner from '../components/TripPlanner.jsx';
@@ -237,6 +238,8 @@ function EnquiryCard({ row, department, me, onChanged, query = false }) {
       </div>
       {/* PRT, Payment Collection and Sampling at the buyer's place: one press records where and when, with a satellite picture [server: taskVisit.service]. */}
       {VISIT_KINDS.includes(task.kind) && <QuickVisitButton taskId={task._id} summary={summaryOf(task)} />}
+      {/* The field visit on the task — planned from the card, checked into from it, its clock running [server: fieldVisit.service]. */}
+      {FIELD_TASK_KINDS.includes(task.kind) && <NeedsVisitButton taskId={task._id} />}
       {/* The EDD: asked for on Production's, Assembly's and Printing's tasks until it is given; read on Dispatch's. */}
       <TaskEdd todo={task} mayAct onChanged={onChanged} />
       {/* The department's own workflow on the task, where it has one (the SO team's statuses). */}

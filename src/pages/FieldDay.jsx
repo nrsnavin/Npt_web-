@@ -6,7 +6,7 @@ import { useToast } from '../context/ToastContext.jsx';
 import useCurrentLocation from '../hooks/useCurrentLocation.js';
 import usePreciseLocation from '../hooks/usePreciseLocation.js';
 import AttendanceCard from '../components/AttendanceCard.jsx';
-import { CheckInButton, gpsWords, visitStatusLabel } from '../components/FieldVisitButton.jsx';
+import { CheckInButton, CheckedInTimer, gpsWords, visitStatusLabel } from '../components/FieldVisitButton.jsx';
 import { Badge, DashboardSkeleton, ErrorState, Modal, Notice, PageHeader, Section } from '../components/ui.jsx';
 import { formatDate, isoDay } from '../utils/format.js';
 import { accuracyLabel, mapsUrl } from '../utils/maps.js';
@@ -27,6 +27,8 @@ const time = (value) => (value ? new Date(value).toLocaleTimeString('en-IN', { t
 const minutes = (from, to = new Date()) => Math.max(0, Math.round((new Date(to) - new Date(from)) / 60_000));
 const message = (failure) => failure?.response?.data?.message || failure.message;
 const TONE = { planned: 'neutral', checked_in: 'progress', completed: 'success', not_completed: 'warn', rescheduled: 'neutral', cancelled: 'neutral' };
+/* A moment as a datetime-local field reads it, in the phone's own time zone. */
+const local = (value) => new Date(new Date(value).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 
 /**
  * The phone's fix every five minutes while checked in, and whenever the page comes back to the
@@ -254,11 +256,11 @@ function PlanForm({ config, onDone, onCancel }) {
       <label className="block text-xs text-steel-300">What for
         <input className="input mt-0.5" aria-label="What the visit is for" placeholder="Cash withdrawal — SBI Avinashi Road" value={purpose} onChange={(event) => setPurpose(event.target.value)} required maxLength={300} />
       </label>
-      <div className="grid grid-cols-2 gap-2">
-        <label className="block text-xs text-steel-300">Day<input type="date" className="input mt-0.5" aria-label="Day" value={date} min={isoDay()} onChange={(event) => setDate(event.target.value)} required /></label>
-        <label className="block text-xs text-steel-300">Time<input type="time" className="input mt-0.5" aria-label="Time" value={timeAt} onChange={(event) => setTimeAt(event.target.value)} /></label>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <label className="block min-w-0 text-xs text-steel-300">Day<input type="date" className="input mt-0.5" aria-label="Day" value={date} min={isoDay()} onChange={(event) => setDate(event.target.value)} required /></label>
+        <label className="block min-w-0 text-xs text-steel-300">Time<input type="time" className="input mt-0.5" aria-label="Time" value={timeAt} onChange={(event) => setTimeAt(event.target.value)} /></label>
       </div>
-      <p className="text-xs text-steel-500">A visit for a buyer’s sample or payment is planned from its task — Needs visit on the queue or the card — so the task carries it.</p>
+      <p className="text-xs text-steel-500">A visit for a buyer’s sample or payment is planned from its task — Plan a visit on the queue or the card — so the task carries it.</p>
       <div className="flex justify-end gap-2">
         <button type="button" className="btn-secondary" onClick={onCancel} disabled={saving}>Cancel</button>
         <button type="submit" className="btn-primary" disabled={saving || !purpose.trim() || !assignee}>{saving ? 'Planning…' : 'Plan the visit'}</button>
@@ -304,9 +306,9 @@ function LateForm({ config, onDone, onCancel }) {
         </select>
       </label>
       <label className="block text-xs text-steel-300">What for<input className="input mt-0.5" aria-label="What the visit was for" value={purpose} onChange={(event) => setPurpose(event.target.value)} required maxLength={300} /></label>
-      <div className="grid grid-cols-2 gap-2">
-        <label className="block text-xs text-steel-300">Arrived<input type="datetime-local" className="input mt-0.5" aria-label="Arrived at" value={inAt} onChange={(event) => setInAt(event.target.value)} required /></label>
-        <label className="block text-xs text-steel-300">Left<input type="datetime-local" className="input mt-0.5" aria-label="Left at" value={outAt} onChange={(event) => setOutAt(event.target.value)} required /></label>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <label className="block min-w-0 text-xs text-steel-300">Arrived<input type="datetime-local" className="input mt-0.5" aria-label="Arrived at" value={inAt} max={local(new Date())} onChange={(event) => setInAt(event.target.value)} required /></label>
+        <label className="block min-w-0 text-xs text-steel-300">Left<input type="datetime-local" className="input mt-0.5" aria-label="Left at" value={outAt} max={local(new Date())} onChange={(event) => setOutAt(event.target.value)} required /></label>
       </div>
       <fieldset>
         <legend className="label">What came of it?</legend>
@@ -417,7 +419,7 @@ export default function FieldDay() {
             <div>
               <p className="text-sm font-bold text-steel-50">Checked in at “{checkedIn.purpose}”</p>
               <p className="mt-0.5 text-xs text-steel-400">
-                Since {time(checkedIn.checkIn?.at)} · {minutes(checkedIn.checkIn?.at)} min
+                Since {time(checkedIn.checkIn?.at)} · <CheckedInTimer since={checkedIn.checkIn?.at} className="font-semibold text-steel-100" />
                 {checkedIn.checkIn?.place?.name ? ` · ${checkedIn.checkIn.place.name}` : ''}
                 {pings?.at ? ` · last fix ${time(pings.at)}${pings.distanceM != null ? `, ${pings.distanceM} m from where you checked in` : ''}` : ' · the phone sends your location every 5 minutes while this page is open'}
                 {pings?.failedAt && !pings?.at ? ' · the last fix could not be sent' : ''}
@@ -443,7 +445,7 @@ export default function FieldDay() {
       )}
 
       {marks.allowed && !checkedIn && visits.length + carried.length === 0 && (
-        <Notice tone="info">No visits planned for today. {mayPlan ? 'Plan one above, or ' : 'A visit for a buyer is planned from its task — '}Needs visit on the Sampling queue or the PRT card.</Notice>
+        <Notice tone="info">No visits planned for today. {mayPlan ? 'Plan one above, or ' : 'A visit for a buyer is planned from its task — '}Plan a visit on the Sampling queue or the PRT card.</Notice>
       )}
 
       {carried.length > 0 && (
