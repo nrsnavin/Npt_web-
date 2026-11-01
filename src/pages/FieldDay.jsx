@@ -112,6 +112,12 @@ function CheckOutForm({ visit, config, onDone, onCancel }) {
           </label>
         );
       })}
+      {chosen?.key === 'collected' && (
+        <p className="text-xs text-steel-500">{values.mode === 'cheque' ? 'The cheque number is needed — ' : ''}The money is logged on the buyer’s task for Accounts to confirm; a cheque reads Cheque Collected, cash or a transfer reads Payment Received.</p>
+      )}
+      {chosen?.key === 'promised' && <p className="text-xs text-steel-500">The task reads Promised and falls due on that day.</p>}
+      {chosen?.key === 'delivered' && <p className="text-xs text-steel-500">The sample is recorded as handed over and the Sample Request closes.</p>}
+      {chosen?.key === 'met' && <p className="text-xs text-steel-500">Written on the enquiry as a visit; the next follow-up moves to the day you give.</p>}
       {chosen && !chosen.completes && (
         <label className="block text-xs text-steel-300">
           Visit again on (optional)

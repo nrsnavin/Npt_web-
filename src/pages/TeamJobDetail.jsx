@@ -9,6 +9,7 @@ import { CustomerSelect } from '../components/pickers.jsx';
 import DeleteRecord from '../components/DeleteRecord.jsx';
 import CloseRecord from '../components/CloseRecord.jsx';
 import { VisitList } from '../components/TaskVisits.jsx';
+import FieldVisitList from '../components/FieldVisitList.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { formatCurrency, formatDate } from '../utils/format.js';
 
@@ -179,6 +180,12 @@ export default function TeamJobDetail() {
       {job.visits?.length > 0 && (
         <Section title={`Visits to the buyer (${job.visits.length})`}>
           <VisitList visits={job.visits} showTask />
+        </Section>
+      )}
+      {/* The field visits planned on the job's tasks — who goes, when, what came of it [server: fieldVisit.service]. */}
+      {job.fieldVisits?.length > 0 && (
+        <Section title={`Field visits (${job.fieldVisits.length})`}>
+          <FieldVisitList visits={job.fieldVisits} showTask />
         </Section>
       )}
 

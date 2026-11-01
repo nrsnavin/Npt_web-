@@ -81,3 +81,14 @@ test('Admin’s marks on the Users page: goes out, plans their own, assigns to o
   assert.match(users, /Their account then works on one device at a time\./);
   assert.match(users, /\{row\.fieldVisit\?\.allowed && <> <Badge tone="neutral">Field<\/Badge><\/>\}/);
 });
+
+test('the plan and the outcome read on the enquiry, the team job and the task panel; the check-out says what each outcome does to the task', () => {
+  const list = read('components/FieldVisitList.jsx');
+  assert.match(list, /outcome\?\.receivable\?\.number \? `\$\{outcome\.receivable\.number\} for Accounts` : null,/);
+  assert.match(read('components/EnquiryRecords.jsx'), /<Section title=\{`Field visits \(\$\{fieldVisits\.length\}\)`\}>\s*<FieldVisitList visits=\{fieldVisits\} showTask \/>/);
+  assert.match(read('pages/TeamJobDetail.jsx'), /<FieldVisitList visits=\{job\.fieldVisits\} showTask \/>/);
+  assert.match(read('components/TaskFieldVisits.jsx'), /<FieldVisitList visits=\{visits\} className="mb-2" \/>/);
+  assert.match(day, /The money is logged on the buyer’s task for Accounts to confirm; a cheque reads Cheque Collected, cash or a transfer reads Payment Received\./);
+  assert.match(day, /The sample is recorded as handed over and the Sample Request closes\./);
+  assert.match(day, /the next follow-up moves to the day you give\./);
+});

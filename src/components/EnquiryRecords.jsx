@@ -6,6 +6,7 @@ import { Badge, ErrorState, Section } from './ui.jsx';
 import { DispatchBody } from './OrderDispatchDetails.jsx';
 import SalesOrderDraft from './SalesOrderDraft.jsx';
 import { VisitList } from './TaskVisits.jsx';
+import FieldVisitList from './FieldVisitList.jsx';
 import { formatDate, formatNumber } from '../utils/format.js';
 import { orderStageLabel } from '../utils/pipeline.js';
 import { QC_STAGES, QC_VERDICTS, labelOf, toneOf } from '../utils/records.js';
@@ -53,8 +54,9 @@ export default function EnquiryRecords({ enquiry, records, dispatchAbove = false
   if (error) return <Section title="Orders, QC and dispatch"><ErrorState error={error} onRetry={load} /></Section>;
   if (!data) return null;
   const visits = data.visits || [];
+  const fieldVisits = data.fieldVisits || [];
   /* An enquiry that has not reached an order yet has nothing here to show. */
-  if (!data.orders.length && !data.qc?.length && !data.dispatch.requests.length && !data.dispatch.lr.length && !visits.length) return null;
+  if (!data.orders.length && !data.qc?.length && !data.dispatch.requests.length && !data.dispatch.lr.length && !visits.length && !fieldVisits.length) return null;
 
   return (
     <>
@@ -62,6 +64,12 @@ export default function EnquiryRecords({ enquiry, records, dispatchAbove = false
       {visits.length > 0 && (
         <Section title={`Visits to the buyer (${visits.length})`}>
           <VisitList visits={visits} showTask />
+        </Section>
+      )}
+      {/* The field visits planned on the enquiry's tasks — who goes, when, what came of it, what the checks found [server: fieldVisit.service]. */}
+      {fieldVisits.length > 0 && (
+        <Section title={`Field visits (${fieldVisits.length})`}>
+          <FieldVisitList visits={fieldVisits} showTask />
         </Section>
       )}
       <Section title={`Sales orders (${data.orders.length})`}>
