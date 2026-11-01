@@ -54,7 +54,7 @@ test('on the task panel for those tasks, and on the enquiry for Admin and its ma
   const records = read('components/EnquiryRecords.jsx');
   assert.match(records, /<Section title=\{`Visits to the buyer \(\$\{visits\.length\}\)`\}>/);
   assert.match(records, /<VisitList visits=\{visits\} showTask \/>/);
-  assert.match(records, /&& !visits\.length\) return null;/, 'an enquiry with only visits still shows them');
+  assert.match(records, /&& !visits\.length && !fieldVisits\.length\) return null;/, 'an enquiry with only visits still shows them');
   assert.match(read('api/endpoints.js'), /visit: \(\{ id, \.\.\.payload \}\) => api\.post\(`\/workspace\/todos\/\$\{id\}\/visit`, payload\)/);
 });
 
