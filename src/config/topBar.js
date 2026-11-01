@@ -46,12 +46,24 @@ export const PRODUCTION_FLOOR = {
   ],
 };
 
+/**
+ * My field day, on every bar right after Dashboard [pages/FieldDay.jsx]: the day's attendance is
+ * everyone's — Punch in and out in the office, Field duty and the visits for the people who go
+ * out — so it is one tap away for each person, never under More. Admin and whoever plans visits
+ * for others get Field today beside it [pages/FieldTeam.jsx].
+ */
+export const FIELD_DAY = { key: 'field', label: 'My field day', icon: '⌖', features: [{ to: '/field', label: 'My field day' }] };
+export const FIELD_TODAY = { to: '/field/team', label: 'Field today' };
+
 /** The bar's items from what this person may open: the five, their department's own, then More. */
-export function barItems(everything, ownKeys = [], { short = false, productionFloor = false } = {}) {
+export function barItems(everything, ownKeys = [], { short = false, productionFloor = false, fieldDay = false, fieldTeam = false } = {}) {
   /* Queries are not a screen on the bar: they live in the panel at the bottom right, with their
      unread count [dock/WorkspaceRail.jsx, QueriesPanel] — the full list is one link from there. */
   const readable = everything.filter((entry) => entry.key !== 'queries');
   const used = new Set();
+  /* My field day on the bar for everyone: its screens are not repeated under More. */
+  const field = fieldDay ? [{ ...FIELD_DAY, features: [...FIELD_DAY.features, ...(fieldTeam ? [FIELD_TODAY] : [])] }] : [];
+  for (const feature of field.flatMap((item) => item.features)) used.add(feature.to);
   const pick = (moduleKey, paths) => {
     const entry = readable.find((row) => row.key === moduleKey);
     if (!entry) return [];
@@ -80,6 +92,7 @@ export function barItems(everything, ownKeys = [], { short = false, productionFl
   const floor = productionFloor ? [{ ...PRODUCTION_FLOOR, features: PRODUCTION_FLOOR.features.filter((feature) => !used.has(feature.to)) }] : [];
   return [
     ...items.slice(0, 1),
+    ...field,
     ...floor,
     ...items.slice(1),
     ...own.map((entry) => ({ key: entry.key, label: entry.label, features: entry.features })),
