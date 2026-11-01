@@ -4,7 +4,7 @@ import { field } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import { DayLine } from '../components/AttendanceCard.jsx';
-import { visitStatusLabel } from '../components/FieldVisitButton.jsx';
+import { gpsWords, visitStatusLabel } from '../components/FieldVisitButton.jsx';
 import { Badge, DashboardSkeleton, EmptyState, ErrorState, Modal, Notice, PageHeader } from '../components/ui.jsx';
 import { formatDate, isoDay } from '../utils/format.js';
 import { mapsUrl } from '../utils/maps.js';
@@ -79,8 +79,9 @@ function VisitDetail({ visit, isAdmin, onEdit }) {
               {visit.checkIn.lat != null && <> · <a href={mapsUrl(visit.checkIn)} target="_blank" rel="noreferrer" className="text-accent hover:underline">Map</a></>}
               {` · ${(visit.pings || []).length} fixes while there`}
               {visit.tracking?.strikes ? ` · GPS strayed ${visit.tracking.strikes}×${visit.tracking.recheckedAt ? `, re-checked at the place ${time(visit.tracking.recheckedAt)}` : ''}` : ''}
+              {(visit.pings || []).some((row) => row.poor) ? ` · ${(visit.pings || []).filter((row) => row.poor).length} fixes too poor to judge` : ''}
               {visit.checkOut?.distanceFromCheckInM != null ? ` · out ${visit.checkOut.distanceFromCheckInM} m from the check-in` : ''}
-              {visit.checkIn.verified ? ' · GPS verified' : ' · GPS not verified'}
+              {` · ${gpsWords(visit.checkIn)}`}
               {visit.checkIn.enteredLater ? ` · entered later: ${visit.checkIn.reason}` : ''}
             </p>
           )}

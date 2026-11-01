@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Badge } from './ui.jsx';
-import { visitStatusLabel } from './FieldVisitButton.jsx';
+import { gpsWords, visitStatusLabel } from './FieldVisitButton.jsx';
 import { formatDate } from '../utils/format.js';
 import { mapsUrl } from '../utils/maps.js';
 
@@ -39,7 +39,7 @@ export default function FieldVisitList({ visits, showTask = false, className = '
                 <p className="text-steel-300">
                   In {time(visit.checkIn.at)}{visit.checkOut?.at ? ` · out ${time(visit.checkOut.at)}` : ''}{visit.checkIn.place?.name ? ` · ${visit.checkIn.place.name}` : ''}
                   {visit.checkIn.lat != null && <> · <a href={mapsUrl(visit.checkIn)} target="_blank" rel="noreferrer" className="text-accent hover:underline">Map</a></>}
-                  {visit.checkIn.verified ? ' · GPS verified' : ' · GPS not verified'}
+                  {` · ${gpsWords(visit.checkIn)}`}
                 </p>
               )}
               {visit.outcome?.label && (
