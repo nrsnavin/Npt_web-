@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import { DayLine } from '../components/AttendanceCard.jsx';
 import { visitStatusLabel } from '../components/FieldVisitButton.jsx';
-import { Badge, DashboardSkeleton, EmptyState, ErrorState, Modal, PageHeader } from '../components/ui.jsx';
+import { Badge, DashboardSkeleton, EmptyState, ErrorState, Modal, Notice, PageHeader } from '../components/ui.jsx';
 import { formatDate, isoDay } from '../utils/format.js';
 import { mapsUrl } from '../utils/maps.js';
 
@@ -78,6 +78,7 @@ function VisitDetail({ visit, isAdmin, onEdit }) {
               {visit.checkIn.accuracyM != null ? ` · ±${visit.checkIn.accuracyM} m` : ''}
               {visit.checkIn.lat != null && <> · <a href={mapsUrl(visit.checkIn)} target="_blank" rel="noreferrer" className="text-accent hover:underline">Map</a></>}
               {` · ${(visit.pings || []).length} fixes while there`}
+              {visit.tracking?.strikes ? ` · GPS strayed ${visit.tracking.strikes}×${visit.tracking.recheckedAt ? `, re-checked at the place ${time(visit.tracking.recheckedAt)}` : ''}` : ''}
               {visit.checkOut?.distanceFromCheckInM != null ? ` · out ${visit.checkOut.distanceFromCheckInM} m from the check-in` : ''}
               {visit.checkIn.verified ? ' · GPS verified' : ' · GPS not verified'}
               {visit.checkIn.enteredLater ? ` · entered later: ${visit.checkIn.reason}` : ''}
@@ -113,7 +114,7 @@ function PersonRow({ row, open, onToggle, isAdmin, onEdit }) {
     <li className="card p-4">
       <button type="button" className="flex w-full flex-wrap items-start justify-between gap-3 text-left" onClick={onToggle} aria-expanded={open}>
         <div className="min-w-0">
-          <p className="text-sm font-bold text-steel-50">{row.user.name} <Badge tone={tone}>{label}</Badge>{row.checkedIn ? <> <Badge tone="progress">Checked in · {row.checkedIn.purpose}</Badge></> : null}</p>
+          <p className="text-sm font-bold text-steel-50">{row.user.name} <Badge tone={tone}>{label}</Badge>{row.checkedIn ? <> <Badge tone="progress">Checked in · {row.checkedIn.purpose}</Badge></> : null}{row.suspects?.length ? <> <Badge tone="danger">Something wrong · {row.suspects.length}</Badge></> : null}</p>
           <p className="mt-1 text-xs text-steel-300"><DayLine day={row.day} /></p>
           <p className="mt-1 text-xs tabular-nums text-steel-400">
             {s.planned} planned · {s.completed} completed · {s.notCompleted} not completed · {s.rescheduled} put off
@@ -164,6 +165,19 @@ export default function FieldTeam() {
       />
       {!data ? <DashboardSkeleton label="Loading the day" tiles={3} /> : (
         <>
+          {/* Visits whose fixes strayed past the limit — something is wrong with them [server: fieldVisit.service `ping`]. */}
+          {data.rows.some((row) => row.suspects?.length > 0) && (
+            <Notice tone="danger">
+              <p className="font-bold">Something wrong in a field visit — look at these:</p>
+              <ul className="mt-1 space-y-0.5 text-sm">
+                {data.rows.flatMap((row) => (row.suspects || []).map((visit) => (
+                  <li key={visit._id}>
+                    <button type="button" className="text-left hover:underline" onClick={() => setOpen(row.user._id)}>{row.user.name} · “{visit.purpose}” — the GPS strayed {visit.strikes} times{visit.detail ? ` (last: ${visit.detail})` : ''}</button>
+                  </li>
+                )))}
+              </ul>
+            </Notice>
+          )}
           <p className="text-sm text-steel-300">
             {formatDate(date)} · {totals.field} in the field · {totals.office} in the office · {totals.completed} visits completed{totals.flags ? ` · ${totals.flags} flag${totals.flags === 1 ? '' : 's'} to look at` : ' · nothing flagged'}
           </p>

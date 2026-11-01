@@ -181,6 +181,9 @@ function Update({ notice, onChanged }) {
           ) : notice.order ? (
             /* A sales order booked with no enquiry behind it [server: orderNotices.service]. */
             <Link to={`/orders/${notice.order?._id || notice.order}`} onClick={opened} className="text-accent hover:underline">{notice.order?.number || 'Sales order'}</Link>
+          ) : notice.link ? (
+            /* A notice with a screen of its own — a field day [server: fieldVisit.service `fieldNotice`]. */
+            <Link to={notice.link} onClick={opened} className="text-accent hover:underline">Open</Link>
           ) : (
             <span className="font-normal text-steel-300">Team task</span>
           )}
