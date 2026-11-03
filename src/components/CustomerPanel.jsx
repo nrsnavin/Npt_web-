@@ -13,6 +13,7 @@ import { MouldSelect } from './pickers.jsx';
 import { departmentLabel } from '../utils/pipeline.js';
 import { formatDate, formatDateTime } from '../utils/format.js';
 import { TEAM, dueState, panelButtons, panelTiles, whatsappLink } from '../utils/customerPanel.js';
+import CustomerName from './CustomerName.jsx';
 
 /**
  * The customer side panel [the plant's party master]: a row clicked, the buyer opens from the
@@ -167,7 +168,7 @@ export default function CustomerPanel({ customerId, onClose, onChanged }) {
       >
         <header className="flex shrink-0 items-start justify-between gap-3 border-b border-line/[0.06] px-5 py-3.5">
           <div className="min-w-0">
-            <h2 className="truncate text-lg font-bold text-steel-50">{customer?.name || 'Loading…'}</h2>
+            <h2 className="truncate text-lg font-bold text-steel-50"><CustomerName name={customer?.name} fallback="Loading…" /></h2>
             <p className="text-xs text-steel-400">
               {customer?.code ? `${customer.code} · ` : ''}Assigned to {customer?.assignedTo?.name || '—'}
             </p>
@@ -223,7 +224,7 @@ export default function CustomerPanel({ customerId, onClose, onChanged }) {
                 <label className="mb-3 block">
                   <span className="mb-1 block text-xs font-semibold text-steel-300">Raise for</span>
                   <select className="input" value={target} onChange={(event) => setTarget(event.target.value)} aria-label="Raise for">
-                    <option value={TEAM}>No enquiry — a team task for {customer.name}</option>
+                    <option value={TEAM}>No enquiry — a team task for <CustomerName name={customer.name} /></option>
                     {enquiries.map((enquiry) => (
                       <option key={enquiry._id} value={enquiry._id}>
                         On {enquiry.number}{enquiry.model ? ` · ${enquiry.model}` : ''} · {enquiry.marketingStatusLabel}

@@ -8,6 +8,7 @@ import { byEdd, dueWords, eddBandOf } from '../utils/productionQueue.js';
 import { DeliveryBadge, inDanger } from './DeliveryRisk.jsx';
 import { TaskPdfChips, useTaskPdfs } from './TaskPdfs.jsx';
 import CustomerFilter, { QueuePlace, byCustomer, placesForTask, useQueuePlaces } from './CustomerFilter.jsx';
+import CustomerName from './CustomerName.jsx';
 
 /**
  * The Printing, Assembly and Quality desks, read at a glance [server: deskSummary.service]: one
@@ -64,7 +65,7 @@ export default function FinishingDeskList({ rows: all = [], onChanged }) {
                   ) : (
                     <p className="font-bold text-steel-50">Team task</p>
                   )}
-                  <p className="truncate text-sm text-steel-300">{row.enquiry?.customer?.name || row.task.customer?.name || '—'}</p>
+                  <p className="truncate text-sm text-steel-300"><CustomerName name={row.enquiry?.customer?.name} fallback={row.task.customer?.name || '—'} /></p>
                   <QueuePlace places={placesForTask(places, row.task)} className="mt-0.5" />
                   <TaskPdfChips files={pdfs.byTask[row.task._id]} role="sent" />
                   {/* In danger of missing marketing's EDD [server: deliveryRisk.service]. */}

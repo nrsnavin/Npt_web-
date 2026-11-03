@@ -4,6 +4,7 @@ import { customers as customersApi } from '../api/endpoints.js';
 import { Field, FormError, Modal, Notice } from './ui.jsx';
 import { CUSTOMER_TYPES, LANDMARK_ROUTES } from '../utils/pipeline.js';
 import OwnerPicker from './OwnerPicker.jsx';
+import CustomerName from './CustomerName.jsx';
 
 /**
  * Adds a customer without leaving the form that needed one.
@@ -157,7 +158,7 @@ export default function CustomerQuickCreate({ open, initialName = '', onClose, o
             {duplicate.customer ? (
               <>
                 <p>
-                  {duplicate.customer.name} ({duplicate.customer.code}) already exists with the
+                  <CustomerName name={duplicate.customer.name} /> ({duplicate.customer.code}) already exists with the
                   same {duplicate.matchedOn}.
                 </p>
                 <button
@@ -172,7 +173,7 @@ export default function CustomerQuickCreate({ open, initialName = '', onClose, o
                     onClose();
                   }}
                 >
-                  Use {duplicate.customer.name} instead
+                  Use <CustomerName name={duplicate.customer.name} /> instead
                 </button>
               </>
             ) : (

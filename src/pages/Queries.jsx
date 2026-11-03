@@ -28,6 +28,7 @@ import PeekPanel from '../components/PeekPanel.jsx';
 /* The thread page, fetched only when somebody first peeks — the list does not carry it. */
 const QueryDetail = lazyPage(() => import('./QueryDetail.jsx'));
 import { useToast } from '../context/ToastContext.jsx';
+import CustomerName from '../components/CustomerName.jsx';
 
 /**
  * Every question this person is in.
@@ -776,7 +777,7 @@ export default function Queries() {
 
                     <div className="mt-0.5 flex items-center justify-between gap-3">
                       <p className={`truncate text-sm ${unread ? 'text-steel-200' : 'text-steel-400'}`}>
-                        <span className="text-steel-500">{row.customer?.name || 'No customer'} · </span>
+                        <span className="text-steel-500"><CustomerName name={row.customer?.name} fallback="No customer" /> · </span>
                         {lastLine(last, me)}
                       </p>
                       {/* The tag and the count sit together at the right, as one signal. */}

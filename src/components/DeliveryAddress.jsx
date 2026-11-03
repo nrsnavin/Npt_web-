@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { dispatches as dispatchApi } from '../api/endpoints.js';
 import { Facts, Field, FormError, Notice } from './ui.jsx';
 import { GONE_DISPATCH_STAGES } from '../utils/pipeline.js';
+import CustomerName from './CustomerName.jsx';
 
 /**
  * Where the lorry is going, on the consignment's own page [BLUEPRINT §19].
@@ -195,7 +196,7 @@ export default function DeliveryAddress({ dispatch, customer, editable, onSaved 
       ) : (
         <Notice tone="warn">
           <p>
-            {customer?.name || 'This buyer'} has no address on record, so there is nothing to copy.
+            <CustomerName name={customer?.name} fallback="This buyer" /> has no address on record, so there is nothing to copy.
             Adding one on the customer means the next consignment fills itself.
           </p>
         </Notice>

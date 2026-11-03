@@ -193,6 +193,12 @@
     border-color: var(--field-border);
   }
 
+  /* Customer names, fluorescent, wherever they are read [components/CustomerName.jsx]. */
+  .customer-name {
+    color: var(--customer-name);
+    text-shadow: var(--customer-glow);
+  }
+
   .input:hover:not(:disabled):not(:focus) {
     border-color: var(--field-border-hover);
   }

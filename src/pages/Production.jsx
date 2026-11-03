@@ -12,6 +12,7 @@ import { formatDate, formatNumber } from '../utils/format.js';
 import { SortHeader, useSort } from '../components/SortHeader.jsx';
 import FilterTiles from '../components/FilterTiles.jsx';
 import { PRODUCTION_STAGES } from '../utils/pipeline.js';
+import CustomerName from '../components/CustomerName.jsx';
 
 /**
  * The plant's queue [BLUEPRINT §14–17].
@@ -228,7 +229,7 @@ export default function Production() {
                         >
                           {row.order.number}
                         </Link>
-                        <p className="text-xs text-steel-500">{row.order.customer?.name}</p>
+                        <p className="text-xs text-steel-500"><CustomerName name={row.order.customer?.name} /></p>
                       </td>
                       <td className="px-4 py-3.5 text-right tabular-nums text-steel-200">
                         {formatNumber(row.quantity)}

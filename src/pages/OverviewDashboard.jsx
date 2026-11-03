@@ -17,6 +17,7 @@ import { departmentLabel } from '../utils/pipeline.js';
 import { formatDate, formatDateTime } from '../utils/format.js';
 import { DeliveryRiskPanel } from '../components/DeliveryRisk.jsx';
 import { TeamJobsCard } from './TeamJobs.jsx';
+import CustomerName from '../components/CustomerName.jsx';
 
 /**
  * The overview dashboard [the plant's own layout] — Admin's company-wide, a marketing person's
@@ -390,7 +391,7 @@ export default function OverviewDashboard() {
                 className="group rounded-xl border border-line/10 bg-line/[0.015] p-3 text-left transition hover:border-accent/50 hover:shadow-md focus-visible:border-accent"
               >
                 <p className="truncate font-semibold text-steel-50" title={row.customer?.name || row.prospect?.name || row.number}>
-                  {row.customer?.name || row.prospect?.name || row.number}
+                  <CustomerName name={row.customer?.name} fallback={row.prospect?.name || row.number} />
                 </p>
                 <p className="mt-0.5 truncate text-xs text-steel-400">Enquiry received · {row.assignedTo?.name || 'Unassigned'}</p>
                 <div className="mt-2 flex flex-wrap items-center justify-between gap-x-2 gap-y-1">

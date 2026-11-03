@@ -10,6 +10,7 @@ import EscalationFeed from '../components/EscalationFeed.jsx';
 import NeedsYouToday from '../components/NeedsYouToday.jsx';
 import { formatCurrency, formatDate, plural } from '../utils/format.js';
 import { creditLabel } from '../utils/pipeline.js';
+import CustomerName from '../components/CustomerName.jsx';
 
 /**
  * The chase, as a day's work [BLUEPRINT §20, §25].
@@ -127,7 +128,7 @@ function Owed({ row, tone, group, onLogged }) {
     <li className={`rounded-xl border p-4 ${EDGE[tone]}`}>
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <p className="text-base font-bold text-steel-50">
-          {row.customer?.name || 'Customer not named'}
+          <CustomerName name={row.customer?.name} fallback="Customer not named" />
         </p>
         <p className={`text-lg font-extrabold tabular-nums ${TEXT[tone]}`}>
           {formatCurrency(row.balance)}
@@ -286,7 +287,7 @@ function CaseRow({ row }) {
     <li className={`rounded-xl border p-3 ${row.priority === 'high' || row.suggestion?.kind ? 'border-warn-500/40 bg-warn-500/[0.04]' : 'border-line/10'}`}>
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <p className="text-sm font-bold text-steel-50">
-          <Link to={`/tasks?department=${row.kind === 'prt_recovery' ? 'payment_recovery' : 'payment_collection'}`} className="hover:text-accent">{row.customer?.name || 'Customer not named'}</Link>
+          <Link to={`/tasks?department=${row.kind === 'prt_recovery' ? 'payment_recovery' : 'payment_collection'}`} className="hover:text-accent"><CustomerName name={row.customer?.name} fallback="Customer not named" /></Link>
           {row.order?.number ? <span className="font-normal text-steel-400"> · {row.order.number}</span> : null}
         </p>
         <p className="text-sm font-extrabold tabular-nums text-steel-100">{formatCurrency(row.owed)}</p>

@@ -20,6 +20,7 @@ import {
 } from '../utils/pipeline.js';
 import useOpenFromLink from '../hooks/useOpenFromLink.js';
 import { TaskPdfChips, idOf, useTaskPdfs } from '../components/TaskPdfs.jsx';
+import CustomerName from '../components/CustomerName.jsx';
 
 const TONE_TEXT = {
   danger: 'text-danger-400',
@@ -329,7 +330,7 @@ export default function Samples() {
                           <TaskPdfChips files={pdfs.byEnquiry[idOf(sample.enquiry)]} />
                         </td>
                         <td className="px-3 py-3.5 text-steel-200">
-                          {sample.customer?.name || <span className="text-xs text-steel-500">Internal</span>}
+                          <CustomerName name={sample.customer?.name} fallback={<span className="text-xs text-steel-500">Internal</span>} />
                           {/*
                             Who owns the customer [§29], which is not the same person as who
                             raised the request. A request is often raised by whoever took the

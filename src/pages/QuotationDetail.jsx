@@ -15,6 +15,7 @@ import { CLOSED_QUOTATION_STATUSES, ResponseForm, RevisionForm } from './Quotati
 import { formatDate, formatNumber, humanise } from '../utils/format.js';
 import { costedWith } from '../utils/pricing.js';
 import { TaskPdfList, idOf, useTaskPdfs } from '../components/TaskPdfs.jsx';
+import CustomerName from '../components/CustomerName.jsx';
 
 /**
  * One quotation, in full — its costing and its offer on one record [BLUEPRINT §7–§10].
@@ -215,7 +216,7 @@ export default function QuotationDetail() {
         title={quotation.number}
         subtitle={
           <>
-            {quotation.customer?.name} ·{' '}
+            <CustomerName name={quotation.customer?.name} /> ·{' '}
             {sole
               ? `${sole.modelNumber || 'one model'}${sole.moq ? ` · min ${formatNumber(sole.moq)} pcs` : ''}`
               : `${lines.length} models`}{' '}

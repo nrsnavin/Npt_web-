@@ -10,6 +10,7 @@ import { CheckInButton, CheckedInTimer, gpsWords, visitStatusLabel } from '../co
 import { Badge, DashboardSkeleton, ErrorState, Modal, Notice, PageHeader, Section } from '../components/ui.jsx';
 import { formatDate, isoDay } from '../utils/format.js';
 import { accuracyLabel, mapsUrl } from '../utils/maps.js';
+import CustomerName from '../components/CustomerName.jsx';
 
 /**
  * My field day [server: fieldVisit.service]: the one screen a person out of the office works
@@ -345,7 +346,7 @@ function VisitRow({ visit, me, onCheckedIn, onCheckOut, onSettle }) {
         <div className="min-w-0">
           <p className="text-sm font-bold text-steel-50">
             {visit.purpose}
-            {visit.customer?.name && <span className="font-normal text-steel-400"> · {visit.customer.name}</span>}
+            {visit.customer?.name && <span className="font-normal text-steel-400"> · <CustomerName name={visit.customer.name} /></span>}
           </p>
           <p className="mt-0.5 text-xs text-steel-400">
             {visit.category.replace(/_/g, ' ')} · {formatDate(visit.plannedDate)}{visit.plannedTime ? ` ${visit.plannedTime}` : ''}

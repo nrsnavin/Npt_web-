@@ -12,6 +12,7 @@ import { DELIVERY_TONE, DeliveryBadge, inDanger } from './DeliveryRisk.jsx';
 import ModelJourney from './ModelJourney.jsx';
 import { TaskPdfChips, useTaskPdfs } from './TaskPdfs.jsx';
 import CustomerFilter, { QueuePlace, byCustomer } from './CustomerFilter.jsx';
+import CustomerName from './CustomerName.jsx';
 
 /**
  * The production queue, read at a glance [server: productionQueue.controller]: one line per
@@ -316,7 +317,7 @@ export default function ProductionQueueList({ compact = false, onRows }) {
                     {row.enquiry.team
                       ? <p className="font-bold text-steel-50">Team task{row.task.raisedBy?.name ? <span className="font-normal text-steel-400"> · {row.task.raisedBy.name}</span> : null}</p>
                       : <Link to={`/enquiries/${row.enquiry._id}`} className="font-bold text-steel-50 hover:text-accent">{row.enquiry.number}</Link>}
-                    <p className="truncate text-sm text-steel-300">{row.enquiry.customer?.name || '—'}</p>
+                    <p className="truncate text-sm text-steel-300"><CustomerName name={row.enquiry.customer?.name} fallback="—" /></p>
                     {/* Its place in the whole queue, by EDD [server: queuePlaces.service]. */}
                     <QueuePlace place={row.place} className="mt-0.5" />
                     <TaskPdfChips files={pdfs.byTask[row.task._id]} />

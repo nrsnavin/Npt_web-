@@ -15,6 +15,7 @@ import { PriorityForm, PRIORITY_TONE, isRaised, priorityLabel } from '../compone
 import { formatCurrency, formatDate, formatNumber } from '../utils/format.js';
 import { ORDER_STAGES, orderStageLabel, numeric, text } from '../utils/pipeline.js';
 import { TaskPdfChips, idOf, useTaskPdfs } from '../components/TaskPdfs.jsx';
+import CustomerName from '../components/CustomerName.jsx';
 
 /**
  * Sales orders [BLUEPRINT §12–13].
@@ -240,7 +241,7 @@ export default function Orders() {
                           <TaskPdfLink file={order.soDocument} className="block" />
                           <TaskPdfChips files={pdfs.byTask[idOf(order.sourceTask)] || pdfs.byEnquiry[idOf(order.enquiry)]} skip={[order.soDocument?.key]} />
                         </td>
-                        <td className="px-4 py-3.5 text-steel-300">{order.customer?.name}</td>
+                        <td className="px-4 py-3.5 text-steel-300"><CustomerName name={order.customer?.name} /></td>
                         <td className="px-4 py-3.5 text-xs text-steel-300">
                           {order.lineCount === 1
                             ? order.lines[0].modelNumber || order.lines[0].mould?.mouldCode

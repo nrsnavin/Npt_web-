@@ -9,6 +9,7 @@ import { EmptyState, ErrorState, Modal, TableSkeleton } from './ui.jsx';
 import { formatDate } from '../utils/format.js';
 import { piecesOf as pieces, rupeesOf as rupees, sizeWords } from '../utils/soDesk.js';
 import CustomerFilter, { byCustomer } from './CustomerFilter.jsx';
+import CustomerName from './CustomerName.jsx';
 
 /**
  * The SO team's desk [server: services/soDesk.service.js]. Every open SO request, read for what
@@ -123,7 +124,7 @@ function SoCard({ row, onChanged, onAsk }) {
         <div className="min-w-0">
           <p className="text-base font-bold text-steel-50">
             {enquiry ? <Link to={`/enquiries/${enquiry._id}`} className="hover:text-accent">{enquiry.number}</Link> : 'Team task'}
-            <span className="font-normal text-steel-300"> · {(enquiry ? enquiry.customer?.name : task.customer?.name) || '—'}</span>
+            <span className="font-normal text-steel-300"> · <CustomerName name={enquiry ? enquiry.customer?.name : task.customer?.name} /></span>
           </p>
           <p className="text-sm font-semibold text-steel-200">{sizeWords(so.size) || 'No lines yet'}{so.terms ? <span className="font-normal text-steel-400"> · {so.terms}</span> : null}{so.poNumber ? <span className="font-normal text-steel-400"> · PO {so.poNumber}</span> : null}</p>
         </div>

@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { Badge, EmptyState, ErrorState, PageHeader, Pagination, TableSkeleton } from '../components/ui.jsx';
 import { formatDate } from '../utils/format.js';
 import { QC_STAGES, QC_VERDICTS, labelOf, toneOf } from '../utils/records.js';
+import CustomerName from '../components/CustomerName.jsx';
 
 /**
  * Every QC record, newest first [server: records.service `listQcRecords`] — filtered by stage,
@@ -81,7 +82,7 @@ export default function QcRecords() {
                     </td>
                     <td className="px-4 py-3.5 text-steel-200">{labelOf(QC_STAGES, row.stage)}</td>
                     <td className="px-4 py-3.5 text-steel-200">{[row.modelNumber || row.mould?.mouldCode, row.size].filter(Boolean).join(' · ') || '—'}</td>
-                    <td className="px-4 py-3.5 text-steel-200">{row.customer?.name || '—'}{(row.order?.number || row.enquiry?.number) && <p className="text-xs text-steel-500">{[row.order?.number, row.enquiry?.number].filter(Boolean).join(' · ')}</p>}</td>
+                    <td className="px-4 py-3.5 text-steel-200"><CustomerName name={row.customer?.name} fallback="—" />{(row.order?.number || row.enquiry?.number) && <p className="text-xs text-steel-500">{[row.order?.number, row.enquiry?.number].filter(Boolean).join(' · ')}</p>}</td>
                     <td className="px-4 py-3.5 text-steel-300">{row.resin?.batch || '—'}</td>
                     <td className="px-4 py-3.5 text-right tabular-nums text-steel-200">
                       {row.breaking?.minKg != null ? `${row.breaking.minKg} kgf` : '—'}

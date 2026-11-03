@@ -10,6 +10,7 @@ import { EDD_BANDS, dueWords } from '../utils/productionQueue.js';
 import { DELIVERY_TONE, DeliveryBadge, inDanger } from './DeliveryRisk.jsx';
 import ModelJourney from './ModelJourney.jsx';
 import CustomerFilter, { QueuePlace, byCustomer } from './CustomerFilter.jsx';
+import CustomerName from './CustomerName.jsx';
 
 /**
  * Printing's and Assembly's queues, read at a glance [server: finishingQueue.controller]: one
@@ -241,7 +242,7 @@ export default function FinishingQueueList({ team, compact = false, onRows, onCh
                     {row.enquiry.team
                       ? <p className="font-bold text-steel-50">Team task{row.task.raisedBy?.name ? <span className="font-normal text-steel-400"> · {row.task.raisedBy.name}</span> : null}</p>
                       : <Link to={`/enquiries/${row.enquiry._id}`} className="font-bold text-steel-50 hover:text-accent">{row.enquiry.number}</Link>}
-                    <p className="truncate text-sm text-steel-300">{row.enquiry.customer?.name || '—'}</p>
+                    <p className="truncate text-sm text-steel-300"><CustomerName name={row.enquiry.customer?.name} fallback="—" /></p>
                     {/* Its place in the whole queue, by date [server: queuePlaces.service]. */}
                     <QueuePlace place={row.place} className="mt-0.5" />
                     <p className="truncate text-xs text-steel-500">{(row.models || []).map((entry) => entry.model).join(', ') || row.enquiry.model || '—'}{row.order?.number ? ` · ${row.order.number}` : ''}</p>

@@ -24,6 +24,7 @@ import useOpenFromLink from '../hooks/useOpenFromLink.js';
 import { useHandoffCatalogue } from '../hooks/useHandoffCatalogue.js';
 import { DeliveryBadge, inDanger } from '../components/DeliveryRisk.jsx';
 import { QueuePlace, useQueuePlaces } from '../components/CustomerFilter.jsx';
+import CustomerName from '../components/CustomerName.jsx';
 
 /**
  * What the list hook fetches while the board is showing: nothing.
@@ -384,10 +385,10 @@ export default function Enquiries({ embedded = false }) {
                         <td className="px-1.5 py-3.5">
                           {enquiry.customer && !opensCustomer(enquiry.customer) ? (
                             /* Delegated to them; the buyer is another salesperson's — named, not linked. */
-                            <span className="text-steel-200">{enquiry.customer.name || '—'}</span>
+                            <span className="text-steel-200"><CustomerName name={enquiry.customer.name} fallback="—" /></span>
                           ) : enquiry.customer ? (
                             <Link to={`/customers/${enquiry.customer._id}`} className="text-steel-200 hover:text-accent">
-                              {enquiry.customer.name || '—'}
+                              <CustomerName name={enquiry.customer.name} fallback="—" />
                             </Link>
                           ) : (
                             /* Not a customer yet: the name taken down on the call, until it is converted. */

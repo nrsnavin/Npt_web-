@@ -18,6 +18,7 @@ import { WORST_ACCURACY_M, accuracyLabel, mapsUrl } from '../utils/maps.js';
 import { insertMention, matchPeople, mentionAt, mentionsIn, taggablePeople } from '../utils/mentions.js';
 import QueryLabels from '../components/QueryLabels.jsx';
 import { announceInboxChanged } from '../components/InboxBell.jsx';
+import CustomerName from '../components/CustomerName.jsx';
 
 /**
  * One thread: what was asked, who is in it, and everything said since.
@@ -287,7 +288,7 @@ export default function QueryDetail({ id: givenId, inPanel = false } = {}) {
           <>
             {query.number} · about{' '}
             <Link className="link" to={`/customers/${query.customer?._id}`}>
-              {query.customer?.name}
+              <CustomerName name={query.customer?.name} />
             </Link>
           </>
         }
@@ -347,7 +348,7 @@ export default function QueryDetail({ id: givenId, inPanel = false } = {}) {
 
       {granted && (
         <Notice tone="info">
-          {granted.who} is now in this query, and can open {query.customer?.name}&rsquo;s record.
+          {granted.who} is now in this query, and can open <CustomerName name={query.customer?.name} />&rsquo;s record.
           {granted.people > 1 && ` That is ${plural(granted.people, 'person', 'people')}.`}
         </Notice>
       )}
@@ -692,7 +693,7 @@ export default function QueryDetail({ id: givenId, inPanel = false } = {}) {
               ]}
             />
             <Link className="link mt-4 inline-block text-sm" to={`/queries?customer=${query.customer?._id}`}>
-              Every query about {query.customer?.name}
+              Every query about <CustomerName name={query.customer?.name} />
             </Link>
           </Section>
         </div>
@@ -702,7 +703,7 @@ export default function QueryDetail({ id: givenId, inPanel = false } = {}) {
         <div className="space-y-4">
           <Notice tone="warn">
             Whoever you add can read this whole thread, reply to it, pull somebody else in, and
-            open {query.customer?.name}&rsquo;s customer record.
+            open <CustomerName name={query.customer?.name} />&rsquo;s customer record.
           </Notice>
           <ParticipantPicker
             options={options}

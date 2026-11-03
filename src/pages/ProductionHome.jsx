@@ -10,6 +10,7 @@ import EscalationFeed from '../components/EscalationFeed.jsx';
 import NeedsYouToday from '../components/NeedsYouToday.jsx';
 import WhatMattersNow from '../components/WhatMattersNow.jsx';
 import { formatNumber } from '../utils/format.js';
+import CustomerName from '../components/CustomerName.jsx';
 
 /**
  * The plant's front page.
@@ -117,7 +118,7 @@ function Job({ row, onRecord, onSaved }) {
 
       <p className="mt-1 text-sm text-steel-300">
         <Link to={row.link} className="transition-colors hover:text-accent">
-          {row.order.customer?.name || 'Customer not named'} · {row.order.number}
+          <CustomerName name={row.order.customer?.name} fallback="Customer not named" /> · {row.order.number}
         </Link>
       </p>
 

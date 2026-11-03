@@ -40,6 +40,7 @@ import {
   optionLabel, sampleStageLabel, stageLabel, text,
 } from '../utils/pipeline.js';
 import EnquiryClarifications from '../components/EnquiryClarifications.jsx';
+import CustomerName from '../components/CustomerName.jsx';
 
 const TONE_TEXT = {
   danger: 'text-danger-400',
@@ -648,10 +649,10 @@ export default function EnquiryDetail() {
           <>
             {enquiry.customer && !opensCustomer(enquiry.customer) ? (
               /* Delegated to them; the buyer is another salesperson's — named, not linked. */
-              <>{enquiry.customer.name}</>
+              <><CustomerName name={enquiry.customer.name} /></>
             ) : enquiry.customer ? (
               <Link to={`/customers/${enquiry.customer._id}`} className="hover:text-accent">
-                {enquiry.customer.name}
+                <CustomerName name={enquiry.customer.name} />
               </Link>
             ) : (
               <>{enquiry.prospect?.name} <span className="text-warn-400">(prospect)</span></>

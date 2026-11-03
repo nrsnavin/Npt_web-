@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { tripsApi } from '../api/endpoints.js';
 import { Field, Modal } from './ui.jsx';
+import CustomerName from './CustomerName.jsx';
 
 /**
  * Make a trip from a group on the planner [components/TripPlanner.jsx]: which day and time, what
@@ -137,7 +138,7 @@ export default function MakeTripDialog({ open, group, stops, plan, onClose, onMa
             {stops.map((stop, index) => (
               <li key={stop.task} className="flex items-center gap-2 text-sm">
                 <span className="w-5 text-xs font-bold text-steel-500">{index + 1}</span>
-                <span className="min-w-0 flex-1 truncate text-steel-200">{stop.customer?.name || 'Buyer'}{stop.quantity ? <span className="text-steel-500"> · {Number(stop.quantity).toLocaleString('en-IN')} pcs</span> : null}</span>
+                <span className="min-w-0 flex-1 truncate text-steel-200"><CustomerName name={stop.customer?.name} fallback="Buyer" />{stop.quantity ? <span className="text-steel-500"> · {Number(stop.quantity).toLocaleString('en-IN')} pcs</span> : null}</span>
                 <input type="number" min={0} max={5000} className="input w-24" value={cartons[stop.task] ?? ''} aria-label={`Cartons for ${stop.customer?.name || 'this stop'}`}
                   onChange={(event) => setCartons((current) => ({ ...current, [stop.task]: event.target.value }))} />
               </li>

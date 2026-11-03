@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { workspace } from '../api/endpoints.js';
 import { EmptyState, ErrorState, PageHeader, Spinner } from '../components/ui.jsx';
 import { formatDate } from '../utils/format.js';
+import CustomerName from '../components/CustomerName.jsx';
 
 /**
  * Team jobs [server: teamJobs.service] — the tasks Admin and marketing gave a team with no enquiry
@@ -65,7 +66,7 @@ export function TeamJobsCard() {
             <Link to={`/team-jobs/${row._id}`} className="flex flex-wrap items-center justify-between gap-2 py-2 hover:text-accent">
               <span className="min-w-0">
                 <span className="font-semibold text-steel-100">{row.number || 'Job'}</span>
-                <span className="text-sm text-steel-300"> · {row.customer?.name || 'No buyer'} · {row.asked.what}</span>
+                <span className="text-sm text-steel-300"> · <CustomerName name={row.customer?.name} fallback="No buyer" /> · {row.asked.what}</span>
               </span>
               <NowPill now={row.now} />
             </Link>
@@ -129,7 +130,7 @@ export default function TeamJobs() {
                 {rows.map((row) => (
                   <tr key={row._id} className="border-b border-line/[0.05] align-top last:border-0">
                     <td className="whitespace-nowrap px-3 py-2.5"><Link to={`/team-jobs/${row._id}`} className="font-semibold text-steel-100 hover:text-accent">{row.number || 'Job'}</Link></td>
-                    <td className="px-3 py-2.5 text-steel-100">{row.customer?.name || '—'}</td>
+                    <td className="px-3 py-2.5 text-steel-100"><CustomerName name={row.customer?.name} fallback="—" /></td>
                     <td className="max-w-[18rem] px-3 py-2.5">
                       <span className="font-semibold text-steel-100">{row.asked.what}</span>
                       <span className="block text-xs text-steel-400">{[row.asked.models.join(', '), row.asked.note].filter(Boolean).join(' — ') || row.asked.team}</span>
@@ -148,7 +149,7 @@ export default function TeamJobs() {
               <li key={row._id}>
                 <Link to={`/team-jobs/${row._id}`} className="card block space-y-1 p-3">
                   <p className="flex items-baseline justify-between gap-2"><span className="font-semibold text-steel-100">{row.number || 'Job'}</span><span className="text-xs text-steel-500">{formatDate(row.raisedAt)}</span></p>
-                  <p className="text-sm text-steel-200">{row.customer?.name || 'No buyer'} · {row.asked.what}</p>
+                  <p className="text-sm text-steel-200"><CustomerName name={row.customer?.name} fallback="No buyer" /> · {row.asked.what}</p>
                   <NowPill now={row.now} />
                 </Link>
               </li>

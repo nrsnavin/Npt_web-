@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { Badge, DashboardSkeleton, ErrorState, PageHeader } from '../components/ui.jsx';
 import { departmentLabel } from '../utils/pipeline.js';
 import { formatDate } from '../utils/format.js';
+import CustomerName from '../components/CustomerName.jsx';
 
 /**
  * Home for the departments the app reaches mostly through questions — despatch, accounts,
@@ -40,7 +41,7 @@ function QueryRows({ rows, empty }) {
             <div className="min-w-0 flex-1">
               <p className={`truncate text-sm ${row.unread ? 'font-bold text-steel-50' : 'font-semibold text-steel-200'}`}>{row.subject}</p>
               <p className="truncate text-xs text-steel-500">
-                {row.customer?.name || 'No customer'} · {row.raisedBy?.name || 'somebody'} · {formatDate(row.createdAt)}
+                <CustomerName name={row.customer?.name} fallback="No customer" /> · {row.raisedBy?.name || 'somebody'} · {formatDate(row.createdAt)}
               </p>
             </div>
             {row.isUrgent && <Badge tone="danger">Urgent</Badge>}

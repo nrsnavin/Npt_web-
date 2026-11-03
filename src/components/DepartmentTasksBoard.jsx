@@ -12,6 +12,7 @@ import { formatDate, humanise } from '../utils/format.js';
 import { DEPARTMENT_CHOICES, departmentLabel, deskOf } from '../utils/pipeline.js';
 import { EDD_CHIP, eddChipOf } from '../utils/edd.js';
 import CustomerFilter, { QueuePlace, byCustomer, placesForTask, useQueuePlaces } from './CustomerFilter.jsx';
+import CustomerName from './CustomerName.jsx';
 
 /**
  * Department Tasks [the plant's own layout]: every open request this person follows — Admin all
@@ -249,7 +250,7 @@ export default function DepartmentTasksBoard({
                   <tr key={task._id} data-highlighted={isHighlighted(task) || undefined} className={`border-t border-line/10 align-top ${isHighlighted(task) ? 'bg-warn-500/[0.08]' : ''}`}>
                     <td className="px-4 py-3">
                       <button type="button" className="text-left font-semibold text-steel-50 hover:text-accent" onClick={() => setOpened({ task })}>
-                        {task.customer?.name || task.label}
+                        <CustomerName name={task.customer?.name} fallback={task.label} />
                       </button>
                       <p className="text-xs text-steel-400">
                         {task.label}
@@ -286,7 +287,7 @@ export default function DepartmentTasksBoard({
               <li key={task._id} className={`rounded-xl border p-3 ${isHighlighted(task) ? 'border-warn-500/40 bg-warn-500/[0.08]' : 'border-line/10'}`}>
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="truncate font-semibold text-steel-50">{task.customer?.name || task.label}</p>
+                    <p className="truncate font-semibold text-steel-50"><CustomerName name={task.customer?.name} fallback={task.label} /></p>
                     <p className="text-xs text-steel-400">{task.label}{modelOf(task) ? ` · ${modelOf(task)}` : ''}{eddChipOf(task) && <> · <EddChip task={task} /></>}</p>
                     {!task.completed && <QueuePlace places={placesForTask(places, task)} className="mt-0.5" />}
                   </div>

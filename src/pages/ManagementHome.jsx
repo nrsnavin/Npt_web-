@@ -12,6 +12,7 @@ import PricingDecision from '../components/PricingDecision.jsx';
 import NeedsYouToday from '../components/NeedsYouToday.jsx';
 import WhatMattersNow from '../components/WhatMattersNow.jsx';
 import { formatCompactCurrency, formatDate, formatNumber } from '../utils/format.js';
+import CustomerName from '../components/CustomerName.jsx';
 
 /**
  * What management opens the app to find out [BLUEPRINT §21–24].
@@ -288,7 +289,7 @@ export default function ManagementHome() {
                       {row.number}
                     </Link>
                     <p className="text-xs text-steel-400">
-                      {row.customer?.name || 'No customer'}
+                      <CustomerName name={row.customer?.name} fallback="No customer" />
                       {' · '}
                       {(row.lines || []).filter((line) => line.status === 'approval_pending').map((line) => line.modelNumber).filter(Boolean).join(', ') || 'a model'}
                     </p>

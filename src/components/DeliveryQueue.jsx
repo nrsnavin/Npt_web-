@@ -6,6 +6,7 @@ import DeliveryUrgencyDialog from './DeliveryUrgencyDialog.jsx';
 import TaskPanel from './TaskPanel.jsx';
 import { EmptyState, ErrorState, TableSkeleton } from './ui.jsx';
 import { dueWords, urgencyTone } from '../utils/deliveryUrgency.js';
+import CustomerName from './CustomerName.jsx';
 
 /**
  * The Dispatch desk's delivery queue [server: deliveryUrgency.service `deliveryQueue`]: every open
@@ -71,7 +72,7 @@ export default function DeliveryQueue() {
                   <div className="min-w-0 space-y-0.5">
                     <p className="truncate text-sm font-semibold text-steel-50">
                       {row.enquiry ? <Link to={row.link} className="hover:text-accent">{row.enquiry.number}</Link> : 'Team task'}
-                      {row.customer && <span className="font-normal text-steel-300"> · {row.customer.name}{row.customer.city ? `, ${row.customer.city}` : ''}</span>}
+                      {row.customer && <span className="font-normal text-steel-300"> · <CustomerName name={row.customer.name} />{row.customer.city ? `, ${row.customer.city}` : ''}</span>}
                     </p>
                     <p className="text-xs text-steel-400">
                       {[row.model, row.quantity && `${row.quantity} pcs`, row.task.statusLabel, row.task.with ? `with ${row.task.with.name}` : 'not picked up'].filter(Boolean).join(' · ')}

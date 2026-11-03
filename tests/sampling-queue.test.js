@@ -109,7 +109,7 @@ test('the enquiry panel: status, company WhatsApp, company email, conversation f
 
 test('the customer on a work queue row opens the sample page — photos, buyer’s reference, the log — and the enquiry is a small link beside the number', () => {
   const queue = read('components/SamplingWorkQueue.jsx');
-  assert.match(queue, /<Link to=\{row\.link\} className="font-semibold text-steel-50 hover:text-accent">\s*\{row\.customer\?\.name \|\| 'No buyer named'\}/);
+  assert.match(queue, /<Link to=\{row\.link\} className="font-semibold text-steel-50 hover:text-accent">\s*<CustomerName name=\{row\.customer\?\.name\} fallback="No buyer named" \/>/);
   assert.doesNotMatch(queue, /<Link to=\{`\/enquiries\/\$\{row\.enquiry\._id\}`\} className="font-semibold/);
   assert.match(queue, /\{row\.enquiry && <> · <Link to=\{`\/enquiries\/\$\{row\.enquiry\._id\}`\} className="hover:text-accent">\{row\.enquiry\.number\}<\/Link><\/>\}/);
 });

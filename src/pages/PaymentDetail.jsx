@@ -11,6 +11,7 @@ import PaymentContact from '../components/PaymentContact.jsx';
 import HistoryPanel from '../components/HistoryPanel.jsx';
 import { ConfirmPaymentDialog, NOT_IN_BANK_REASONS, NotInBankDialog } from '../components/ConfirmPaymentDialog.jsx';
 import { formatCurrency, formatDate, humanise } from '../utils/format.js';
+import CustomerName from '../components/CustomerName.jsx';
 
 /**
  * One thing owed [BLUEPRINT §20, §25].
@@ -310,7 +311,7 @@ export default function PaymentDetail() {
         subtitle={
           <>
             <Link to={`/customers/${receivable.customer?._id}`} className="hover:text-accent">
-              {receivable.customer?.name}
+              <CustomerName name={receivable.customer?.name} />
             </Link>
             {receivable.order?.number ? (
               <>

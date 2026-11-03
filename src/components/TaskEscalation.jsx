@@ -4,6 +4,7 @@ import { workspace } from '../api/endpoints.js';
 import { Field, FormError, Modal, Notice } from './ui.jsx';
 import { DEPARTMENTS, departmentLabel } from '../utils/pipeline.js';
 import { formatDate } from '../utils/format.js';
+import CustomerName from './CustomerName.jsx';
 
 /**
  * Handing a task to another department [BLUEPRINT §25, §35].
@@ -252,7 +253,7 @@ export function TaskMeta({ task, showDepartment = false }) {
             to={`/customers/${task.customer._id}`}
             className="truncate text-steel-400 transition-colors hover:text-accent"
           >
-            {task.customer.name}
+            <CustomerName name={task.customer.name} />
           </Link>
         )}
         {task.order?.number && (

@@ -13,6 +13,7 @@ import { formatDate, formatNumber } from '../utils/format.js';
 import { SortHeader, useSort } from '../components/SortHeader.jsx';
 import FilterTiles from '../components/FilterTiles.jsx';
 import { DISPATCH_STAGES } from '../utils/pipeline.js';
+import CustomerName from '../components/CustomerName.jsx';
 
 /**
  * Despatch's screen [BLUEPRINT §18–19], which answers two different questions and so has two
@@ -169,7 +170,7 @@ function ReadyQueue({ mayWrite }) {
                         <Link to={`/orders/${row.order._id}`} className="text-steel-300 hover:text-accent">
                           {row.order.number}
                         </Link>
-                        <p className="text-xs text-steel-500">{row.order.customer?.name}</p>
+                        <p className="text-xs text-steel-500"><CustomerName name={row.order.customer?.name} /></p>
                       </td>
                       <td className="px-4 py-3.5 text-right tabular-nums text-steel-200">
                         {formatNumber(row.readyQty)}
@@ -394,7 +395,7 @@ function Consignments({ mayWrite }) {
                         <Link to={`/orders/${row.order?._id}`} className="text-steel-300 hover:text-accent">
                           {row.order?.number}
                         </Link>
-                        <p className="text-xs text-steel-500">{row.customer?.name}</p>
+                        <p className="text-xs text-steel-500"><CustomerName name={row.customer?.name} /></p>
                       </td>
                       <td className="px-4 py-3.5 text-right tabular-nums text-steel-200">
                         {formatNumber(row.dispatchQty)}
