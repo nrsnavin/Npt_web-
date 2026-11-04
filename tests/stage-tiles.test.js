@@ -24,7 +24,10 @@ test('the task form: department list, filled from the enquiry, the common fields
   assert.match(dialog, /const fresh = startingAnswers\(button, prefill\);/);
   assert.match(dialog, /setAnswers\(fresh\);/);
   assert.match(dialog, /<Field label="Workflow \/ Department">/);
-  assert.match(dialog, /<Field label="Attach PDF" hint="Optional, 1 MB at most"/);
+  assert.match(dialog, /<Field label="Attach PDF or photo" hint="Optional — a PDF up to 1 MB, or a photo \(JPEG, PNG, HEIC\) up to 5 MB\. The department sees it on the task\."/);
+  assert.match(dialog, /accept="application\/pdf,image\/\*,\.heic,\.heif"/, 'photos as well as PDFs');
+  assert.match(dialog, /const tooBig = file && file\.size > \(photo \? PHOTO_LIMIT : PDF_LIMIT\);/);
+  assert.match(read('components/TaskPdfLink.jsx'), /<AuthedImage attachmentKey=\{file\.key\} alt=\{`Photo sent with the task: \$\{file\.filename \|\| 'photo'\}`\}/, 'a photo shows as a picture on the task');
   assert.match(dialog, /const PDF_LIMIT = 1024 \* 1024;/);
   assert.match(dialog, /handoffsApi\.attach\(\{ id: enquiry\._id, taskId: sent\.task\._id, file \}\)/);
   assert.match(dialog, /disabled=\{busy \|\| blocked\}/);

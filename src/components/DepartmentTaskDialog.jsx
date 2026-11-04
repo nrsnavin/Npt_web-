@@ -29,6 +29,11 @@ import {
  */
 
 const PDF_LIMIT = 1024 * 1024;
+/* A photo of the PO or drawing travels too — JPEG, PNG, an iPhone's HEIC — up to 5 MB [server: middleware/upload.js]. */
+const PHOTO_LIMIT = 5 * 1024 * 1024;
+const PHOTO_TYPES = ['image/jpeg', 'image/pjpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'image/gif', 'image/bmp', 'image/tiff'];
+/* Some phones hand over a HEIC with no type: the name says what it is. */
+const isPhoto = (file) => PHOTO_TYPES.includes(file.type) || (!file.type && /\.(jpe?g|png|webp|heic|heif|gif|bmp|tiff?)$/i.test(file.name || ''));
 /* The hanger's details a Production request should carry: the form's keys, as said when left out. */
 const BARE_DETAILS = [['model', 'model'], ['material', 'material'], ['quantity', 'pieces']];
 const PRIORITIES = [['normal', 'Normal'], ['high', 'High'], ['low', 'Low']];
@@ -216,8 +221,9 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
   const missing = missingAnswer(button, answers);
   /* A team task's answers say what to do; the instruction is for what they do not. */
   const mustExplain = (noteNeeded(button, answers) || Boolean(fromTask)) && note.trim().length < 3;
-  const tooBig = file && file.size > PDF_LIMIT;
-  const notPdf = file && file.type !== 'application/pdf';
+  const photo = Boolean(file) && isPhoto(file);
+  const tooBig = file && file.size > (photo ? PHOTO_LIMIT : PDF_LIMIT);
+  const notPdf = file && file.type !== 'application/pdf' && !photo;
   /*
    * Production, Printing, Assembly, Dispatch: their queues run by the EDD, so marketing or Admin
    * raising one gives it here — the enquiry's EDD filled in, required when there is none yet.
@@ -401,8 +407,8 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
               <input type="date" className="input" aria-label="EDD" min={todayInIndia()} value={edd} onChange={(event) => setEdd(event.target.value)} required />
             </Field>
           )}
-          <Field label="Attach PDF" hint="Optional, 1 MB at most" className="sm:col-span-2" error={tooBig ? 'That PDF is over 1 MB' : notPdf ? 'Attach a PDF' : undefined}>
-            <input type="file" accept="application/pdf" className="input" onChange={(event) => setFile(event.target.files?.[0] || null)} />
+          <Field label="Attach PDF or photo" hint="Optional — a PDF up to 1 MB, or a photo (JPEG, PNG, HEIC) up to 5 MB. The department sees it on the task." className="sm:col-span-2" error={tooBig ? (photo ? 'That photo is over 5 MB' : 'That PDF is over 1 MB') : notPdf ? 'Attach a PDF or a photo (JPEG, PNG, HEIC)' : undefined}>
+            <input type="file" accept="application/pdf,image/*,.heic,.heif" className="input" aria-label="Attach PDF or photo" onChange={(event) => setFile(event.target.files?.[0] || null)} />
           </Field>
           {orders.length > 1 && (
             <Field label="For sales order" hint="The enquiry has more than one open SO — say which this is for" required>
