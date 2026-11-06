@@ -45,7 +45,7 @@ function Readiness({ so, onAsk }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
       <p className="text-xs font-semibold text-warn-400">⚠ Missing: <span className="font-normal text-steel-200">{missing.join(' · ')}</span></p>
-      {onAsk && <button type="button" className="row-action text-xs" onClick={onAsk}>Ask marketing</button>}
+      {onAsk && <button type="button" className="row-action text-xs" onClick={onAsk}>Ask a query</button>}
     </div>
   );
 }
@@ -156,7 +156,7 @@ function SoCard({ row, onChanged, onAsk }) {
   );
 }
 
-/** Asking marketing for what is missing: Needs Clarification, pre-filled with the gaps. */
+/** Asking whoever raised the request for what is missing: Needs Clarification opens a query, pre-filled with the gaps [server: taskQuery.service]. */
 function AskMarketing({ row, onClose, onChanged }) {
   const [note, setNote] = useState(`Please add: ${row.so.readiness.missing.join(', ')}.`);
   const [busy, setBusy] = useState(false);
@@ -173,12 +173,12 @@ function AskMarketing({ row, onClose, onChanged }) {
     }
   };
   return (
-    <Modal open title="Ask marketing" description={`${row.enquiry?.number || 'Team task'} · the request moves to Needs Clarification`} onClose={onClose}>
+    <Modal open title="Ask a query" description={`${row.enquiry?.number || 'Team task'} · a query to ${row.task.createdBy?.name || 'whoever raised the request'} — the request waits at Needs Clarification until they answer`} onClose={onClose}>
       <textarea rows={3} className="input w-full" value={note} onChange={(event) => setNote(event.target.value)} autoFocus />
       {problem && <p className="mt-2 text-sm text-danger-400">{problem}</p>}
       <div className="mt-3 flex justify-end gap-2">
         <button type="button" className="btn-secondary" onClick={onClose} disabled={busy}>Cancel</button>
-        <button type="button" className="btn-primary" onClick={send} disabled={busy || note.trim().length < 3}>{busy ? 'Sending…' : 'Send to marketing'}</button>
+        <button type="button" className="btn-primary" onClick={send} disabled={busy || note.trim().length < 3}>{busy ? 'Sending…' : 'Send query'}</button>
       </div>
     </Modal>
   );
@@ -225,7 +225,7 @@ export default function SoDesk({ onChanged }) {
       <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-5">
         <Tile label="Waiting to be booked" value={rupees(summary.value)} hint={`${pieces(summary.pieces)} across ${summary.requests} request${summary.requests === 1 ? '' : 's'}`} />
         <Tile label="Ready to prepare" value={summary.ready} tone="text-success-400" hint="Every line priced, terms given" />
-        <Tile label="Missing details" value={summary.missing} tone={summary.missing ? 'text-warn-400' : 'text-steel-50'} hint="Ask marketing from the card" />
+        <Tile label="Missing details" value={summary.missing} tone={summary.missing ? 'text-warn-400' : 'text-steel-50'} hint="Ask a query from the card" />
         <Tile label="EDD within a week" value={summary.eddSoon} tone={summary.eddSoon ? 'text-danger-400' : 'text-steel-50'} hint="No SO yet — Production waits" />
         <Tile label="Booked this week" value={rupees(summary.bookedValue)} hint={`${summary.bookedCount} SO${summary.bookedCount === 1 ? '' : 's'} prepared · ${summary.heldCount} not in production`} />
       </div>

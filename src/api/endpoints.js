@@ -259,6 +259,68 @@ export const field = {
   times: ({ id, ...payload }) => api.post(`/field/visits/${id}/times`, payload).then(unwrap),
 };
 
+/**
+ * Queries on tasks and enquiries [server: services/taskQuery.service.js]: the team working the
+ * task asks whoever raised it (the creator, else the enquiry's marketing person, else Admin);
+ * the answer comes back onto the task. The lists carry `mayAsk` beside the rows.
+ */
+export const taskQueries = {
+  board: (params) => api.get('/task-queries', { params }).then(unwrap),
+  onTask: (id) => api.get(`/workspace/todos/${id}/queries`).then((response) => response.data),
+  askOnTask: ({ id, question, subject }) => api.post(`/workspace/todos/${id}/queries`, { question, subject }).then(unwrap),
+  onEnquiry: (id) => api.get(`/enquiries/${id}/queries`).then((response) => response.data),
+  askOnEnquiry: ({ id, question, subject }) => api.post(`/enquiries/${id}/queries`, { question, subject }).then(unwrap),
+  reply: ({ id, body }) => api.post(`/task-queries/${id}/reply`, { body }).then(unwrap),
+  close: ({ id, reason }) => api.post(`/task-queries/${id}/close`, reason ? { reason } : {}).then(unwrap),
+  seen: (id) => api.post(`/task-queries/${id}/seen`, {}, { feedback: false }).then(unwrap),
+  /* The subject drop-down, shared by both kinds of query: anybody adds, Admin renames or removes [server: querySubjects.service]. */
+  subjects: (params) => api.get('/query-subjects', { params }).then(unwrap),
+  addSubject: (name) => api.post('/query-subjects', { name }).then(unwrap),
+  editSubject: ({ id, ...payload }) => api.patch(`/query-subjects/${id}`, payload).then(unwrap),
+};
+
+/**
+ * The PP sample and its delivery challans [server: services/ppSample.service.js]: the card on the
+ * enquiry and the task, the buyer's answer, the DC Dispatch prepares on Send PP Sample, the DC
+ * on paper, and the DC marked as added to an invoice.
+ */
+export const ppSamples = {
+  ofTask: (id) => api.get(`/workspace/todos/${id}/pp-sample`).then(unwrap),
+  ofEnquiry: (id) => api.get(`/enquiries/${id}/pp-sample`).then(unwrap),
+  answer: ({ id, verdict, note }) => api.post(`/pp-samples/${id}/answer`, { verdict, note }).then(unwrap),
+  challanForm: (taskId) => api.get(`/workspace/todos/${taskId}/challan`).then(unwrap),
+  saveChallan: ({ taskId, ...payload }) => api.post(`/workspace/todos/${taskId}/challan`, payload).then(unwrap),
+  challansOfTask: (taskId, params) => api.get(`/workspace/todos/${taskId}/challans`, { params }).then((response) => response.data),
+  invoiced: ({ id, number, date }) => api.post(`/delivery-challans/${id}/invoiced`, { number, date }).then(unwrap),
+  /** The DC on the letterhead, opened in a new tab to print or share. */
+  openPdf: async (id) => {
+    const response = await api.get(`/delivery-challans/${id}/pdf`, { responseType: 'blob' });
+    const url = URL.createObjectURL(response.data);
+    window.open(url, '_blank', 'noopener');
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  },
+};
+
+/**
+ * EDD change requests [server: services/eddChange.service.js]: Production, Printing or Assembly
+ * asks to move the EDD with a date and why; Admin or the marketing person agrees, replies or
+ * keeps it; the team answers. The enquiry's EDD history comes with them.
+ */
+export const eddChanges = {
+  onTask: (id) => api.get(`/workspace/todos/${id}/edd-changes`).then((response) => response.data),
+  ask: ({ id, date, reason, model }) => api.post(`/workspace/todos/${id}/edd-changes`, { date, reason, ...(model ? { model } : {}) }).then(unwrap),
+  track: (enquiryId) => api.get(`/enquiries/${enquiryId}/edd-track`).then(unwrap),
+  reply: ({ id, body, date }) => api.post(`/edd-changes/${id}/reply`, { body, ...(date ? { date } : {}) }).then(unwrap),
+  agree: ({ id, date, note }) => api.post(`/edd-changes/${id}/agree`, { ...(date ? { date } : {}), ...(note ? { note } : {}) }).then(unwrap),
+  keep: ({ id, note }) => api.post(`/edd-changes/${id}/keep`, { note }).then(unwrap),
+  withdraw: (id) => api.post(`/edd-changes/${id}/withdraw`, {}).then(unwrap),
+};
+
+/** A small order's stock check: per model, the pieces in the godown [server: smallOrder.service]. */
+export const smallOrders = {
+  checkStock: ({ id, lines, note }) => api.post(`/workspace/todos/${id}/stock-check`, { lines, ...(note ? { note } : {}) }).then((response) => response.data),
+};
+
 export const users = {
   catalogue: () => api.get('/users/catalogue').then(unwrap),
   list: (params) => api.get('/users', { params }).then((response) => response.data),
@@ -1106,6 +1168,12 @@ export const samples = {
     return api.put(`/samples/${id}/items/${itemId}/photo`, form).then(unwrap);
   },
   clearItemPhoto: ({ id, itemId }) => api.delete(`/samples/${id}/items/${itemId}/photo`).then(unwrap),
+  /** The hand-over's photo, taken afterwards — added, or in place of the one it had. */
+  setHandoverPhoto: ({ id, photo }) => {
+    const form = new FormData();
+    form.append('photo', photo);
+    return api.put(`/samples/${id}/hand-over/photo`, form).then(unwrap);
+  },
   setItemReferencePhoto: ({ id, itemId, photo }) => {
     const form = new FormData();
     form.append('photo', photo);

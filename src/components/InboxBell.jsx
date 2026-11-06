@@ -17,6 +17,8 @@ const KIND = {
   approval: { mark: '₹', tone: 'bg-warn-500/15 text-warn-400', action: 'Review' },
   sample: { mark: '◎', tone: 'bg-success-500/15 text-success-400', action: 'Open' },
   task: { mark: '✓', tone: 'bg-line/[0.08] text-steel-300', action: 'Open' },
+  /* A query on a task or an enquiry, to answer — or the answer to mine [server: taskQuery.service]. */
+  task_query: { mark: '?', tone: 'bg-warn-500/15 text-warn-400', action: 'Answer' },
 };
 
 /** Said by a screen whose work may have cleared something in the bell — reading a thread. */

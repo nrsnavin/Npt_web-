@@ -4,6 +4,7 @@ import { queries as queriesApi } from '../api/endpoints.js';
 import { Field, FormError, Modal, Notice } from './ui.jsx';
 import { CustomerSelect } from './pickers.jsx';
 import ParticipantPicker, { describeParticipant, useParticipantOptions } from './ParticipantPicker.jsx';
+import SubjectPicker, { forgetQuerySubjects } from './SubjectPicker.jsx';
 
 /**
  * Asking a question about a buyer.
@@ -21,6 +22,7 @@ export default function RaiseQuery({ open, customer, onClose, onRaised }) {
   const [error, setError] = useState(null);
   const [chosen, setChosen] = useState(customer || '');
   const [asked, setAsked] = useState([]);
+  const [subject, setSubject] = useState('');
   const { options, loading } = useParticipantOptions();
 
   const {
@@ -32,7 +34,8 @@ export default function RaiseQuery({ open, customer, onClose, onRaised }) {
 
   useEffect(() => {
     if (!open) return;
-    reset({ subject: '', question: '' });
+    reset({ question: '' });
+    setSubject('');
     setChosen(customer || '');
     setAsked([]);
     setError(null);
@@ -52,10 +55,12 @@ export default function RaiseQuery({ open, customer, onClose, onRaised }) {
     try {
       const created = await queriesApi.create({
         customer: chosen,
-        subject: values.subject.trim() || undefined,
+        subject: subject.trim() || undefined,
         question: values.question.trim(),
         participants: asked,
       });
+      /* A new subject is on the shared list now [server: querySubjects.service]. */
+      forgetQuerySubjects();
       onRaised?.(created);
       onClose();
     } catch (failure) {
@@ -89,24 +94,12 @@ export default function RaiseQuery({ open, customer, onClose, onRaised }) {
         </Field>
 
         {/*
-          Optional, and after the question rather than before it. A chat does not ask for a
-          title before you may speak, and this was the one field people stalled on. Left empty,
-          the question's first line is used — which is what the asker would have typed here.
+          Optional, and after the question rather than before it: this was the one field people
+          stalled on. Picked from the shared list — Accounts issue, Sample, Dispatch… — or a new
+          one, which joins the list for everyone. Left empty, the question's first line is used.
         */}
-        <Field
-          label="Subject"
-          error={errors.subject?.message}
-          hint="Optional — the first line of your question is used if you leave it empty"
-        >
-          <input
-            className="input"
-            placeholder="September invoice disputed"
-            {...register('subject', {
-              maxLength: { value: 200, message: 'Keep it to a line — the detail goes above' },
-              validate: (value) =>
-                !value.trim() || value.trim().length >= 3 || 'A few words, or leave it empty',
-            })}
-          />
+        <Field label="Subject" hint="Optional — pick one, or add a new subject for everyone; the first line of your question is used if you leave it empty">
+          <SubjectPicker value={subject} onChange={setSubject} id="raise-query-subject" />
         </Field>
 
         <div className="rounded-lg border border-line/[0.06] p-4">

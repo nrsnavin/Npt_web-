@@ -7,13 +7,18 @@ import { formatDate } from '../utils/format.js';
 import TaskWorkflow from './TaskWorkflow.jsx';
 import { Notice } from './ui.jsx';
 import CustomerName from './CustomerName.jsx';
+import { QueryCard } from './TaskQueries.jsx';
+import { EddChangeCard } from './EddChanges.jsx';
 
 /**
  * What needs this person now, highlighted at the top of their dashboard [server: handoff.service
  * `attentionFor`] — so a question or an answer is acted on where it is seen, not found by search.
  *
- *   Questions for you   a clarification another department asked (the SO team asking which
- *                       GSTIN) — answered right here; the answer goes back onto their task
+ *   Queries for you     a question a team asked on a task you raised (the SO team asking
+ *                       which GSTIN), or on your enquiry — answered right here; the answer
+ *                       goes back onto their task [server: taskQuery.service]
+ *   Answers to you      the answer to a query you asked that no task's Replies carries
+ *   Questions for you   the old SO Clarification tasks, until the last of them is answered
  *   Replies             an answer that came back on one of this department's tasks — with the
  *                       task's status beside it, and "Got it"; it stays until somebody acts
  *   Updates on enquiries a department moved its task on one of your enquiries (Admin: any) —
@@ -214,22 +219,54 @@ function Update({ notice, onChanged }) {
 export default function AttentionPanel({ attention, onChanged }) {
   const questions = attention?.questions || [];
   const replies = attention?.replies || [];
+  const queries = attention?.queries || [];
+  const answers = attention?.answers || [];
+  /* EDD change requests: the office's to answer, and the office's replies for the team [server: eddChange.service]. */
+  const eddAsks = attention?.eddChanges || [];
+  const eddReplies = attention?.eddReplies || [];
   /* Escalations come to Admin alone, and are answered here rather than read. */
   const escalations = (attention?.notices || []).filter((notice) => notice.status === 'escalated');
   const notices = (attention?.notices || []).filter((notice) => notice.status !== 'escalated');
   const unread = notices.filter((notice) => !notice.readAt).length + escalations.length;
-  if (!questions.length && !replies.length && !notices.length && !escalations.length) return null;
+  if (!questions.length && !replies.length && !queries.length && !answers.length && !eddAsks.length && !eddReplies.length && !notices.length && !escalations.length) return null;
   return (
     <section aria-label="Needs your action" className="card space-y-3 border-warn-500/40 p-4">
       <h2 className="flex items-center gap-2 text-base font-bold text-steel-50">
         <span className="h-2.5 w-2.5 rounded-full bg-warn-400" aria-hidden="true" />
         Needs your action
-        <span className="rounded-full bg-warn-500/15 px-2 text-xs font-semibold tabular-nums text-warn-400">{questions.length + replies.length + unread}</span>
+        <span className="rounded-full bg-warn-500/15 px-2 text-xs font-semibold tabular-nums text-warn-400">{eddAsks.length + eddReplies.length + queries.length + answers.length + questions.length + replies.length + unread}</span>
       </h2>
       {escalations.length > 0 && (
         <div className="space-y-2">
           <p className="eyebrow">Escalated to you</p>
           {escalations.map((notice) => <Escalation key={notice._id} notice={notice} onChanged={onChanged} />)}
+        </div>
+      )}
+      {eddAsks.length > 0 && (
+        <div className="space-y-2">
+          <p className="eyebrow">EDD change requests</p>
+          {eddAsks.map((change) => <EddChangeCard key={change._id} change={{ ...change, mayAgree: true, mayReply: true }} onChanged={onChanged} showWhere />)}
+        </div>
+      )}
+      {eddReplies.length > 0 && (
+        <div className="space-y-2">
+          <p className="eyebrow">EDD changes — replies for your team</p>
+          {eddReplies.map((change) => <EddChangeCard key={change._id} change={{ ...change, mayReply: true, mayWithdraw: true }} onChanged={onChanged} showWhere />)}
+        </div>
+      )}
+      {queries.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <p className="eyebrow">Queries for you</p>
+            <Link to="/task-queries" className="text-xs text-accent hover:underline">All queries</Link>
+          </div>
+          {queries.map((query) => <QueryCard key={query._id} query={{ ...query, mayAnswer: true }} onChanged={onChanged} showWhere />)}
+        </div>
+      )}
+      {answers.length > 0 && (
+        <div className="space-y-2">
+          <p className="eyebrow">Answers to your queries</p>
+          {answers.map((query) => <QueryCard key={query._id} query={{ ...query, mayFollowUp: true, mayClose: true }} onChanged={onChanged} showWhere />)}
         </div>
       )}
       {questions.length > 0 && (

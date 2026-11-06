@@ -95,8 +95,12 @@ export default function DispatchTable({ rows: all = [], me, onChanged }) {
             const statuses = buttonFor(catalogue, task.kind)?.form?.statuses || [];
             const status = statuses.find((entry) => entry.key === task.status) || null;
             const customer = enquiry?.customer?.name || task.customer?.name || '—';
-            const models = task.brief?.models || task.brief?.model || enquiry?.requirement?.modelNumber || '';
-            const quantity = task.brief?.quantity ? `${Number(String(task.brief.quantity).replace(/[^\d.]/g, '')).toLocaleString('en-IN')} pcs` : '';
+            /* A PP sample to send: its own lines and pieces, not the order's [server: ppSample.service]. */
+            const isPp = task.kind === 'pp_sample_send' || task.kind === 'small_order';
+            const ppItems = isPp && Array.isArray(task.brief?.items) ? task.brief.items : [];
+            const models = isPp ? ppItems.map((item) => item.model).filter(Boolean).join(', ') : task.brief?.models || task.brief?.model || enquiry?.requirement?.modelNumber || '';
+            const ppPieces = ppItems.reduce((sum, item) => sum + (Number(String(item.pieces ?? item.quantity ?? '').replace(/,/g, '')) || 0), 0);
+            const quantity = isPp ? (ppPieces ? `${ppPieces} pcs${task.kind === 'small_order' ? '' : ' · PP sample'}` : task.kind === 'small_order' ? 'Small order' : 'PP sample') : task.brief?.quantity ? `${Number(String(task.brief.quantity).replace(/[^\d.]/g, '')).toLocaleString('en-IN')} pcs` : '';
             const edd = enquiry?.edd?.date || task.jobEdd?.date || null;
             const delivery = task.delivery?.urgency ? task.delivery : null;
             const late = Boolean(delivery?.dueBy && new Date(delivery.dueBy) < new Date());
@@ -137,7 +141,9 @@ export default function DispatchTable({ rows: all = [], me, onChanged }) {
                     <DispatchModelList models={row.dispatchModels} compact />
                   ) : (
                     <>
-                      <span className={`text-xs font-semibold ${status?.issue ? 'text-danger-400' : 'text-steel-100'}`}>{status?.label || 'Received'}</span>
+                      {task.kind === 'pp_sample_send' && <span className="mb-0.5 inline-block rounded-full bg-accent/10 px-2 py-0.5 text-xs font-semibold text-accent">PP sample — prepare the DC and send</span>}
+                      {task.kind === 'small_order' && <span className="mb-0.5 inline-block rounded-full bg-accent/10 px-2 py-0.5 text-xs font-semibold text-accent">Small order — check stock</span>}
+                      <span className={`block text-xs font-semibold ${status?.issue ? 'text-danger-400' : 'text-steel-100'}`}>{status?.label || 'Received'}</span>
                       {row.dispatchModels?.[0] && <span className="block text-xs text-steel-400">{row.dispatchModels[0].words}</span>}
                     </>
                   )}

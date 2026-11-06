@@ -67,3 +67,27 @@ test('the finished pieces travel: queue thumbnails, the enquiry’s samples, the
   assert.match(order, /<ApprovedSampleCard approvedSample=\{data\.approvedSample\} \/>/);
   assert.match(order, /Section title="Approved sample"/);
 });
+
+test('Sample Ready asks what each piece was made with — material, hook or No hook, any clip, pieces — with an alert for what is missing', () => {
+  const form = readFileSync(new URL('../src/components/SampleReadyForm.jsx', import.meta.url), 'utf8');
+  assert.match(form, /<MaterialSelect value=\{made\[row\._id\]\?\.materialRef/);
+  assert.match(form, /<PartSelect kind="hook"/);
+  assert.match(form, /<PartSelect kind="clip"/);
+  assert.match(form, /No hook/);
+  assert.match(form, /Still to fill:/);
+  assert.match(form, /noDetails: true, noDetailsReason: detailsReason\.trim\(\)/);
+  assert.match(form, /itemsMade: rows\.map/);
+  /* And the reminder when it goes. */
+  const sent = readFileSync(new URL('../src/utils/sampleSent.js', import.meta.url), 'utf8');
+  assert.match(sent, /export function readyGaps/);
+  assert.match(readFileSync(new URL('../src/pages/SampleDetail.jsx', import.meta.url), 'utf8'), /Before it goes — still missing: \{readyGaps\(rows\)\.join/);
+  assert.match(readFileSync(new URL('../src/components/SamplingWorkQueue.jsx', import.meta.url), 'utf8'), /Before it goes — still missing: \{readyGaps\(models\)\.join/);
+});
+
+test('the hand-over details take a photo of the sample afterwards, on the camera', () => {
+  const page = readFileSync(new URL('../src/pages/SampleDetail.jsx', import.meta.url), 'utf8');
+  assert.match(page, /samplesApi\.setHandoverPhoto\(\{ id: sample\._id, photo: await shrinkImage\(file\) \}\)/);
+  assert.match(page, /capture="environment" className="sr-only" aria-label="Take a photo of the sample"/);
+  assert.match(page, /'Retake photo' : 'Take photo of the sample'/);
+  assert.match(readFileSync(new URL('../src/api/endpoints.js', import.meta.url), 'utf8'), /api\.put\(`\/samples\/\$\{id\}\/hand-over\/photo`, form\)/);
+});

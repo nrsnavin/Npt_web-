@@ -40,6 +40,9 @@ import {
   optionLabel, sampleStageLabel, stageLabel, text,
 } from '../utils/pipeline.js';
 import EnquiryClarifications from '../components/EnquiryClarifications.jsx';
+import { EnquiryQueries } from '../components/TaskQueries.jsx';
+import PpSampleCard from '../components/PpSample.jsx';
+import { EnquiryEddTrack } from '../components/EddChanges.jsx';
 import CustomerName from '../components/CustomerName.jsx';
 
 const TONE_TEXT = {
@@ -725,6 +728,9 @@ export default function EnquiryDetail() {
         }
       />
 
+      {/* At the top: the EDD as it stands, first promised, its moves, and any change the plant asked — answered right here [server: eddChange.service]. */}
+      <div className="mb-5"><EnquiryEddTrack enquiryId={enquiry._id} onChanged={reload} /></div>
+
       {enquiry.status === 'lost' && (
         <div className="mb-5">
           <Notice tone="danger">
@@ -795,7 +801,13 @@ export default function EnquiryDetail() {
 
           {mayReadSamples && <EnquirySamples enquiryId={enquiry._id} />}
 
-          {/* What the SO team (or another department) asked marketing, and the answers given. */}
+          {/* The PP sample before bulk production: rounds, DCs, the buyer's answer [server: ppSample.service]. */}
+          <PpSampleCard enquiryId={enquiry._id} />
+
+          {/* Queries on the enquiry and its tasks — asked of its marketing person, answered here [server: taskQuery.service]. */}
+          <EnquiryQueries enquiry={enquiry} />
+
+          {/* What the SO team asked marketing before queries, and the answers given. */}
           <EnquiryClarifications clarifications={enquiry.clarifications} />
 
           {/* What it led to: the SOs, the QC test sheets and the dispatch, trips and LR — each with its SO. */}

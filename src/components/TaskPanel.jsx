@@ -8,6 +8,10 @@ import DeliveryUrgencyPrompt from './DeliveryUrgencyPrompt.jsx';
 import SalesOrderDraft from './SalesOrderDraft.jsx';
 import TaskVisits from './TaskVisits.jsx';
 import TaskFieldVisits from './TaskFieldVisits.jsx';
+import TaskQueries from './TaskQueries.jsx';
+import TaskEddChanges from './EddChanges.jsx';
+import StockCheck from './StockCheck.jsx';
+import PpSampleCard, { ChallansToInvoice, PpChallanAction } from './PpSample.jsx';
 import { Modal, Notice } from './ui.jsx';
 import { TaskFacts, TaskTimeline } from './TaskHistory.jsx';
 import { buttonFor, useHandoffCatalogue } from '../hooks/useHandoffCatalogue.js';
@@ -82,6 +86,13 @@ export default function TaskPanel({ task, startWith, mayWork, onClose, onChanged
         {/* The field visits planned on the task — Needs visit, Check in — and how each went [server: fieldVisit.service]. */}
         <TaskFieldVisits todo={task} />
 
+        {/* The PP sample: where it stands, its DCs, and the buyer's answer [server: ppSample.service]. */}
+        {['po_so', 'pp_sample', 'pp_sample_send', 'pp_sample_approval'].includes(task.kind) && <PpSampleCard taskId={task._id} onChanged={onChanged} />}
+        {/* Dispatch prepares the DC on Send PP Sample before marking it sent. */}
+        {task.kind === 'pp_sample_send' && mayWork && <PpChallanAction task={task} onChanged={onChanged} />}
+        {/* Invoice & Dispatch: PP sample DCs still to bill on this order's invoice. */}
+        {task.kind === 'invoice_dispatch' && <ChallansToInvoice task={task} />}
+
         {/* The rule's proposal on a collection case — the collector or Admin presses Escalated to PRT, or not. */}
         {!task.completed && task.suggestion?.kind === 'escalate_prt' && (
           <Notice tone="warn">
@@ -104,6 +115,15 @@ export default function TaskPanel({ task, startWith, mayWork, onClose, onChanged
           <p className="mb-1 text-xs font-semibold text-steel-400">What happened</p>
           <TaskTimeline task={task} button={button} />
         </div>
+
+        {/* A small order: Dispatch checks the stock — in stock to Dispatch, short to Production [server: smallOrder.service]. */}
+        {task.kind === 'small_order' && (mayWork || task.brief?.stockCheck) && <StockCheck todo={task} onChanged={onChanged} />}
+
+        {/* Production, Printing, Assembly: ask to move the EDD, with the date and why — and the asks so far [server: eddChange.service]. */}
+        {['ask_edd', 'ask_printing', 'ask_assembling_edd'].includes(task.kind) && <TaskEddChanges todo={task} onChanged={onChanged} />}
+
+        {/* Questions to whoever raised the task, and their answers — Ask a query for the team working it [server: taskQuery.service]. */}
+        <TaskQueries todo={task} onChanged={onChanged} />
 
         {mayWork && !task.completed ? (
           <div className="space-y-3 border-t border-line/[0.06] pt-3">

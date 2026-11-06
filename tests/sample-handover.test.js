@@ -30,7 +30,8 @@ test('the sample page offers the hand-over to marketing, not on a collection', (
   assert.match(page, /sample\.handover !== 'collect'/);
   assert.match(page, /<SampleHandOverForm sample=\{sample\}/);
   assert.match(read('components/SampleHandOverForm.jsx'), /samplesApi\.handOver\(/);
-  assert.match(page, /<HandoverCard sample=\{sample\} \/>/);
+  /* The card takes a photo afterwards for whoever may write the sample [HandoverCard `mayEdit`]. */
+  assert.match(page, /<HandoverCard sample=\{sample\} mayEdit=\{canWrite\('enquiries'\) \|\| canWrite\('samples'\)\} onSaved=\{setData\} \/>/);
   const api = read('api/endpoints.js');
   assert.match(api, /handOver: \(\{ id, photo, \.\.\.fields \}\)/);
   assert.match(api, /`\/samples\/\$\{id\}\/hand-over`/);
