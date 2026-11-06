@@ -34,7 +34,8 @@ test('the bar is the five in the plant’s words, then More', () => {
   const by = Object.fromEntries(items.map((item) => [item.key, item.features.map((feature) => feature.to)]));
   assert.deepEqual(by.dashboard, ['/departments/mine']);
   assert.deepEqual(by.enquiries, ['/enquiries']);
-  assert.deepEqual(by.tasks, ['/tasks', '/departments']);
+  /* Task queries beside the tasks [pages/TaskQueriesPage.jsx]. */
+  assert.deepEqual(by.tasks, ['/tasks', '/task-queries', '/departments']);
   assert.deepEqual(by.quotations, ['/quotations', '/quotations/sent']);
   assert.deepEqual(by.masters, ['/customers', '/moulds', '/users']);
   assert.deepEqual(by.more, ['/production'], 'the rest is under More');

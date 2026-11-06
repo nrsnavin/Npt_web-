@@ -7,7 +7,8 @@ import { formatDateTime } from '../utils/format.js';
  * [server: handoff.service `answerParent`]. Newest first.
  */
 export default function EnquiryClarifications({ clarifications }) {
-  const list = [...(clarifications || [])].filter((pair) => pair.answer).reverse();
+  /* Answered in a query: the query shows it, with its thread [TaskQueries `EnquiryQueries`]. */
+  const list = [...(clarifications || [])].filter((pair) => pair.answer && !pair.query).reverse();
   if (!list.length) return null;
   return (
     <Section title={`Questions answered (${list.length})`}>

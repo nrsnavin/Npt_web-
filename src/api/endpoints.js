@@ -259,6 +259,22 @@ export const field = {
   times: ({ id, ...payload }) => api.post(`/field/visits/${id}/times`, payload).then(unwrap),
 };
 
+/**
+ * Queries on tasks and enquiries [server: services/taskQuery.service.js]: the team working the
+ * task asks whoever raised it (the creator, else the enquiry's marketing person, else Admin);
+ * the answer comes back onto the task. The lists carry `mayAsk` beside the rows.
+ */
+export const taskQueries = {
+  board: (params) => api.get('/task-queries', { params }).then(unwrap),
+  onTask: (id) => api.get(`/workspace/todos/${id}/queries`).then((response) => response.data),
+  askOnTask: ({ id, question }) => api.post(`/workspace/todos/${id}/queries`, { question }).then(unwrap),
+  onEnquiry: (id) => api.get(`/enquiries/${id}/queries`).then((response) => response.data),
+  askOnEnquiry: ({ id, question }) => api.post(`/enquiries/${id}/queries`, { question }).then(unwrap),
+  reply: ({ id, body }) => api.post(`/task-queries/${id}/reply`, { body }).then(unwrap),
+  close: ({ id, reason }) => api.post(`/task-queries/${id}/close`, reason ? { reason } : {}).then(unwrap),
+  seen: (id) => api.post(`/task-queries/${id}/seen`, {}, { feedback: false }).then(unwrap),
+};
+
 export const users = {
   catalogue: () => api.get('/users/catalogue').then(unwrap),
   list: (params) => api.get('/users', { params }).then((response) => response.data),

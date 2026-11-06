@@ -244,14 +244,17 @@ export function CommentDialog({ step, target, onClose, onSave }) {
   const [problem, setProblem] = useState(null);
   /* What the comment goes with: a question to the enquiry's marketing person, or another
      department's task (Disputed → A/C Clarify; Escalated to PRT → the PRT case), or just a note. */
-  const asksMarketing = step.raises && (!target || target.department === 'owner');
-  const description = asksMarketing
+  /* Needs Clarification: a query to whoever raised the task [server: taskQuery.service]. */
+  const asksMarketing = step.opensQuery || (step.raises && (!target || target.department === 'owner'));
+  const description = step.opensQuery
+    ? 'Opened as a query to whoever raised this task — or the enquiry’s marketing person, or Admin. Their answer comes back onto this task, and it goes back to where it was.'
+    : asksMarketing
     ? 'The enquiry’s marketing person gets a task to answer this; their answer comes back onto this task.'
     : step.raises
       ? `${target.label} is raised for ${departmentLabel(target.department)} with this note${step.done ? ', and this task closes' : ''}.`
       : undefined;
   const label = asksMarketing ? 'What needs clarifying' : step.raises ? `What ${departmentLabel(target.department)} should know` : 'Why';
-  const button = asksMarketing ? 'Ask marketing' : step.label;
+  const button = step.opensQuery ? 'Send query' : asksMarketing ? 'Ask marketing' : step.label;
   const save = async (event) => {
     event.preventDefault();
     setBusy(true);

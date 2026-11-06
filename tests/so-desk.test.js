@@ -21,7 +21,7 @@ test('the desk reads each request for what to do with it: readiness, size, EDD, 
   const desk = read('components/SoDesk.jsx');
   assert.match(desk, /✓ Ready to prepare/);
   assert.match(desk, /⚠ Missing: /);
-  assert.match(desk, />Ask marketing<\/button>/);
+  assert.match(desk, />Ask a query<\/button>/);
   assert.match(desk, /status: 'clarification', note/, 'asking pre-fills Needs Clarification');
   assert.match(desk, /A week or less away and no SO yet/);
   assert.match(desk, /Last order <span/);

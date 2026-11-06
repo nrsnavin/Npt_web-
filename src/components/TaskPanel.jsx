@@ -8,6 +8,7 @@ import DeliveryUrgencyPrompt from './DeliveryUrgencyPrompt.jsx';
 import SalesOrderDraft from './SalesOrderDraft.jsx';
 import TaskVisits from './TaskVisits.jsx';
 import TaskFieldVisits from './TaskFieldVisits.jsx';
+import TaskQueries from './TaskQueries.jsx';
 import { Modal, Notice } from './ui.jsx';
 import { TaskFacts, TaskTimeline } from './TaskHistory.jsx';
 import { buttonFor, useHandoffCatalogue } from '../hooks/useHandoffCatalogue.js';
@@ -104,6 +105,9 @@ export default function TaskPanel({ task, startWith, mayWork, onClose, onChanged
           <p className="mb-1 text-xs font-semibold text-steel-400">What happened</p>
           <TaskTimeline task={task} button={button} />
         </div>
+
+        {/* Questions to whoever raised the task, and their answers — Ask a query for the team working it [server: taskQuery.service]. */}
+        <TaskQueries todo={task} onChanged={onChanged} />
 
         {mayWork && !task.completed ? (
           <div className="space-y-3 border-t border-line/[0.06] pt-3">

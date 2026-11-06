@@ -40,6 +40,7 @@ import {
   optionLabel, sampleStageLabel, stageLabel, text,
 } from '../utils/pipeline.js';
 import EnquiryClarifications from '../components/EnquiryClarifications.jsx';
+import { EnquiryQueries } from '../components/TaskQueries.jsx';
 import CustomerName from '../components/CustomerName.jsx';
 
 const TONE_TEXT = {
@@ -795,7 +796,10 @@ export default function EnquiryDetail() {
 
           {mayReadSamples && <EnquirySamples enquiryId={enquiry._id} />}
 
-          {/* What the SO team (or another department) asked marketing, and the answers given. */}
+          {/* Queries on the enquiry and its tasks — asked of its marketing person, answered here [server: taskQuery.service]. */}
+          <EnquiryQueries enquiry={enquiry} />
+
+          {/* What the SO team asked marketing before queries, and the answers given. */}
           <EnquiryClarifications clarifications={enquiry.clarifications} />
 
           {/* What it led to: the SOs, the QC test sheets and the dispatch, trips and LR — each with its SO. */}
