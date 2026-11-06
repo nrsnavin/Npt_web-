@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import { announceInboxChanged } from '../InboxBell.jsx';
 import QueryThread from '../QueryThread.jsx';
 import RaiseQuery from '../RaiseQuery.jsx';
+import CustomerName from '../CustomerName.jsx';
 import { selfId } from '../../utils/pipeline.js';
 
 /**
@@ -133,13 +134,15 @@ export default function QueriesPanel({ inbox, openId, onOpen }) {
             >
               <span aria-hidden className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${row.isUrgent ? 'bg-danger-500' : row.unread ? 'bg-flame-500' : 'bg-transparent'}`} />
               <span className="min-w-0 flex-1">
+                {/* The buyer first, bold in the fluorescent tone; then the subject; then the last thing said, as it was said. */}
                 <span className="flex items-baseline justify-between gap-2">
-                  <span className={`truncate text-sm ${row.unread ? 'font-bold text-steel-50' : 'font-semibold text-steel-200'}`}>{row.subject}</span>
+                  <CustomerName name={row.customer?.name} fallback={<span className="text-sm font-semibold text-steel-400">No customer</span>} className="truncate text-sm font-bold" />
                   <span className="shrink-0 text-xs text-steel-500">{when(row.last?.at || row.updatedAt)}</span>
                 </span>
+                <span className={`block truncate text-sm ${row.unread ? 'font-bold text-steel-50' : 'font-semibold text-steel-200'}`}>{row.subject}</span>
                 <span className="mt-0.5 flex items-center justify-between gap-2">
                   <span className="truncate text-xs text-steel-400">
-                    {row.number}{row.last?.text ? ` · ${row.last.by?.name ? `${row.last.by.name}: ` : ''}${row.last.text}` : ''}
+                    {row.last?.text ? `${row.last.by?.name ? `${row.last.by.name}: ` : ''}${row.last.text}` : row.number}
                   </span>
                   {row.unread > 0 && (
                     <span className="shrink-0 rounded-full bg-danger-600 px-1.5 text-xs font-bold leading-5 text-white" aria-label={`${row.unread} unread`}>{row.unread}</span>

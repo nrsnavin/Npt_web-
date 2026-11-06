@@ -59,6 +59,14 @@ export function QueryCard({ query, onChanged, showWhere = false }) {
   const enquiryId = query.enquiry?._id || query.enquiry;
   return (
     <article aria-label={`Query: ${query.question}`} className={`rounded-xl border p-3 ${query.status === 'open' && query.mayAnswer ? 'border-warn-500/40 bg-warn-500/[0.07]' : 'border-line/[0.1] bg-line/[0.02]'}`}>
+      {/* In a list: the buyer first, bold in the fluorescent tone, then the subject — the thread below says the rest as it was said. */}
+      {showWhere && (query.customer?.name || query.subject) && (
+        <p className="mb-1 truncate text-sm">
+          {query.customer?.name && <CustomerName name={query.customer.name} className="font-bold" />}
+          {query.customer?.name && query.subject ? <span className="text-steel-500"> · </span> : null}
+          {query.subject && <span className="font-semibold text-steel-50">{query.subject}</span>}
+        </p>
+      )}
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <p className="text-sm font-semibold text-steel-50">
           {whoAsked(query)}
@@ -66,12 +74,11 @@ export function QueryCard({ query, onChanged, showWhere = false }) {
             <span className="font-normal text-steel-400">
               {taskName ? ` · ${taskName}` : ''}
               {enquiryId && query.enquiry?.number ? <> · <Link to={`/enquiries/${enquiryId}`} className="text-accent hover:underline">{query.enquiry.number}</Link></> : ''}
-              {query.customer?.name ? <> · <CustomerName name={query.customer.name} /></> : ''}
             </span>
           )}
         </p>
         <span className="flex flex-wrap items-center gap-1.5">
-          {query.subject && <span className="rounded-full bg-accent/10 px-2 py-0.5 text-xs font-semibold text-accent">{query.subject}</span>}
+          {query.subject && !showWhere && <span className="rounded-full bg-accent/10 px-2 py-0.5 text-xs font-semibold text-accent">{query.subject}</span>}
           <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${state.tone}`}>{state.label}</span>
         </span>
       </div>

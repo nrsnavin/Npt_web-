@@ -756,13 +756,10 @@ export default function Queries() {
                   </button>
 
                   <div className="min-w-0 flex-1">
+                    {/* The buyer first, bold in the fluorescent tone; then the subject; then the last thing said, as it was said. */}
                     <div className="flex items-baseline justify-between gap-3">
-                      <p
-                        className={`truncate text-sm ${
-                          unread ? 'font-bold text-steel-50' : 'font-semibold text-steel-200'
-                        }`}
-                      >
-                        {row.subject}
+                      <p className="truncate text-sm font-bold">
+                        <CustomerName name={row.customer?.name} fallback={<span className="text-steel-400">No customer</span>} />
                       </p>
                       <time
                         className={`shrink-0 text-xs tabular-nums ${
@@ -775,9 +772,16 @@ export default function Queries() {
                       </time>
                     </div>
 
+                    <p
+                      className={`truncate text-sm ${
+                        unread ? 'font-bold text-steel-50' : 'font-semibold text-steel-200'
+                      }`}
+                    >
+                      {row.subject}
+                    </p>
+
                     <div className="mt-0.5 flex items-center justify-between gap-3">
                       <p className={`truncate text-sm ${unread ? 'text-steel-200' : 'text-steel-400'}`}>
-                        <span className="text-steel-500"><CustomerName name={row.customer?.name} fallback="No customer" /> · </span>
                         {lastLine(last, me)}
                       </p>
                       {/* The tag and the count sit together at the right, as one signal. */}
