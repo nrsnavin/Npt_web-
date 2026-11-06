@@ -12,6 +12,7 @@ import { formatDate, formatRelative, initialsOf } from '../utils/format.js';
 import TaskEdd from './TaskEdd.jsx';
 import { EDD_CHIP, eddChipOf } from '../utils/edd.js';
 import TaskPdfLink from './TaskPdfLink.jsx';
+import TaskQueries from './TaskQueries.jsx';
 
 /**
  * One department task on the enquiry, read in a glance and opened for the rest
@@ -221,6 +222,8 @@ export default function TaskCard({ task, mayAct = false, open: openAtFirst = fal
           <div>
             <p className="mb-1.5 text-xs font-semibold text-steel-400">What happened</p>
             <TaskTimeline task={task} button={button} />
+            {/* The team's queries, answered right here — and Reply to the team for Admin and the buyer's marketing person [server: taskQuery.service]. */}
+            <div className="mt-2"><TaskQueries todo={task} onChanged={onChanged} /></div>
           </div>
           {hasWorkflow && (mayAct || task.completed) && (
             <div className="border-t border-line/[0.06] pt-3"><TaskWorkflow todo={task} onChanged={onChanged} /></div>

@@ -114,6 +114,8 @@ export default function TaskPanel({ task, startWith, mayWork, onClose, onChanged
         <div>
           <p className="mb-1 text-xs font-semibold text-steel-400">What happened</p>
           <TaskTimeline task={task} button={button} />
+          {/* Questions to whoever raised the task, and their answers, under what happened — Ask a query for the team, Reply to the team for Admin and marketing [server: taskQuery.service]. */}
+          <div className="mt-2"><TaskQueries todo={task} onChanged={onChanged} /></div>
         </div>
 
         {/* A small order: Dispatch checks the stock — in stock to Dispatch, short to Production [server: smallOrder.service]. */}
@@ -121,9 +123,6 @@ export default function TaskPanel({ task, startWith, mayWork, onClose, onChanged
 
         {/* Production, Printing, Assembly: ask to move the EDD, with the date and why — and the asks so far [server: eddChange.service]. */}
         {['ask_edd', 'ask_printing', 'ask_assembling_edd'].includes(task.kind) && <TaskEddChanges todo={task} onChanged={onChanged} />}
-
-        {/* Questions to whoever raised the task, and their answers — Ask a query for the team working it [server: taskQuery.service]. */}
-        <TaskQueries todo={task} onChanged={onChanged} />
 
         {mayWork && !task.completed ? (
           <div className="space-y-3 border-t border-line/[0.06] pt-3">

@@ -268,6 +268,8 @@ export const taskQueries = {
   board: (params) => api.get('/task-queries', { params }).then(unwrap),
   onTask: (id) => api.get(`/workspace/todos/${id}/queries`).then((response) => response.data),
   askOnTask: ({ id, question, subject }) => api.post(`/workspace/todos/${id}/queries`, { question, subject }).then(unwrap),
+  /* Admin or the buyer's marketing person, under the task's timeline: answers its open query, else a reply to the team [server: taskQuery.service `replyOnTask`]. */
+  replyOnTask: ({ id, body }) => api.post(`/workspace/todos/${id}/reply`, { body }).then(unwrap),
   onEnquiry: (id) => api.get(`/enquiries/${id}/queries`).then((response) => response.data),
   askOnEnquiry: ({ id, question, subject }) => api.post(`/enquiries/${id}/queries`, { question, subject }).then(unwrap),
   reply: ({ id, body }) => api.post(`/task-queries/${id}/reply`, { body }).then(unwrap),

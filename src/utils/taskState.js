@@ -28,6 +28,7 @@ export function toneOfStep(step, index = -1) {
 export const toneOfKind = (kind) => ({
   done: 'done', moved: 'done', returned: 'blocked', asked_again: 'blocked', notice: 'blocked', date: 'waiting',
   status: 'progress', raised: 'waiting', note: 'waiting', asked: 'waiting', corrected: 'waiting', uploaded: 'progress',
+  reply: 'done',
 }[kind] || 'waiting');
 
 /**
