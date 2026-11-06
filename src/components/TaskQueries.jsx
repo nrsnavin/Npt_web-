@@ -15,7 +15,8 @@ import SubjectPicker, { forgetQuerySubjects } from './SubjectPicker.jsx';
  *
  *   QueryCard      one question and its thread: answer (whoever was asked, Admin), follow up
  *                  (the team that asked), close (the team that asked, Admin), Got it on an answer
- *   TaskQueries    the questions on one task, and Ask a query for the team working it
+ *   TaskQueries    the questions on one task, Ask a query for the team working it, and Reply
+ *                  to the team for Admin and the buyer's marketing person
  *   EnquiryQueries the questions on an enquiry and its tasks, and Ask a query
  */
 
@@ -172,26 +173,75 @@ function AskForm({ ask, to, onAsked }) {
   );
 }
 
+/**
+ * Admin's or the buyer's marketing person's reply, written under the task's timeline: the answer
+ * to the team's open question, or — none open — a reply the team reads on its task
+ * [server: taskQuery.service `replyOnTask`].
+ */
+function ReplyBox({ todo, onReplied }) {
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState(null);
+  const team = departmentLabel(todo.department) || 'the team';
+  const send = async (event) => {
+    event.preventDefault();
+    setBusy(true);
+    setProblem(null);
+    try {
+      await taskQueries.replyOnTask({ id: todo._id, body: text });
+      setText('');
+      onReplied?.();
+    } catch (failure) {
+      setProblem(failure.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <form onSubmit={send} className="space-y-2" aria-label="Reply to the team">
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <textarea
+          rows={2}
+          className="input flex-1"
+          value={text}
+          onChange={(event) => setText(event.target.value)}
+          placeholder={`Reply to ${team} — their doubt, an instruction; it shows on their task`}
+          aria-label="Your reply to the team"
+        />
+        <button type="submit" className="btn-primary self-end" disabled={busy || text.trim().length < 3}>{busy ? 'Sending…' : 'Send reply'}</button>
+      </div>
+      {problem && <Notice tone="danger">{problem}</Notice>}
+    </form>
+  );
+}
+
 /** Load a list of queries, and reload it — the task's or the enquiry's. */
 function useQueries(load, key) {
   const [state, setState] = useState(null);
   const reload = useCallback(() => {
     if (!key) return;
-    load(key).then((response) => setState({ rows: response.data || [], mayAsk: Boolean(response.mayAsk) })).catch(() => setState({ rows: [], mayAsk: false }));
+    load(key)
+      .then((response) => setState({ rows: response.data || [], mayAsk: Boolean(response.mayAsk), mayReply: Boolean(response.mayReply) }))
+      .catch(() => setState({ rows: [], mayAsk: false, mayReply: false }));
   }, [load, key]);
   useEffect(() => { reload(); }, [reload]);
   return [state, reload];
 }
 
-/** The questions on one task, on its panel — and Ask a query for the team working it. */
+/**
+ * The questions on one task, under its timeline on the task card and the panel — Ask a query for
+ * the team working it, and Reply to the team for Admin and the buyer's marketing person.
+ */
 export default function TaskQueries({ todo, onChanged }) {
   const [state, reload] = useQueries(taskQueries.onTask, todo?._id);
-  if (!state || (!state.rows.length && !state.mayAsk)) return null;
+  if (!state || (!state.rows.length && !state.mayAsk && !state.mayReply)) return null;
   const changed = () => { reload(); onChanged?.(); };
+  /* A question waiting for this person has its own answer box — one box, not two. */
+  const answerWaiting = state.rows.some((query) => query.status === 'open' && query.mayAnswer && !query.mayFollowUp);
   return (
     <div className="rounded-xl border border-line/[0.08] p-3" aria-label="Queries">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs font-semibold text-steel-400">Queries{state.rows.length ? ` (${state.rows.length})` : ''}</p>
+        <p className="text-xs font-semibold text-steel-400">{state.mayReply ? 'Queries & replies' : 'Queries'}{state.rows.length ? ` (${state.rows.length})` : ''}</p>
         {state.mayAsk && (
           <AskForm
             ask={(question, subject) => taskQueries.askOnTask({ id: todo._id, question, subject })}
@@ -202,6 +252,7 @@ export default function TaskQueries({ todo, onChanged }) {
       </div>
       <div className="space-y-2">
         {state.rows.map((query) => <QueryCard key={query._id} query={query} onChanged={changed} />)}
+        {state.mayReply && !answerWaiting && <ReplyBox todo={todo} onReplied={changed} />}
       </div>
     </div>
   );

@@ -15,11 +15,11 @@ import { accuracyLabel, directionsUrl, mapsUrl, placeLabel } from '../utils/maps
 import { formatCompactCurrency, formatCurrency, formatDate, formatNumber, humanise } from '../utils/format.js';
 import {
   CREDIT_STATUSES, CUSTOMER_TYPES, SAMPLE_PURPOSES, SOURCES, creditLabel, creditStatusOf, optionLabel, ownsRecord, sampleStageLabel,
-  stageLabel,
 } from '../utils/pipeline.js';
 import { CustomerForm } from './Customers.jsx';
 import { gstUnknown } from '../utils/gst.js';
 import CustomerTimeline from '../components/CustomerTimeline.jsx';
+import SalesStageBadge from '../components/SalesStageBadge.jsx';
 
 function ContactCard({ contact }) {
   return (
@@ -335,7 +335,7 @@ export default function CustomerDetail() {
                           {enquiry.estimatedValue ? formatCurrency(enquiry.estimatedValue) : '—'}
                         </td>
                         <td className="px-3 py-3">
-                          <Badge status={enquiry.status}>{stageLabel(enquiry.status)}</Badge>
+                          <SalesStageBadge enquiry={enquiry} />
                         </td>
                       </tr>
                     ))}

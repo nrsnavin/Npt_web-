@@ -84,3 +84,17 @@ test('every query list leads with the buyer, bold in the fluorescent tone, then 
   const card = read('components/TaskQueries.jsx');
   assert.match(card, /<CustomerName name=\{query\.customer\.name\} className="font-bold" \/>/);
 });
+
+test('Admin and the buyer’s marketing person reply on any task, right under What happened — on the task card and the panel', () => {
+  assert.match(endpoints, /replyOnTask: \(\{ id, body \}\) => api\.post\(`\/workspace\/todos\/\$\{id\}\/reply`, \{ body \}\)/);
+  assert.match(queries, /taskQueries\.replyOnTask\(\{ id: todo\._id, body: text \}\)/);
+  assert.match(queries, /state\.mayReply && !answerWaiting && <ReplyBox todo=\{todo\} onReplied=\{changed\} \/>/);
+  assert.match(queries, /mayReply: Boolean\(response\.mayReply\)/);
+  for (const file of ['components/TaskCard.jsx', 'components/TaskPanel.jsx']) {
+    const source = read(file);
+    const timeline = source.indexOf('<TaskTimeline task={task} button={button} />');
+    const thread = source.indexOf('<TaskQueries todo={task} onChanged={onChanged} />');
+    assert.ok(timeline > 0 && thread > timeline, `${file}: the queries under the timeline`);
+    assert.ok(source.slice(timeline, thread).split('</div>').length <= 2, `${file}: inside What happened`);
+  }
+});
