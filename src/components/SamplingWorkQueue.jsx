@@ -4,10 +4,11 @@ import NeedsVisitButton from './FieldVisitButton.jsx';
 import { Link } from 'react-router-dom';
 import { documents as documentsApi, samples as samplesApi } from '../api/endpoints.js';
 import { useRecord } from '../hooks/useRecords.js';
-import { DashboardSkeleton, ErrorState, Field, FormError, Modal } from './ui.jsx';
+import { DashboardSkeleton, ErrorState, Field, FormError, Modal, Notice } from './ui.jsx';
 import AuthedImage from './AuthedImage.jsx';
 import SampleReadyForm from './SampleReadyForm.jsx';
 import { formatDate } from '../utils/format.js';
+import { readyGaps } from '../utils/sampleSent.js';
 import {
   CHIPS, SAMPLE_COURIERS, SETS, TILE_FILTERS, UNSENT, filterFor, needsReason, optionsFor,
 } from '../utils/samplingQueue.js';
@@ -278,6 +279,10 @@ export function HandoverForm({ row, onClose, onDone }) {
 
   return (
     <form onSubmit={submit} className="space-y-4">
+      {/* The reminder: a piece going without its photo or what it was made with [utils/sampleSent `readyGaps`]. */}
+      {readyGaps(models).length > 0 && (
+        <Notice tone="warn">Before it goes — still missing: {readyGaps(models).join(' · ')}. Open the sample to add them.</Notice>
+      )}
       <fieldset>
         <legend className="mb-2 text-sm font-semibold text-steel-200">Delivery method</legend>
         <div className="grid grid-cols-2 gap-2">

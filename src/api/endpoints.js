@@ -1148,6 +1148,12 @@ export const samples = {
     return api.put(`/samples/${id}/items/${itemId}/photo`, form).then(unwrap);
   },
   clearItemPhoto: ({ id, itemId }) => api.delete(`/samples/${id}/items/${itemId}/photo`).then(unwrap),
+  /** The hand-over's photo, taken afterwards — added, or in place of the one it had. */
+  setHandoverPhoto: ({ id, photo }) => {
+    const form = new FormData();
+    form.append('photo', photo);
+    return api.put(`/samples/${id}/hand-over/photo`, form).then(unwrap);
+  },
   setItemReferencePhoto: ({ id, itemId, photo }) => {
     const form = new FormData();
     form.append('photo', photo);

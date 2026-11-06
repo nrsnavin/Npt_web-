@@ -16,6 +16,7 @@ import SamplePhotos, { PhotoSlot } from '../components/SamplePhotos.jsx';
 import { shrinkImage } from '../utils/shrinkImage.js';
 import SampleReadyForm from '../components/SampleReadyForm.jsx';
 import SampleHandOverForm from '../components/SampleHandOverForm.jsx';
+import { readyGaps } from '../utils/sampleSent.js';
 import ItemList from '../components/ItemList.jsx';
 import { formatDate, formatNumber } from '../utils/format.js';
 import {
@@ -137,6 +138,10 @@ function StageForm({ sample: given, to, onClose, onSaved }) {
           <p className="mb-3 text-sm text-steel-400">
             The customer needs to know how it is coming, so these are not optional.
           </p>
+          {/* The reminder: a piece going without its photo or what it was made with [utils/sampleSent `readyGaps`]. */}
+          {readyGaps(rows).length > 0 && (
+            <div className="mb-3"><Notice tone="warn">Before it goes — still missing: {readyGaps(rows).join(' · ')}. Add the photo below; the material, hook and pieces are recorded at Sample Ready.</Notice></div>
+          )}
           {/* Each model with its details, its photo, and the pieces of it that went. */}
           {byModel && (
             <ol className="mb-4 space-y-2.5" aria-label="Models in the bag">
@@ -1275,7 +1280,22 @@ function LinkEnquiryForm({ sample, onClose, onSaved }) {
  * How this sample reaches the buyer when no courier carries it: collected at reception, or
  * handed over by the marketing person. Where it stands, and who took it.
  */
-function HandoverCard({ sample }) {
+function HandoverCard({ sample, mayEdit = false, onSaved }) {
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState(null);
+  /* A photo of the sample as handed over — taken here afterwards, on the phone's camera [server: setHandoverPhoto]. */
+  const takePhoto = async (file) => {
+    if (!file) return;
+    setBusy(true);
+    setProblem(null);
+    try {
+      onSaved?.(await samplesApi.setHandoverPhoto({ id: sample._id, photo: await shrinkImage(file) }));
+    } catch (failure) {
+      setProblem(failure.message);
+    } finally {
+      setBusy(false);
+    }
+  };
   const mode = sample.handover || 'dispatch';
   const given = sample.collection || {};
   if (mode === 'dispatch' && !given.collectedAt) return null;
@@ -1311,6 +1331,13 @@ function HandoverCard({ sample }) {
           ? <p className="mt-3 text-sm text-steel-300">Signed slip attached: {photo.filename || 'PDF'}</p>
           : <AuthedImage attachmentKey={photo.key} alt="Hand-over photo" className="mt-3 h-40 w-full rounded-lg object-cover" />
       )}
+      {given.collectedAt && mayEdit && (
+        <label className={`btn-secondary mt-3 inline-flex cursor-pointer items-center gap-2 ${busy ? 'opacity-60' : ''}`}>
+          <input type="file" accept="image/*" capture="environment" className="sr-only" aria-label="Take a photo of the sample" disabled={busy} onChange={(event) => takePhoto(event.target.files?.[0])} />
+          {busy ? 'Saving the photo…' : photo && photo.mimeType !== 'application/pdf' ? 'Retake photo' : 'Take photo of the sample'}
+        </label>
+      )}
+      {problem && <div className="mt-2"><Notice tone="danger">{problem}</Notice></div>}
     </Section>
   );
 }
@@ -1769,7 +1796,7 @@ export default function SampleDetail() {
         <div className="space-y-5">
           {/* Who to ring about the shade, who receives the bag — the same card the enquiry shows.
               Only once there is a customer: an internal trial has nobody to reach. */}
-          <HandoverCard sample={sample} />
+          <HandoverCard sample={sample} mayEdit={canWrite('enquiries') || canWrite('samples')} onSaved={setData} />
 
           {sample.customer && (
             <BuyerContactCard enquiry={{ ...(sample.enquiry || {}), customer: sample.customer }} canConvert={false} />
