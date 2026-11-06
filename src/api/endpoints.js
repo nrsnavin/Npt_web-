@@ -301,6 +301,21 @@ export const ppSamples = {
   },
 };
 
+/**
+ * EDD change requests [server: services/eddChange.service.js]: Production, Printing or Assembly
+ * asks to move the EDD with a date and why; Admin or the marketing person agrees, replies or
+ * keeps it; the team answers. The enquiry's EDD history comes with them.
+ */
+export const eddChanges = {
+  onTask: (id) => api.get(`/workspace/todos/${id}/edd-changes`).then((response) => response.data),
+  ask: ({ id, date, reason, model }) => api.post(`/workspace/todos/${id}/edd-changes`, { date, reason, ...(model ? { model } : {}) }).then(unwrap),
+  track: (enquiryId) => api.get(`/enquiries/${enquiryId}/edd-track`).then(unwrap),
+  reply: ({ id, body, date }) => api.post(`/edd-changes/${id}/reply`, { body, ...(date ? { date } : {}) }).then(unwrap),
+  agree: ({ id, date, note }) => api.post(`/edd-changes/${id}/agree`, { ...(date ? { date } : {}), ...(note ? { note } : {}) }).then(unwrap),
+  keep: ({ id, note }) => api.post(`/edd-changes/${id}/keep`, { note }).then(unwrap),
+  withdraw: (id) => api.post(`/edd-changes/${id}/withdraw`, {}).then(unwrap),
+};
+
 export const users = {
   catalogue: () => api.get('/users/catalogue').then(unwrap),
   list: (params) => api.get('/users', { params }).then((response) => response.data),

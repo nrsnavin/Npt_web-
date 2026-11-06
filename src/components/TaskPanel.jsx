@@ -9,6 +9,7 @@ import SalesOrderDraft from './SalesOrderDraft.jsx';
 import TaskVisits from './TaskVisits.jsx';
 import TaskFieldVisits from './TaskFieldVisits.jsx';
 import TaskQueries from './TaskQueries.jsx';
+import TaskEddChanges from './EddChanges.jsx';
 import PpSampleCard, { ChallansToInvoice, PpChallanAction } from './PpSample.jsx';
 import { Modal, Notice } from './ui.jsx';
 import { TaskFacts, TaskTimeline } from './TaskHistory.jsx';
@@ -113,6 +114,9 @@ export default function TaskPanel({ task, startWith, mayWork, onClose, onChanged
           <p className="mb-1 text-xs font-semibold text-steel-400">What happened</p>
           <TaskTimeline task={task} button={button} />
         </div>
+
+        {/* Production, Printing, Assembly: ask to move the EDD, with the date and why — and the asks so far [server: eddChange.service]. */}
+        {['ask_edd', 'ask_printing', 'ask_assembling_edd'].includes(task.kind) && <TaskEddChanges todo={task} onChanged={onChanged} />}
 
         {/* Questions to whoever raised the task, and their answers — Ask a query for the team working it [server: taskQuery.service]. */}
         <TaskQueries todo={task} onChanged={onChanged} />

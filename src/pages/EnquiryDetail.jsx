@@ -42,6 +42,7 @@ import {
 import EnquiryClarifications from '../components/EnquiryClarifications.jsx';
 import { EnquiryQueries } from '../components/TaskQueries.jsx';
 import PpSampleCard from '../components/PpSample.jsx';
+import { EnquiryEddTrack } from '../components/EddChanges.jsx';
 import CustomerName from '../components/CustomerName.jsx';
 
 const TONE_TEXT = {
@@ -726,6 +727,9 @@ export default function EnquiryDetail() {
           </div>
         }
       />
+
+      {/* At the top: the EDD as it stands, first promised, its moves, and any change the plant asked — answered right here [server: eddChange.service]. */}
+      <div className="mb-5"><EnquiryEddTrack enquiryId={enquiry._id} onChanged={reload} /></div>
 
       {enquiry.status === 'lost' && (
         <div className="mb-5">

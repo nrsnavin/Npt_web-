@@ -8,6 +8,7 @@ import TaskWorkflow from './TaskWorkflow.jsx';
 import { Notice } from './ui.jsx';
 import CustomerName from './CustomerName.jsx';
 import { QueryCard } from './TaskQueries.jsx';
+import { EddChangeCard } from './EddChanges.jsx';
 
 /**
  * What needs this person now, highlighted at the top of their dashboard [server: handoff.service
@@ -220,22 +221,37 @@ export default function AttentionPanel({ attention, onChanged }) {
   const replies = attention?.replies || [];
   const queries = attention?.queries || [];
   const answers = attention?.answers || [];
+  /* EDD change requests: the office's to answer, and the office's replies for the team [server: eddChange.service]. */
+  const eddAsks = attention?.eddChanges || [];
+  const eddReplies = attention?.eddReplies || [];
   /* Escalations come to Admin alone, and are answered here rather than read. */
   const escalations = (attention?.notices || []).filter((notice) => notice.status === 'escalated');
   const notices = (attention?.notices || []).filter((notice) => notice.status !== 'escalated');
   const unread = notices.filter((notice) => !notice.readAt).length + escalations.length;
-  if (!questions.length && !replies.length && !queries.length && !answers.length && !notices.length && !escalations.length) return null;
+  if (!questions.length && !replies.length && !queries.length && !answers.length && !eddAsks.length && !eddReplies.length && !notices.length && !escalations.length) return null;
   return (
     <section aria-label="Needs your action" className="card space-y-3 border-warn-500/40 p-4">
       <h2 className="flex items-center gap-2 text-base font-bold text-steel-50">
         <span className="h-2.5 w-2.5 rounded-full bg-warn-400" aria-hidden="true" />
         Needs your action
-        <span className="rounded-full bg-warn-500/15 px-2 text-xs font-semibold tabular-nums text-warn-400">{queries.length + answers.length + questions.length + replies.length + unread}</span>
+        <span className="rounded-full bg-warn-500/15 px-2 text-xs font-semibold tabular-nums text-warn-400">{eddAsks.length + eddReplies.length + queries.length + answers.length + questions.length + replies.length + unread}</span>
       </h2>
       {escalations.length > 0 && (
         <div className="space-y-2">
           <p className="eyebrow">Escalated to you</p>
           {escalations.map((notice) => <Escalation key={notice._id} notice={notice} onChanged={onChanged} />)}
+        </div>
+      )}
+      {eddAsks.length > 0 && (
+        <div className="space-y-2">
+          <p className="eyebrow">EDD change requests</p>
+          {eddAsks.map((change) => <EddChangeCard key={change._id} change={{ ...change, mayAgree: true, mayReply: true }} onChanged={onChanged} showWhere />)}
+        </div>
+      )}
+      {eddReplies.length > 0 && (
+        <div className="space-y-2">
+          <p className="eyebrow">EDD changes — replies for your team</p>
+          {eddReplies.map((change) => <EddChangeCard key={change._id} change={{ ...change, mayReply: true, mayWithdraw: true }} onChanged={onChanged} showWhere />)}
         </div>
       )}
       {queries.length > 0 && (
