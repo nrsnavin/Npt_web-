@@ -1868,7 +1868,7 @@ export default function SampleDetail() {
             : movingStage === 'dispatched'
               ? 'Dispatch the sample'
               : movingStage === 'sample_ready'
-                ? 'Sample ready — photograph each piece'
+                ? 'Sample ready — photo and details of each piece'
                 : isBackwardSampleMove(sample.status, movingStage)
                   ? 'Send the sample back'
                   : 'Move stage'

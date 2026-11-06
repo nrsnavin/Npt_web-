@@ -316,6 +316,11 @@ export const eddChanges = {
   withdraw: (id) => api.post(`/edd-changes/${id}/withdraw`, {}).then(unwrap),
 };
 
+/** A small order's stock check: per model, the pieces in the godown [server: smallOrder.service]. */
+export const smallOrders = {
+  checkStock: ({ id, lines, note }) => api.post(`/workspace/todos/${id}/stock-check`, { lines, ...(note ? { note } : {}) }).then((response) => response.data),
+};
+
 export const users = {
   catalogue: () => api.get('/users/catalogue').then(unwrap),
   list: (params) => api.get('/users', { params }).then((response) => response.data),

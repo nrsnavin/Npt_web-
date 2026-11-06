@@ -36,3 +36,13 @@ test('on the Production, Printing and Assembly tasks, at the top of the enquiry,
   assert.match(panel, /EDD change requests/);
   assert.match(panel, /EDD changes — replies for your team/);
 });
+
+test('a small order: Dispatch checks the stock on the task — in stock to Dispatch, the rest to Production', () => {
+  const check = read('components/StockCheck.jsx');
+  assert.match(check, /smallOrders\.checkStock\(\{ id: todo\._id, lines: rows\.map/);
+  assert.match(check, /What is there goes to Dispatch; the rest goes to Production/);
+  assert.match(check, /Stock checked — send it on/);
+  assert.match(read('components/TaskPanel.jsx'), /task\.kind === 'small_order' && \(mayWork \|\| task\.brief\?\.stockCheck\) && <StockCheck/);
+  assert.match(read('components/DispatchTable.jsx'), /Small order — check stock/);
+  assert.match(read('api/endpoints.js'), /api\.post\(`\/workspace\/todos\/\$\{id\}\/stock-check`/);
+});

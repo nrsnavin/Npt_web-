@@ -638,7 +638,7 @@ export default function SamplingWorkQueue() {
 
       <Modal
         open={Boolean(readying)}
-        title="Sample ready — photograph each piece"
+        title="Sample ready — photo and details of each piece"
         description={readying ? `${readying.number} · ${readying.customer?.name || ''}` : ''}
         size="lg"
         onClose={() => setReadying(null)}

@@ -30,7 +30,9 @@ export function EddChangeCard({ change, onChanged, showWhere = false }) {
   const [date, setDate] = useState('');
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState(null);
-  const [label, tone] = STATE[change.status] || STATE.open;
+  const [label, tone] = change.status === 'open'
+    ? (change.waitingOn === 'team' ? [`Waiting on ${departmentLabel(change.department)}’s reply`, STATE.open[1]] : ['Waiting for Admin / marketing', STATE.open[1]])
+    : STATE[change.status] || STATE.open;
   const office = change.mayAgree;
   const run = (call) => async (event) => {
     event?.preventDefault?.();
