@@ -5,6 +5,7 @@ import { departmentLabel } from '../utils/pipeline.js';
 import { formatDateTime } from '../utils/format.js';
 import { Notice } from './ui.jsx';
 import CustomerName from './CustomerName.jsx';
+import SubjectPicker, { forgetQuerySubjects } from './SubjectPicker.jsx';
 
 /**
  * Queries on a task or an enquiry [server: services/taskQuery.service.js]. The team working a
@@ -69,7 +70,10 @@ export function QueryCard({ query, onChanged, showWhere = false }) {
             </span>
           )}
         </p>
-        <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${state.tone}`}>{state.label}</span>
+        <span className="flex flex-wrap items-center gap-1.5">
+          {query.subject && <span className="rounded-full bg-accent/10 px-2 py-0.5 text-xs font-semibold text-accent">{query.subject}</span>}
+          <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${state.tone}`}>{state.label}</span>
+        </span>
       </div>
       <ol className="mt-2 space-y-1.5">
         {(query.messages || []).map((message) => (
@@ -116,6 +120,7 @@ export function QueryCard({ query, onChanged, showWhere = false }) {
 function AskForm({ ask, to, onAsked }) {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState('');
+  const [subject, setSubject] = useState('');
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState(null);
   if (!open) {
@@ -126,8 +131,11 @@ function AskForm({ ask, to, onAsked }) {
     setBusy(true);
     setProblem(null);
     try {
-      await ask(text);
+      await ask(text, subject.trim() || undefined);
+      /* A new subject is on the list now — the next picker reads it. */
+      forgetQuerySubjects();
       setText('');
+      setSubject('');
       setOpen(false);
       onAsked?.();
     } catch (failure) {
@@ -138,6 +146,7 @@ function AskForm({ ask, to, onAsked }) {
   };
   return (
     <form onSubmit={send} className="space-y-2" aria-label="Ask a query">
+      <SubjectPicker value={subject} onChange={setSubject} required />
       <textarea
         rows={2}
         className="input"
@@ -145,12 +154,11 @@ function AskForm({ ask, to, onAsked }) {
         onChange={(event) => setText(event.target.value)}
         placeholder="What do you need to know?"
         aria-label="Your question"
-        autoFocus
       />
       <p className="text-xs text-steel-500">{to}</p>
       <div className="flex justify-end gap-2">
         <button type="button" className="btn-ghost" onClick={() => setOpen(false)} disabled={busy}>Cancel</button>
-        <button type="submit" className="btn-primary" disabled={busy || text.trim().length < 3}>{busy ? 'Sending…' : 'Send query'}</button>
+        <button type="submit" className="btn-primary" disabled={busy || text.trim().length < 3 || subject.trim().length < 2}>{busy ? 'Sending…' : 'Send query'}</button>
       </div>
       {problem && <Notice tone="danger">{problem}</Notice>}
     </form>
@@ -179,7 +187,7 @@ export default function TaskQueries({ todo, onChanged }) {
         <p className="text-xs font-semibold text-steel-400">Queries{state.rows.length ? ` (${state.rows.length})` : ''}</p>
         {state.mayAsk && (
           <AskForm
-            ask={(question) => taskQueries.askOnTask({ id: todo._id, question })}
+            ask={(question, subject) => taskQueries.askOnTask({ id: todo._id, question, subject })}
             to={`Goes to ${todo.createdBy?.name ? `${todo.createdBy.name}, who raised this task` : 'whoever raised this task'} — or the enquiry’s marketing person, or Admin. The answer comes back here.`}
             onAsked={changed}
           />
@@ -203,7 +211,7 @@ export function EnquiryQueries({ enquiry }) {
         <h2 className="text-base font-bold text-steel-50">Queries{state.rows.length ? ` (${state.rows.length})` : ''}</h2>
         {state.mayAsk && (
           <AskForm
-            ask={(question) => taskQueries.askOnEnquiry({ id: enquiry._id, question })}
+            ask={(question, subject) => taskQueries.askOnEnquiry({ id: enquiry._id, question, subject })}
             to={`Goes to ${owner ? `${owner}, the enquiry’s marketing person` : 'the enquiry’s marketing person'} — theirs goes to Admin.`}
             onAsked={reload}
           />

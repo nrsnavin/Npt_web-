@@ -267,12 +267,16 @@ export const field = {
 export const taskQueries = {
   board: (params) => api.get('/task-queries', { params }).then(unwrap),
   onTask: (id) => api.get(`/workspace/todos/${id}/queries`).then((response) => response.data),
-  askOnTask: ({ id, question }) => api.post(`/workspace/todos/${id}/queries`, { question }).then(unwrap),
+  askOnTask: ({ id, question, subject }) => api.post(`/workspace/todos/${id}/queries`, { question, subject }).then(unwrap),
   onEnquiry: (id) => api.get(`/enquiries/${id}/queries`).then((response) => response.data),
-  askOnEnquiry: ({ id, question }) => api.post(`/enquiries/${id}/queries`, { question }).then(unwrap),
+  askOnEnquiry: ({ id, question, subject }) => api.post(`/enquiries/${id}/queries`, { question, subject }).then(unwrap),
   reply: ({ id, body }) => api.post(`/task-queries/${id}/reply`, { body }).then(unwrap),
   close: ({ id, reason }) => api.post(`/task-queries/${id}/close`, reason ? { reason } : {}).then(unwrap),
   seen: (id) => api.post(`/task-queries/${id}/seen`, {}, { feedback: false }).then(unwrap),
+  /* The subject drop-down, shared by both kinds of query: anybody adds, Admin renames or removes [server: querySubjects.service]. */
+  subjects: (params) => api.get('/query-subjects', { params }).then(unwrap),
+  addSubject: (name) => api.post('/query-subjects', { name }).then(unwrap),
+  editSubject: ({ id, ...payload }) => api.patch(`/query-subjects/${id}`, payload).then(unwrap),
 };
 
 export const users = {

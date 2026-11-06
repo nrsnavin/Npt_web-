@@ -15,8 +15,8 @@ const endpoints = read('api/endpoints.js');
 
 test('the endpoints: ask on a task or an enquiry, reply, close, Got it, the board', () => {
   assert.match(endpoints, /onTask: \(id\) => api\.get\(`\/workspace\/todos\/\$\{id\}\/queries`\)/);
-  assert.match(endpoints, /askOnTask: \(\{ id, question \}\) => api\.post\(`\/workspace\/todos\/\$\{id\}\/queries`, \{ question \}\)/);
-  assert.match(endpoints, /askOnEnquiry: \(\{ id, question \}\) => api\.post\(`\/enquiries\/\$\{id\}\/queries`, \{ question \}\)/);
+  assert.match(endpoints, /askOnTask: \(\{ id, question, subject \}\) => api\.post\(`\/workspace\/todos\/\$\{id\}\/queries`, \{ question, subject \}\)/);
+  assert.match(endpoints, /askOnEnquiry: \(\{ id, question, subject \}\) => api\.post\(`\/enquiries\/\$\{id\}\/queries`, \{ question, subject \}\)/);
   assert.match(endpoints, /reply: \(\{ id, body \}\) => api\.post\(`\/task-queries\/\$\{id\}\/reply`, \{ body \}\)/);
   assert.match(endpoints, /close: \(\{ id, reason \}\) => api\.post\(`\/task-queries\/\$\{id\}\/close`/);
   assert.match(endpoints, /board: \(params\) => api\.get\('\/task-queries', \{ params \}\)/);
@@ -34,7 +34,7 @@ test('on the task panel and the enquiry page, with Ask a query', () => {
   assert.match(read('components/TaskPanel.jsx'), /<TaskQueries todo=\{task\} onChanged=\{onChanged\} \/>/);
   assert.match(read('pages/EnquiryDetail.jsx'), /<EnquiryQueries enquiry=\{enquiry\} \/>/);
   assert.match(queries, /Ask a query/);
-  assert.match(queries, /taskQueries\.askOnTask\(\{ id: todo\._id, question \}\)/);
+  assert.match(queries, /taskQueries\.askOnTask\(\{ id: todo\._id, question, subject \}\)/);
   /* The old clarifications list leaves out the ones a query shows. */
   assert.match(read('components/EnquiryClarifications.jsx'), /pair\.answer && !pair\.query/);
 });
@@ -58,4 +58,17 @@ test('Needs Clarification is a query: the comment dialog says where it goes', ()
   assert.match(workflow, /step\.opensQuery \? 'Send query'/);
   assert.match(workflow, /Opened as a query to whoever raised this task/);
   assert.match(read('components/SoDesk.jsx'), /title="Ask a query"/);
+});
+
+test('query subjects: one shared drop-down with Add a new subject, on both kinds of query; Admin manages the list', () => {
+  const picker = read('components/SubjectPicker.jsx');
+  assert.match(picker, /\+ Add a new subject…/);
+  assert.match(picker, /taskQueries\.subjects\(\)/);
+  assert.match(read('components/TaskQueries.jsx'), /<SubjectPicker value=\{subject\} onChange=\{setSubject\} required \/>/);
+  assert.match(read('components/RaiseQuery.jsx'), /<SubjectPicker value=\{subject\} onChange=\{setSubject\} id="raise-query-subject" \/>/);
+  assert.match(endpoints, /subjects: \(params\) => api\.get\('\/query-subjects', \{ params \}\)/);
+  const page = read('pages/TaskQueriesPage.jsx');
+  assert.match(page, /aria-label="Filter by subject"/);
+  assert.match(page, /taskQueries\.editSubject\(\{ id: row\._id, \.\.\.payload \}\)/);
+  assert.match(page, /\{row\.hidden \? 'Put back' : 'Remove'\}/);
 });
