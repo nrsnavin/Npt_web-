@@ -44,6 +44,7 @@ import { EnquiryQueries } from '../components/TaskQueries.jsx';
 import PpSampleCard from '../components/PpSample.jsx';
 import { EnquiryEddTrack } from '../components/EddChanges.jsx';
 import CustomerName from '../components/CustomerName.jsx';
+import SalesStageBadge from '../components/SalesStageBadge.jsx';
 
 const TONE_TEXT = {
   danger: 'text-danger-400',
@@ -666,7 +667,7 @@ export default function EnquiryDetail() {
         }
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            <Badge status={enquiry.status}>{stageLabel(enquiry.status)}</Badge>
+            <SalesStageBadge enquiry={enquiry} />
             {/*
               Correcting what the buyer actually asked for.
 

@@ -18,13 +18,14 @@ import ExportButton from '../components/ExportButton.jsx';
 import MarketingStatusSelect from '../components/MarketingStatusSelect.jsx';
 import { formatDate, formatNumber } from '../utils/format.js';
 import {
-  CLOSED_STAGES, ENQUIRY_STAGES, MARKETING_STATUSES, SOURCES, buildEnquiryPayload, departmentLabel, stageLabel,
+  CLOSED_STAGES, ENQUIRY_STAGES, MARKETING_STATUSES, SOURCES, buildEnquiryPayload, departmentLabel,
 } from '../utils/pipeline.js';
 import useOpenFromLink from '../hooks/useOpenFromLink.js';
 import { useHandoffCatalogue } from '../hooks/useHandoffCatalogue.js';
 import { DeliveryBadge, inDanger } from '../components/DeliveryRisk.jsx';
 import { QueuePlace, useQueuePlaces } from '../components/CustomerFilter.jsx';
 import CustomerName from '../components/CustomerName.jsx';
+import SalesStageBadge from '../components/SalesStageBadge.jsx';
 
 /**
  * What the list hook fetches while the board is showing: nothing.
@@ -445,7 +446,7 @@ export default function Enquiries({ embedded = false }) {
                         </td>
                         {/* The badge may wrap here, so a long stage does not widen the whole table. */}
                         <td className="px-1.5 py-3.5 [&>span]:whitespace-normal">
-                          <Badge status={enquiry.status}>{stageLabel(enquiry.status)}</Badge>
+                          <SalesStageBadge enquiry={enquiry} />
                         </td>
                       </tr>
                     );
