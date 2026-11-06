@@ -279,6 +279,28 @@ export const taskQueries = {
   editSubject: ({ id, ...payload }) => api.patch(`/query-subjects/${id}`, payload).then(unwrap),
 };
 
+/**
+ * The PP sample and its delivery challans [server: services/ppSample.service.js]: the card on the
+ * enquiry and the task, the buyer's answer, the DC Dispatch prepares on Send PP Sample, the DC
+ * on paper, and the DC marked as added to an invoice.
+ */
+export const ppSamples = {
+  ofTask: (id) => api.get(`/workspace/todos/${id}/pp-sample`).then(unwrap),
+  ofEnquiry: (id) => api.get(`/enquiries/${id}/pp-sample`).then(unwrap),
+  answer: ({ id, verdict, note }) => api.post(`/pp-samples/${id}/answer`, { verdict, note }).then(unwrap),
+  challanForm: (taskId) => api.get(`/workspace/todos/${taskId}/challan`).then(unwrap),
+  saveChallan: ({ taskId, ...payload }) => api.post(`/workspace/todos/${taskId}/challan`, payload).then(unwrap),
+  challansOfTask: (taskId, params) => api.get(`/workspace/todos/${taskId}/challans`, { params }).then((response) => response.data),
+  invoiced: ({ id, number, date }) => api.post(`/delivery-challans/${id}/invoiced`, { number, date }).then(unwrap),
+  /** The DC on the letterhead, opened in a new tab to print or share. */
+  openPdf: async (id) => {
+    const response = await api.get(`/delivery-challans/${id}/pdf`, { responseType: 'blob' });
+    const url = URL.createObjectURL(response.data);
+    window.open(url, '_blank', 'noopener');
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  },
+};
+
 export const users = {
   catalogue: () => api.get('/users/catalogue').then(unwrap),
   list: (params) => api.get('/users', { params }).then((response) => response.data),

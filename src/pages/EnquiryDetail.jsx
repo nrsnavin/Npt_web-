@@ -41,6 +41,7 @@ import {
 } from '../utils/pipeline.js';
 import EnquiryClarifications from '../components/EnquiryClarifications.jsx';
 import { EnquiryQueries } from '../components/TaskQueries.jsx';
+import PpSampleCard from '../components/PpSample.jsx';
 import CustomerName from '../components/CustomerName.jsx';
 
 const TONE_TEXT = {
@@ -795,6 +796,9 @@ export default function EnquiryDetail() {
           </Section>
 
           {mayReadSamples && <EnquirySamples enquiryId={enquiry._id} />}
+
+          {/* The PP sample before bulk production: rounds, DCs, the buyer's answer [server: ppSample.service]. */}
+          <PpSampleCard enquiryId={enquiry._id} />
 
           {/* Queries on the enquiry and its tasks — asked of its marketing person, answered here [server: taskQuery.service]. */}
           <EnquiryQueries enquiry={enquiry} />

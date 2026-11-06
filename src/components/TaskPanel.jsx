@@ -9,6 +9,7 @@ import SalesOrderDraft from './SalesOrderDraft.jsx';
 import TaskVisits from './TaskVisits.jsx';
 import TaskFieldVisits from './TaskFieldVisits.jsx';
 import TaskQueries from './TaskQueries.jsx';
+import PpSampleCard, { ChallansToInvoice, PpChallanAction } from './PpSample.jsx';
 import { Modal, Notice } from './ui.jsx';
 import { TaskFacts, TaskTimeline } from './TaskHistory.jsx';
 import { buttonFor, useHandoffCatalogue } from '../hooks/useHandoffCatalogue.js';
@@ -82,6 +83,13 @@ export default function TaskPanel({ task, startWith, mayWork, onClose, onChanged
         <TaskVisits todo={task} mayWork={mayWork} />
         {/* The field visits planned on the task — Needs visit, Check in — and how each went [server: fieldVisit.service]. */}
         <TaskFieldVisits todo={task} />
+
+        {/* The PP sample: where it stands, its DCs, and the buyer's answer [server: ppSample.service]. */}
+        {['po_so', 'pp_sample', 'pp_sample_send', 'pp_sample_approval'].includes(task.kind) && <PpSampleCard taskId={task._id} onChanged={onChanged} />}
+        {/* Dispatch prepares the DC on Send PP Sample before marking it sent. */}
+        {task.kind === 'pp_sample_send' && mayWork && <PpChallanAction task={task} onChanged={onChanged} />}
+        {/* Invoice & Dispatch: PP sample DCs still to bill on this order's invoice. */}
+        {task.kind === 'invoice_dispatch' && <ChallansToInvoice task={task} />}
 
         {/* The rule's proposal on a collection case — the collector or Admin presses Escalated to PRT, or not. */}
         {!task.completed && task.suggestion?.kind === 'escalate_prt' && (
