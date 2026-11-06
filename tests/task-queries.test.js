@@ -72,3 +72,15 @@ test('query subjects: one shared drop-down with Add a new subject, on both kinds
   assert.match(page, /taskQueries\.editSubject\(\{ id: row\._id, \.\.\.payload \}\)/);
   assert.match(page, /\{row\.hidden \? 'Put back' : 'Remove'\}/);
 });
+
+test('every query list leads with the buyer, bold in the fluorescent tone, then the subject, then the message as said', () => {
+  const panel = read('components/dock/QueriesPanel.jsx');
+  assert.match(panel, /<CustomerName name=\{row\.customer\?\.name\} fallback=\{.*\} className="truncate text-sm font-bold" \/>/);
+  assert.ok(panel.indexOf('<CustomerName name={row.customer') < panel.indexOf('{row.subject}'), 'the buyer before the subject');
+  assert.match(panel, /\$\{row\.last\.text\}/);
+  const page = read('pages/Queries.jsx');
+  assert.ok(page.indexOf('<CustomerName name={row.customer?.name}') < page.indexOf('{row.subject}'), 'the buyer before the subject on the Queries page');
+  assert.match(page, /<p className="truncate text-sm font-bold">\s*<CustomerName/);
+  const card = read('components/TaskQueries.jsx');
+  assert.match(card, /<CustomerName name=\{query\.customer\.name\} className="font-bold" \/>/);
+});
