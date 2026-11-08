@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { enquiries as enquiriesApi, workspace } from '../api/endpoints.js';
+import { eddChanges as eddChangesApi, enquiries as enquiriesApi, workspace } from '../api/endpoints.js';
 import { Field, Notice } from './ui.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import { todayInIndia } from '../utils/taskForm.js';
@@ -160,7 +160,7 @@ function Incoming({ todo }) {
  * A team that hands on — Production before Printing or Assembly, Printing before Assembly —
  * gives the next team a hand-over date, not the EDD [server: handoff.service `passHandover`].
  */
-function HandOverDate({ todo, mayAct, onChanged }) {
+function HandOverDate({ todo, mayAct, onChanged, eddAbove = false }) {
   const { toast } = useToast();
   const [editing, setEditing] = useState(false);
   const teams = handsOnOf(todo);
@@ -190,7 +190,7 @@ function HandOverDate({ todo, mayAct, onChanged }) {
         <p className="mt-1 text-xs text-steel-300">{endsHere.join(', ')} {endsHere.length > 1 ? 'end' : 'ends'} here — {endsHere.length > 1 ? 'their' : 'its'} date is the completion date, then Ready for Dispatch.</p>
       )}
       <Incoming todo={todo} />
-      <EddReadOnly todo={todo} onChanged={onChanged} />
+      {!eddAbove && <EddReadOnly todo={todo} onChanged={onChanged} />}
       <ModelEdds todo={todo} className="mt-1" />
       {gives && day && !editing && <button type="button" className="row-action mt-1" onClick={() => setEditing(true)}>Change hand-over date</button>}
       {gives && (!day || editing) && (
@@ -219,14 +219,19 @@ function EddReadOnly({ todo, onChanged }) {
  * raised from the customer, the job's; everybody else is told who sets it.
  */
 export function EddNeeded({ todo, onChanged, className = '' }) {
-  const { isAdmin, departments = [] } = useAuth();
+  const { isAdmin, departments = [], mayPlanProduction } = useAuth();
   const { toast } = useToast();
   const [setting, setSetting] = useState(false);
   if (!todo || eddOfTask(todo) || todo.completed) return null;
-  const sets = isAdmin || departments.includes('marketing');
+  /* On Production's task the Production in charge sets it too [server: eddChange.service `changeEddDirect`]. */
+  const byProduction = todo.kind === 'ask_edd' && mayPlanProduction && !isAdmin && !departments.includes('marketing');
+  const sets = isAdmin || departments.includes('marketing') || byProduction;
   const enquiryId = todo.enquiry?._id || (typeof todo.enquiry === 'string' ? todo.enquiry : null);
   const save = async ({ date, note }) => {
-    if (enquiryId) {
+    if (byProduction) {
+      await eddChangesApi.changeNow({ id: todo._id, date, reason: note || 'Set by the Production in charge' });
+      onChanged?.();
+    } else if (enquiryId) {
       const saved = await enquiriesApi.setEdd({ id: enquiryId, date, note });
       onChanged?.({ ...todo, enquiry: { ...(typeof todo.enquiry === 'object' ? todo.enquiry : { _id: enquiryId }), edd: saved } });
     } else {
@@ -247,6 +252,80 @@ export function EddNeeded({ todo, onChanged, className = '' }) {
   );
 }
 
+/**
+ * The EDD on Production's task, with Change EDD for the Production in charge (or Admin): a new
+ * date — for one model or all — and why; it moves at once, and marketing and Admin are told
+ * [server: eddChange.service `changeEddDirect`]. With no EDD yet, it is asked for [EddNeeded].
+ */
+export function ProductionEdd({ todo, mayChange, onChanged }) {
+  const { toast } = useToast();
+  const [open, setOpen] = useState(false);
+  const [date, setDate] = useState('');
+  const [model, setModel] = useState('');
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState(null);
+  const edd = eddOfTask(todo);
+  if (!edd) return <EddNeeded todo={todo} onChanged={onChanged} />;
+  const models = modelsOfTask(todo);
+  const byModel = eddByModelOf(todo.enquiry).filter((row) => row.final?.date && row.final.date !== edd.date && models.includes(row.model));
+  const save = async (event) => {
+    event.preventDefault();
+    setBusy(true);
+    setProblem(null);
+    try {
+      await eddChangesApi.changeNow({ id: todo._id, date, reason: reason.trim(), model: model || undefined });
+      toast(`EDD ${formatDate(date)}${model ? ` for ${model}` : ''}`, 'Changed — marketing and Admin are told.');
+      setOpen(false);
+      setDate('');
+      setReason('');
+      setModel('');
+      onChanged?.();
+    } catch (failure) {
+      setProblem(failure.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="rounded-xl border border-line/[0.08] bg-line/[0.02] px-3 py-2" aria-label="EDD">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <EddLine edd={edd} />
+        {mayChange && !todo.completed && !open && (
+          <button type="button" className="btn-secondary px-3 py-1 text-xs" onClick={() => { setDate(edd.date >= todayInIndia() ? edd.date : ''); setOpen(true); }}>Change EDD</button>
+        )}
+      </div>
+      {byModel.length > 0 && (
+        <p className="mt-0.5 text-xs text-steel-400">{byModel.map((row) => `${row.model}: EDD ${formatDate(row.final.date)}`).join(' · ')}</p>
+      )}
+      {open && (
+        <form onSubmit={save} className="mt-2 grid gap-2 sm:grid-cols-[auto_auto_1fr]" aria-label="Change EDD">
+          <Field label="New EDD" required>
+            <input type="date" className="input" min={todayInIndia()} value={date} onChange={(event) => setDate(event.target.value)} required />
+          </Field>
+          {models.length > 1 ? (
+            <Field label="For">
+              <select className="input" value={model} onChange={(event) => setModel(event.target.value)} aria-label="Which model’s EDD">
+                <option value="">Every model</option>
+                {models.map((entry) => <option key={entry} value={entry}>{entry}</option>)}
+              </select>
+            </Field>
+          ) : <span className="hidden sm:block" />}
+          <Field label="Why" required>
+            <input className="input" value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Mould back from repair, second shift…" required />
+          </Field>
+          <p className="text-xs text-steel-400 sm:col-span-3">It changes now; the enquiry’s marketing person and Admin are told, and the EDD history keeps the old date.</p>
+          {problem && <div className="sm:col-span-3"><Notice tone="danger">{problem}</Notice></div>}
+          <div className="flex justify-end gap-2 sm:col-span-3">
+            <button type="button" className="btn-ghost px-3 py-1.5 text-xs" onClick={() => setOpen(false)} disabled={busy}>Cancel</button>
+            <button type="submit" className="btn-primary px-3 py-1.5 text-xs" disabled={busy || !date || reason.trim().length < 3 || (date === edd.date && !model)}>{busy ? 'Saving…' : 'Change EDD'}</button>
+          </div>
+        </form>
+      )}
+    </div>
+  );
+}
+
 export default function TaskEdd({ todo, mayAct = false, onChanged }) {
   const { toast } = useToast();
   const { mayPlanProduction } = useAuth();
@@ -259,16 +338,16 @@ export default function TaskEdd({ todo, mayAct = false, onChanged }) {
     const plans = mayAct && mayPlanProduction;
     return (
       <div className="space-y-2">
-        {/* No EDD: asked for before anything else — the queue runs by it [EddNeeded]. */}
-        {!routed && <EddNeeded todo={todo} onChanged={onChanged} />}
+        {/* The EDD first, with Change EDD for the in charge; with none, asked for — the queue runs by it [ProductionEdd]. */}
+        <ProductionEdd todo={todo} mayChange={plans} onChanged={onChanged} />
         {/* Asked with only the buyer's name: the in charge links it, or starts each model from where it is [StartFrom]. */}
         {!todo.enquiry && !routed && plans && !todo.completed
           ? <StartFrom todo={todo} onChanged={onChanged} />
           : <TaskRouting todo={todo} mayAct={plans} onChanged={onChanged} />}
         {/* Production floor planning on: each routed model's press, planned from here [TaskPressPlan]. */}
         {routed && <TaskPressPlan todo={todo} mayPlan={plans} onChanged={onChanged} />}
-        {routed && handsOnOf(todo).length > 0 && <HandOverDate todo={todo} mayAct={plans} onChanged={onChanged} />}
-        {routed && !handsOnOf(todo).length && <EddBox todo={todo} mayAct={plans} onChanged={onChanged} toast={toast} editing={editing} setEditing={setEditing} />}
+        {routed && handsOnOf(todo).length > 0 && <HandOverDate todo={todo} mayAct={plans} onChanged={onChanged} eddAbove />}
+        {routed && !handsOnOf(todo).length && <EddBox todo={todo} mayAct={plans} onChanged={onChanged} toast={toast} editing={editing} setEditing={setEditing} eddAbove />}
         {mayAct && !plans && !todo.completed && (
           <p className="text-xs text-steel-400">The Production in charge gives the completion and hand-over dates and decides printing and assembly — you update the status.</p>
         )}
@@ -279,7 +358,7 @@ export default function TaskEdd({ todo, mayAct = false, onChanged }) {
   return <EddBox todo={todo} mayAct={mayAct} onChanged={onChanged} toast={toast} editing={editing} setEditing={setEditing} />;
 }
 
-function EddBox({ todo, mayAct, onChanged, toast, editing, setEditing }) {
+function EddBox({ todo, mayAct, onChanged, toast, editing, setEditing, eddAbove = false }) {
   const { mayPlanProduction } = useAuth();
   /* The EDD: marketing's, read here. */
   const edd = eddOfTask(todo);
@@ -299,7 +378,7 @@ function EddBox({ todo, mayAct, onChanged, toast, editing, setEditing }) {
   const tone = needed || afterEdd ? 'border-warn-500/40 bg-warn-500/[0.07]' : 'border-accent/30 bg-accent/[0.05]';
   return (
     <div className={`rounded-xl border px-3 py-2.5 ${tone}`} aria-label="Completion date">
-      {edd ? <EddLine edd={edd} /> : <EddNeeded todo={todo} onChanged={onChanged} />}
+      {!eddAbove && (edd ? <EddLine edd={edd} /> : <EddNeeded todo={todo} onChanged={onChanged} />)}
       {givesEdd(todo) && (givenHere ? (
         <p className={`mt-1 text-sm ${afterEdd ? 'font-semibold text-danger-400' : 'text-steel-100'}`}>
           <span className="font-bold">Completion date {formatDate(givenHere)}</span>

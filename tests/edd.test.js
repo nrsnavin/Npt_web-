@@ -69,7 +69,7 @@ test('the Production, Printing or Assembly task asks for its completion date unt
   assert.match(taskEdd, /Completion date needed/);
   /* No EDD: asked for right there — marketing and Admin set it, everybody else is told who does. */
   assert.match(taskEdd, /export function EddNeeded\(\{ todo, onChanged, className = '' \}\)/);
-  assert.match(taskEdd, /\{edd \? <EddLine edd=\{edd\} \/> : <EddNeeded todo=\{todo\} onChanged=\{onChanged\} \/>\}/);
+  assert.match(taskEdd, /\{!eddAbove && \(edd \? <EddLine edd=\{edd\} \/> : <EddNeeded todo=\{todo\} onChanged=\{onChanged\} \/>\)\}/);
   assert.match(taskEdd, /enquiriesApi\.setEdd\(\{ id: enquiryId, date, note \}\)/);
   assert.match(taskEdd, /workspace\.todos\.jobEdd\(\{ id: todo\._id, date, note \}\)/);
   assert.match(taskEdd, / Marketing or Admin sets it\./);
@@ -205,4 +205,15 @@ test('the hand-over date form says, model by model, whether its date is a hand-o
   assert.match(edd, /hintOf=\{\(model\) => dateLabelFor\(todo, 'Completion date', model\)\}/);
   assert.match(edd, /const endsHere = modelsOfTask\(todo\)\.filter\(\(model\) => routeEndOf\(todo, model\) === 'dispatch'\);/);
   assert.match(edd, /date is the completion date, then Ready for Dispatch\./);
+});
+
+test('Production: the EDD at the top of its task, and Change EDD for the in charge — now, with why, for one model or all', () => {
+  const taskEdd = read('components/TaskEdd.jsx');
+  assert.match(taskEdd, /<ProductionEdd todo=\{todo\} mayChange=\{plans\} onChanged=\{onChanged\} \/>/);
+  assert.match(taskEdd, /eddChangesApi\.changeNow\(\{ id: todo\._id, date, reason: reason\.trim\(\), model: model \|\| undefined \}\)/);
+  assert.match(taskEdd, /<option value="">Every model<\/option>/);
+  assert.match(taskEdd, /It changes now; the enquiry’s marketing person and Admin are told/);
+  /* With no EDD yet, the in charge sets it on Production's task too. */
+  assert.match(taskEdd, /const byProduction = todo\.kind === 'ask_edd' && mayPlanProduction/);
+  assert.match(read('api/endpoints.js'), /changeNow: \(\{ id, date, reason, model \}\) => api\.post\(`\/workspace\/todos\/\$\{id\}\/edd-changes\/direct`/);
 });
