@@ -509,6 +509,10 @@ function ModelWorkflows({ todo, form, statuses, offered, noDates, onMoved }) {
   const common = picked.length ? offered.filter((entry) => picked.every((row) => row.own.some((own) => own.key === entry.key))) : [];
   const allTicked = openRows.length > 0 && openRows.every((row) => ticked.includes(row.model));
   const tick = (model, on) => setTicked((current) => (on ? [...new Set([...current, model])] : current.filter((entry) => entry !== model)));
+  /* Start all: every model not yet started that can take the team's Started step, moved together in one form. */
+  const startStep = offered.find((entry) => entry.key === 'started');
+  const startAt = statuses.findIndex((entry) => entry.key === 'started');
+  const toStart = startStep ? openRows.filter((row) => row.own.some((own) => own.key === 'started') && statuses.findIndex((entry) => entry.key === row.status) < startAt) : [];
   return (
     <div className="space-y-2" aria-label="Workflow by model">
       <div className="flex flex-wrap items-center gap-2 rounded-xl border border-line/[0.08] bg-line/[0.03] px-3 py-2">
@@ -530,6 +534,16 @@ function ModelWorkflows({ todo, form, statuses, offered, noDates, onMoved }) {
           {common.map((entry) => <option key={entry.key} value={entry.key}>{entry.label}</option>)}
         </select>
         {picked.length > 0 && !common.length && <span className="text-xs text-warn-400">The ticked models have no step in common — tick fewer.</span>}
+        {toStart.length > 1 && (
+          <button
+            type="button"
+            className="btn-primary ml-auto px-3 py-1 text-xs"
+            title={`${startStep.label} for ${toStart.map((row) => row.model).join(', ')}`}
+            onClick={() => { setTicked(toStart.map((row) => row.model)); setMoving({ many: true, models: toStart.map((row) => row.model), step: startStep }); }}
+          >
+            Start all ({toStart.length})
+          </button>
+        )}
       </div>
       {moving?.many && (
         <MoveForm

@@ -142,3 +142,10 @@ test('Production’s task: the next step and the status in view, the rest under 
   assert.match(workflow, /navigate\(`\/production\/workflow\/\$\{todo\._id\}`\)/);
   assert.match(workflow, /key: 'run', label: 'Start a run'/);
 });
+
+test('Start all: every model not yet started moves to the team’s Started step in one form', () => {
+  const workflow = read('components/TaskWorkflow.jsx');
+  assert.match(workflow, /const startStep = offered\.find\(\(entry\) => entry\.key === 'started'\);/);
+  assert.match(workflow, /Start all \(\{toStart\.length\}\)/);
+  assert.match(workflow, /setMoving\(\{ many: true, models: toStart\.map\(\(row\) => row\.model\), step: startStep \}\)/);
+});
