@@ -311,6 +311,8 @@ export const ppSamples = {
 export const eddChanges = {
   onTask: (id) => api.get(`/workspace/todos/${id}/edd-changes`).then((response) => response.data),
   ask: ({ id, date, reason, model }) => api.post(`/workspace/todos/${id}/edd-changes`, { date, reason, ...(model ? { model } : {}) }).then(unwrap),
+  /* The Production in charge (or Admin) changes the EDD outright from the Production task [server: eddChange.service `changeEddDirect`]. */
+  changeNow: ({ id, date, reason, model }) => api.post(`/workspace/todos/${id}/edd-changes/direct`, { date, reason, ...(model ? { model } : {}) }).then(unwrap),
   track: (enquiryId) => api.get(`/enquiries/${enquiryId}/edd-track`).then(unwrap),
   reply: ({ id, body, date }) => api.post(`/edd-changes/${id}/reply`, { body, ...(date ? { date } : {}) }).then(unwrap),
   agree: ({ id, date, note }) => api.post(`/edd-changes/${id}/agree`, { ...(date ? { date } : {}), ...(note ? { note } : {}) }).then(unwrap),

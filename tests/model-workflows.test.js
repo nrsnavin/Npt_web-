@@ -78,19 +78,22 @@ test('the next step is the model’s own: past Completed it is the hand-over it 
   assert.equal(modelThrough(PRODUCTION, 'completed'), false);
 });
 
-test('the workflow draws one strip per model, each moving on its own; every model together on request', () => {
+test('the models as one table: tick models (or Select all), one status for the ticked; each row keeps its next step', () => {
   const workflow = read('components/TaskWorkflow.jsx');
   assert.match(workflow, /function ModelWorkflows\(\{ todo, form, statuses, offered, noDates, onMoved \}\)/);
   assert.match(workflow, /aria-label="Workflow by model"/);
-  assert.match(workflow, /aria-label=\{`Change status of \$\{row\.model\}`\}/);
+  assert.match(workflow, /aria-label="Select all models"/);
+  assert.match(workflow, /aria-label=\{`Tick \$\{row\.model\}`\}/);
+  assert.match(workflow, /aria-label="Change status of the ticked models"/);
+  assert.match(workflow, /fixedModels=\{moving\.models\}/, 'the ticked models move together');
+  assert.match(workflow, /picked\.every\(\(row\) => row\.own\.some\(\(own\) => own\.key === entry\.key\)\)/, 'only steps every ticked model can take');
   assert.match(workflow, /fixedModels=\{\[row\.model\]\}/, 'a move from a strip is for that model alone');
   assert.match(workflow, /\.\.\.\(fixedModels \|\| \(byModel && picked\.length < allModels\.length\) \? \{ models: picked \} : \{\}\)/);
   assert.match(workflow, /\{byModel && !fixedModels && \(/, 'no tick-boxes on one model’s own form');
   assert.match(workflow, /\{movesByModel\(todo\) && !waiting\.length && \(/);
-  assert.match(workflow, /\{allAtOnce \? 'Hide the move for every model' : 'Move every model together'\}/);
   /* A model gone on from this team (handed over, or ready for dispatch from the last team) is closed here, and its move alerts [server: closesModel]. */
   assert.match(workflow, /const closed = Boolean\(current\?\.done \|\| current\?\.handsTo \|\| current\?\.readyForDispatch\);/);
-  assert.match(workflow, /closed here for this model/);
+  assert.match(workflow, /closed here<\/span>/);
   assert.match(workflow, /else if \(step\.handsTo \|\| step\.readyForDispatch\) toast\(`\$\{model\} closed here`/);
 });
 
@@ -130,4 +133,12 @@ test('several models go each on its own way unless one consignment is chosen; on
   assert.equal(dispatchModeOf({ items: [{ modelNumber: 'A' }, { modelNumber: 'B' }], dispatchPlan: { mode: 'together' } }), 'together', 'marketing’s choice wins');
   const desk = readFileSync(new URL('../src/components/DepartmentDesk.jsx', import.meta.url), 'utf8');
   assert.match(desk, /\{planChosen \? '' : ' \(default\)'\}/);
+});
+
+test('Production’s task: the next step and the status in view, the rest under More actions', () => {
+  const workflow = read('components/TaskWorkflow.jsx');
+  assert.match(workflow, /label="More actions ▾"/);
+  assert.match(workflow, /group: 'Ask another team', onSelect: \(\) => setAskingDepartment\(action\)/);
+  assert.match(workflow, /navigate\(`\/production\/workflow\/\$\{todo\._id\}`\)/);
+  assert.match(workflow, /key: 'run', label: 'Start a run'/);
 });
