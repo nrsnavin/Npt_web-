@@ -10,6 +10,8 @@ import {
 } from '../components/ui.jsx';
 import BulkBar, { RowCheckbox, useSelection } from '../components/BulkReassign.jsx';
 import ExportButton from '../components/ExportButton.jsx';
+import CustomerUpload from '../components/CustomerUpload.jsx';
+import { useToast } from '../context/ToastContext.jsx';
 import OwnerPicker from '../components/OwnerPicker.jsx';
 import PlaceInput from '../components/PlaceInput.jsx';
 import { SortHeader, useSort } from '../components/SortHeader.jsx';
@@ -444,6 +446,8 @@ export default function Customers() {
   const [gstMissing, setGstMissing] = useState(false);
   const [page, setPage] = useState(1);
   const [creating, setCreating] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const { toast } = useToast();
   /* The buyer's side panel [components/CustomerPanel.jsx], as on the dashboard's party master. */
   const [panel, setPanel] = useState(null);
   /* The command bar's "New …" arrives as `?new=1` with the form to open. */
@@ -486,6 +490,12 @@ export default function Customers() {
         actions={
           <div className="flex items-center gap-2">
             <ExportButton download={downloads.customers} params={filters} />
+            {/* Customers from Excel: the template, a preview, then Import [CustomerUpload]. */}
+            {mayWrite && (
+              <button type="button" className="btn-secondary" onClick={() => setImporting(true)}>
+                Import from Excel
+              </button>
+            )}
             {mayWrite && (
               <button type="button" className="btn-primary" onClick={() => setCreating(true)}>
                 + New customer
@@ -644,6 +654,24 @@ export default function Customers() {
         onClose={() => setCreating(false)}
       >
         <CustomerForm onClose={() => setCreating(false)} onSaved={reload} />
+      </Modal>
+
+      <Modal
+        open={importing}
+        title="Import customers from Excel"
+        description="Download the template, fill one row per customer, and upload it — you see what will happen before anything is saved"
+        size="lg"
+        onClose={() => setImporting(false)}
+      >
+        {importing && (
+          <CustomerUpload
+            onClose={() => setImporting(false)}
+            onDone={(done) => {
+              toast(`${done.created} customer${done.created === 1 ? '' : 's'} imported`, done.skipped ? `${done.skipped} skipped — already in the app` : 'Each has its CUST number and owner.');
+              reload();
+            }}
+          />
+        )}
       </Modal>
     </div>
   );

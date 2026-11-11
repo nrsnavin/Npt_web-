@@ -550,6 +550,14 @@ export const customers = {
     api.post(`/customers/${id}/site`, { query, message }).then(unwrap),
   clearSite: (id) => api.delete(`/customers/${id}/site`).then(unwrap),
   create: (payload) => api.post('/customers', payload).then(unwrap),
+  /* Customers from Excel [server: customerImport.service]: `commit: false` answers the preview, `true` creates. */
+  importSheet: ({ file, commit, defaultOwner }) => {
+    const form = new FormData();
+    form.append('file', file);
+    if (defaultOwner) form.append('defaultOwner', defaultOwner);
+    if (commit) form.append('commit', 'true');
+    return api.post('/customers/import', form, { feedback: commit }).then(unwrap);
+  },
   update: ({ id, ...payload }) => api.patch(`/customers/${id}`, payload).then(unwrap),
   /** Admin's word on the buyer's credit: Watch or Hold with a reason, or nothing to clear it. */
   setCredit: ({ id, ...payload }) => api.post(`/customers/${id}/credit`, payload).then(unwrap),
@@ -1351,6 +1359,7 @@ export const downloads = {
   components: (params) => save('/components/export', params, `${params?.kind || 'parts'}s.csv`),
   tradedItems: (params) => save('/traded-items/export', params, 'trading-master.csv'),
   tradingTemplate: () => save('/traded-items/template', {}, 'trading-master-template.csv'),
+  customerTemplate: () => save('/customers/import/template', {}, 'customer-import-template.xlsx'),
 };
 
 
