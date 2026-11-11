@@ -33,3 +33,11 @@ test('the dialog: download the template, pick the owner, choose the file, see th
   assert.match(upload, /Already a customer — \$\{entry\.existing\.name\}/);
   assert.match(upload, /Import \$\{summary\.create\} customer/);
 });
+
+test('delivery and accounts contacts take an email on the customer form, and the contact card shows it', () => {
+  const page = read('pages/Customers.jsx');
+  assert.match(page, /email: contact\?\.email \|\| '',/);
+  assert.match(page, /if \(name \|\| phone \|\| email\) return \{ sameAsOrder: false, name: name \|\| undefined, phone: phone \|\| undefined, email: email \|\| undefined \};/);
+  assert.match(page, /register\(`\$\{name\}\.email`\)/);
+  assert.match(read('components/BuyerContactCard.jsx'), /return \{ name: contact\.name, phone: contact\.phone, email: contact\.email \};/);
+});

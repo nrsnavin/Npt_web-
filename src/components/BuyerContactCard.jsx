@@ -38,7 +38,7 @@ function Person({ role, name, phone, email, note }) {
 /* Delivery or accounts: the order contact when the buyer said so, its own person when one was given. */
 function rolePerson(contact, order) {
   if (contact?.sameAsOrder) return { ...order, note: 'Same as order contact' };
-  if (contact?.name || contact?.phone) return { name: contact.name, phone: contact.phone };
+  if (contact?.name || contact?.phone || contact?.email) return { name: contact.name, phone: contact.phone, email: contact.email };
   return { ...order, note: 'Not given — the order contact' };
 }
 

@@ -50,6 +50,7 @@ const roleContactDefaults = (contact) => ({
   sameAsOrder: Boolean(contact?.sameAsOrder),
   name: contact?.name || '',
   phone: localPhone(contact?.phone),
+  email: contact?.email || '',
 });
 
 /* The same as the order contact, a person of its own, or — left empty — nothing said. */
@@ -57,7 +58,8 @@ function roleContactPayload(values, editing) {
   if (values?.sameAsOrder) return { sameAsOrder: true };
   const name = values?.name?.trim();
   const phone = values?.phone?.trim();
-  if (name || phone) return { sameAsOrder: false, name: name || undefined, phone: phone || undefined };
+  const email = values?.email?.trim();
+  if (name || phone || email) return { sameAsOrder: false, name: name || undefined, phone: phone || undefined, email: email || undefined };
   return editing ? { sameAsOrder: false } : undefined;
 }
 
@@ -99,6 +101,9 @@ function RoleContactFields({ register, watch, name, title, personLabel, phoneLab
               <span className="inline-flex items-center rounded-l-lg border border-r-0 border-line/[0.12] bg-line/[0.04] px-2.5 text-sm text-steel-400">+91</span>
               <input type="tel" inputMode="tel" className="input rounded-l-none" {...register(`${name}.phone`)} />
             </div>
+          </Field>
+          <Field label="Email" className="sm:col-span-2">
+            <input type="email" className="input" {...register(`${name}.email`)} />
           </Field>
         </div>
       )}
