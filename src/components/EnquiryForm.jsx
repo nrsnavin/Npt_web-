@@ -52,6 +52,7 @@ export default function EnquiryForm({ enquiry, onClose, onSaved }) {
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm({
     defaultValues: editing
@@ -67,16 +68,22 @@ export default function EnquiryForm({ enquiry, onClose, onSaved }) {
           nextFollowUpDate: enquiry.nextFollowUpDate
             ? enquiry.nextFollowUpDate.slice(0, 10)
             : '',
-          prospect: Object.fromEntries(PROSPECT_FIELDS.map((key) => [key, enquiry.prospect?.[key] || ''])),
+          prospect: {
+            ...Object.fromEntries(PROSPECT_FIELDS.map((key) => [key, enquiry.prospect?.[key] || ''])),
+            whatsappSame: !enquiry.prospect?.whatsapp || enquiry.prospect.whatsapp === enquiry.prospect.mobile,
+          },
         }
-      : { source: 'phone', prospect: {} },
+      : { source: 'phone', prospect: { whatsappSame: true } },
   });
+  const prospectWhatsappSame = watch('prospect.whatsappSame');
 
   const submit = async (values) => {
     setError(null);
 
+    /* Ticked: WhatsApp is the mobile number. */
+    const typed = values.prospect?.whatsappSame ? { ...values.prospect, whatsapp: values.prospect.mobile } : values.prospect;
     const prospect = isProspect
-      ? Object.fromEntries(PROSPECT_FIELDS.map((key) => [key, values.prospect?.[key]?.trim() || undefined]).filter(([, value]) => value))
+      ? Object.fromEntries(PROSPECT_FIELDS.map((key) => [key, typed?.[key]?.trim() || undefined]).filter(([, value]) => value))
       : undefined;
     if (isProspect) {
       if (!prospect.name || prospect.name.length < 2) {
@@ -163,9 +170,17 @@ export default function EnquiryForm({ enquiry, onClose, onSaved }) {
             <Field label="Mobile" hint="+91 is added for a 10-digit number">
               <input className="input" type="tel" inputMode="tel" {...register('prospect.mobile')} />
             </Field>
-            <Field label="WhatsApp">
-              <input className="input" type="tel" inputMode="tel" {...register('prospect.whatsapp')} />
-            </Field>
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 pt-6 text-sm text-steel-200">
+                <input id="prospect-whatsapp-same" type="checkbox" className="h-4 w-4 accent-flame-500" {...register('prospect.whatsappSame')} />
+                WhatsApp is the same as mobile
+              </label>
+              {!prospectWhatsappSame && (
+                <Field label="WhatsApp">
+                  <input className="input" type="tel" inputMode="tel" {...register('prospect.whatsapp')} />
+                </Field>
+              )}
+            </div>
             <Field label="Email">
               <input className="input" type="email" {...register('prospect.email')} />
             </Field>

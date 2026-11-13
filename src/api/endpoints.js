@@ -578,6 +578,8 @@ export const customers = {
    * Keeps the envelope, because `meta.you` says whether the reader is on it.
    */
   team: () => api.get('/customers/team').then((response) => response.data),
+  /* The delivery routes, for the customer form's drop-down — readable without the Dispatch module [server: defaultRoutes.service]. */
+  deliveryRoutes: () => api.get('/customers/delivery-routes').then(unwrap),
   /** Who holds buyers, with how many each — Admin's picker on the dashboard. One name for a marketing person. */
   owners: () => api.get('/customers/owners').then(unwrap),
 };

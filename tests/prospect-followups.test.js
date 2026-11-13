@@ -27,16 +27,18 @@ test('the enquiry shows the contact card, and a prospect converts to a customer 
   assert.match(read('pages/Enquiries.jsx'), />Prospect</);
 });
 
-test('the customer form: the landmark is a route, and delivery and accounts contacts can be the order contact', () => {
-  const routes = ['Kangeyam Road', 'Uthukuli Road', 'Dharapuram Road', 'Palladam Road', 'College Road', 'Mangalam Road', 'PN Road', 'Avinashi Road'];
-  const pipeline = read('utils/pipeline.js');
-  for (const route of routes) assert.match(pipeline, new RegExp(`'${route}'`));
+test('the customer form: the delivery route is the route drop-down, the landmark a text box; delivery and accounts contacts can be the order contact', () => {
   const form = read('pages/Customers.jsx');
   assert.match(form, /This route will be sent to the Dispatch Team for vehicle planning\./);
+  assert.match(form, /<select className="input" \{\.\.\.register\('deliveryRoute'\)\}>\s*<option value="">Select route<\/option>/);
+  assert.match(form, /<input className="input" placeholder="Opp\. Bus Stand" \{\.\.\.register\('landmark'\)\} \/>/);
+  assert.match(form, /customersApi\.deliveryRoutes\(\)/);
   assert.match(form, /is the same as order contact/);
   assert.match(form, /Delivery contact person/);
   assert.match(form, /Accounts & Payments phone \/ WhatsApp/);
-  assert.match(read('components/CustomerQuickCreate.jsx'), /LANDMARK_ROUTES/);
+  const quick = read('components/CustomerQuickCreate.jsx');
+  assert.match(quick, /register\('deliveryRoute'\)/);
+  assert.match(quick, /deliveryRoute: values\.deliveryRoute \|\| undefined,/);
 });
 
 test('Today’s actions sits beside the party master, and a row sets a follow-up', () => {

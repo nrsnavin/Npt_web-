@@ -41,3 +41,15 @@ test('delivery and accounts contacts take an email on the customer form, and the
   assert.match(page, /register\(`\$\{name\}\.email`\)/);
   assert.match(read('components/BuyerContactCard.jsx'), /return \{ name: contact\.name, phone: contact\.phone, email: contact\.email \};/);
 });
+
+test('WhatsApp: a tick for the same as mobile, the box only when it is not — on the customer form and a new prospect', () => {
+  const page = read('pages/Customers.jsx');
+  assert.match(page, /WhatsApp is the same as mobile/);
+  assert.match(page, /whatsappSame: !customer\.whatsapp \|\| customer\.whatsapp === customer\.mobile,/);
+  assert.match(page, /\{!whatsappSame && \(/);
+  assert.match(page, /const whatsapp = same \? values\.mobile : values\.whatsapp;/);
+  const enquiry = read('components/EnquiryForm.jsx');
+  assert.match(enquiry, /register\('prospect\.whatsappSame'\)/);
+  assert.match(enquiry, /\{!prospectWhatsappSame && \(/);
+  assert.match(enquiry, /values\.prospect\?\.whatsappSame \? \{ \.\.\.values\.prospect, whatsapp: values\.prospect\.mobile \}/);
+});

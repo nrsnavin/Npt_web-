@@ -16,7 +16,7 @@ import OwnerPicker from '../components/OwnerPicker.jsx';
 import PlaceInput from '../components/PlaceInput.jsx';
 import { SortHeader, useSort } from '../components/SortHeader.jsx';
 import { formatCompactCurrency, formatDate } from '../utils/format.js';
-import { CUSTOMER_TYPES, LANDMARK_ROUTES, SOURCES, optionLabel } from '../utils/pipeline.js';
+import { CUSTOMER_TYPES, SOURCES, optionLabel } from '../utils/pipeline.js';
 import { GSTIN_PATTERN, gstUnknown, stateOfGstin } from '../utils/gst.js';
 import useOpenFromLink from '../hooks/useOpenFromLink.js';
 import QcStandardsFields, { standardsPayload } from '../components/QcStandardsFields.jsx';
@@ -76,7 +76,7 @@ function contactsPayload(customer, values) {
     kept[index] = { ...kept[index], name, isPrimary: true };
     return kept;
   }
-  return [{ name, mobile: values.mobile || undefined, whatsapp: values.whatsapp || undefined, email: values.email || undefined, isPrimary: true }];
+  return [{ name, mobile: values.mobile || undefined, whatsapp: (values.whatsappSame ? values.mobile : values.whatsapp) || undefined, email: values.email || undefined, isPrimary: true }];
 }
 
 /** Delivery, or accounts & payments: the order contact, or a person and a number of their own. */
@@ -121,7 +121,7 @@ export function CustomerForm({ customer, onClose, onSaved, onCreate, submitLabel
     let live = true;
     Promise.all([
       transportersApi.list({ active: 'true' }).catch(() => []),
-      deliveryRoutesApi.list({ active: 'true' }).catch(() => []),
+      customersApi.deliveryRoutes().catch(() => deliveryRoutesApi.list({ active: 'true' }).catch(() => [])),
     ]).then(([transporters, routes]) => live && setLists({ transporters, routes }));
     return () => { live = false; };
   }, []);
@@ -144,6 +144,8 @@ export function CustomerForm({ customer, onClose, onSaved, onCreate, submitLabel
           orderContact: primaryContactOf(customer)?.name || '',
           deliveryContact: roleContactDefaults(customer.deliveryContact),
           accountsContact: roleContactDefaults(customer.accountsContact),
+          /* Ticked when the record keeps no WhatsApp of its own, or the same number as Mobile. */
+          whatsappSame: !customer.whatsapp || customer.whatsapp === customer.mobile,
         }
       : {
           customerType: 'garment_factory',
@@ -155,8 +157,10 @@ export function CustomerForm({ customer, onClose, onSaved, onCreate, submitLabel
           orderContact: primaryContactOf(customer)?.name || customer?.orderContact || '',
           deliveryContact: roleContactDefaults(customer?.deliveryContact),
           accountsContact: roleContactDefaults(customer?.accountsContact),
+          whatsappSame: !customer?.whatsapp || customer?.whatsapp === customer?.mobile,
         },
   });
+  const whatsappSame = watch('whatsappSame');
 
   /* The GSTIN's first two digits name the buyer's state [utils/gst.js]: a blank State takes it — the GST split on their orders depends on it. */
   const gstinTyped = String(watch('gstin') || '').trim().toUpperCase();
@@ -167,7 +171,8 @@ export function CustomerForm({ customer, onClose, onSaved, onCreate, submitLabel
 
   const checkForDuplicate = async () => {
     fillStateFromGstin();
-    const { gstin, mobile, whatsapp } = getValues();
+    const { gstin, mobile, whatsappSame: same, whatsapp: typed } = getValues();
+    const whatsapp = same ? mobile : typed;
     if (!gstin && !mobile && !whatsapp) return;
     try {
       const result = await customersApi.checkDuplicate({ gstin, mobile, whatsapp });
@@ -181,7 +186,9 @@ export function CustomerForm({ customer, onClose, onSaved, onCreate, submitLabel
   const submit = async (values) => {
     setError(null);
     const numeric = (value) => (value === '' || value == null ? undefined : Number(value));
-    const { orderContact: _orderContact, ...rest } = values;
+    const { orderContact: _orderContact, whatsappSame: same, ...rest } = values;
+    /* Ticked: WhatsApp is the mobile number; unticked: the number typed. */
+    const whatsapp = same ? values.mobile : values.whatsapp;
     const payload = {
       ...rest,
       contacts: contactsPayload(customer, values),
@@ -192,7 +199,7 @@ export function CustomerForm({ customer, onClose, onSaved, onCreate, submitLabel
       email: values.email || undefined,
       gstin: values.gstin || undefined,
       mobile: values.mobile || undefined,
-      whatsapp: values.whatsapp || undefined,
+      whatsapp: whatsapp || (editing ? '' : undefined),
       /* Cleared on an edit is cleared on the record; left blank on a new buyer is simply not set. */
       deliveryMode: values.deliveryMode || (editing ? null : undefined),
       usualTransporter: values.usualTransporter || (editing ? null : undefined),
@@ -252,9 +259,17 @@ export function CustomerForm({ customer, onClose, onSaved, onCreate, submitLabel
         <Field label="Mobile">
           <input type="tel" className="input" onBlurCapture={checkForDuplicate} {...register('mobile')} />
         </Field>
-        <Field label="WhatsApp" hint="Leave blank if the same as mobile">
-          <input type="tel" className="input" onBlurCapture={checkForDuplicate} {...register('whatsapp')} />
-        </Field>
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 pt-6 text-sm text-steel-200">
+            <input id="customer-whatsapp-same" type="checkbox" className="h-4 w-4 accent-flame-500" {...register('whatsappSame')} />
+            WhatsApp is the same as mobile
+          </label>
+          {!whatsappSame && (
+            <Field label="WhatsApp" hint="The number the buyer uses on WhatsApp">
+              <input type="tel" className="input" onBlurCapture={checkForDuplicate} {...register('whatsapp')} />
+            </Field>
+          )}
+        </div>
         <Field label="Order contact person" hint="Who places the orders — delivery and accounts can be the same person">
           <input className="input" {...register('orderContact')} />
         </Field>
@@ -291,14 +306,14 @@ export function CustomerForm({ customer, onClose, onSaved, onCreate, submitLabel
         <Field label="Area / locality">
           <input className="input" placeholder="Kumar Nagar" {...register('area')} />
         </Field>
-        <Field label="Landmark / route" hint="This route will be sent to the Dispatch Team for vehicle planning.">
-          <select className="input" {...register('landmark')}>
+        <Field label="Landmark" hint="What a driver asks for — near the bus stand, opposite the temple">
+          <input className="input" placeholder="Opp. Bus Stand" {...register('landmark')} />
+        </Field>
+        {/* The road the vehicle takes — the routes Dispatch keeps, the roads out of Tiruppur first [server: defaultRoutes.service]. */}
+        <Field label="Delivery route" hint="This route will be sent to the Dispatch Team for vehicle planning.">
+          <select className="input" {...register('deliveryRoute')}>
             <option value="">Select route</option>
-            {LANDMARK_ROUTES.map((route) => <option key={route} value={route}>{route}</option>)}
-            {/* A landmark typed before the list existed stays choosable rather than silently blanked. */}
-            {customer?.landmark && !LANDMARK_ROUTES.includes(customer.landmark) && (
-              <option value={customer.landmark}>{customer.landmark}</option>
-            )}
+            {lists.routes.map((row) => <option key={row._id} value={row._id}>{row.name}</option>)}
           </select>
         </Field>
         {/* How the goods go — the trip planner groups transport bookings by transporter and our own
@@ -314,14 +329,6 @@ export function CustomerForm({ customer, onClose, onSaved, onCreate, submitLabel
             <select className="input" {...register('usualTransporter')}>
               <option value="">Not set</option>
               {lists.transporters.map((row) => <option key={row._id} value={row._id}>{row.name}{row.bookingOffice ? ` · ${row.bookingOffice}` : ''}</option>)}
-            </select>
-          </Field>
-        )}
-        {lists.routes.length > 0 && (
-          <Field label="Delivery route" hint="For our own vehicle">
-            <select className="input" {...register('deliveryRoute')}>
-              <option value="">Not set</option>
-              {lists.routes.map((row) => <option key={row._id} value={row._id}>{row.name}</option>)}
             </select>
           </Field>
         )}
