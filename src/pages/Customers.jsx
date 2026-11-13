@@ -112,6 +112,7 @@ function RoleContactFields({ register, watch, name, title, personLabel, phoneLab
 }
 
 export function CustomerForm({ customer, onClose, onSaved, onCreate, submitLabel, ownerFixed = false }) {
+  const { isAdmin } = useAuth();
   const [error, setError] = useState(null);
   const [duplicate, setDuplicate] = useState(null);
   const editing = Boolean(customer?._id);
@@ -137,6 +138,10 @@ export function CustomerForm({ customer, onClose, onSaved, onCreate, submitLabel
     defaultValues: editing
       ? {
           ...customer,
+          /* The numbers as the add form takes them — ten digits, +91 added on save. */
+          mobile: localPhone(customer.mobile),
+          whatsapp: localPhone(customer.whatsapp),
+          assignedTo: idOf(customer.assignedTo) || '',
           usualTransporter: idOf(customer.usualTransporter),
           deliveryRoute: idOf(customer.deliveryRoute),
           deliveryMode: customer.deliveryMode || '',
@@ -161,6 +166,15 @@ export function CustomerForm({ customer, onClose, onSaved, onCreate, submitLabel
         },
   });
   const whatsappSame = watch('whatsappSame');
+  /*
+   * The drop-downs fill after the form opens: once their options are there, the saved route and
+   * transporter are chosen again — a select set before its options exist shows its first one.
+   */
+  useEffect(() => {
+    if (!editing) return;
+    if (lists.routes.length) setValue('deliveryRoute', idOf(customer.deliveryRoute) || '');
+    if (lists.transporters.length) setValue('usualTransporter', idOf(customer.usualTransporter) || '');
+  }, [lists, editing]);
 
   /* The GSTIN's first two digits name the buyer's state [utils/gst.js]: a blank State takes it — the GST split on their orders depends on it. */
   const gstinTyped = String(watch('gstin') || '').trim().toUpperCase();
@@ -204,6 +218,8 @@ export function CustomerForm({ customer, onClose, onSaved, onCreate, submitLabel
       deliveryMode: values.deliveryMode || (editing ? null : undefined),
       usualTransporter: values.usualTransporter || (editing ? null : undefined),
       deliveryRoute: values.deliveryRoute || (editing ? null : undefined),
+      /* The owner: chosen on a new customer; on an edit, Admin may move it — everybody else keeps it. */
+      assignedTo: editing ? (isAdmin && values.assignedTo ? values.assignedTo : idOf(customer.assignedTo)) : values.assignedTo,
       qcStandards: standardsPayload(values.qcStandards, { clearing: editing }),
     };
 
@@ -247,14 +263,21 @@ export function CustomerForm({ customer, onClose, onSaved, onCreate, submitLabel
           the server holds that to be a management decision — see `assertReassignment`.
         */}
         {/* Converting a prospect: the customer is the enquiry owner's, so nothing to choose. */}
-        {!editing && !ownerFixed && (
+        {(!editing || isAdmin) && !ownerFixed && (
           <OwnerPicker
             register={register}
             watch={watch}
             error={errors.assignedTo}
             load={customersApi.team}
             label="Who owns this account"
+            current={editing && typeof customer.assignedTo === 'object' ? customer.assignedTo : null}
           />
+        )}
+        {/* On an edit the owner shows as on the add form; moving it is Admin's [server: `assertReassignment`]. */}
+        {editing && !isAdmin && (
+          <Field label="Who owns this account" hint="Only an administrator can move a customer to someone else">
+            <input className="input" value={customer.assignedTo?.name || '—'} readOnly aria-readonly="true" />
+          </Field>
         )}
         <Field label="Mobile">
           <input type="tel" className="input" onBlurCapture={checkForDuplicate} {...register('mobile')} />

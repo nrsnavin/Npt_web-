@@ -23,7 +23,7 @@ import { isOwnershipScoped, selfId } from '../utils/pipeline.js';
  * their list afterwards. That is the correct behaviour and a horrible surprise, so the form says
  * it in advance, once a name other than their own is picked.
  */
-export default function OwnerPicker({ register, error, watch, load, label = 'Who will own this' }) {
+export default function OwnerPicker({ register, error, watch, load, label = 'Who will own this', current = null }) {
   const { user } = useAuth();
   const [team, setTeam] = useState(null);
   const [failed, setFailed] = useState(null);
@@ -107,7 +107,9 @@ export default function OwnerPicker({ register, error, watch, load, label = 'Who
   return (
     <>
       <Field label={label} error={error} className="sm:col-span-2" required>
+        {/* Drawn afresh once the team has come, so a saved owner (an edit) is chosen — a select set before its options exist shows the first one. */}
         <select
+          key={team ? 'ready' : 'loading'}
           className="input"
           disabled={!team}
           {...register('assignedTo', { required: 'Choose who will own this' })}
@@ -116,6 +118,11 @@ export default function OwnerPicker({ register, error, watch, load, label = 'Who
           <option value="">
             {!team ? 'Loading the team…' : yourself ? 'Choose an owner…' : 'Choose somebody in marketing…'}
           </option>
+
+          {/* The owner it has now, when they are no longer on the roster — kept until somebody picks another. */}
+          {current?._id && team && !roster.some((person) => String(person._id) === String(current._id)) && (
+            <option value={current._id}>{current.name || 'Current owner'} (current)</option>
+          )}
 
           {/* Grouped only when there is a second kind of answer to tell apart. A lone
               `<optgroup>` over the only list there is, is a heading for nothing. */}

@@ -53,3 +53,17 @@ test('WhatsApp: a tick for the same as mobile, the box only when it is not — o
   assert.match(enquiry, /\{!prospectWhatsappSame && \(/);
   assert.match(enquiry, /values\.prospect\?\.whatsappSame \? \{ \.\.\.values\.prospect, whatsapp: values\.prospect\.mobile \}/);
 });
+
+test('the edit form is the add form, filled: numbers as typed, the owner shown (Admin may move it), the saved route and transporter chosen', () => {
+  const page = read('pages/Customers.jsx');
+  assert.match(page, /mobile: localPhone\(customer\.mobile\),/);
+  assert.match(page, /whatsapp: localPhone\(customer\.whatsapp\),/);
+  assert.match(page, /assignedTo: idOf\(customer\.assignedTo\) \|\| '',/);
+  assert.match(page, /\{\(!editing \|\| isAdmin\) && !ownerFixed && \(/);
+  assert.match(page, /Only an administrator can move a customer to someone else/);
+  assert.match(page, /assignedTo: editing \? \(isAdmin && values\.assignedTo \? values\.assignedTo : idOf\(customer\.assignedTo\)\) : values\.assignedTo,/);
+  assert.match(page, /if \(lists\.routes\.length\) setValue\('deliveryRoute', idOf\(customer\.deliveryRoute\) \|\| ''\);/);
+  const picker = read('components/OwnerPicker.jsx');
+  assert.match(picker, /key=\{team \? 'ready' : 'loading'\}/);
+  assert.match(picker, /\(current\)<\/option>/);
+});
