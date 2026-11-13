@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { customers as customersApi } from '../api/endpoints.js';
 import { Field, FormError, Modal, Notice } from './ui.jsx';
-import { CUSTOMER_TYPES, LANDMARK_ROUTES } from '../utils/pipeline.js';
+import { CUSTOMER_TYPES } from '../utils/pipeline.js';
 import OwnerPicker from './OwnerPicker.jsx';
 import CustomerName from './CustomerName.jsx';
 
@@ -37,6 +37,13 @@ export default function CustomerQuickCreate({ open, initialName = '', onClose, o
     watch,
     formState: { errors, isSubmitting },
   } = useForm({ defaultValues: { name: initialName, customerType: 'garment_factory', assignedTo: '' } });
+  /* The delivery routes Dispatch keeps, for the drop-down [server: defaultRoutes.service]. */
+  const [routes, setRoutes] = useState([]);
+  useEffect(() => {
+    let live = true;
+    customersApi.deliveryRoutes().then((rows) => live && setRoutes(rows || [])).catch(() => {});
+    return () => { live = false; };
+  }, []);
 
   // The name typed into the search box is the answer to "what are they called".
   useEffect(() => {
@@ -73,6 +80,7 @@ export default function CustomerQuickCreate({ open, initialName = '', onClose, o
         address: values.address?.trim() || undefined,
         area: values.area?.trim() || undefined,
         landmark: values.landmark?.trim() || undefined,
+        deliveryRoute: values.deliveryRoute || undefined,
         city: values.city?.trim() || undefined,
         pincode: values.pincode?.trim() || undefined,
       });
@@ -124,10 +132,13 @@ export default function CustomerQuickCreate({ open, initialName = '', onClose, o
           <Field label="Area / locality">
             <input className="input" placeholder="Kumar Nagar" {...register('area')} />
           </Field>
-          <Field label="Landmark / route" hint="This route will be sent to the Dispatch Team for vehicle planning.">
-            <select className="input" {...register('landmark')}>
+          <Field label="Landmark" hint="What a driver asks for — near the bus stand, opposite the temple">
+            <input className="input" placeholder="Opp. Bus Stand" {...register('landmark')} />
+          </Field>
+          <Field label="Delivery route" hint="This route will be sent to the Dispatch Team for vehicle planning.">
+            <select className="input" {...register('deliveryRoute')}>
               <option value="">Select route</option>
-              {LANDMARK_ROUTES.map((route) => <option key={route} value={route}>{route}</option>)}
+              {routes.map((row) => <option key={row._id} value={row._id}>{row.name}</option>)}
             </select>
           </Field>
           <Field label="City">

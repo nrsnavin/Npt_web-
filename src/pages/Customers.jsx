@@ -10,11 +10,13 @@ import {
 } from '../components/ui.jsx';
 import BulkBar, { RowCheckbox, useSelection } from '../components/BulkReassign.jsx';
 import ExportButton from '../components/ExportButton.jsx';
+import CustomerUpload from '../components/CustomerUpload.jsx';
+import { useToast } from '../context/ToastContext.jsx';
 import OwnerPicker from '../components/OwnerPicker.jsx';
 import PlaceInput from '../components/PlaceInput.jsx';
 import { SortHeader, useSort } from '../components/SortHeader.jsx';
 import { formatCompactCurrency, formatDate } from '../utils/format.js';
-import { CUSTOMER_TYPES, LANDMARK_ROUTES, SOURCES, optionLabel } from '../utils/pipeline.js';
+import { CUSTOMER_TYPES, SOURCES, optionLabel } from '../utils/pipeline.js';
 import { GSTIN_PATTERN, gstUnknown, stateOfGstin } from '../utils/gst.js';
 import useOpenFromLink from '../hooks/useOpenFromLink.js';
 import QcStandardsFields, { standardsPayload } from '../components/QcStandardsFields.jsx';
@@ -48,6 +50,7 @@ const roleContactDefaults = (contact) => ({
   sameAsOrder: Boolean(contact?.sameAsOrder),
   name: contact?.name || '',
   phone: localPhone(contact?.phone),
+  email: contact?.email || '',
 });
 
 /* The same as the order contact, a person of its own, or — left empty — nothing said. */
@@ -55,7 +58,8 @@ function roleContactPayload(values, editing) {
   if (values?.sameAsOrder) return { sameAsOrder: true };
   const name = values?.name?.trim();
   const phone = values?.phone?.trim();
-  if (name || phone) return { sameAsOrder: false, name: name || undefined, phone: phone || undefined };
+  const email = values?.email?.trim();
+  if (name || phone || email) return { sameAsOrder: false, name: name || undefined, phone: phone || undefined, email: email || undefined };
   return editing ? { sameAsOrder: false } : undefined;
 }
 
@@ -72,7 +76,7 @@ function contactsPayload(customer, values) {
     kept[index] = { ...kept[index], name, isPrimary: true };
     return kept;
   }
-  return [{ name, mobile: values.mobile || undefined, whatsapp: values.whatsapp || undefined, email: values.email || undefined, isPrimary: true }];
+  return [{ name, mobile: values.mobile || undefined, whatsapp: (values.whatsappSame ? values.mobile : values.whatsapp) || undefined, email: values.email || undefined, isPrimary: true }];
 }
 
 /** Delivery, or accounts & payments: the order contact, or a person and a number of their own. */
@@ -98,6 +102,9 @@ function RoleContactFields({ register, watch, name, title, personLabel, phoneLab
               <input type="tel" inputMode="tel" className="input rounded-l-none" {...register(`${name}.phone`)} />
             </div>
           </Field>
+          <Field label="Email" className="sm:col-span-2">
+            <input type="email" className="input" {...register(`${name}.email`)} />
+          </Field>
         </div>
       )}
     </fieldset>
@@ -105,6 +112,7 @@ function RoleContactFields({ register, watch, name, title, personLabel, phoneLab
 }
 
 export function CustomerForm({ customer, onClose, onSaved, onCreate, submitLabel, ownerFixed = false }) {
+  const { isAdmin } = useAuth();
   const [error, setError] = useState(null);
   const [duplicate, setDuplicate] = useState(null);
   const editing = Boolean(customer?._id);
@@ -114,7 +122,7 @@ export function CustomerForm({ customer, onClose, onSaved, onCreate, submitLabel
     let live = true;
     Promise.all([
       transportersApi.list({ active: 'true' }).catch(() => []),
-      deliveryRoutesApi.list({ active: 'true' }).catch(() => []),
+      customersApi.deliveryRoutes().catch(() => deliveryRoutesApi.list({ active: 'true' }).catch(() => [])),
     ]).then(([transporters, routes]) => live && setLists({ transporters, routes }));
     return () => { live = false; };
   }, []);
@@ -130,6 +138,10 @@ export function CustomerForm({ customer, onClose, onSaved, onCreate, submitLabel
     defaultValues: editing
       ? {
           ...customer,
+          /* The numbers as the add form takes them — ten digits, +91 added on save. */
+          mobile: localPhone(customer.mobile),
+          whatsapp: localPhone(customer.whatsapp),
+          assignedTo: idOf(customer.assignedTo) || '',
           usualTransporter: idOf(customer.usualTransporter),
           deliveryRoute: idOf(customer.deliveryRoute),
           deliveryMode: customer.deliveryMode || '',
@@ -137,6 +149,8 @@ export function CustomerForm({ customer, onClose, onSaved, onCreate, submitLabel
           orderContact: primaryContactOf(customer)?.name || '',
           deliveryContact: roleContactDefaults(customer.deliveryContact),
           accountsContact: roleContactDefaults(customer.accountsContact),
+          /* Ticked when the record keeps no WhatsApp of its own, or the same number as Mobile. */
+          whatsappSame: !customer.whatsapp || customer.whatsapp === customer.mobile,
         }
       : {
           customerType: 'garment_factory',
@@ -148,8 +162,19 @@ export function CustomerForm({ customer, onClose, onSaved, onCreate, submitLabel
           orderContact: primaryContactOf(customer)?.name || customer?.orderContact || '',
           deliveryContact: roleContactDefaults(customer?.deliveryContact),
           accountsContact: roleContactDefaults(customer?.accountsContact),
+          whatsappSame: !customer?.whatsapp || customer?.whatsapp === customer?.mobile,
         },
   });
+  const whatsappSame = watch('whatsappSame');
+  /*
+   * The drop-downs fill after the form opens: once their options are there, the saved route and
+   * transporter are chosen again — a select set before its options exist shows its first one.
+   */
+  useEffect(() => {
+    if (!editing) return;
+    if (lists.routes.length) setValue('deliveryRoute', idOf(customer.deliveryRoute) || '');
+    if (lists.transporters.length) setValue('usualTransporter', idOf(customer.usualTransporter) || '');
+  }, [lists, editing]);
 
   /* The GSTIN's first two digits name the buyer's state [utils/gst.js]: a blank State takes it — the GST split on their orders depends on it. */
   const gstinTyped = String(watch('gstin') || '').trim().toUpperCase();
@@ -160,7 +185,8 @@ export function CustomerForm({ customer, onClose, onSaved, onCreate, submitLabel
 
   const checkForDuplicate = async () => {
     fillStateFromGstin();
-    const { gstin, mobile, whatsapp } = getValues();
+    const { gstin, mobile, whatsappSame: same, whatsapp: typed } = getValues();
+    const whatsapp = same ? mobile : typed;
     if (!gstin && !mobile && !whatsapp) return;
     try {
       const result = await customersApi.checkDuplicate({ gstin, mobile, whatsapp });
@@ -174,7 +200,9 @@ export function CustomerForm({ customer, onClose, onSaved, onCreate, submitLabel
   const submit = async (values) => {
     setError(null);
     const numeric = (value) => (value === '' || value == null ? undefined : Number(value));
-    const { orderContact: _orderContact, ...rest } = values;
+    const { orderContact: _orderContact, whatsappSame: same, ...rest } = values;
+    /* Ticked: WhatsApp is the mobile number; unticked: the number typed. */
+    const whatsapp = same ? values.mobile : values.whatsapp;
     const payload = {
       ...rest,
       contacts: contactsPayload(customer, values),
@@ -185,11 +213,13 @@ export function CustomerForm({ customer, onClose, onSaved, onCreate, submitLabel
       email: values.email || undefined,
       gstin: values.gstin || undefined,
       mobile: values.mobile || undefined,
-      whatsapp: values.whatsapp || undefined,
+      whatsapp: whatsapp || (editing ? '' : undefined),
       /* Cleared on an edit is cleared on the record; left blank on a new buyer is simply not set. */
       deliveryMode: values.deliveryMode || (editing ? null : undefined),
       usualTransporter: values.usualTransporter || (editing ? null : undefined),
       deliveryRoute: values.deliveryRoute || (editing ? null : undefined),
+      /* The owner: chosen on a new customer; on an edit, Admin may move it — everybody else keeps it. */
+      assignedTo: editing ? (isAdmin && values.assignedTo ? values.assignedTo : idOf(customer.assignedTo)) : values.assignedTo,
       qcStandards: standardsPayload(values.qcStandards, { clearing: editing }),
     };
 
@@ -233,21 +263,36 @@ export function CustomerForm({ customer, onClose, onSaved, onCreate, submitLabel
           the server holds that to be a management decision — see `assertReassignment`.
         */}
         {/* Converting a prospect: the customer is the enquiry owner's, so nothing to choose. */}
-        {!editing && !ownerFixed && (
+        {(!editing || isAdmin) && !ownerFixed && (
           <OwnerPicker
             register={register}
             watch={watch}
             error={errors.assignedTo}
             load={customersApi.team}
             label="Who owns this account"
+            current={editing && typeof customer.assignedTo === 'object' ? customer.assignedTo : null}
           />
+        )}
+        {/* On an edit the owner shows as on the add form; moving it is Admin's [server: `assertReassignment`]. */}
+        {editing && !isAdmin && (
+          <Field label="Who owns this account" hint="Only an administrator can move a customer to someone else">
+            <input className="input" value={customer.assignedTo?.name || '—'} readOnly aria-readonly="true" />
+          </Field>
         )}
         <Field label="Mobile">
           <input type="tel" className="input" onBlurCapture={checkForDuplicate} {...register('mobile')} />
         </Field>
-        <Field label="WhatsApp" hint="Leave blank if the same as mobile">
-          <input type="tel" className="input" onBlurCapture={checkForDuplicate} {...register('whatsapp')} />
-        </Field>
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 pt-6 text-sm text-steel-200">
+            <input id="customer-whatsapp-same" type="checkbox" className="h-4 w-4 accent-flame-500" {...register('whatsappSame')} />
+            WhatsApp is the same as mobile
+          </label>
+          {!whatsappSame && (
+            <Field label="WhatsApp" hint="The number the buyer uses on WhatsApp">
+              <input type="tel" className="input" onBlurCapture={checkForDuplicate} {...register('whatsapp')} />
+            </Field>
+          )}
+        </div>
         <Field label="Order contact person" hint="Who places the orders — delivery and accounts can be the same person">
           <input className="input" {...register('orderContact')} />
         </Field>
@@ -284,14 +329,14 @@ export function CustomerForm({ customer, onClose, onSaved, onCreate, submitLabel
         <Field label="Area / locality">
           <input className="input" placeholder="Kumar Nagar" {...register('area')} />
         </Field>
-        <Field label="Landmark / route" hint="This route will be sent to the Dispatch Team for vehicle planning.">
-          <select className="input" {...register('landmark')}>
+        <Field label="Landmark" hint="What a driver asks for — near the bus stand, opposite the temple">
+          <input className="input" placeholder="Opp. Bus Stand" {...register('landmark')} />
+        </Field>
+        {/* The road the vehicle takes — the routes Dispatch keeps, the roads out of Tiruppur first [server: defaultRoutes.service]. */}
+        <Field label="Delivery route" hint="This route will be sent to the Dispatch Team for vehicle planning.">
+          <select className="input" {...register('deliveryRoute')}>
             <option value="">Select route</option>
-            {LANDMARK_ROUTES.map((route) => <option key={route} value={route}>{route}</option>)}
-            {/* A landmark typed before the list existed stays choosable rather than silently blanked. */}
-            {customer?.landmark && !LANDMARK_ROUTES.includes(customer.landmark) && (
-              <option value={customer.landmark}>{customer.landmark}</option>
-            )}
+            {lists.routes.map((row) => <option key={row._id} value={row._id}>{row.name}</option>)}
           </select>
         </Field>
         {/* How the goods go — the trip planner groups transport bookings by transporter and our own
@@ -307,14 +352,6 @@ export function CustomerForm({ customer, onClose, onSaved, onCreate, submitLabel
             <select className="input" {...register('usualTransporter')}>
               <option value="">Not set</option>
               {lists.transporters.map((row) => <option key={row._id} value={row._id}>{row.name}{row.bookingOffice ? ` · ${row.bookingOffice}` : ''}</option>)}
-            </select>
-          </Field>
-        )}
-        {lists.routes.length > 0 && (
-          <Field label="Delivery route" hint="For our own vehicle">
-            <select className="input" {...register('deliveryRoute')}>
-              <option value="">Not set</option>
-              {lists.routes.map((row) => <option key={row._id} value={row._id}>{row.name}</option>)}
             </select>
           </Field>
         )}
@@ -444,6 +481,8 @@ export default function Customers() {
   const [gstMissing, setGstMissing] = useState(false);
   const [page, setPage] = useState(1);
   const [creating, setCreating] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const { toast } = useToast();
   /* The buyer's side panel [components/CustomerPanel.jsx], as on the dashboard's party master. */
   const [panel, setPanel] = useState(null);
   /* The command bar's "New …" arrives as `?new=1` with the form to open. */
@@ -486,6 +525,12 @@ export default function Customers() {
         actions={
           <div className="flex items-center gap-2">
             <ExportButton download={downloads.customers} params={filters} />
+            {/* Customers from Excel: the template, a preview, then Import [CustomerUpload]. */}
+            {mayWrite && (
+              <button type="button" className="btn-secondary" onClick={() => setImporting(true)}>
+                Import from Excel
+              </button>
+            )}
             {mayWrite && (
               <button type="button" className="btn-primary" onClick={() => setCreating(true)}>
                 + New customer
@@ -644,6 +689,24 @@ export default function Customers() {
         onClose={() => setCreating(false)}
       >
         <CustomerForm onClose={() => setCreating(false)} onSaved={reload} />
+      </Modal>
+
+      <Modal
+        open={importing}
+        title="Import customers from Excel"
+        description="Download the template, fill one row per customer, and upload it — you see what will happen before anything is saved"
+        size="lg"
+        onClose={() => setImporting(false)}
+      >
+        {importing && (
+          <CustomerUpload
+            onClose={() => setImporting(false)}
+            onDone={(done) => {
+              toast(`${done.created} customer${done.created === 1 ? '' : 's'} imported`, done.skipped ? `${done.skipped} skipped — already in the app` : 'Each has its CUST number and owner.');
+              reload();
+            }}
+          />
+        )}
       </Modal>
     </div>
   );

@@ -93,16 +93,14 @@ test('a roster that cannot be filled says so instead of offering nothing', () =>
   assert.match(PICKER, /disabled=\{!team\}/, 'and it cannot be used while the list is still coming');
 });
 
-test('the owner is asked on create and never on edit', () => {
+test('the owner is asked on create; on edit Admin may move it and everybody else reads it', () => {
   /*
-   * Moving a record afterwards is a reassignment, which the server holds to be a management
-   * decision. A picker on the edit form would be a control that mostly refuses.
+   * Moving a record afterwards is a reassignment, which the server holds to be Admin's
+   * [`assertReassignment`]: the picker is there for Admin, a read-only owner for everybody else —
+   * and not when converting a prospect, whose customer is the enquiry owner's [BuyerContactCard].
    */
-  for (const [name, source] of [['the customer form', CUSTOMER_FORM]]) {
-    /* …and not when converting a prospect, whose customer is the enquiry owner's [BuyerContactCard]. */
-    const mounted = source.match(/\{!editing && !ownerFixed && \(\s*<OwnerPicker/);
-    assert.ok(mounted, `${name} only offers it on create`);
-  }
+  assert.match(CUSTOMER_FORM, /\{\(!editing \|\| isAdmin\) && !ownerFixed && \(\s*<OwnerPicker/);
+  assert.match(CUSTOMER_FORM, /\{editing && !isAdmin && \(/);
 });
 
 
