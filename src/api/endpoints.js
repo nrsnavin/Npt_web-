@@ -665,6 +665,9 @@ export const enquiries = {
   deletion: (id) => api.get(`/enquiries/${id}/deletion`).then(unwrap),
   /** Admin: what closing the enquiry would close — its open tasks, money cases kept open, samples stopped. */
   closing: (id) => api.get(`/enquiries/${id}/closing`).then(unwrap),
+  /* Admin closes an enquiry and records how it ended — dispatched, completed, cancelled [server: enquiryClosure.service]. */
+  closeOutcomes: () => api.get('/enquiry-close-outcomes').then(unwrap),
+  closeOut: ({ id, ...payload }) => api.post(`/enquiries/${id}/close-out`, payload).then(unwrap),
   /** Admin deletes the enquiry and every task on it [server: deletion.service]. */
   remove: ({ id, reason }) => api.delete(`/enquiries/${id}`, { data: reason ? { reason } : {}, feedback: false }).then(unwrap),
   create: (payload) => api.post('/enquiries', payload).then(unwrap),
