@@ -415,14 +415,19 @@ function CardEditor({ card, onDone }) {
             <ReadField {...common} label="Designation" name="designation" />
             <ReadField {...common} label="Mobile" name="mobile" inputMode="tel" />
             <div className="space-y-2">
-              <label className="flex items-center gap-2 pt-6 text-sm text-steel-200">
+              <label className="flex items-center gap-2 text-sm text-steel-200">
                 <input
                   id={`card-whatsapp-same-${card._id}`}
                   type="checkbox"
                   className="h-4 w-4 accent-flame-500"
                   checked={Boolean(fields.whatsappSame)}
                   disabled={off}
-                  onChange={(event) => set('whatsappSame', event.target.checked)}
+                  onChange={(event) => {
+                    const same = event.target.checked;
+                    // Unticked: the WhatsApp box starts from the mobile, to change in place.
+                    setFields((current) => ({ ...current, whatsappSame: same, whatsapp: same ? current.whatsapp : current.whatsapp || current.mobile || '' }));
+                    setProblem(null);
+                  }}
                 />
                 WhatsApp is the same as mobile
               </label>
