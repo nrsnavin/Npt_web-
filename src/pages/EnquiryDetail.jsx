@@ -21,7 +21,7 @@ import BuyerContactCard from '../components/BuyerContactCard.jsx';
 import TradingBadge, { isTradingLine } from '../components/TradingBadge.jsx';
 import DelegateEnquiry from '../components/DelegateEnquiry.jsx';
 import DeleteRecord from '../components/DeleteRecord.jsx';
-import CloseRecord from '../components/CloseRecord.jsx';
+import CloseEnquiry, { ClosureLine } from '../components/CloseEnquiry.jsx';
 import DepartmentDesk from '../components/DepartmentDesk.jsx';
 import EnquiryRecords, { EnquiryDispatch, dispatchStarted, useEnquiryRecords } from '../components/EnquiryRecords.jsx';
 import { EnquiryShipments } from '../components/Shipments.jsx';
@@ -683,16 +683,8 @@ export default function EnquiryDetail() {
             )}
             {/* At any stage, Admin only: hand it to marketing, another Admin, or take it on. */}
             {isAdmin && <DelegateEnquiry enquiry={enquiry} onDone={afterHandover} />}
-            {/* Admin, at any stage: closed where it stands — its open tasks close with it, the record stays [server: `task_closed`]. */}
-            {isAdmin && enquiry.stage !== 'closed' && (
-              <CloseRecord
-                label="Close enquiry"
-                what={`enquiry ${enquiry.number}`}
-                preview={() => enquiriesApi.closing(enquiry._id)}
-                close={(reason) => handoffsApi.send({ id: enquiry._id, kind: 'task_closed', note: reason })}
-                onClosed={reload}
-              />
-            )}
+            {/* Admin, at any stage: closed where it stands, with how it ended — dispatched, completed, cancelled; once closed, the outcome can still be recorded or corrected [server: enquiryClosure.service]. */}
+            {isAdmin && <CloseEnquiry enquiry={enquiry} onClosed={reload} />}
             {/* Admin only: the enquiry and every task on it go — refused while an order, money or the plant's work stands on it [server: deletion.service]. */}
             {isAdmin && (
               <DeleteRecord
@@ -731,6 +723,13 @@ export default function EnquiryDetail() {
 
       {/* At the top: the EDD as it stands, first promised, its moves, and any change the plant asked — answered right here [server: eddChange.service]. */}
       <div className="mb-5"><EnquiryEddTrack enquiryId={enquiry._id} onChanged={reload} /></div>
+
+      {/* Closed by Admin with how it ended — dispatched, completed, cancelled [CloseEnquiry]. */}
+      {enquiry.stage === 'closed' && enquiry.closure?.outcome && (
+        <div className="mb-5">
+          <Notice tone={enquiry.status === 'lost' ? 'danger' : 'success'}><ClosureLine enquiry={enquiry} /></Notice>
+        </div>
+      )}
 
       {enquiry.status === 'lost' && (
         <div className="mb-5">

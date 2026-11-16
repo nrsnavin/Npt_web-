@@ -39,8 +39,10 @@ test('the enquiries list has a Closed view, and Open keeps Task Closed out', () 
   assert.match(page, /open: view === 'closed' \? 'false' : !forCustomer && !source && !plantStage && \(view === 'open' \|\| view === 'due'\) \? 'true' : undefined/);
 });
 
-test('a buyer card starts with the WhatsApp number as the mobile, still editable', () => {
+test('a buyer card ticks WhatsApp as the same as the mobile; unticked, its own box', () => {
   const cards = read('pages/BuyerCards.jsx');
-  assert.match(cards, /whatsapp: card\.reading\?\.whatsapp \|\| card\.reading\?\.mobile \|\| '',/);
-  assert.match(cards, /<ReadField \{\.\.\.common\} label="WhatsApp" name="whatsapp" inputMode="tel" \/>/);
+  assert.match(cards, /whatsappSame: !card\.reading\?\.whatsapp \|\| !card\.reading\?\.mobile \|\| card\.reading\.whatsapp === card\.reading\.mobile,/);
+  assert.match(cards, /WhatsApp is the same as mobile/);
+  assert.match(cards, /\{!fields\.whatsappSame && <ReadField \{\.\.\.common\} label="WhatsApp" name="whatsapp" inputMode="tel" \/>\}/);
+  assert.match(cards, /whatsapp: fields\.whatsappSame \? fields\.mobile : fields\.whatsapp/);
 });

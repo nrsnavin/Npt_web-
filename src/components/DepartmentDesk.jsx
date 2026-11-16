@@ -208,7 +208,8 @@ export default function DepartmentDesk({ enquiry, onChanged }) {
   const owner = String(enquiry.assignedTo?._id || enquiry.assignedTo || '');
   const load = useCallback(() => {
     handoffsApi.list(enquiry._id).then(setHistory).catch((failure) => setProblem(failure.message));
-  }, [enquiry._id, owner]);
+    /* And when its stage moves from outside the desk — Admin closing it from the page's header [CloseEnquiry]. */
+  }, [enquiry._id, owner, enquiry.stage]);
   useEffect(load, [load]);
 
   const stage = history?.stage || enquiry.stage || 'enquiry';

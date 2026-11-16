@@ -58,8 +58,11 @@ test('Admin closes an enquiry, a task or a team job where it stands — with a r
   assert.match(dialog, /plan\.tasks\.map\(\(row\) => <li key=\{row\._id\}>\{row\.title\}<\/li>\)/, 'what closes with it');
   assert.match(dialog, /Kept open until the money is in/);
   const enquiry = read('pages/EnquiryDetail.jsx');
-  assert.match(enquiry, /\{isAdmin && enquiry\.stage !== 'closed' && \(\s*<CloseRecord\s+label="Close enquiry"/);
-  assert.match(enquiry, /close=\{\(reason\) => handoffsApi\.send\(\{ id: enquiry\._id, kind: 'task_closed', note: reason \}\)\}/);
+  /* The enquiry closes with how it ended — its own dialog, the same list of what closes with it [CloseEnquiry]. */
+  assert.match(enquiry, /\{isAdmin && <CloseEnquiry enquiry=\{enquiry\} onClosed=\{reload\} \/>\}/);
+  const closeEnquiry = read('components/CloseEnquiry.jsx');
+  assert.match(closeEnquiry, /enquiriesApi\.closing\(enquiry\._id\)/);
+  assert.match(closeEnquiry, /Kept open until the money is in/);
   const panel = read('components/TaskPanel.jsx');
   assert.match(panel, /\{!task\.completed && task\.kind && !task\.holds && \(\s*<CloseRecord\s+label="Close task"/);
   assert.match(panel, /workspace\.todos\.adminClose\(\{ id: task\._id, reason \}\)/);
