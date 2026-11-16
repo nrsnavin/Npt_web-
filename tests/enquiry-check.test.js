@@ -23,6 +23,7 @@ test('the form opens with what was captured — the buyer’s own details from t
   assert.deepEqual(checkFieldsOf(enquiry), {
     company: 'Premier Sundari C',
     contactPerson: 'Ravi',
+    mobile: '',
     whatsapp: '+919865879657',
     modelNumber: 'PTR - 322',
     quantity: '1677',
@@ -36,8 +37,31 @@ test('before there is a customer, the prospect carries them', () => {
   const fields = checkFieldsOf({ prospect: { name: 'Dasa Knit', contactPerson: 'Kumar', mobile: '9840011223' }, requirement: {} });
   assert.equal(fields.company, 'Dasa Knit');
   assert.equal(fields.contactPerson, 'Kumar');
-  assert.equal(fields.whatsapp, '9840011223', 'the mobile when no WhatsApp number was taken');
+  assert.equal(fields.mobile, '9840011223');
   assert.equal(fields.quantity, '');
+});
+
+test('WhatsApp is the same as the mobile unless they differ; ticked, the save sends the mobile as WhatsApp', async () => {
+  const { readFileSync } = await import('node:fs');
+  const read = (path) => readFileSync(new URL(`../src/${path}`, import.meta.url), 'utf8');
+  const prospect = { prospect: { name: 'Dasa Knit', mobile: '9840011223' }, requirement: {} };
+  const form = checkFormOf(prospect);
+  assert.equal(form.whatsappSame, true);
+  assert.equal(form.mobile, '9840011223');
+  /* A number kept only as WhatsApp opens as the mobile, ticked. */
+  const old = checkFormOf({ customer: { name: 'Old', whatsapp: '+919865879657', contacts: [] }, requirement: {} });
+  assert.deepEqual([old.mobile, old.whatsappSame], ['+919865879657', true]);
+  /* Two different numbers: unticked, each shown. */
+  const two = checkFormOf({ prospect: { name: 'Two', mobile: '9840011223', whatsapp: '9840099999' }, requirement: {} });
+  assert.deepEqual([two.whatsappSame, two.whatsapp], [false, '9840099999']);
+  const opened = checkFieldsOf(prospect);
+  const changed = checkPayloadOf({ ...form, mobile: '9840055555' }, opened, { _id: 'e1' });
+  assert.equal(changed.mobile, '9840055555');
+  assert.equal(changed.whatsapp, '9840055555', 'ticked: WhatsApp follows the mobile');
+  const own = checkPayloadOf({ ...form, whatsappSame: false, whatsapp: '9840077777' }, opened, { _id: 'e1' });
+  assert.equal(own.whatsapp, '9840077777');
+  assert.match(read('components/EnquiryCheckCard.jsx'), /WhatsApp is the same as mobile/);
+  assert.match(read('components/EnquiryCheckCard.jsx'), /\{!form\.whatsappSame && \(/);
 });
 
 test('the resin reads as people write it; "plastic" says nothing and is left out', () => {

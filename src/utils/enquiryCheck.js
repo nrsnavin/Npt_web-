@@ -44,7 +44,9 @@ export function checkFieldsOf(enquiry = {}) {
   return {
     company: text(customer?.name || prospect.name),
     contactPerson: text(primary?.name || prospect.contactPerson),
-    whatsapp: text(customer ? customer.whatsapp || customer.mobile : prospect.whatsapp || prospect.mobile),
+    /* The number read off the chat box, and the WhatsApp number as stored — the form ticks "same" when they agree. */
+    mobile: text(customer ? customer.mobile : prospect.mobile),
+    whatsapp: text(customer ? customer.whatsapp : prospect.whatsapp),
     modelNumber: text(requirement.modelNumber || enquiry.mould?.mouldCode),
     quantity: text(requirement.quantity),
     materialColour: materialColourOf(requirement),
@@ -55,13 +57,24 @@ export function checkFieldsOf(enquiry = {}) {
 }
 
 /** What the form opens with: the record's values, and the owner it should probably have. */
-export const checkFormOf = (enquiry = {}) => ({ ...checkFieldsOf(enquiry), assignedTo: suggestedOwnerOf(enquiry).id });
+/** The last ten digits — "+91 98658 70001" and "9865870001" are one number. */
+const digitsOf = (value) => text(value).replace(/\D/g, '').slice(-10);
+
+export function checkFormOf(enquiry = {}) {
+  const fields = checkFieldsOf(enquiry);
+  /* A number kept only as WhatsApp (older drafts) opens as the mobile; "same" is ticked unless they differ. */
+  const mobile = fields.mobile || fields.whatsapp;
+  const whatsappSame = !fields.whatsapp || !fields.mobile || digitsOf(fields.whatsapp) === digitsOf(fields.mobile);
+  return { ...fields, mobile, whatsapp: whatsappSame ? '' : fields.whatsapp, whatsappSame, assignedTo: suggestedOwnerOf(enquiry).id };
+}
 
 /** What a save sends: only what was changed, and the version it was read at. */
 export function checkPayloadOf(form, opened, enquiry = {}) {
   const payload = {};
+  /* Ticked: WhatsApp is the mobile number. */
+  const values = form.whatsappSame ? { ...form, whatsapp: form.mobile } : form;
   for (const key of Object.keys(opened)) {
-    const now = text(form[key]).trim();
+    const now = text(values[key]).trim();
     if (now === text(opened[key]).trim()) continue;
     if (key === 'quantity') payload.quantity = now === '' ? null : Number(now);
     else payload[key] = now;

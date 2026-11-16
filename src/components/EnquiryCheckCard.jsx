@@ -155,9 +155,28 @@ export default function EnquiryCheckCard({ enquiry, canWrite, onSaved }) {
         <Box label="Contact person">
           <input className={fieldClass} value={form.contactPerson} onChange={set('contactPerson')} readOnly={readOnly} placeholder="Enter contact name" aria-label="Contact person" />
         </Box>
-        <Box label="WhatsApp number">
-          <input className={fieldClass} value={form.whatsapp} onChange={set('whatsapp')} readOnly={readOnly} inputMode="tel" placeholder="+91 98xxx xxxxx" aria-label="WhatsApp number" />
+        <Box label="Mobile number">
+          <input className={fieldClass} value={form.mobile} onChange={set('mobile')} readOnly={readOnly} inputMode="tel" placeholder="+91 98xxx xxxxx" aria-label="Mobile number" />
         </Box>
+        {/* The number in the chat box is the buyer's WhatsApp too, unless unticked [utils/enquiryCheck.js]. */}
+        <div className="col-span-2 space-y-2">
+          <label className="flex items-center gap-2 text-sm text-steel-200">
+            <input
+              id={`check-whatsapp-same-${enquiry._id}`}
+              type="checkbox"
+              className="h-4 w-4 accent-flame-500"
+              checked={Boolean(form.whatsappSame)}
+              disabled={readOnly}
+              onChange={(event) => setForm({ ...form, whatsappSame: event.target.checked })}
+            />
+            WhatsApp is the same as mobile
+          </label>
+          {!form.whatsappSame && (
+            <Box label="WhatsApp number">
+              <input className={fieldClass} value={form.whatsapp} onChange={set('whatsapp')} readOnly={readOnly} inputMode="tel" placeholder="+91 98xxx xxxxx" aria-label="WhatsApp number" />
+            </Box>
+          )}
+        </div>
         <Box label="Model">
           <input className={fieldClass} value={form.modelNumber} onChange={set('modelNumber')} readOnly={readOnly} placeholder="Model asked for" aria-label="Model" />
         </Box>

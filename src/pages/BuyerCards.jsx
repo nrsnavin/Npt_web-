@@ -238,8 +238,9 @@ function CardEditor({ card, onDone }) {
   useEffect(() => {
     setFields({
       ...(card.reading || {}),
-      /* The mobile is nearly always the WhatsApp number too: filled in, and changed here when it is not. */
-      whatsapp: card.reading?.whatsapp || card.reading?.mobile || '',
+      /* The mobile is nearly always the WhatsApp number too: "same" ticked, unless the picture shows another. */
+      whatsapp: card.reading?.whatsapp && card.reading.whatsapp !== card.reading?.mobile ? card.reading.whatsapp : '',
+      whatsappSame: !card.reading?.whatsapp || !card.reading?.mobile || card.reading.whatsapp === card.reading.mobile,
       nextAction: '', nextFollowUpDate: tomorrowIso(), source: 'phone', estimatedValue: '', assignedTo: '',
       /* A buyer the plant already has — the one found by their number, to begin with. */
       customer: card.matchedCustomer?._id || '',
@@ -264,7 +265,7 @@ function CardEditor({ card, onDone }) {
    */
   const [suggested, setSuggested] = useState({ customers: [], models: {} });
   const asking = useDebounced(JSON.stringify({
-    company: fields.company || '', mobile: fields.mobile || '', whatsapp: fields.whatsapp || '', email: fields.email || '',
+    company: fields.company || '', mobile: fields.mobile || '', whatsapp: (fields.whatsappSame ? fields.mobile : fields.whatsapp) || '', email: fields.email || '',
     city: fields.city || '', keys: models.map((row) => row.key), words: models.map(suggestWordsOf),
   }), 450);
   useEffect(() => {
@@ -294,7 +295,8 @@ function CardEditor({ card, onDone }) {
       const value = String(fields.estimatedValue ?? '').replace(/,/g, '').trim();
       const done = await cardsApi.confirm({
         id: card._id,
-        ...withoutStepFields({ ...fields, models: undefined }),
+        /* Ticked: WhatsApp is the mobile number. */
+        ...withoutStepFields({ ...fields, models: undefined, whatsappSame: undefined, whatsapp: fields.whatsappSame ? fields.mobile : fields.whatsapp }),
         customer: fields.customer || undefined,
         ...nextStepOf(fields, models),
         items: itemsOf(models),
@@ -412,7 +414,20 @@ function CardEditor({ card, onDone }) {
             <ReadField {...common} label="Contact name" name="contactName" />
             <ReadField {...common} label="Designation" name="designation" />
             <ReadField {...common} label="Mobile" name="mobile" inputMode="tel" />
-            <ReadField {...common} label="WhatsApp" name="whatsapp" inputMode="tel" />
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 pt-6 text-sm text-steel-200">
+                <input
+                  id={`card-whatsapp-same-${card._id}`}
+                  type="checkbox"
+                  className="h-4 w-4 accent-flame-500"
+                  checked={Boolean(fields.whatsappSame)}
+                  disabled={off}
+                  onChange={(event) => set('whatsappSame', event.target.checked)}
+                />
+                WhatsApp is the same as mobile
+              </label>
+              {!fields.whatsappSame && <ReadField {...common} label="WhatsApp" name="whatsapp" inputMode="tel" />}
+            </div>
             <ReadField {...common} label="Email" name="email" inputMode="email" />
             <ReadField {...common} label="City" name="city" />
             <ReadField {...common} label="State" name="state" />
