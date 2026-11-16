@@ -45,4 +45,6 @@ test('a buyer card ticks WhatsApp as the same as the mobile; unticked, its own b
   assert.match(cards, /WhatsApp is the same as mobile/);
   assert.match(cards, /\{!fields\.whatsappSame && <ReadField \{\.\.\.common\} label="WhatsApp" name="whatsapp" inputMode="tel" \/>\}/);
   assert.match(cards, /whatsapp: fields\.whatsappSame \? fields\.mobile : fields\.whatsapp/);
+  // Unticking starts the WhatsApp box from the mobile number, to change in place.
+  assert.match(cards, /whatsapp: same \? current\.whatsapp : current\.whatsapp \|\| current\.mobile \|\| ''/);
 });
