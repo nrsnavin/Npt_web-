@@ -8,6 +8,7 @@ import DeliveryUrgencyDialog from './DeliveryUrgencyDialog.jsx';
 import TaskPanel from './TaskPanel.jsx';
 import { DispatchModelList } from './DispatchModels.jsx';
 import CustomerFilter, { QueuePlace, byCustomer, placesForTask, useQueuePlaces } from './CustomerFilter.jsx';
+import { TaskShotThumb } from './Screenshots.jsx';
 
 /**
  * The Dispatch desk as a table — one line a request, where the cards ran long. Each row: the
@@ -115,6 +116,8 @@ export default function DispatchTable({ rows: all = [], me, onChanged }) {
                 <td className="whitespace-nowrap px-3 py-2.5">
                   {enquiry ? <Link to={`/enquiries/${enquiry._id}`} className="font-semibold text-steel-100 hover:text-accent">{enquiry.number}</Link> : <span className="text-steel-300">Team task</span>}
                   {row.records?.order?.number && <span className="block text-xs text-steel-400">{row.records.order.number}</span>}
+                  {/* The enquiry's screenshots forwarded to this task — a small picture, click to enlarge [Screenshots.jsx]. */}
+                  <div className="mt-1 empty:hidden"><TaskShotThumb task={task} /></div>
                 </td>
                 <td className="max-w-[12rem] px-3 py-2.5 text-steel-200">
                   <span className="line-clamp-2">{models || '—'}</span>

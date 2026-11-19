@@ -10,6 +10,7 @@ import { formatDate } from '../utils/format.js';
 import { piecesOf as pieces, rupeesOf as rupees, sizeWords } from '../utils/soDesk.js';
 import CustomerFilter, { byCustomer } from './CustomerFilter.jsx';
 import CustomerName from './CustomerName.jsx';
+import { TaskScreenshots } from './Screenshots.jsx';
 
 /**
  * The SO team's desk [server: services/soDesk.service.js]. Every open SO request, read for what
@@ -146,6 +147,8 @@ function SoCard({ row, onChanged, onAsk }) {
       <Question question={so.question} task={task} onChanged={onChanged} />
       <Answered answered={so.answered} question={so.question} />
       <TaskFacts button={button} task={task} />
+      {/* The WhatsApp chat or card the enquiry was made from, forwarded to the SO request — click to enlarge [Screenshots.jsx]. */}
+      <TaskScreenshots task={task} />
       {task.notes && <p className="text-sm text-steel-300">“{task.notes}”</p>}
       <p className="text-xs text-steel-500">Here since {formatDate(row.since)} · {task.user?.name ? `with ${task.user.name}` : 'nobody has picked it up'}{owner ? ` · ${owner}’s buyer` : ''}</p>
       <div className="border-t border-line/[0.06] pt-3"><TaskWorkflow todo={task} onChanged={onChanged} /></div>

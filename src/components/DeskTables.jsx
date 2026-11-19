@@ -14,6 +14,7 @@ import TaskPanel from './TaskPanel.jsx';
 import { CommentDialog, ContactDialog, MoveForm, UploadDialog } from './TaskWorkflow.jsx';
 import { TaskPdfChips, useTaskPdfs } from './TaskPdfs.jsx';
 import CustomerFilter, { QueuePlace, byCustomer, placesForTask, useQueuePlaces } from './CustomerFilter.jsx';
+import { TaskShotThumb } from './Screenshots.jsx';
 
 /**
  * The Reception, Payment Collection, Payment Recovery and Accounts desks as tables — one line a
@@ -297,6 +298,8 @@ function CustomerCell({ row, children }) {
       {/* Where the job stands in the plant's queues [server: queuePlaces.service]. */}
       <QueuePlace places={row.places} className="mt-0.5" />
       <TaskPdfChips files={row.pdfs} role="sent" />
+      {/* The enquiry's screenshots forwarded to this task — a small picture, click to enlarge [Screenshots.jsx]. */}
+      <div className="mt-1 empty:hidden"><TaskShotThumb task={row.task} /></div>
       {children}
     </td>
   );

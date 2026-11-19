@@ -15,6 +15,7 @@ import {
 import { TaskPdfChips, useTaskPdfs } from './TaskPdfs.jsx';
 import CustomerFilter, { byCustomer } from './CustomerFilter.jsx';
 import CustomerName from './CustomerName.jsx';
+import { TaskShotThumb } from './Screenshots.jsx';
 
 /**
  * The sampling department's work queue [server: sampleDashboard.controller `sampleQueue`].
@@ -62,6 +63,8 @@ function CustomerCell({ row }) {
         {row.fresh && <span className="rounded-full bg-flame-500/15 px-2 py-0.5 text-[0.75rem] font-bold uppercase tracking-wide text-flame-400">New Enquiry</span>}
       </div>
       {row.requestedBy && <p className="mt-0.5 text-xs text-steel-400">Requested by: {row.requestedBy}</p>}
+      {/* The enquiry's screenshots forwarded to its Sampling task — click to enlarge [server: sampleDashboard shotsTask]. */}
+      <div className="mt-1 empty:hidden"><TaskShotThumb task={row.shotsTask} /></div>
       <p className="mt-0.5 text-xs text-steel-300">
         {row.models.map((item) => `${item.model || 'New model'}: ${item.quantity} pcs`).join(' · ')}
       </p>
