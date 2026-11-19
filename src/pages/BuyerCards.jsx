@@ -245,7 +245,7 @@ function CardEditor({ card, onDone }) {
       /* A buyer the plant already has — the one found by their number, to begin with. */
       customer: card.matchedCustomer?._id || '',
       /* The next step, picked; a sample or a quotation also raises that department's task. */
-      nextStep: '', stepColourType: '', stepPieces: '2', stepTargetPrice: '', stepNote: '',
+      nextStep: '', stepColourType: '', stepPieces: '2', stepTargetPrice: '', stepNote: '', stepForwardShots: true,
     });
     setModels(modelsFrom(card.reading));
     setProblem(null);
@@ -505,6 +505,22 @@ function CardEditor({ card, onDone }) {
                 >
                   <input className="input" value={fields.stepNote || ''} disabled={off} onChange={(event) => set('stepNote', event.target.value)} aria-label="Instruction" />
                 </Field>
+              )}
+              {['sample', 'quote'].includes(fields.nextStep) && (
+                <label className="flex items-start gap-2 text-sm text-steel-200 sm:col-span-2 xl:col-span-1 2xl:col-span-2">
+                  <input
+                    id={`card-forward-shots-${card._id}`}
+                    type="checkbox"
+                    className="mt-0.5 h-4 w-4 accent-flame-500"
+                    checked={fields.stepForwardShots !== false}
+                    disabled={off}
+                    onChange={(event) => set('stepForwardShots', event.target.checked)}
+                  />
+                  <span>
+                    Forward the screenshots to {fields.nextStep === 'sample' ? 'Sampling' : 'Quotation'}
+                    <span className="block text-xs text-steel-400">They see this picture on the task card; it stays on the enquiry either way.</span>
+                  </span>
+                </label>
               )}
               <Field label="Follow up on" required>
                 <input

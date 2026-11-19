@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { handoffs as handoffsApi, orders as ordersApi, workspace } from '../api/endpoints.js';
+import { enquiries as enquiriesApi, handoffs as handoffsApi, orders as ordersApi, workspace } from '../api/endpoints.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useToast } from '../context/ToastContext.jsx';
 import { Field, Modal, Notice } from './ui.jsx';
 import { CustomerSelect } from './pickers.jsx';
 import RegisterPick from './RegisterPick.jsx';
+import { SHOT_WORD, ShotStrip } from './Screenshots.jsx';
 import { SAMPLE_HANDOVERS } from '../utils/pipeline.js';
 import { EDD_ASK_KINDS } from '../utils/edd.js';
 import {
@@ -199,6 +200,21 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
   const [updateEnquiry, setUpdateEnquiry] = useState(true);
   /* Production asked with the hanger's details left blank: sent only once the person says so. */
   const [bareOk, setBareOk] = useState(false);
+  /*
+   * The screenshots the enquiry was made from (WhatsApp chat, email, card), forwarded to the task
+   * when this stays ticked — the department then sees them on its card [server: enquiryShots.service].
+   * Only on an enquiry's own form, and only for whoever may see them (its marketing person, Admin).
+   */
+  const [shots, setShots] = useState(null);
+  const [forwardShots, setForwardShots] = useState(true);
+  const enquiryId = enquiry?._id;
+  useEffect(() => {
+    let live = true;
+    setShots(null);
+    if (enquiryId && !fromTask) enquiriesApi.source(enquiryId).then((data) => live && setShots(data?.images ? data : null)).catch(() => {});
+    return () => { live = false; };
+  }, [enquiryId, fromTask]);
+  const loadShot = useMemo(() => (enquiryId ? (n) => enquiriesApi.sourceImage(enquiryId, n) : null), [enquiryId]);
   useEffect(() => {
     if (!button || !prefill) return;
     const fresh = startingAnswers(button, prefill);
@@ -261,6 +277,7 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
         ...(asksEdd && edd && edd !== (prefill?.edd || '') ? { edd } : {}),
         ...(asksEdd && edd && team ? { edd } : {}),
         ...(running && stopOk ? { revise: true } : {}),
+        ...(shots && forwardShots && !fromTask && !team ? { forwardShots: true } : {}),
       };
       const sent = fromTask
         ? await workspace.todos.ask({ id: fromTask._id, ...payload }).then((answer) => ({ task: answer.raised, addedTo: answer.addedTo }))
@@ -410,6 +427,20 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
           <Field label="Attach PDF or photo" hint="Optional — a PDF up to 1 MB, or a photo (JPEG, PNG, HEIC) up to 5 MB. The department sees it on the task." className="sm:col-span-2" error={tooBig ? (photo ? 'That photo is over 5 MB' : 'That PDF is over 1 MB') : notPdf ? 'Attach a PDF or a photo (JPEG, PNG, HEIC)' : undefined}>
             <input type="file" accept="application/pdf,image/*,.heic,.heif" className="input" aria-label="Attach PDF or photo" onChange={(event) => setFile(event.target.files?.[0] || null)} />
           </Field>
+          {shots && loadShot && !team && (
+            <div className="rounded-xl border border-line/[0.1] p-3 sm:col-span-2" aria-label="Screenshots from the enquiry">
+              <label className="flex items-start gap-2 text-sm text-steel-200">
+                <input id="forward-shots" type="checkbox" className="mt-0.5 h-4 w-4 accent-flame-500" checked={forwardShots} onChange={(event) => setForwardShots(event.target.checked)} />
+                <span>
+                  Forward the screenshots to this task
+                  <span className="block text-xs text-steel-400">
+                    The {SHOT_WORD[shots.kind] || 'screenshot'} this enquiry was made from{shots.images > 1 ? ` (${shots.images} pictures)` : ''} — the department sees {shots.images > 1 ? 'them' : 'it'} on the task card. Click one to enlarge.
+                  </span>
+                </span>
+              </label>
+              <div className="mt-2 pl-6"><ShotStrip shots={shots} load={loadShot} size="sm" /></div>
+            </div>
+          )}
           {orders.length > 1 && (
             <Field label="For sales order" hint="The enquiry has more than one open SO — say which this is for" required>
               <select className="input" value={order} onChange={(event) => setOrder(event.target.value)} required>

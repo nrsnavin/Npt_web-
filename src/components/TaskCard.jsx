@@ -13,6 +13,7 @@ import TaskEdd from './TaskEdd.jsx';
 import { EDD_CHIP, eddChipOf } from '../utils/edd.js';
 import TaskPdfLink from './TaskPdfLink.jsx';
 import TaskQueries from './TaskQueries.jsx';
+import { TaskScreenshots } from './Screenshots.jsx';
 
 /**
  * One department task on the enquiry, read in a glance and opened for the rest
@@ -213,6 +214,8 @@ export default function TaskCard({ task, mayAct = false, open: openAtFirst = fal
             {when && <span className="sm:hidden">{` · ${when.late ? 'late' : when.label.toLowerCase()} ${formatDate(when.date)}`}</span>}
           </p>
           <TaskEdd todo={task} mayAct={mayAct} onChanged={onChanged} />
+          {/* The enquiry's screenshots, when they were forwarded to this task [server: enquiryShots.service]. */}
+          <TaskScreenshots task={task} onChanged={onChanged} />
           {task.brief && (
             <div className="rounded-lg border border-line/[0.06] p-2.5">
               <p className="mb-1 text-xs font-semibold text-steel-400">What was asked</p>
