@@ -17,6 +17,7 @@ import EnquiryDocuments from '../components/EnquiryDocuments.jsx';
 import EnquiryActivities from '../components/EnquiryActivities.jsx';
 import EnquiryContactPanel from '../components/EnquiryContactPanel.jsx';
 import EnquiryCheckCard from '../components/EnquiryCheckCard.jsx';
+import { EnquiryScreenshots } from '../components/Screenshots.jsx';
 import BuyerContactCard from '../components/BuyerContactCard.jsx';
 import TradingBadge, { isTradingLine } from '../components/TradingBadge.jsx';
 import DelegateEnquiry from '../components/DelegateEnquiry.jsx';
@@ -753,6 +754,8 @@ export default function EnquiryDetail() {
             */}
           {/* The plant's own screen: the twelve stages, and the buttons that send work to a
               department. The sales actions below still move the quote along. */}
+          {/* The screenshots it was made from — at the top on a phone; in the right column on a wide screen. */}
+          <EnquiryScreenshots enquiryId={enquiry._id} className="lg:hidden" />
           {/* Read off a photo and not yet checked: corrected and checked before any department is asked. */}
           {enquiry.checkPending && <EnquiryCheckCard enquiry={enquiry} canWrite={mayWrite} onSaved={reload} />}
           {/* Once the order is with the plant: where each model is, at a glance — the first thing on the page. */}
@@ -832,6 +835,8 @@ export default function EnquiryDetail() {
         </div>
 
         <div className="space-y-5">
+          {/* Top right: the WhatsApp chat, email or card the enquiry was made from — small pictures, click to enlarge [components/Screenshots.jsx]. */}
+          <EnquiryScreenshots enquiryId={enquiry._id} className="hidden lg:block" />
           {/* Who to talk to — order, delivery, accounts — or the prospect, and converting them. */}
           <BuyerContactCard
             enquiry={enquiry}

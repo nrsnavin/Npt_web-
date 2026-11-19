@@ -9,6 +9,7 @@ import SalesOrderDraft from './SalesOrderDraft.jsx';
 import TaskVisits from './TaskVisits.jsx';
 import TaskFieldVisits from './TaskFieldVisits.jsx';
 import TaskQueries from './TaskQueries.jsx';
+import { TaskScreenshots } from './Screenshots.jsx';
 import TaskEddChanges from './EddChanges.jsx';
 import StockCheck from './StockCheck.jsx';
 import PpSampleCard, { ChallansToInvoice, PpChallanAction } from './PpSample.jsx';
@@ -103,6 +104,9 @@ export default function TaskPanel({ task, startWith, mayWork, onClose, onChanged
             </p>
           </Notice>
         )}
+
+        {/* The enquiry's screenshots once forwarded here; not yet, Forward the screenshots for its marketing person or Admin [server: enquiryShots.service]. */}
+        <TaskScreenshots task={task} withForward onChanged={onChanged} />
 
         {(task.brief || task.attachment) && (
           <div className="rounded-xl border border-line/[0.08] p-3">

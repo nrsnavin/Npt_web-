@@ -175,10 +175,12 @@ export function nextStepOf(fields, models = []) {
       },
     };
   }
+  /* The draft's screenshots go to that task unless unticked [server: enquiryShots.service]. */
+  if (out.task) out.task.forwardShots = fields.stepForwardShots !== false;
   return out;
 }
 
-const STEP_FIELDS = ['nextStep', 'stepColourType', 'stepPieces', 'stepTargetPrice', 'stepNote'];
+const STEP_FIELDS = ['nextStep', 'stepColourType', 'stepPieces', 'stepTargetPrice', 'stepNote', 'stepForwardShots'];
 /** The draft's own fields, without the next-step form's — those go as `nextStepOf` says. */
 export const withoutStepFields = (fields) =>
   Object.fromEntries(Object.entries(fields).filter(([key]) => !STEP_FIELDS.includes(key)));

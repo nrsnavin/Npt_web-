@@ -723,9 +723,19 @@ export const enquiries = {
   /** Each model as it is ready (`by_model`), or all together (`together`). */
   setDispatchPlan: ({ id, ...payload }) => api.post(`/enquiries/${id}/dispatch-plan`, payload, { feedback: false }).then(unwrap),
   /** The picture the enquiry was read from, or null when it was typed in. */
-  source: (id) => api.get(`/enquiries/${id}/source`).then(unwrap),
+  source: (id) => api.get(`/enquiries/${id}/source`, { feedback: false }).then(unwrap),
   /** That picture, as a blob — the route needs the session's token. */
   sourceImage: (id, n = 0) => api.get(`/enquiries/${id}/source/image`, { params: n ? { n } : undefined, responseType: 'blob', feedback: false }).then((r) => r.data),
+};
+
+/**
+ * The enquiry's screenshots on a task [server: routes/enquiryShots.routes.js] — shown once forwarded
+ * to it; forwarded later by the enquiry's marketing person or Admin.
+ */
+export const taskShots = {
+  of: (id) => api.get(`/workspace/todos/${id}/screenshots`, { feedback: false }).then(unwrap),
+  image: (id, n = 0) => api.get(`/workspace/todos/${id}/screenshots/image`, { params: n ? { n } : undefined, responseType: 'blob', feedback: false }).then((r) => r.data),
+  forward: (id) => api.post(`/workspace/todos/${id}/screenshots/forward`).then(unwrap),
 };
 
 /**

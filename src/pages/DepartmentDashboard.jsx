@@ -36,6 +36,7 @@ import DispatchTable from '../components/DispatchTable.jsx';
 import DeskTables, { DESK_TABLE_KINDS, takesTable } from '../components/DeskTables.jsx';
 import PaymentsToConfirm from '../components/PaymentsToConfirm.jsx';
 import { DispatchModelList } from '../components/DispatchModels.jsx';
+import { TaskScreenshots } from '../components/Screenshots.jsx';
 
 /**
  * A department's dashboard [server: handoff.service `enquiriesHeldBy`, `departmentDashboard`].
@@ -178,6 +179,8 @@ function EnquiryCard({ row, department, me, onChanged, query = false }) {
       )}
       {/* What was asked, as it was entered on the form — every answer, each model in its own block. */}
       <TaskFacts button={button} task={task} className="-mt-1" />
+      {/* The WhatsApp chat or card the enquiry was made from, when forwarded to this task — click to enlarge [server: enquiryShots.service]. */}
+      <TaskScreenshots task={task} />
 
       <div className="flex flex-wrap gap-1.5">
         <span className="rounded-md bg-flame-500/10 px-2 py-0.5 text-xs font-semibold text-flame-400">{enquiry ? enquiry.stageLabel : `From ${task.createdBy?.name || 'Admin'}`}</span>
