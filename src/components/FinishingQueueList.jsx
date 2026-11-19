@@ -11,6 +11,7 @@ import { DELIVERY_TONE, DeliveryBadge, inDanger } from './DeliveryRisk.jsx';
 import ModelJourney from './ModelJourney.jsx';
 import CustomerFilter, { QueuePlace, byCustomer } from './CustomerFilter.jsx';
 import CustomerName from './CustomerName.jsx';
+import { TaskShotThumb } from './Screenshots.jsx';
 
 /**
  * Printing's and Assembly's queues, read at a glance [server: finishingQueue.controller]: one
@@ -239,6 +240,8 @@ export default function FinishingQueueList({ team, compact = false, onRows, onCh
                   </div>
                   {/* Whose it is, and the goods. */}
                   <div className="min-w-0">
+                    {/* The enquiry's screenshots forwarded to this task — a small picture, click to enlarge [Screenshots.jsx]. */}
+                    <TaskShotThumb task={row.task} className="float-right ml-2" />
                     {row.enquiry.team
                       ? <p className="font-bold text-steel-50">Team task{row.task.raisedBy?.name ? <span className="font-normal text-steel-400"> · {row.task.raisedBy.name}</span> : null}</p>
                       : <Link to={`/enquiries/${row.enquiry._id}`} className="font-bold text-steel-50 hover:text-accent">{row.enquiry.number}</Link>}

@@ -194,3 +194,67 @@ export function TaskScreenshots({ task, withForward = false, onChanged }) {
   }
   return null;
 }
+
+/**
+ * A row's small picture: the first screenshot forwarded to the task, with how many there are; a
+ * click opens them big. For the queues and desk tables — Production, Printing, Assembly, Dispatch,
+ * the SO desk — where a strip would crowd the row. Nothing when none were forwarded.
+ */
+export function TaskShotThumb({ task, className = '' }) {
+  const taskId = task?._id;
+  const forwarded = Boolean(task?.shotsForwarded);
+  const [shots, setShots] = useState(null);
+  const [first, setFirst] = useState(null);
+  const [urls, setUrls] = useState(null);
+  useEffect(() => {
+    let live = true;
+    let made;
+    setShots(null);
+    setFirst(null);
+    if (forwarded && taskId) {
+      taskShotsApi.of(taskId)
+        .then((data) => {
+          if (!live || !data?.shots?.images) return null;
+          setShots(data.shots);
+          return taskShotsApi.image(taskId, 0).then((blob) => {
+            if (!live) return;
+            made = URL.createObjectURL(blob);
+            setFirst(made);
+          });
+        })
+        .catch(() => {});
+    }
+    return () => {
+      live = false;
+      if (made) URL.revokeObjectURL(made);
+    };
+  }, [taskId, forwarded]);
+  useEffect(() => () => (urls || []).forEach((url) => url && URL.revokeObjectURL(url)), [urls]);
+  if (!shots) return null;
+
+  const open = async (event) => {
+    event.stopPropagation();
+    event.preventDefault();
+    const loaded = await Promise.all(Array.from({ length: shots.images }, (unused, n) => taskShotsApi.image(taskId, n)
+      .then((blob) => URL.createObjectURL(blob)).catch(() => null)));
+    setUrls(loaded);
+  };
+  const title = SHOT_KIND[shots.kind] || 'Screenshot';
+  return (
+    <>
+      <button
+        type="button"
+        onClick={open}
+        className={`relative inline-flex h-12 w-9 flex-none overflow-hidden rounded-md border border-line/[0.15] bg-ink-900 align-middle transition hover:border-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent ${className}`}
+        aria-label={`Screenshots from the enquiry (${shots.images}) — click to enlarge`}
+        title={`${title} the enquiry was made from — click to enlarge`}
+      >
+        {first ? <img src={first} alt="" className="h-full w-full object-cover object-top" /> : <span className="m-auto text-xs text-steel-500">…</span>}
+        {shots.images > 1 && (
+          <span className="absolute bottom-0 right-0 rounded-tl-md bg-black/70 px-1 text-xs font-bold leading-4 text-white">{shots.images}</span>
+        )}
+      </button>
+      {urls && <ShotViewer urls={urls} title={title} onClose={() => setUrls(null)} />}
+    </>
+  );
+}

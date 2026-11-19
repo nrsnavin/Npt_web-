@@ -9,6 +9,7 @@ import { DeliveryBadge, inDanger } from './DeliveryRisk.jsx';
 import { TaskPdfChips, useTaskPdfs } from './TaskPdfs.jsx';
 import CustomerFilter, { QueuePlace, byCustomer, placesForTask, useQueuePlaces } from './CustomerFilter.jsx';
 import CustomerName from './CustomerName.jsx';
+import { TaskShotThumb } from './Screenshots.jsx';
 
 /**
  * The Printing, Assembly and Quality desks, read at a glance [server: deskSummary.service]: one
@@ -60,6 +61,8 @@ export default function FinishingDeskList({ rows: all = [], onChanged }) {
                   <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${tone.chip}`}>{edd ? dueWords(edd) : 'not given yet'}</span>
                 </div>
                 <div className="min-w-0">
+                  {/* The enquiry's screenshots forwarded to this task — a small picture, click to enlarge [Screenshots.jsx]. */}
+                  <TaskShotThumb task={row.task} className="float-right ml-2" />
                   {row.enquiry ? (
                     <Link to={`/enquiries/${row.enquiry._id}`} className="font-bold text-steel-50 hover:text-accent">{row.enquiry.number}</Link>
                   ) : (

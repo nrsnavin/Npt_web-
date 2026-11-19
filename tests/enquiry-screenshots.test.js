@@ -32,7 +32,8 @@ test('the task form forwards the screenshots when the tick stays on', () => {
   const dialog = read('components/DepartmentTaskDialog.jsx');
   assert.match(dialog, /const \[forwardShots, setForwardShots\] = useState\(true\);/);
   assert.match(dialog, /Forward the screenshots to this task/);
-  assert.match(dialog, /\.\.\.\(shots && forwardShots && !fromTask && !team \? \{ forwardShots: true \} : \{\}\)/);
+  assert.match(dialog, /\.\.\.\(shots && !team \? \{ forwardShots \} : \{\}\)/);
+  assert.match(dialog, /if \(enquiryId\) enquiriesApi\.source\(enquiryId\)/, 'asked from another team’s task too');
 });
 
 test('a forwarded task shows them on its card; the panel can forward them later', () => {
@@ -51,4 +52,18 @@ test('the draft’s first task takes the screenshots unless unticked', () => {
   const off = nextStepOf({ ...quote, stepForwardShots: false }, models);
   assert.equal(off.task.forwardShots, false);
   assert.match(read('pages/BuyerCards.jsx'), /Forward the screenshots to \{fields\.nextStep === 'sample' \? 'Sampling' : 'Quotation'\}/);
+});
+
+test('every queue shows a small picture on a row forwarded the screenshots', () => {
+  for (const file of ['ProductionQueueList', 'FinishingQueueList', 'FinishingDeskList']) {
+    assert.match(read(`components/${file}.jsx`), /<TaskShotThumb task=\{row\.task\} className="float-right ml-2" \/>/, file);
+  }
+  assert.match(read('components/DispatchTable.jsx'), /<TaskShotThumb task=\{task\} \/>/);
+  assert.match(read('components/DeskTables.jsx'), /<TaskShotThumb task=\{row\.task\} \/>/);
+  assert.match(read('components/SamplingWorkQueue.jsx'), /<TaskShotThumb task=\{row\.shotsTask\} \/>/);
+  assert.match(read('components/SoDesk.jsx'), /<TaskScreenshots task=\{task\} \/>/);
+  assert.match(read('pages/DepartmentDashboard.jsx'), /<TaskScreenshots task=\{task\} \/>/);
+  const shots = read('components/Screenshots.jsx');
+  assert.match(shots, /export function TaskShotThumb/);
+  assert.match(shots, /const forwarded = Boolean\(task\?\.shotsForwarded\);/);
 });

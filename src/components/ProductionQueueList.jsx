@@ -13,6 +13,7 @@ import ModelJourney from './ModelJourney.jsx';
 import { TaskPdfChips, useTaskPdfs } from './TaskPdfs.jsx';
 import CustomerFilter, { QueuePlace, byCustomer } from './CustomerFilter.jsx';
 import CustomerName from './CustomerName.jsx';
+import { TaskShotThumb } from './Screenshots.jsx';
 
 /**
  * The production queue, read at a glance [server: productionQueue.controller]: one line per
@@ -313,6 +314,8 @@ export default function ProductionQueueList({ compact = false, onRows }) {
                   </div>
                   {/* Whose it is, and what. */}
                   <div className="min-w-0">
+                    {/* The enquiry's screenshots forwarded to this task — a small picture, click to enlarge [Screenshots.jsx]. */}
+                    <TaskShotThumb task={row.task} className="float-right ml-2" />
                     {/* A Production task raised from the customer with no enquiry is its own job. */}
                     {row.enquiry.team
                       ? <p className="font-bold text-steel-50">Team task{row.task.raisedBy?.name ? <span className="font-normal text-steel-400"> · {row.task.raisedBy.name}</span> : null}</p>

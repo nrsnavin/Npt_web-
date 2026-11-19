@@ -203,7 +203,8 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
   /*
    * The screenshots the enquiry was made from (WhatsApp chat, email, card), forwarded to the task
    * when this stays ticked — the department then sees them on its card [server: enquiryShots.service].
-   * Only on an enquiry's own form, and only for whoever may see them (its marketing person, Admin).
+   * On an enquiry's forms — raised from the enquiry or asked from another team's task — for whoever
+   * may see them: its marketing person, Admin, or a team they were forwarded to, which passes them on.
    */
   const [shots, setShots] = useState(null);
   const [forwardShots, setForwardShots] = useState(true);
@@ -211,9 +212,9 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
   useEffect(() => {
     let live = true;
     setShots(null);
-    if (enquiryId && !fromTask) enquiriesApi.source(enquiryId).then((data) => live && setShots(data?.images ? data : null)).catch(() => {});
+    if (enquiryId) enquiriesApi.source(enquiryId).then((data) => live && setShots(data?.images ? data : null)).catch(() => {});
     return () => { live = false; };
-  }, [enquiryId, fromTask]);
+  }, [enquiryId]);
   const loadShot = useMemo(() => (enquiryId ? (n) => enquiriesApi.sourceImage(enquiryId, n) : null), [enquiryId]);
   useEffect(() => {
     if (!button || !prefill) return;
@@ -277,7 +278,8 @@ export default function DepartmentTaskDialog({ enquiry, catalogue, kind: startKi
         ...(asksEdd && edd && edd !== (prefill?.edd || '') ? { edd } : {}),
         ...(asksEdd && edd && team ? { edd } : {}),
         ...(running && stopOk ? { revise: true } : {}),
-        ...(shots && forwardShots && !fromTask && !team ? { forwardShots: true } : {}),
+        /* Ticked or not, said — unticked keeps them off this task even when they carry down the chain. */
+        ...(shots && !team ? { forwardShots } : {}),
       };
       const sent = fromTask
         ? await workspace.todos.ask({ id: fromTask._id, ...payload }).then((answer) => ({ task: answer.raised, addedTo: answer.addedTo }))
